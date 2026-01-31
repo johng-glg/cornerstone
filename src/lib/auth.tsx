@@ -1,0 +1,166 @@
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+
+interface StaffProfile {
+  id: string;
+  user_id: string;
+  company_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  department: string;
+  job_title: string | null;
+  is_active: boolean;
+  avatar_url: string | null;
+}
+
+interface UserRole {
+  role: string;
+}
+
+interface AuthContextType {
+  user: User | null;
+  session: Session | null;
+  staff: StaffProfile | null;
+  roles: string[];
+  loading: boolean;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: Error | null }>;
+  signOut: () => Promise<void>;
+  hasRole: (role: string) => boolean;
+  isAdmin: () => boolean;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [staff, setStaff] = useState<StaffProfile | null>(null);
+  const [roles, setRoles] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        // Defer fetching additional data to avoid deadlock
+        if (session?.user) {
+          setTimeout(() => {
+            fetchUserProfile(session.user.id);
+            fetchUserRoles(session.user.id);
+          }, 0);
+        } else {
+          setStaff(null);
+          setRoles([]);
+        }
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        fetchUserProfile(session.user.id);
+        fetchUserRoles(session.user.id);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchUserProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('staff')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (!error && data) {
+      setStaff(data as StaffProfile);
+    }
+  };
+
+  const fetchUserRoles = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId);
+
+    if (!error && data) {
+      setRoles((data as UserRole[]).map(r => r.role));
+    }
+  };
+
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    return { error };
+  };
+
+  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+        },
+      },
+    });
+
+    return { error };
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setStaff(null);
+    setRoles([]);
+  };
+
+  const hasRole = (role: string) => roles.includes(role);
+  const isAdmin = () => hasRole('admin');
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        staff,
+        roles,
+        loading,
+        signIn,
+        signUp,
+        signOut,
+        hasRole,
+        isAdmin,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
