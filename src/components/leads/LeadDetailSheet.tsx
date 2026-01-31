@@ -1,0 +1,333 @@
+import { useState } from 'react';
+import { useLead, useUpdateLead } from '@/hooks/useLeads';
+import { useLeadActivities, useCreateLeadActivity } from '@/hooks/useLeadActivities';
+import { useCurrentStaff } from '@/hooks/useStaff';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import { 
+  Phone, 
+  Mail, 
+  DollarSign, 
+  Calendar, 
+  User,
+  FileText,
+  MessageSquare,
+  ArrowRightCircle,
+  Loader2,
+  AlertTriangle
+} from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
+
+interface LeadDetailSheetProps {
+  leadId: string | null;
+  onClose: () => void;
+  onConvert: (leadId: string) => void;
+}
+
+export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetProps) {
+  const { data: lead, isLoading } = useLead(leadId ?? undefined);
+  const { data: activities, isLoading: activitiesLoading } = useLeadActivities(leadId ?? undefined);
+  const createActivity = useCreateLeadActivity();
+  const { data: currentStaff } = useCurrentStaff();
+  
+  const [activityType, setActivityType] = useState<string>('call');
+  const [activityNotes, setActivityNotes] = useState('');
+  const [outcome, setOutcome] = useState<string>('');
+
+  const handleLogActivity = async () => {
+    if (!leadId || !activityNotes) return;
+    
+    await createActivity.mutateAsync({
+      lead_id: leadId,
+      activity_type: activityType,
+      notes: activityNotes,
+      outcome: outcome || null,
+      staff_id: currentStaff?.id || null,
+    });
+    
+    setActivityNotes('');
+    setOutcome('');
+  };
+
+  const statusColors = {
+    new: 'bg-blue-100 text-blue-800 border-blue-200',
+    contacted: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    qualified: 'bg-green-100 text-green-800 border-green-200',
+    converted: 'bg-primary/20 text-primary border-primary/30',
+    lost: 'bg-muted text-muted-foreground border-muted',
+  };
+
+  return (
+    <Sheet open={!!leadId} onOpenChange={() => onClose()}>
+      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+        {isLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+        ) : lead ? (
+          <>
+            <SheetHeader>
+              <div className="flex items-start justify-between">
+                <div>
+                  <SheetTitle className="font-heading text-2xl">
+                    {lead.first_name} {lead.last_name}
+                  </SheetTitle>
+                  <SheetDescription className="flex items-center gap-2 mt-1">
+                    <span>{lead.lead_number}</span>
+                    <Badge className={cn('border', statusColors[lead.status])}>
+                      {lead.status}
+                    </Badge>
+                  </SheetDescription>
+                </div>
+                {lead.status !== 'converted' && lead.status !== 'lost' && (
+                  <Button onClick={() => onConvert(lead.id)}>
+                    <ArrowRightCircle className="mr-2 h-4 w-4" />
+                    Convert
+                  </Button>
+                )}
+              </div>
+            </SheetHeader>
+
+            <Tabs defaultValue="details" className="mt-6">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="activity">Activity</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="details" className="space-y-4 mt-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Contact Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {lead.phone && (
+                      <div className="flex items-center gap-3">
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <a href={`tel:${lead.phone}`} className="text-primary hover:underline">
+                          {lead.phone}
+                        </a>
+                      </div>
+                    )}
+                    {lead.email && (
+                      <div className="flex items-center gap-3">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <a href={`mailto:${lead.email}`} className="text-primary hover:underline">
+                          {lead.email}
+                        </a>
+                      </div>
+                    )}
+                    {lead.assigned_staff && (
+                      <div className="flex items-center gap-3">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-5 w-5">
+                            <AvatarImage src={lead.assigned_staff.avatar_url || undefined} />
+                            <AvatarFallback className="text-[10px]">
+                              {lead.assigned_staff.first_name[0]}{lead.assigned_staff.last_name[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span>{lead.assigned_staff.first_name} {lead.assigned_staff.last_name}</span>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Qualification Details
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Interest Type</span>
+                      <Badge variant="outline" className="capitalize">
+                        {lead.interest_type.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">Lead Source</span>
+                      <span className="text-sm text-muted-foreground capitalize">
+                        {lead.source.replace('_', ' ')}
+                      </span>
+                    </div>
+                    {lead.estimated_debt_amount && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Estimated Debt</span>
+                        <span className="text-sm font-medium">
+                          ${lead.estimated_debt_amount.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {lead.number_of_debts && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Number of Debts</span>
+                        <span className="text-sm">{lead.number_of_debts}</span>
+                      </div>
+                    )}
+                    {lead.has_active_lawsuit && (
+                      <div className="flex items-center gap-2 text-destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span className="text-sm font-medium">Active Lawsuit</span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {lead.notes && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">
+                        Notes
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm whitespace-pre-wrap">{lead.notes}</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <div className="text-xs text-muted-foreground pt-4">
+                  Created {format(new Date(lead.created_at), 'PPP')}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="activity" className="space-y-4 mt-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium">Log Activity</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex gap-2">
+                      <Select value={activityType} onValueChange={setActivityType}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="call">Call</SelectItem>
+                          <SelectItem value="email">Email</SelectItem>
+                          <SelectItem value="sms">SMS</SelectItem>
+                          <SelectItem value="meeting">Meeting</SelectItem>
+                          <SelectItem value="note">Note</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={outcome} onValueChange={setOutcome}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue placeholder="Outcome" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="answered">Answered</SelectItem>
+                          <SelectItem value="voicemail">Voicemail</SelectItem>
+                          <SelectItem value="no_answer">No Answer</SelectItem>
+                          <SelectItem value="sent">Sent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Textarea
+                      value={activityNotes}
+                      onChange={(e) => setActivityNotes(e.target.value)}
+                      placeholder="Activity notes..."
+                      rows={3}
+                    />
+                    <Button 
+                      onClick={handleLogActivity} 
+                      disabled={!activityNotes || createActivity.isPending}
+                      size="sm"
+                    >
+                      {createActivity.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Log Activity
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-muted-foreground">Activity Timeline</h4>
+                  {activitiesLoading ? (
+                    <Skeleton className="h-24 w-full" />
+                  ) : activities?.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No activities yet</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {activities?.map((activity) => (
+                        <Card key={activity.id} className="bg-muted/50">
+                          <CardContent className="p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <ActivityIcon type={activity.activity_type} />
+                                <div>
+                                  <span className="text-sm font-medium capitalize">
+                                    {activity.activity_type}
+                                  </span>
+                                  {activity.outcome && (
+                                    <Badge variant="outline" className="ml-2 text-[10px]">
+                                      {activity.outcome}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                              </span>
+                            </div>
+                            {activity.notes && (
+                              <p className="text-sm mt-2 text-muted-foreground">{activity.notes}</p>
+                            )}
+                            {activity.staff && (
+                              <p className="text-xs text-muted-foreground mt-2">
+                                by {activity.staff.first_name} {activity.staff.last_name}
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </>
+        ) : (
+          <p className="text-muted-foreground">Lead not found</p>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function ActivityIcon({ type }: { type: string }) {
+  switch (type) {
+    case 'call':
+      return <Phone className="h-4 w-4 text-primary" />;
+    case 'email':
+      return <Mail className="h-4 w-4 text-primary" />;
+    case 'sms':
+      return <MessageSquare className="h-4 w-4 text-primary" />;
+    default:
+      return <FileText className="h-4 w-4 text-primary" />;
+  }
+}
