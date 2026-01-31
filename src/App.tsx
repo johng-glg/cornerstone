@@ -8,13 +8,13 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import LeadsPage from "./pages/Leads";
+import ContactsPage from "./pages/Contacts";
+import EngagementsPage from "./pages/Engagements";
+import TasksPage from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
 
-// Placeholder pages - will be implemented
-const EngagementsPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Engagements</h1><p className="text-muted-foreground mt-2">Engagement management coming soon...</p></div>;
-const ContactsPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Contacts</h1><p className="text-muted-foreground mt-2">Contact management coming soon...</p></div>;
+// Placeholder pages - will be implemented in Phase 3
 const LiabilitiesPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Liabilities</h1><p className="text-muted-foreground mt-2">Liability management coming soon...</p></div>;
-const TasksPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Tasks</h1><p className="text-muted-foreground mt-2">Task management coming soon...</p></div>;
 const ReportsPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Reports</h1><p className="text-muted-foreground mt-2">Reports coming soon...</p></div>;
 const CompaniesPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Companies</h1><p className="text-muted-foreground mt-2">Company management coming soon...</p></div>;
 const PaymentsPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Payments</h1><p className="text-muted-foreground mt-2">Payment processing coming soon...</p></div>;
