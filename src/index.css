@@ -2,95 +2,109 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* Guardian Litigation Group Design System
+   All colors MUST be HSL.
+   Brand Colors:
+   - Guardian Gold: #E0B772 → 39 62% 66%
+   - Bold Navy: #1E2E3E → 210 36% 18%
+   - Sharp Charcoal: #343739 → 210 4% 21%
+   - Ivory: #F9F9F9 → 0 0% 98%
+   - Freedom Blue: #669BBC → 202 36% 57%
 */
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Guardian Brand - Light Mode */
+    --background: 0 0% 98%; /* Ivory */
+    --foreground: 210 4% 21%; /* Sharp Charcoal */
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 210 4% 21%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 210 4% 21%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 39 62% 66%; /* Guardian Gold */
+    --primary-foreground: 210 36% 18%; /* Bold Navy */
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 210 36% 18%; /* Bold Navy */
+    --secondary-foreground: 0 0% 98%; /* Ivory */
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 210 20% 95%;
+    --muted-foreground: 210 10% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 202 36% 57%; /* Freedom Blue */
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 210 20% 88%;
+    --input: 210 20% 88%;
+    --ring: 39 62% 66%; /* Guardian Gold */
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Status Colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+    --info: 202 36% 57%; /* Freedom Blue */
+    --info-foreground: 0 0% 100%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar - Bold Navy theme */
+    --sidebar-background: 210 36% 18%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 39 62% 66%;
+    --sidebar-primary-foreground: 210 36% 18%;
+    --sidebar-accent: 210 36% 25%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 210 36% 25%;
+    --sidebar-ring: 39 62% 66%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Guardian Brand - Dark Mode */
+    --background: 210 36% 12%;
+    --foreground: 0 0% 95%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 210 36% 15%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 210 36% 15%;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 39 62% 66%; /* Guardian Gold */
+    --primary-foreground: 210 36% 12%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 210 36% 25%;
+    --secondary-foreground: 0 0% 95%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 210 30% 20%;
+    --muted-foreground: 210 10% 60%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 202 36% 57%; /* Freedom Blue */
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 210 30% 25%;
+    --input: 210 30% 25%;
+    --ring: 39 62% 66%;
+
+    /* Sidebar - Darker Navy */
+    --sidebar-background: 210 36% 10%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 39 62% 66%;
+    --sidebar-primary-foreground: 210 36% 10%;
+    --sidebar-accent: 210 36% 18%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 210 36% 18%;
+    --sidebar-ring: 39 62% 66%;
   }
 }
 
@@ -100,6 +114,24 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+    font-family: 'Montserrat', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 800;
+  }
+
+  h1 {
+    @apply text-4xl tracking-tight;
+  }
+
+  h2 {
+    @apply text-3xl tracking-tight;
+  }
+
+  h3 {
+    @apply text-2xl;
   }
 }
