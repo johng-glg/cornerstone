@@ -7,10 +7,10 @@ import { AuthProvider } from "@/lib/auth";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
+import LeadsPage from "./pages/Leads";
 import NotFound from "./pages/NotFound";
 
 // Placeholder pages - will be implemented
-const LeadsPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Leads</h1><p className="text-muted-foreground mt-2">Lead management coming soon...</p></div>;
 const EngagementsPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Engagements</h1><p className="text-muted-foreground mt-2">Engagement management coming soon...</p></div>;
 const ContactsPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Contacts</h1><p className="text-muted-foreground mt-2">Contact management coming soon...</p></div>;
 const LiabilitiesPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Liabilities</h1><p className="text-muted-foreground mt-2">Liability management coming soon...</p></div>;
