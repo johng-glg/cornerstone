@@ -1,298 +1,150 @@
 
+# Complete Missing Phase 1 Pieces
 
-# Guardian Litigation Group CRM - Implementation Plan
+## Current State Analysis
 
-## Project Overview
-A comprehensive law firm CRM for Guardian Litigation Group, covering Phases 1-3: Foundation, Lead Management, and Liability/Negotiation. This creates a complete debt resolution workflow with role-based access for multiple departments.
+After reviewing the codebase, here's what exists:
 
----
+**Completed:**
+- Authentication system with login/signup (src/lib/auth.tsx, src/pages/Auth.tsx)
+- Full database schema with 17 tables and RLS policies
+- App shell with sidebar, top nav, and routing
+- Dashboard with mock data
+- Lead Management (Phase 2) - fully functional
 
-## 🎨 Branding & Design System
-
-### Color Palette (Guardian Brand)
-- **Guardian Gold** (#E0B772) - Primary accent, CTAs, highlights
-- **Bold Navy** (#1E2E3E) - Primary dark, navigation, headers
-- **Sharp Charcoal** (#343739) - Text, secondary elements
-- **Ivory** (#F9F9F9) - Backgrounds, cards
-- **Freedom Blue** (#669BBC) - Secondary accent, status indicators
-
-### Typography
-- **Headings**: Montserrat Black (all caps for major headings)
-- **Body**: Montserrat Medium
-- **UI Elements**: Clean, professional, high contrast
-
-### UI Approach
-- Professional law firm aesthetic using shadcn/ui components
-- Desktop-first with responsive mobile support
-- Role-based dashboard customization
-- Consistent spacing, clear visual hierarchy
+**Missing Phase 1 Components:**
+1. **Contacts Module** - currently shows "coming soon" placeholder
+2. **Engagements Module** - currently shows "coming soon" placeholder  
+3. **Tasks Module** - currently shows "coming soon" placeholder
 
 ---
 
-## Phase 1: Foundation (Core Infrastructure)
+## Implementation Plan
 
-### 1.1 Authentication & User Management
-- Supabase Auth with email/password login
-- Secure session management
-- Password requirements: 12+ chars with complexity rules
-- Login/logout pages with Guardian branding
+### 1. Contacts Module
 
-### 1.2 Multi-Company Architecture
-- Companies table (law firm, affiliates, financing companies)
-- Parent-child company relationships
-- Company-level settings and branding options
-- Data visibility rules (own_only, parent_and_own, full_hierarchy)
+**New Files:**
+- `src/hooks/useContacts.ts` - TanStack Query hooks for contacts CRUD
+- `src/pages/Contacts.tsx` - Main contacts list page with table view
+- `src/components/contacts/ContactFormDialog.tsx` - Create/edit contact form
+- `src/components/contacts/ContactDetailSheet.tsx` - View contact details, phones, addresses
+- `src/components/contacts/ContactPhoneForm.tsx` - Add/edit phone numbers
+- `src/components/contacts/ContactAddressForm.tsx` - Add/edit addresses
 
-### 1.3 Staff & Roles
-- Staff profiles linked to companies
-- 8 departments: Admin, Sales/Intake, Client Services, Attorney, Case Manager, Negotiations, Payment Processing, Correspondence
-- Role-based permissions (admin, attorney, paralegal, negotiator, etc.)
-- Assignment capabilities (engagements, cases, liabilities)
+**Features:**
+- Contact list with search, pagination, and filtering
+- Contact creation with required fields (first name, last name, email)
+- Phone number management (multiple phones with types: mobile, home, work, fax)
+- Address management (multiple addresses with types: home, work, mailing)
+- TCPA consent tracking with timestamp
+- Preferred contact method selection
+- View engagements linked to a contact
+- Notes field with SSN/DOB (display masked for security)
 
-### 1.4 Contact Management
-- Full contact profiles (name, DOB, SSN encrypted)
-- Multiple phone numbers per contact with type (mobile, home, work)
-- Multiple addresses per contact
-- TCPA consent tracking with timestamps
-- Preferred contact method settings
+### 2. Engagements Module
 
-### 1.5 Engagement (Matter) Management
-- Engagement creation with auto-generated numbers (ENG-2026-0001)
-- Company tracking (originating vs owning)
-- Status management (prospect → active → suspended → closed)
+**New Files:**
+- `src/hooks/useEngagements.ts` - TanStack Query hooks for engagements CRUD
+- `src/pages/Engagements.tsx` - Main engagements list page
+- `src/components/engagements/EngagementFormDialog.tsx` - Create engagement form
+- `src/components/engagements/EngagementDetailSheet.tsx` - View engagement details
+- `src/components/engagements/EngagementContactsSection.tsx` - Manage engagement-contact relationships
+- `src/components/engagements/EngagementServicesSection.tsx` - Manage services assigned to engagement
+
+**Features:**
+- Engagement list with status filtering (prospect, active, suspended, closed)
+- Auto-generated engagement numbers (ENG-2026-0001)
 - Primary contact assignment
-- Engagement-contact relationships (primary client, co-client, spouse, authorized contact)
+- Multiple contact relationships (primary_client, co_client, spouse, authorized_contact)
+- Service assignment (Debt Resolution, Consumer Defense, Hybrid)
+- Status management and enrolled date tracking
+- View linked liabilities and tasks
 
-### 1.6 Service Assignment
-- Services catalog (Debt Resolution, Consumer Defense, Hybrid)
-- Engagement-service linking
-- Service-specific workflows enabled/disabled
+### 3. Tasks Module
 
-### 1.7 Assignment System
-- Flexible entity-based assignments (engagement, case, liability, lead)
-- Assignment types: primary attorney, client services rep, litigation attorney, case manager, negotiator
-- Assignment history and active status tracking
-- One active assignment per type per entity
+**New Files:**
+- `src/hooks/useTasks.ts` - TanStack Query hooks for tasks CRUD
+- `src/pages/Tasks.tsx` - Main tasks page with table and Kanban views
+- `src/components/tasks/TaskFormDialog.tsx` - Create/edit task form
+- `src/components/tasks/TaskDetailSheet.tsx` - View task details
+- `src/components/tasks/TaskKanban.tsx` - Kanban board for task status
 
-### 1.8 Task Management
-- Task creation with priority levels (low, medium, high, urgent)
-- Assignment to staff members
-- Due dates and status tracking
-- Related entity linking (engagement, liability, case)
-- Task types: follow-up, document review, court deadline, settlement negotiation
-
-### 1.9 Basic Dashboard
-- Role-aware dashboard showing relevant metrics
-- Quick access to assigned work
-- Recent activity feed
-- Department-specific widgets
+**Features:**
+- Task list with filtering by status, priority, assignee
+- Task creation with title, description, priority (low, medium, high, urgent)
+- Task types: follow_up, document_review, court_deadline, settlement_negotiation, client_call, general
+- Due date management with overdue highlighting
+- Task assignment to staff members
+- Link tasks to entities (engagement, liability, lead)
+- Kanban view by status (pending, in_progress, completed, cancelled)
+- "My Tasks" filter for current user
 
 ---
 
-## Phase 2: Lead Management & Sales
+## File Changes
 
-### 2.1 Lead Management
-- Lead creation with auto-generated numbers (LEAD-2026-0001)
-- Source tracking (web form, referral, phone, advertisement)
-- Company attribution (originating → owning)
-- Interest type identification (debt resolution, litigation, both)
+### Update App.tsx
+- Import new page components (Contacts, Engagements, Tasks)
+- Remove placeholder inline components
 
-### 2.2 Lead Pipeline & Kanban
-- Visual Kanban board with drag-and-drop
-- Pipeline stages: New → Contacted → Qualified → Converted/Lost
-- Filterable lead list view
-- Lead assignment to sales reps
+### Summary of New Files
 
-### 2.3 Lead Activity Logging
-- Activity types: calls, emails, SMS, meetings, notes
-- Outcome tracking (answered, voicemail, no answer)
-- Next action scheduling
-- Complete timeline view
+| Module | Files Created |
+|--------|---------------|
+| Contacts | 6 new files (1 hook, 1 page, 4 components) |
+| Engagements | 5 new files (1 hook, 1 page, 3 components) |
+| Tasks | 5 new files (1 hook, 1 page, 3 components) |
 
-### 2.4 Lead Qualification
-- Estimated debt amount capture
-- Number of debts tracking
-- Active lawsuit identification
-- Disqualification reasons
-
-### 2.5 Lead → Engagement Conversion Wizard
-Multi-step wizard:
-1. Confirm/edit contact information
-2. Select services (Debt Resolution / Consumer Defense / Both)
-3. If Debt Resolution → Add initial liabilities
-4. If Consumer Defense → Add case details
-5. System auto-assigns Client Services rep and Primary Attorney
-
-Creates engagement + services + assignments + optional liability/case
-
-### 2.6 Sales Dashboard
-- Lead pipeline visualization
-- Conversion rate metrics
-- Performance tracking per rep
-- Leads requiring action today
-- Source performance analytics
+**Total: 16 new files**
 
 ---
 
-## Phase 3: Liability & Negotiation
+## UI Patterns (Following Lead Management)
 
-### 3.1 Creditor Management
-- Creditor directory (original creditors, collection agencies, law firms, debt buyers)
-- Contact information and address tracking
-- Creditor notes and active status
-- Quick creditor lookup/autocomplete
+All components will follow the established patterns from the Lead Management module:
 
-### 3.2 Liability (Debt) Tracking
-- Liabilities linked to engagements
-- Creditor assignment (current + original)
-- Balance tracking (original, current, enrolled)
-- Liability types: credit card, medical, auto loan, personal loan, student loan
-- Status management: enrolled → in_negotiation → settled/in_litigation/dismissed
-
-### 3.3 Liability Assignment
-- Assign specific negotiators to specific liabilities
-- Workload balancing visibility
-- Assignment history tracking
-- Priority ordering
-
-### 3.4 Liability Action Logging
-- Action types: settlement offers, payments, court filings, balance updates
-- Complete timeline per liability
-- Staff attribution
-- Document attachments
-
-### 3.5 Settlement Management
-- Settlement offers with amounts and percentages
-- Acceptance/rejection tracking
-- Payment schedule options (lump sum vs payment plan)
-- Settlement status: offered → accepted → completed/defaulted
-- Settlement document linking
-
-### 3.6 Negotiator Dashboard
-- My liabilities queue
-- Action required indicators
-- Performance metrics (settlements, savings percentage)
-- Recent creditor contacts
-- Settlement tracker view
-
-### 3.7 Attorney Settlement Review
-- Pending settlement approvals queue
-- Settlement review workflow
-- Document review integration
-- Approval/rejection with notes
+- **Page Layout**: Header with title and primary action button, filters row, content area
+- **Data Tables**: Using Shadcn Table component with skeleton loading states
+- **Forms**: React Hook Form + Zod validation in Dialog components
+- **Detail Views**: Sheet component sliding in from the right
+- **Loading States**: Skeleton components during data fetching
+- **Toast Notifications**: Success/error feedback for all mutations
+- **Status Badges**: Color-coded badges matching the Guardian brand
 
 ---
 
-## Payment Processing (Mock Data Foundation)
+## Technical Details
 
-### 3.8 Payment Processor Configuration (UI Ready)
-- Processor setup interface (Forth Pay, Global Holdings)
-- API credential fields (will be mock data initially)
-- Connection test interface
-- Default processor per company
+### Data Hooks Pattern
+```typescript
+// Example structure for all hooks
+export function useContacts() { /* list query */ }
+export function useContact(id) { /* single item query */ }
+export function useCreateContact() { /* mutation */ }
+export function useUpdateContact() { /* mutation */ }
+export function useDeleteContact() { /* mutation */ }
+```
 
-### 3.9 Transaction Interface (Mock Data)
-- Transaction creation interface
-- Transaction status display
-- Transaction history table
-- Mock transaction lifecycle visualization
+### Form Validation
+All forms use Zod schemas for validation with:
+- Required field validation
+- Email format validation
+- Phone number format (optional)
+- Date validation for due dates
 
----
-
-## Cross-Cutting Features
-
-### Navigation & Layout
-- Top navigation: Dashboard | Leads | Engagements | Contacts | Liabilities | Tasks | Reports
-- Role-based menu visibility
-- Breadcrumb navigation
-- Global search (Cmd/Ctrl + K)
-- User menu with profile/settings/logout
-
-### Data Tables
-- TanStack Table implementation
-- Sortable, filterable columns
-- Pagination (25, 50, 100 per page)
-- Column visibility toggle
-- Bulk selection for actions
-- Export capabilities (CSV)
-
-### Forms & Validation
-- React Hook Form + Zod validation
-- Real-time validation with clear errors
-- Multi-step wizards for complex flows
-- Autocomplete for common fields
-- Keyboard shortcuts (Enter to submit)
-
-### Notifications
-- Toast notifications (success, error, info, warning)
-- Top-right positioning
-- Auto-dismiss with pin option
-
-### Row-Level Security
-- Company-based data isolation
-- Department-based access control
-- Assignment-based visibility
-- Parent/child company visibility rules
+### Related Data Loading
+- Contacts load with phones and addresses
+- Engagements load with primary contact, services, and contact relationships
+- Tasks load with assigned staff and linked entity details
 
 ---
 
-## Department Views Summary
+## Execution Order
 
-| Department | Primary Focus | Key Features |
-|------------|--------------|--------------|
-| **Sales/Intake** | Leads | Pipeline kanban, conversion wizard, lead activities |
-| **Client Services** | Engagements | Client list, communication log, quick actions |
-| **Attorney (General)** | Engagements + Settlements | Settlement approvals, document review |
-| **Negotiator** | Liabilities | Liability queue, creditor contacts, settlement tracker |
-| **Admin** | Everything | Full system access, company/staff management |
+1. **Create hooks first** - useContacts, useEngagements, useTasks
+2. **Create form components** - reusable dialogs for create/edit
+3. **Create detail sheets** - view components with related data
+4. **Create main pages** - list views with filters and actions
+5. **Update App.tsx** - wire up the new pages to routes
 
----
-
-## Database Structure (Core Tables)
-
-**Multi-Tenancy**: companies, company_permissions, staff, assignments
-**Contacts**: contacts, contact_phones, contact_addresses
-**Leads**: leads, lead_activities
-**Engagements**: engagements, engagement_contacts, services, engagement_services
-**Liabilities**: creditors, liabilities, liability_actions, settlements
-**Payment (Mock)**: payment_processors, company_processor_configs, transactions
-**Supporting**: tasks, documents, communications, activity_log
-
----
-
-## Technical Stack
-
-- **Frontend**: React 18 + TypeScript + Tailwind CSS + shadcn/ui
-- **Backend**: Lovable Cloud (Supabase)
-- **State**: React Query (TanStack Query) for server state
-- **Forms**: React Hook Form + Zod
-- **Tables**: TanStack Table
-- **Charts**: Recharts for dashboard visualizations
-- **Auth**: Supabase Auth with RLS
-
----
-
-## Sample Data
-
-Upon completion, the system will include:
-- Guardian Litigation Group as parent company
-- 5 staff members across departments
-- 10 sample creditors
-- 10 sample contacts
-- 5 sample leads (various statuses)
-- 5 sample engagements with services
-- 15 sample liabilities across engagements
-- Sample tasks and activities
-
----
-
-## Success Criteria
-
-At the end of Phases 1-3:
-- ✅ Sales team can manage leads and convert to engagements
-- ✅ Client services can view and manage client engagements
-- ✅ Negotiators can manage liabilities and create settlements
-- ✅ Attorneys can review and approve settlements
-- ✅ All roles have appropriate dashboard views
-- ✅ Data properly isolated by company and role
-- ✅ Payment UI ready for future API integration
+Each module is independent and can be built in parallel, but I'll create them in order: Contacts, Engagements, Tasks.
