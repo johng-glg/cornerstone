@@ -1,320 +1,203 @@
 
-# Settlement Offer Builder and Transaction Structure Enhancement
+# Litigation Matter Detail View - Implementation Plan
 
 ## Overview
-
-This plan implements a comprehensive financial workflow for your debt settlement business, including:
-1. Enhanced transaction categorization (drafts, processor fees, settlement payments, contingency fees)
-2. Updated transaction status workflow (Open, Pending, Cleared, Cancelled)
-3. A sophisticated Settlement Offer Builder that analyzes escrow projections and suggests viable settlement terms
+Build a comprehensive litigation matter management interface that opens when clicking on a litigation record. This will enable case tracking, activity logging, staff role assignments, court event management, and document tracking.
 
 ---
 
-## Understanding Your Business Model
+## Phase 1: Database Schema Extensions
 
-Based on your description:
+### New Tables
 
-| Component | Details |
-|-----------|---------|
-| **Monthly Draft** | 1 draft per month for the program term (e.g., 36 drafts for a 36-month program) |
-| **Processor Fee** | $10 per month, collected with each draft |
-| **Contingency Fee** | 27% of settlement amount, becomes AR when debt is settled |
-| **Fee Collection** | Split evenly across settlement term OR collected in full (after first creditor payment) |
-| **Settlement Payments** | Paid to creditors per accepted settlement terms |
+**1. `litigation_activities` Table**
+Tracks all activities on a litigation matter (similar to liability_actions pattern):
+- `id` (uuid, primary key)
+- `matter_id` (uuid, FK to litigation_matters)
+- `activity_type` (text: note, status_change, hearing, filing, deadline, communication)
+- `description` (text)
+- `outcome` (text, nullable)
+- `activity_date` (timestamp, for scheduled events)
+- `staff_id` (uuid, nullable FK to staff)
+- `document_url` (text, nullable)
+- `created_at` (timestamp)
 
----
+**2. `litigation_hearings` Table**
+Dedicated tracking for court events:
+- `id` (uuid, primary key)
+- `matter_id` (uuid, FK to litigation_matters)
+- `hearing_type` (text: status_conference, motion_hearing, trial, deposition, mediation)
+- `scheduled_date` (timestamp)
+- `location` (text, nullable)
+- `judge_name` (text, nullable)
+- `outcome` (text, nullable)
+- `notes` (text, nullable)
+- `created_at` (timestamp)
+- `updated_at` (timestamp)
 
-## Phase 1: Database Schema Updates
+**3. `litigation_documents` Table**
+Track pleadings and documents:
+- `id` (uuid, primary key)
+- `matter_id` (uuid, FK to litigation_matters)
+- `document_type` (text: complaint, answer, motion, discovery, subpoena, order, settlement_agreement, other)
+- `title` (text)
+- `file_url` (text, nullable)
+- `filed_date` (date, nullable)
+- `deadline_date` (date, nullable)
+- `notes` (text, nullable)
+- `uploaded_by` (uuid, nullable FK to staff)
+- `created_at` (timestamp)
 
-### 1.1 Update Transactions Table
-
-Add new columns to support the transaction workflow:
-
-```text
-New Columns:
-- scheduled_date: date (when the transaction is scheduled to process)
-- settlement_id: uuid (links fee/settlement payments to specific settlements) 
-- liability_id: uuid (links to the specific liability for settlement payments)
-- parent_transaction_id: uuid (for linking fees to their associated draft)
-- description: text (human-readable description)
-- sequence_number: integer (for ordering within a series)
-```
-
-### 1.2 Update Transaction Enums
-
-**Transaction Types:**
-- `draft` - Monthly client draft
-- `processor_fee` - $10 monthly processor fee
-- `settlement_payment` - Payment to creditor
-- `contingency_fee` - 27% fee payment from client
-
-**Transaction Statuses (replacing current):**
-- `open` - Scheduled for future
-- `pending` - In process
-- `cleared` - Successfully completed
-- `cancelled` - Cancelled
-
-### 1.3 Add Settlement Schedule Details
-
-Enhance the `settlements` table:
-
-```text
-New Columns:
-- first_payment_date: date
-- payment_schedule: jsonb (detailed payment schedule)
-- fee_collection_method: text ('split' | 'lump_sum')
-- fee_start_offset_months: integer (months after first settlement payment)
-```
+### RLS Policies
+All three tables will inherit access control from the parent `litigation_matters` via `client_service_id`, following the existing pattern.
 
 ---
 
-## Phase 2: Service Enrollment Transaction Generation
+## Phase 2: React Hooks
 
-### 2.1 Create Transaction Generator Logic
+### New Hooks
 
-When a client enrolls, automatically generate scheduled transactions:
+**`useLitigationActivities.ts`**
+- `useLitigationActivities(matterId)` - Fetch activities for a matter
+- `useCreateLitigationActivity()` - Add new activity
 
-```text
-For a 36-month program at $450/month:
+**`useLitigationHearings.ts`**
+- `useLitigationHearings(matterId)` - Fetch hearings for a matter
+- `useCreateLitigationHearing()` / `useUpdateLitigationHearing()` - CRUD for hearings
 
-Month 1:  Draft $450 (open) + Processor Fee $10 (open)
-Month 2:  Draft $450 (open) + Processor Fee $10 (open)
-...
-Month 36: Draft $450 (open) + Processor Fee $10 (open)
+**`useLitigationDocuments.ts`**
+- `useLitigationDocuments(matterId)` - Fetch documents for a matter
+- `useCreateLitigationDocument()` / `useDeleteLitigationDocument()` - CRUD for documents
 
-Total: 72 transactions created at enrollment
-```
-
-### 2.2 Escrow Balance Projection
-
-Create a utility to project escrow balance over time:
-
-```text
-Escrow projection factors:
-+ Cleared drafts (inflow)
-- Processor fees (outflow)
-- Settlement payments (outflow)
-- Contingency fees (outflow)
-= Projected escrow at any point
-```
+**`useMatterAssignments.ts`**
+- `useMatterAssignments(matterId)` - Fetch staff assignments for entity_type='litigation_matter'
+- `useAssignStaffToMatter()` / `useUnassignStaffFromMatter()` - Manage role assignments
 
 ---
 
-## Phase 3: Settlement Offer Builder
+## Phase 3: UI Components
 
-### 3.1 New Component: SettlementOfferBuilder
+### Main Detail View
 
-A modal/dialog that opens when creating a settlement offer, showing:
-
-```text
-+------------------------------------------------------------------+
-| Settlement Offer Builder                                    [X]  |
-+------------------------------------------------------------------+
-|                                                                   |
-| CREDITOR: Capital One                                            |
-| Current Balance: $14,200                                         |
-| Recommended Settlement: 45-55% ($6,390 - $7,810)                |
-|                                                                   |
-+------------------------------------------------------------------+
-|                                                                   |
-| OFFER PARAMETERS                                                 |
-| ┌──────────────────────────────────────────────────────────────┐|
-| │ Settlement Amount: [________] (50% = $7,100)                 │|
-| │ Number of Payments: [6]                                       │|
-| │ First Payment Date: [Mar 15, 2026]                           │|
-| │ Payment per Month: $1,183.33                                  │|
-| └──────────────────────────────────────────────────────────────┘|
-|                                                                   |
-| CONTINGENCY FEE (27%)                                            |
-| Fee Amount: $1,917.00                                            |
-| Collection: [Split across 6 months] / [Lump sum after 1st pmt]  |
-|                                                                   |
-+------------------------------------------------------------------+
-|                                                                   |
-| ESCROW PROJECTION                                                |
-| ┌──────────────────────────────────────────────────────────────┐|
-| │ Month     | Escrow In | Settlement | Fees | Balance          │|
-| │───────────+───────────+────────────+──────+──────────────────│|
-| │ Feb 2026  | $450      | -          | $10  | $2,340           │|
-| │ Mar 2026  | $450      | $1,183     | $330 | $1,277  WARNING  │|
-| │ Apr 2026  | $450      | $1,183     | $330 | $214    DANGER   │|
-| │ May 2026  | $450      | $1,183     | $330 | -$849   NEGATIVE │|
-| └──────────────────────────────────────────────────────────────┘|
-|                                                                   |
-| !!! THIS SETTLEMENT WOULD CAUSE NEGATIVE BALANCE !!!            |
-|                                                                   |
-+------------------------------------------------------------------+
-|                                                                   |
-| SUGGESTED ADJUSTMENTS                                            |
-| ┌──────────────────────────────────────────────────────────────┐|
-| │ Option A: Increase monthly draft by $75 for 6 months         │|
-| │ Option B: Add one-time payment of $450 before settlement     │|
-| │ Option C: Delay first payment by 2 months                    │|
-| │ Option D: Extend settlement to 9 payments                    │|
-| └──────────────────────────────────────────────────────────────┘|
-|                                                                   |
-| [Cancel]                               [Apply Adjustment] [Save] |
-+------------------------------------------------------------------+
-```
-
-### 3.2 Projection Algorithm
+**`LitigationMatterDetailSheet.tsx`**
+A slide-out sheet (following existing patterns) with tabbed interface:
 
 ```text
-function projectEscrow(
-  currentBalance: number,
-  scheduledTransactions: Transaction[],
-  proposedSettlement: {
-    amount: number,
-    payments: number,
-    startDate: Date,
-    feeMethod: 'split' | 'lump_sum'
-  }
-): ProjectionResult {
-
-  1. Get all future "open" transactions (drafts, existing settlements)
-  2. Add proposed settlement payments to timeline
-  3. Add 27% fee payments based on collection method
-  4. Walk through each month:
-     - Add incoming drafts
-     - Subtract outgoing payments
-     - Track running balance
-  5. Flag any month with negative balance
-  6. If negative, calculate adjustment options
-
-  return {
-    projections: MonthlyProjection[],
-    isViable: boolean,
-    shortfall: number,
-    suggestions: AdjustmentOption[]
-  }
-}
++------------------------------------------+
+|  Case #2024-CV-12345                     |
+|  Plaintiff v. Client Name                |
+|  [Pending Response] [In Litigation]      |
+|------------------------------------------|
+|  [Overview] [Team] [Events] [Docs] [Activity]
+|------------------------------------------|
 ```
 
-### 3.3 Suggestion Engine
+**Tab 1: Overview**
+- Case information (case number, court, county/state)
+- Opposing party and counsel details
+- Key dates (service date, response deadline, next hearing)
+- Financial summary (judgment amount, settlement amount if applicable)
+- Status management with change workflow
+- Edit button to open form dialog
 
-When a settlement would cause negative balance, suggest:
+**Tab 2: Team (Assignments)**
+- List of assigned staff with their roles
+- Add assignment dropdown (select staff + assignment type)
+- Remove assignment option
+- Supported roles from existing enum: litigation_attorney, case_manager, negotiator
 
-| Suggestion Type | Calculation |
-|-----------------|-------------|
-| Increase Draft | `shortfall / remainingMonths` |
-| One-Time Payment | `maxNegativeBalance + buffer` |
-| Delay Start | Find month with sufficient balance |
-| Extend Term | Recalculate with more payments |
+**Tab 3: Events (Hearings/Deadlines)**
+- List of upcoming and past hearings
+- Add new hearing button
+- Calendar-style view of deadlines
+- Outcome tracking for completed events
+
+**Tab 4: Documents**
+- List of filed documents with dates
+- Upload new document capability
+- Document type categorization
+- Deadline tracking for required filings
+
+**Tab 5: Activity Timeline**
+- Chronological feed of all matter activities
+- Quick add activity form
+- Status changes auto-logged
+- Staff attribution on all entries
+
+### Supporting Components
+
+**`LitigationActivityTimeline.tsx`**
+Timeline display component showing matter activities with icons per activity type.
+
+**`LitigationHearingCard.tsx`**
+Card component for displaying hearing details with outcome status.
+
+**`LitigationDocumentList.tsx`**
+Table/list of documents with type badges and deadline indicators.
+
+**`MatterTeamPanel.tsx`**
+Panel showing assigned staff with role badges and assignment management.
+
+**Form Dialogs:**
+- `LitigationHearingFormDialog.tsx` - Add/edit hearings
+- `LitigationDocumentFormDialog.tsx` - Add documents
+- `LitigationActivityFormDialog.tsx` - Log activities
+- `MatterAssignmentDialog.tsx` - Assign staff roles
 
 ---
 
-## Phase 4: UI Components
+## Phase 4: Integration
 
-### 4.1 New Files to Create
+### Update ClientLitigationTab
+- Make each MatterCard clickable to open `LitigationMatterDetailSheet`
+- Pass matter ID and control sheet open state
 
-```text
-src/components/liabilities/SettlementOfferBuilder.tsx
-  - Main builder component with all inputs
-  
-src/components/liabilities/EscrowProjectionTable.tsx
-  - Visual table showing month-by-month projections
-  
-src/components/liabilities/AdjustmentSuggestions.tsx
-  - Cards showing possible adjustments
+### Task Integration
+- Display tasks linked to the matter (entity_type='litigation_matter', entity_id=matter.id)
+- Quick create task button on detail sheet
 
-src/hooks/useEscrowProjection.ts
-  - Logic for calculating projections
-
-src/hooks/useTransactionSchedule.ts
-  - Fetch and manage scheduled transactions
-```
-
-### 4.2 Modify Existing Components
-
-**LiabilityDetailSheet.tsx:**
-- Replace "New Offer" button with "Build Offer" button
-- Opens SettlementOfferBuilder instead of simple form
-
-**SettlementFormDialog.tsx:**
-- Keep for quick edits, but deprecate for new offers
-- SettlementOfferBuilder becomes primary creation flow
+### Status Change Logging
+- When matter status changes via `useUpdateLitigationMatter`, auto-create activity record
 
 ---
 
-## Phase 5: Transaction Management Updates
+## Technical Details
 
-### 5.1 Automatic Transaction Generation
+### Entity Type Extension
+Need to add 'litigation_matter' to the `entity_type` enum for assignments and tasks to reference litigation matters directly.
 
-When a settlement is accepted:
+### Assignment Types
+The existing `assignment_type` enum already includes relevant roles:
+- `litigation_attorney` - Primary attorney handling the matter
+- `case_manager` - Staff managing case workflow
+- `negotiator` - Handles settlement discussions
 
-```text
-1. Create settlement payment transactions:
-   - Type: settlement_payment
-   - Status: open
-   - Scheduled dates based on payment plan
-
-2. Create contingency fee transactions:
-   - Type: contingency_fee  
-   - Amount: settlement_amount * 0.27 / number_of_fee_payments
-   - First fee after first settlement payment clears
-```
-
-### 5.2 Transaction Status Workflow
-
-```text
-OPEN → PENDING → CLEARED
-                ↘ CANCELLED
-
-- Transactions start as OPEN (scheduled)
-- Move to PENDING on processing day
-- Move to CLEARED when confirmed
-- Can be CANCELLED at any point before CLEARED
-```
-
-### 5.3 Update Payments Page
-
-Add filters for new transaction types and statuses.
+### Status Workflow
+Maintain existing statuses from `litigation_status` enum with visual status progression indicator on the overview tab.
 
 ---
 
-## Implementation Order
+## Files to Create
+1. `src/hooks/useLitigationActivities.ts`
+2. `src/hooks/useLitigationHearings.ts`
+3. `src/hooks/useLitigationDocuments.ts`
+4. `src/hooks/useMatterAssignments.ts`
+5. `src/components/litigation/LitigationMatterDetailSheet.tsx`
+6. `src/components/litigation/LitigationActivityTimeline.tsx`
+7. `src/components/litigation/LitigationHearingCard.tsx`
+8. `src/components/litigation/LitigationDocumentList.tsx`
+9. `src/components/litigation/MatterTeamPanel.tsx`
+10. `src/components/litigation/LitigationHearingFormDialog.tsx`
+11. `src/components/litigation/LitigationDocumentFormDialog.tsx`
+12. `src/components/litigation/LitigationActivityFormDialog.tsx`
+13. `src/components/litigation/MatterAssignmentDialog.tsx`
 
-| Step | Task | Priority |
-|------|------|----------|
-| 1 | Database migration for transactions and settlements tables | High |
-| 2 | Update TypeScript types and hooks for new fields | High |
-| 3 | Create useEscrowProjection hook with projection logic | High |
-| 4 | Build SettlementOfferBuilder component | High |
-| 5 | Add EscrowProjectionTable visualization | Medium |
-| 6 | Implement AdjustmentSuggestions component | Medium |
-| 7 | Update LiabilityDetailSheet to use new builder | Medium |
-| 8 | Create transaction generation on enrollment | Medium |
-| 9 | Update Payments page with new filters | Low |
-| 10 | Add sample data for testing | Low |
+## Files to Modify
+1. `src/components/clients/detail/ClientLitigationTab.tsx` - Add click handler to open detail sheet
+2. `src/hooks/useLitigationMatters.ts` - Add auto-activity logging on status changes
 
----
-
-## Technical Considerations
-
-### Data Integrity
-- Settlement transactions are auto-generated but can be manually adjusted
-- Fee calculations use 27% (configurable via `settlement_fee_percentage`)
-- Processor fee is hardcoded at $10 but could be made configurable
-
-### Performance
-- Projection calculations done client-side for responsiveness
-- Scheduled transactions indexed by `client_service_id` and `scheduled_date`
-- Use React Query for caching transaction data
-
-### Edge Cases
-- Paused programs: suspend scheduled transactions
-- NSF: mark draft as failed, reschedule
-- Partial payments: track remaining balances
-- Multiple settlements: stack projections correctly
-
----
-
-## Summary
-
-This implementation transforms the settlement workflow from a simple offer form into an intelligent builder that:
-
-1. Shows real-time escrow impact of proposed settlements
-2. Warns when a settlement would cause negative balance
-3. Suggests specific adjustments to make settlements viable
-4. Auto-generates all related transactions when accepted
-5. Provides full visibility into the financial timeline
+## Database Migrations
+1. Create `litigation_activities` table with RLS
+2. Create `litigation_hearings` table with RLS
+3. Create `litigation_documents` table with RLS
+4. Add 'litigation_matter' to `entity_type` enum (if needed for task/assignment linking)
