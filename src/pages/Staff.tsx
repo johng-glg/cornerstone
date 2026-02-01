@@ -17,8 +17,25 @@ import {
 } from '@/components/ui/table';
 import { StaffFormDialog } from '@/components/staff/StaffFormDialog';
 
+interface StaffMember {
+  id: string;
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  department: string;
+  company_id: string;
+  is_active: boolean;
+  avatar_url: string | null;
+  job_title: string | null;
+  company: { name: string } | null;
+}
+
 export default function StaffPage() {
-  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showDialog, setShowDialog] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
+
   const { data: staff, isLoading } = useQuery({
     queryKey: ['staff-list'],
     queryFn: async () => {
@@ -31,7 +48,7 @@ export default function StaffPage() {
         .order('created_at', { ascending: true });
       
       if (error) throw error;
-      return data;
+      return data as StaffMember[];
     },
   });
 
@@ -69,6 +86,23 @@ export default function StaffPage() {
     );
   };
 
+  const handleRowClick = (member: StaffMember) => {
+    setSelectedStaff(member);
+    setShowDialog(true);
+  };
+
+  const handleAddNew = () => {
+    setSelectedStaff(null);
+    setShowDialog(true);
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    setShowDialog(open);
+    if (!open) {
+      setSelectedStaff(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-6">
@@ -91,13 +125,17 @@ export default function StaffPage() {
             {staff?.length || 0} staff members
           </p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)}>
+        <Button onClick={handleAddNew}>
           <Plus className="mr-2 h-4 w-4" />
           Add Staff
         </Button>
       </div>
 
-      <StaffFormDialog open={showAddDialog} onOpenChange={setShowAddDialog} />
+      <StaffFormDialog 
+        open={showDialog} 
+        onOpenChange={handleDialogClose}
+        staffMember={selectedStaff}
+      />
 
       <Card>
         <CardContent className="p-0">
@@ -114,7 +152,11 @@ export default function StaffPage() {
             </TableHeader>
             <TableBody>
               {staff?.map((member) => (
-                <TableRow key={member.id}>
+                <TableRow 
+                  key={member.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleRowClick(member)}
+                >
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9">
@@ -155,7 +197,7 @@ export default function StaffPage() {
                   <TableCell>
                     <div className="flex items-center gap-1.5 text-sm">
                       <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>{(member.company as any)?.name || 'N/A'}</span>
+                      <span>{member.company?.name || 'N/A'}</span>
                     </div>
                   </TableCell>
                   <TableCell>

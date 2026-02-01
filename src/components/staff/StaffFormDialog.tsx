@@ -63,14 +63,28 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+interface StaffMember {
+  id: string;
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  department: string;
+  company_id: string;
+  is_active: boolean;
+}
+
 interface StaffFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  staffMember?: StaffMember | null;
 }
 
-export function StaffFormDialog({ open, onOpenChange }: StaffFormDialogProps) {
+export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isEditing = !!staffMember;
 
   const { data: companies } = useQuery({
     queryKey: ['companies'],
@@ -83,6 +97,22 @@ export function StaffFormDialog({ open, onOpenChange }: StaffFormDialogProps) {
       if (error) throw error;
       return data;
     },
+  });
+
+  // Get staff member's current role
+  const { data: staffRole } = useQuery({
+    queryKey: ['staff-role', staffMember?.user_id],
+    queryFn: async () => {
+      if (!staffMember?.user_id) return null;
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', staffMember.user_id)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.role || null;
+    },
+    enabled: !!staffMember?.user_id,
   });
 
   const form = useForm<FormValues>({
@@ -98,9 +128,32 @@ export function StaffFormDialog({ open, onOpenChange }: StaffFormDialogProps) {
     },
   });
 
-  const selectedRole = form.watch('role');
+  // Reset form when dialog opens/closes or staff member changes
+  useEffect(() => {
+    if (open && staffMember) {
+      form.reset({
+        first_name: staffMember.first_name,
+        last_name: staffMember.last_name,
+        email: staffMember.email,
+        phone: staffMember.phone || '',
+        company_id: staffMember.company_id,
+        is_active: staffMember.is_active,
+        role: (staffRole as Enums<'app_role'>) || undefined,
+      });
+    } else if (open && !staffMember) {
+      form.reset({
+        first_name: '',
+        last_name: '',
+        email: '',
+        phone: '',
+        company_id: '',
+        is_active: true,
+        role: undefined,
+      });
+    }
+  }, [open, staffMember, staffRole, form]);
 
-  // Auto-set department based on role
+  const selectedRole = form.watch('role');
   const department = selectedRole ? roleToDepartment[selectedRole as Enums<'app_role'>] : null;
 
   const createStaffMutation = useMutation({
@@ -142,9 +195,72 @@ export function StaffFormDialog({ open, onOpenChange }: StaffFormDialogProps) {
     },
   });
 
+  const updateStaffMutation = useMutation({
+    mutationFn: async (values: FormValues) => {
+      if (!staffMember) throw new Error('No staff member to update');
+      
+      const derivedDepartment = roleToDepartment[values.role as Enums<'app_role'>];
+
+      // Update staff record
+      const { error: staffError } = await supabase
+        .from('staff')
+        .update({
+          first_name: values.first_name,
+          last_name: values.last_name,
+          phone: values.phone || null,
+          department: derivedDepartment,
+          company_id: values.company_id,
+          is_active: values.is_active,
+        })
+        .eq('id', staffMember.id);
+
+      if (staffError) throw staffError;
+
+      // Update role - delete existing and insert new
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', staffMember.user_id);
+
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert([{
+          user_id: staffMember.user_id,
+          role: values.role as Enums<'app_role'>,
+        }]);
+
+      if (roleError) throw roleError;
+
+      return { success: true };
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Staff member updated',
+        description: 'Changes saved successfully.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['staff-list'] });
+      queryClient.invalidateQueries({ queryKey: ['user-roles-list'] });
+      queryClient.invalidateQueries({ queryKey: ['staff-role', staffMember?.user_id] });
+      onOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error updating staff member',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
   const onSubmit = (values: FormValues) => {
-    createStaffMutation.mutate(values);
+    if (isEditing) {
+      updateStaffMutation.mutate(values);
+    } else {
+      createStaffMutation.mutate(values);
+    }
   };
+
+  const isPending = createStaffMutation.isPending || updateStaffMutation.isPending;
 
   const formatRole = (role: string) =>
     role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -156,9 +272,12 @@ export function StaffFormDialog({ open, onOpenChange }: StaffFormDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Add Staff Member</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit Staff Member' : 'Add Staff Member'}</DialogTitle>
           <DialogDescription>
-            Create a new staff account. Default password is TestPass123!
+            {isEditing 
+              ? 'Update staff member details.'
+              : 'Create a new staff account. Default password is TestPass123!'
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -200,7 +319,12 @@ export function StaffFormDialog({ open, onOpenChange }: StaffFormDialogProps) {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="john@example.com" {...field} />
+                    <Input 
+                      type="email" 
+                      placeholder="john@example.com" 
+                      disabled={isEditing}
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -308,11 +432,11 @@ export function StaffFormDialog({ open, onOpenChange }: StaffFormDialogProps) {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createStaffMutation.isPending}>
-                {createStaffMutation.isPending && (
+              <Button type="submit" disabled={isPending}>
+                {isPending && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Create Staff Member
+                {isEditing ? 'Save Changes' : 'Create Staff Member'}
               </Button>
             </div>
           </form>
