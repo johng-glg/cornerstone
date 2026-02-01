@@ -3,10 +3,18 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Building2, MapPin, Phone, Mail, Globe } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Building2, MapPin, Phone, Mail, Globe, Pencil, Plus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CompanyFormDialog } from '@/components/companies/CompanyFormDialog';
+import { Tables } from '@/integrations/supabase/types';
+
+type Company = Tables<'companies'>;
 
 export default function CompaniesPage() {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+
   const { data: companies, isLoading } = useQuery({
     queryKey: ['companies'],
     queryFn: async () => {
@@ -28,6 +36,16 @@ export default function CompaniesPage() {
     };
     const config = variants[type] || { variant: 'outline', label: type };
     return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  const handleEdit = (company: Company) => {
+    setSelectedCompany(company);
+    setDialogOpen(true);
+  };
+
+  const handleAdd = () => {
+    setSelectedCompany(null);
+    setDialogOpen(true);
   };
 
   if (isLoading) {
@@ -60,12 +78,24 @@ export default function CompaniesPage() {
             {companies?.length || 0} companies in the system
           </p>
         </div>
+        <Button onClick={handleAdd}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Company
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         {companies?.map((company) => (
-          <Card key={company.id}>
-            <CardHeader className="flex flex-row items-start justify-between space-y-0">
+          <Card key={company.id} className="relative group">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => handleEdit(company)}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pr-12">
               <div className="flex items-start gap-3">
                 <div className="p-2 bg-primary/10 rounded-lg">
                   <Building2 className="h-5 w-5 text-primary" />
@@ -77,6 +107,9 @@ export default function CompaniesPage() {
                     <Badge variant={company.is_active ? 'default' : 'secondary'}>
                       {company.is_active ? 'Active' : 'Inactive'}
                     </Badge>
+                    {!company.parent_company_id && (
+                      <Badge variant="outline">Root</Badge>
+                    )}
                   </div>
                 </div>
               </div>
@@ -127,6 +160,12 @@ export default function CompaniesPage() {
           <p className="text-muted-foreground">No companies have been added yet.</p>
         </Card>
       )}
+
+      <CompanyFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        company={selectedCompany}
+      />
     </div>
   );
 }
