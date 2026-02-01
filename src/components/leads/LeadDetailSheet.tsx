@@ -120,11 +120,6 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
                       <SelectContent>
                         <SelectItem value="new">New</SelectItem>
                         <SelectItem value="contacted">Contacted</SelectItem>
-                        <SelectItem value="intake">Intake</SelectItem>
-                        <SelectItem value="credit_review">Credit Review</SelectItem>
-                        <SelectItem value="plan_selection">Plan Selection</SelectItem>
-                        <SelectItem value="qc_pending">QC Pending</SelectItem>
-                        <SelectItem value="docs_pending">Docs Pending</SelectItem>
                         <SelectItem value="qualified">Qualified</SelectItem>
                         <SelectItem value="converted">Converted</SelectItem>
                         <SelectItem value="lost">Lost</SelectItem>
