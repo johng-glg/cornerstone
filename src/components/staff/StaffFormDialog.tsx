@@ -36,6 +36,15 @@ import { Constants } from '@/integrations/supabase/types';
 const departments = Constants.public.Enums.department;
 const appRoles = Constants.public.Enums.app_role;
 
+const jobTitles = [
+  'Admin',
+  'Attorney',
+  'Customer Service',
+  'Payment Processing',
+  'Negotiations',
+  'Sales',
+] as const;
+
 const formSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().min(1, 'Last name is required'),
@@ -262,9 +271,20 @@ export function StaffFormDialog({ open, onOpenChange }: StaffFormDialogProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Job Title (optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Senior Attorney" {...field} />
-                  </FormControl>
+                  <Select onValueChange={field.onChange} value={field.value || ''}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select job title" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {jobTitles.map((title) => (
+                        <SelectItem key={title} value={title}>
+                          {title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
