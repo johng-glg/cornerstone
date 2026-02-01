@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useLeads } from '@/hooks/useLeads';
+import { useLeads, useLead } from '@/hooks/useLeads';
 import { LeadKanban } from '@/components/leads/LeadKanban';
 import { LeadFormDialog } from '@/components/leads/LeadFormDialog';
 import { LeadDetailSheet } from '@/components/leads/LeadDetailSheet';
 import { EnrollmentWizard } from '@/components/enrollment/EnrollmentWizard';
+import { LitigationWizard } from '@/components/litigation/LitigationWizard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -36,8 +37,22 @@ export default function LeadsPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [convertingLeadId, setConvertingLeadId] = useState<string | null>(null);
+  const [convertingLitigationLeadId, setConvertingLitigationLeadId] = useState<string | null>(null);
 
   const { data: leads, isLoading } = useLeads();
+  const { data: selectedLead } = useLead(selectedLeadId ?? undefined);
+
+  const handleConvert = (leadId: string) => {
+    // Find the lead to determine which wizard to use
+    const lead = leads?.find(l => l.id === leadId);
+    if (!lead) return;
+    
+    if (lead.interest_type === 'litigation') {
+      setConvertingLitigationLeadId(leadId);
+    } else {
+      setConvertingLeadId(leadId);
+    }
+  };
 
   const filteredLeads = leads?.filter((lead) => {
     const matchesSearch =
@@ -215,7 +230,7 @@ export default function LeadsPage() {
         onClose={() => setSelectedLeadId(null)}
         onConvert={(id) => {
           setSelectedLeadId(null);
-          setConvertingLeadId(id);
+          handleConvert(id);
         }}
       />
 
@@ -223,6 +238,12 @@ export default function LeadsPage() {
         leadId={convertingLeadId}
         onClose={() => setConvertingLeadId(null)}
         onSuccess={() => setConvertingLeadId(null)}
+      />
+
+      <LitigationWizard
+        leadId={convertingLitigationLeadId}
+        onClose={() => setConvertingLitigationLeadId(null)}
+        onSuccess={() => setConvertingLitigationLeadId(null)}
       />
     </div>
   );
