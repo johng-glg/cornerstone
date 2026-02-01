@@ -18,7 +18,6 @@ interface EngagementServicesSectionProps {
 const serviceTypeLabels: Record<string, string> = {
   debt_resolution: 'Debt Resolution',
   consumer_defense: 'Consumer Defense',
-  hybrid: 'Hybrid',
 };
 
 export function EngagementServicesSection({ engagementId, services }: EngagementServicesSectionProps) {
