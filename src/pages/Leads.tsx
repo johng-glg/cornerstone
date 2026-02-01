@@ -3,7 +3,7 @@ import { useLeads } from '@/hooks/useLeads';
 import { LeadKanban } from '@/components/leads/LeadKanban';
 import { LeadFormDialog } from '@/components/leads/LeadFormDialog';
 import { LeadDetailSheet } from '@/components/leads/LeadDetailSheet';
-import { LeadConversionWizard } from '@/components/leads/LeadConversionWizard';
+import { EnrollmentWizard } from '@/components/enrollment/EnrollmentWizard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -219,7 +219,7 @@ export default function LeadsPage() {
         }}
       />
 
-      <LeadConversionWizard
+      <EnrollmentWizard
         leadId={convertingLeadId}
         onClose={() => setConvertingLeadId(null)}
         onSuccess={() => setConvertingLeadId(null)}
