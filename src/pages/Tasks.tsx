@@ -1,17 +1,18 @@
-import { useState } from 'react';
-import { Plus, Search, LayoutGrid, List, Calendar, User, AlertCircle } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, LayoutGrid, List, Calendar, User, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 import { useTasks, type Task, type TaskStatus, type TaskPriority } from '@/hooks/useTasks';
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog';
 import { TaskDetailSheet } from '@/components/tasks/TaskDetailSheet';
 import { TaskKanban } from '@/components/tasks/TaskKanban';
-import { format, isPast, isToday } from 'date-fns';
+import { format, isPast, isToday, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 
 const priorityConfig: Record<string, { label: string; className: string }> = {
   low: { label: 'Low', className: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300' },
@@ -38,20 +39,58 @@ const typeLabels: Record<string, string> = {
 
 export default function TasksPage() {
   const [view, setView] = useState<'list' | 'kanban'>('kanban');
-  const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | 'all'>('all');
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: undefined,
+    to: undefined,
+  });
   const [showForm, setShowForm] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const { data: tasks, isLoading } = useTasks(
-    statusFilter === 'all' && priorityFilter === 'all'
+    priorityFilter === 'all'
       ? undefined
-      : {
-          status: statusFilter === 'all' ? undefined : statusFilter,
-          priority: priorityFilter === 'all' ? undefined : priorityFilter,
-        }
+      : { priority: priorityFilter }
   );
+
+  // Filter tasks: hide completed/cancelled by default, apply date filter
+  const filteredTasks = useMemo(() => {
+    if (!tasks) return [];
+    
+    return tasks.filter((task) => {
+      // Filter out completed/cancelled unless toggle is on
+      if (!showCompleted && (task.status === 'completed' || task.status === 'cancelled')) {
+        return false;
+      }
+      
+      // Date range filter
+      if (dateRange.from || dateRange.to) {
+        if (!task.due_date) return false;
+        const taskDate = new Date(task.due_date);
+        
+        if (dateRange.from && dateRange.to) {
+          return isWithinInterval(taskDate, {
+            start: startOfDay(dateRange.from),
+            end: endOfDay(dateRange.to),
+          });
+        } else if (dateRange.from) {
+          return taskDate >= startOfDay(dateRange.from);
+        } else if (dateRange.to) {
+          return taskDate <= endOfDay(dateRange.to);
+        }
+      }
+      
+      return true;
+    });
+  }, [tasks, showCompleted, dateRange]);
+
+  // Count hidden tasks
+  const hiddenCount = useMemo(() => {
+    if (!tasks) return 0;
+    return tasks.filter(t => t.status === 'completed' || t.status === 'cancelled').length;
+  }, [tasks]);
 
   const handleViewTask = (task: Task) => {
     setSelectedTaskId(task.id);
@@ -60,6 +99,10 @@ export default function TasksPage() {
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
     setShowForm(true);
+  };
+
+  const clearDateFilter = () => {
+    setDateRange({ from: undefined, to: undefined });
   };
 
   return (
@@ -77,21 +120,9 @@ export default function TasksPage() {
       </div>
 
       {/* Filters and View Toggle */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as TaskStatus | 'all')}>
-            <SelectTrigger className="w-36">
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="in_progress">In Progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Priority Filter */}
           <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as TaskPriority | 'all')}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="All Priorities" />
@@ -104,6 +135,59 @@ export default function TasksPage() {
               <SelectItem value="urgent">Urgent</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Date Range Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "justify-start text-left font-normal",
+                  !dateRange.from && !dateRange.to && "text-muted-foreground"
+                )}
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                {dateRange.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "MMM d")} - {format(dateRange.to, "MMM d")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "MMM d, yyyy")
+                  )
+                ) : (
+                  "Filter by date"
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComponent
+                mode="range"
+                selected={{ from: dateRange.from, to: dateRange.to }}
+                onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
+                numberOfMonths={2}
+                className={cn("p-3 pointer-events-auto")}
+              />
+              {(dateRange.from || dateRange.to) && (
+                <div className="p-2 border-t">
+                  <Button variant="ghost" size="sm" onClick={clearDateFilter} className="w-full">
+                    Clear dates
+                  </Button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+
+          {/* Show Completed Toggle */}
+          <Button
+            variant={showCompleted ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setShowCompleted(!showCompleted)}
+            className="gap-2"
+          >
+            {showCompleted ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            {showCompleted ? 'Showing all' : `${hiddenCount} hidden`}
+          </Button>
         </div>
 
         <div className="flex items-center gap-1 border rounded-lg p-1">
@@ -132,7 +216,7 @@ export default function TasksPage() {
           ))}
         </div>
       ) : view === 'kanban' ? (
-        <TaskKanban tasks={tasks || []} onTaskClick={handleViewTask} />
+        <TaskKanban tasks={filteredTasks} onTaskClick={handleViewTask} />
       ) : (
         <div className="border rounded-lg">
           <Table>
@@ -147,8 +231,8 @@ export default function TasksPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tasks && tasks.length > 0 ? (
-                tasks.map((task) => {
+              {filteredTasks && filteredTasks.length > 0 ? (
+                filteredTasks.map((task) => {
                   const isOverdue = task.due_date && isPast(new Date(task.due_date)) && task.status !== 'completed';
                   const isDueToday = task.due_date && isToday(new Date(task.due_date));
 
@@ -209,7 +293,9 @@ export default function TasksPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    No tasks found. Create your first task!
+                    {!showCompleted && hiddenCount > 0 
+                      ? `No active tasks. ${hiddenCount} completed/cancelled tasks hidden.`
+                      : 'No tasks found. Create your first task!'}
                   </TableCell>
                 </TableRow>
               )}
