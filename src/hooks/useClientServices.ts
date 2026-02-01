@@ -192,7 +192,7 @@ export function useUpdatePrimaryStatus() {
         updates.payment_status = null;
       }
       
-      if (newStatus === 'graduated' || newStatus === 'dropped' || newStatus === 'cancelled') {
+      if (newStatus === 'graduated' || newStatus === 'dropped') {
         updates.closed_date = new Date().toISOString();
       }
       
