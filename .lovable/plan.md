@@ -1,150 +1,251 @@
 
-# Complete Missing Phase 1 Pieces
+# Phase 3: Liabilities Module Implementation Plan
 
-## Current State Analysis
+## Overview
 
-After reviewing the codebase, here's what exists:
+Phase 3 focuses on building the core Debt Resolution functionality. This module enables tracking client debts, managing creditor relationships, creating settlement proposals, and monitoring payment activity.
 
-**Completed:**
-- Authentication system with login/signup (src/lib/auth.tsx, src/pages/Auth.tsx)
-- Full database schema with 17 tables and RLS policies
-- App shell with sidebar, top nav, and routing
-- Dashboard with mock data
-- Lead Management (Phase 2) - fully functional
+---
 
-**Missing Phase 1 Components:**
-1. **Contacts Module** - currently shows "coming soon" placeholder
-2. **Engagements Module** - currently shows "coming soon" placeholder  
-3. **Tasks Module** - currently shows "coming soon" placeholder
+## Current State
+
+**Already in Place:**
+- Database tables: `liabilities`, `liability_actions`, `creditors`, `settlements`, `transactions`, `payment_processors`, `company_processor_configs`
+- Basic `useCreditors` hook (read-only)
+- Placeholder page in App.tsx for `/liabilities`
+
+**What Needs to Be Built:**
+- Liabilities CRUD hooks and UI components
+- Creditor management (CRUD for the creditor directory)
+- Settlement workflow (create, attorney review, accept/reject, complete)
+- Transaction/Payment tracking UI
+- Liability actions timeline (audit log)
 
 ---
 
 ## Implementation Plan
 
-### 1. Contacts Module
+### 1. Data Hooks Layer
+
+**New Hooks:**
+
+| File | Purpose |
+|------|---------|
+| `src/hooks/useLiabilities.ts` | CRUD for liabilities linked to engagements |
+| `src/hooks/useLiabilityActions.ts` | Log and query liability activity timeline |
+| `src/hooks/useSettlements.ts` | CRUD for settlement proposals on liabilities |
+| `src/hooks/useTransactions.ts` | Query transactions linked to engagements |
+
+**Updates:**
+- Expand `useCreditors.ts` to include mutations (create, update, delete)
+
+### 2. Liabilities Module
 
 **New Files:**
-- `src/hooks/useContacts.ts` - TanStack Query hooks for contacts CRUD
-- `src/pages/Contacts.tsx` - Main contacts list page with table view
-- `src/components/contacts/ContactFormDialog.tsx` - Create/edit contact form
-- `src/components/contacts/ContactDetailSheet.tsx` - View contact details, phones, addresses
-- `src/components/contacts/ContactPhoneForm.tsx` - Add/edit phone numbers
-- `src/components/contacts/ContactAddressForm.tsx` - Add/edit addresses
+
+| File | Purpose |
+|------|---------|
+| `src/pages/Liabilities.tsx` | Main liabilities list with table and filters |
+| `src/components/liabilities/LiabilityFormDialog.tsx` | Create/edit liability form |
+| `src/components/liabilities/LiabilityDetailSheet.tsx` | View liability details, settlements, actions |
+| `src/components/liabilities/LiabilityActionsTimeline.tsx` | Activity log for a liability |
+| `src/components/liabilities/SettlementFormDialog.tsx` | Create/edit settlement offer |
+| `src/components/liabilities/SettlementCard.tsx` | Display settlement with status actions |
 
 **Features:**
-- Contact list with search, pagination, and filtering
-- Contact creation with required fields (first name, last name, email)
-- Phone number management (multiple phones with types: mobile, home, work, fax)
-- Address management (multiple addresses with types: home, work, mailing)
-- TCPA consent tracking with timestamp
-- Preferred contact method selection
-- View engagements linked to a contact
-- Notes field with SSN/DOB (display masked for security)
+- List view with filters by status (enrolled, in_negotiation, settled, in_litigation, dismissed, cancelled)
+- Filter by engagement, creditor, or liability type (credit_card, medical, auto_loan, etc.)
+- Create liability linked to an engagement
+- Assign original and current creditor from creditor directory
+- Track original balance, enrolled balance, current balance
+- Priority ranking for negotiation order
+- View settlement history on each liability
+- Log actions (notes, balance updates, creditor changes) to timeline
 
-### 2. Engagements Module
+### 3. Creditor Directory
 
 **New Files:**
-- `src/hooks/useEngagements.ts` - TanStack Query hooks for engagements CRUD
-- `src/pages/Engagements.tsx` - Main engagements list page
-- `src/components/engagements/EngagementFormDialog.tsx` - Create engagement form
-- `src/components/engagements/EngagementDetailSheet.tsx` - View engagement details
-- `src/components/engagements/EngagementContactsSection.tsx` - Manage engagement-contact relationships
-- `src/components/engagements/EngagementServicesSection.tsx` - Manage services assigned to engagement
+
+| File | Purpose |
+|------|---------|
+| `src/pages/Creditors.tsx` | Creditor directory with search |
+| `src/components/creditors/CreditorFormDialog.tsx` | Create/edit creditor |
+| `src/components/creditors/CreditorDetailSheet.tsx` | View creditor with linked liabilities |
 
 **Features:**
-- Engagement list with status filtering (prospect, active, suspended, closed)
-- Auto-generated engagement numbers (ENG-2026-0001)
-- Primary contact assignment
-- Multiple contact relationships (primary_client, co_client, spouse, authorized_contact)
-- Service assignment (Debt Resolution, Consumer Defense, Hybrid)
-- Status management and enrolled date tracking
-- View linked liabilities and tasks
+- Searchable creditor list (global directory, not company-scoped)
+- Creditor types: original_creditor, collection_agency, law_firm, debt_buyer
+- Contact information (address, phone, fax, email)
+- See all liabilities currently with this creditor
 
-### 3. Tasks Module
+### 4. Settlement Workflow
+
+**Settlement States Flow:**
+```text
++----------+     +----------+     +-----------+     +-----------+
+| offered  | --> | accepted | --> | completed |     | defaulted |
++----------+     +----------+     +-----------+     +-----------+
+     |                                   ^
+     v                                   |
++-----------+                            |
+| rejected  |----------------------------+
++-----------+    (new offer possible)
+```
+
+**Key Features:**
+- Create settlement offer on a liability (offer_amount, offer_percentage, payment_type)
+- Attorney review queue (requires approval before client notification)
+- Mark as accepted with date
+- Track payment plan (number_of_payments) or lump sum
+- Mark as completed when fully paid
+- Handle defaulted settlements
+
+**Attorney Review Queue:**
+- Filter settlements awaiting attorney approval
+- Attorney can approve or request changes
+- Tracks attorney_approved_by and attorney_approved_date
+
+### 5. Payments/Transactions View
 
 **New Files:**
-- `src/hooks/useTasks.ts` - TanStack Query hooks for tasks CRUD
-- `src/pages/Tasks.tsx` - Main tasks page with table and Kanban views
-- `src/components/tasks/TaskFormDialog.tsx` - Create/edit task form
-- `src/components/tasks/TaskDetailSheet.tsx` - View task details
-- `src/components/tasks/TaskKanban.tsx` - Kanban board for task status
+
+| File | Purpose |
+|------|---------|
+| `src/pages/Payments.tsx` | Replace placeholder with transaction list |
+| `src/components/payments/TransactionList.tsx` | Table of transactions |
+| `src/components/payments/TransactionDetailSheet.tsx` | View transaction details |
 
 **Features:**
-- Task list with filtering by status, priority, assignee
-- Task creation with title, description, priority (low, medium, high, urgent)
-- Task types: follow_up, document_review, court_deadline, settlement_negotiation, client_call, general
-- Due date management with overdue highlighting
-- Task assignment to staff members
-- Link tasks to entities (engagement, liability, lead)
-- Kanban view by status (pending, in_progress, completed, cancelled)
-- "My Tasks" filter for current user
+- List transactions by engagement
+- Filter by status (pending, completed, failed, refunded)
+- Show processor info (Forth Pay, Global Holdings)
+- Display transaction type (monthly_payment, settlement_payment, fee)
+- Read-only view (transactions created by payment processors)
 
 ---
 
-## File Changes
+## UI Components Summary
 
-### Update App.tsx
-- Import new page components (Contacts, Engagements, Tasks)
-- Remove placeholder inline components
+### Liabilities Page Layout
+- Header with title and "Add Liability" button
+- Filter bar: Status dropdown, Type dropdown, Search input
+- Table with columns: Engagement, Creditor, Type, Original Balance, Current Balance, Status, Priority
 
-### Summary of New Files
+### Liability Detail Sheet
+- Header: Creditor name, account number (masked), liability type badge
+- Balances card: Original, Enrolled, Current amounts
+- Engagement link
+- Settlements section with cards for each proposal
+- Actions timeline showing history
 
-| Module | Files Created |
-|--------|---------------|
-| Contacts | 6 new files (1 hook, 1 page, 4 components) |
-| Engagements | 5 new files (1 hook, 1 page, 3 components) |
-| Tasks | 5 new files (1 hook, 1 page, 3 components) |
-
-**Total: 16 new files**
+### Settlement Form
+- Offer amount input with percentage calculator
+- Payment type toggle (lump sum vs payment plan)
+- Number of payments (if payment plan)
+- Notes field
+- Submit creates settlement in "offered" status
 
 ---
 
-## UI Patterns (Following Lead Management)
+## Routing Updates
 
-All components will follow the established patterns from the Lead Management module:
+**App.tsx Changes:**
+- Replace `LiabilitiesPage` placeholder with actual implementation
+- Replace `PaymentsPage` placeholder with actual implementation
+- Add `/creditors` route for creditor directory
 
-- **Page Layout**: Header with title and primary action button, filters row, content area
-- **Data Tables**: Using Shadcn Table component with skeleton loading states
-- **Forms**: React Hook Form + Zod validation in Dialog components
-- **Detail Views**: Sheet component sliding in from the right
-- **Loading States**: Skeleton components during data fetching
-- **Toast Notifications**: Success/error feedback for all mutations
-- **Status Badges**: Color-coded badges matching the Guardian brand
+---
+
+## File Summary
+
+| Category | Files |
+|----------|-------|
+| **Hooks** | 4 new (useLiabilities, useLiabilityActions, useSettlements, useTransactions) + 1 updated (useCreditors) |
+| **Pages** | 3 (Liabilities, Creditors, Payments) |
+| **Liability Components** | 6 (FormDialog, DetailSheet, ActionsTimeline, SettlementForm, SettlementCard, and reusable sub-components) |
+| **Creditor Components** | 2 (FormDialog, DetailSheet) |
+| **Payment Components** | 2 (TransactionList, TransactionDetailSheet) |
+
+**Total: ~17 new files + 2 updates**
 
 ---
 
 ## Technical Details
 
-### Data Hooks Pattern
+### Liability with Related Data
 ```typescript
-// Example structure for all hooks
-export function useContacts() { /* list query */ }
-export function useContact(id) { /* single item query */ }
-export function useCreateContact() { /* mutation */ }
-export function useUpdateContact() { /* mutation */ }
-export function useDeleteContact() { /* mutation */ }
+type LiabilityWithRelations = Tables<'liabilities'> & {
+  original_creditor?: Tables<'creditors'> | null;
+  current_creditor?: Tables<'creditors'> | null;
+  engagement?: { id: string; engagement_number: string; primary_contact?: { first_name: string; last_name: string } };
+  settlements?: Tables<'settlements'>[];
+};
 ```
 
-### Form Validation
-All forms use Zod schemas for validation with:
-- Required field validation
-- Email format validation
-- Phone number format (optional)
-- Date validation for due dates
+### Settlement with Attorney Info
+```typescript
+type SettlementWithApprover = Tables<'settlements'> & {
+  attorney?: Tables<'staff'> | null;
+};
+```
 
-### Related Data Loading
-- Contacts load with phones and addresses
-- Engagements load with primary contact, services, and contact relationships
-- Tasks load with assigned staff and linked entity details
+### Currency Formatting
+All monetary values use consistent formatting:
+```typescript
+const formatCurrency = (amount: number) => 
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+```
+
+### Status Badge Colors
+| Status | Color |
+|--------|-------|
+| enrolled | Blue |
+| in_negotiation | Yellow |
+| settled | Green |
+| in_litigation | Red |
+| dismissed | Gray |
+| cancelled | Gray muted |
 
 ---
 
 ## Execution Order
 
-1. **Create hooks first** - useContacts, useEngagements, useTasks
-2. **Create form components** - reusable dialogs for create/edit
-3. **Create detail sheets** - view components with related data
-4. **Create main pages** - list views with filters and actions
-5. **Update App.tsx** - wire up the new pages to routes
+1. **Hooks First**
+   - Create useLiabilities.ts with CRUD
+   - Create useSettlements.ts with CRUD
+   - Create useLiabilityActions.ts
+   - Update useCreditors.ts with mutations
+   - Create useTransactions.ts (read-only)
 
-Each module is independent and can be built in parallel, but I'll create them in order: Contacts, Engagements, Tasks.
+2. **Creditor Directory**
+   - CreditorFormDialog.tsx
+   - CreditorDetailSheet.tsx
+   - Creditors.tsx page
+
+3. **Liabilities Core**
+   - LiabilityFormDialog.tsx
+   - LiabilityDetailSheet.tsx
+   - LiabilityActionsTimeline.tsx
+   - Liabilities.tsx page
+
+4. **Settlement Workflow**
+   - SettlementFormDialog.tsx
+   - SettlementCard.tsx (with status actions)
+   - Add settlement section to LiabilityDetailSheet
+
+5. **Payments View**
+   - TransactionList.tsx
+   - TransactionDetailSheet.tsx
+   - Payments.tsx page
+
+6. **Routing**
+   - Update App.tsx with new routes
+
+---
+
+## Dependencies
+
+- Uses existing TanStack Query patterns from Phase 1 and 2
+- Follows Shadcn UI component patterns (Sheet, Dialog, Table, Badge)
+- Reuses existing hooks: useStaff, useEngagements
+- No new database tables needed (all tables exist)
