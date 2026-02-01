@@ -1,294 +1,320 @@
 
-# Client-Centric Architecture Implementation Plan
+# Settlement Offer Builder and Transaction Structure Enhancement
 
 ## Overview
 
-This plan transforms the current fragmented navigation pattern into a comprehensive Client Hub where users can view and manage everything about a client without context-switching between modules.
+This plan implements a comprehensive financial workflow for your debt settlement business, including:
+1. Enhanced transaction categorization (drafts, processor fees, settlement payments, contingency fees)
+2. Updated transaction status workflow (Open, Pending, Cleared, Cancelled)
+3. A sophisticated Settlement Offer Builder that analyzes escrow projections and suggests viable settlement terms
 
 ---
 
-## Current State Analysis
+## Understanding Your Business Model
 
-**Problem Identified:**
-- Client Detail Sheet shows only basic contact info (name, phones, addresses)
-- Users must navigate separately to Services, Liabilities, Payments, Tasks to see related data
-- No cross-linking between entities
-- Information scattered across 5+ different pages
+Based on your description:
 
-**Current Components:**
-- `ClientDetailSheet.tsx` - 245 lines, 3 tabs (Details, Phones, Addresses)
-- `ServiceDetailSheet.tsx` - 424 lines, comprehensive but service-focused
-- Separate pages for Liabilities, Payments, Tasks
-
-**Database Relationships Available:**
-- `client_services.primary_client_id` links to `clients.id`
-- `liabilities.client_service_id` links to services
-- `transactions.client_service_id` links to services
-- `tasks.entity_type` + `entity_id` can reference clients
-
----
-
-## Architecture Decision
-
-**Approach: Convert Sheet to Full-Page View**
-
-The current slide-out sheet is too constrained for a comprehensive client hub. The solution will:
-
-1. Replace the side-panel `ClientDetailSheet` with a new full-page `ClientDetailPage`
-2. Use URL routing (`/clients/:id`) for proper navigation
-3. Implement tabbed interface with all client data consolidated
-4. Keep Services page as an admin/oversight view with lightweight service detail sheets
-
----
-
-## Implementation Phases
-
-### Phase 1: Data Layer - New Hooks for Client-Centric Queries
-
-**New File: `src/hooks/useClientData.ts`**
-
-Create aggregated hooks to fetch all client-related data:
-
-```text
-Functions to create:
-- useClientServicesForClient(clientId) - All services for a client
-- useLiabilitiesForClient(clientId) - All liabilities across all client services  
-- useTransactionsForClient(clientId) - All transactions across all client services
-- useTasksForClient(clientId) - All tasks linked to client or their services
-- useClientActivitySummary(clientId) - Aggregated stats for Overview tab
-```
-
-These will be efficient queries that join through the `client_services` table.
-
----
-
-### Phase 2: Client Detail Page Component Structure
-
-**New File: `src/pages/ClientDetail.tsx`**
-
-```text
-ClientDetailPage
-+-- Header Section
-|   +-- Client name, email, primary phone
-|   +-- Status badges (Active, TCPA, Preferred Contact)
-|   +-- Quick Actions: [Log Communication] [Schedule Call] [Upload Document] [Edit]
-|
-+-- Tabs Container
-    +-- Overview Tab (default)
-    |   +-- ServicesSummaryCard (collapsed cards for each service)
-    |   +-- RecentActivityCard (last 5-10 activities)
-    |   +-- UpcomingCard (next payment, scheduled tasks)
-    |
-    +-- Services Tab
-    |   +-- Full list of all services with expandable details
-    |   +-- Each service shows status badges, financials, team
-    |   +-- Click to expand inline (not navigate away)
-    |
-    +-- Liabilities Tab
-    |   +-- Table of all liabilities across ALL services
-    |   +-- Columns: Creditor, Type, Balance, Status, Service#
-    |   +-- Click to open LiabilityDetailSheet
-    |
-    +-- Payments Tab
-    |   +-- Transaction history across ALL services
-    |   +-- Date, Amount, Type, Status, Service#
-    |
-    +-- Tasks Tab
-    |   +-- All tasks linked to client or their services
-    |   +-- Status, Priority, Due Date, Assignee
-    |
-    +-- Details Tab (formerly the only content)
-    |   +-- Contact info, DOB, notes
-    |   +-- Phone numbers (add/delete)
-    |   +-- Addresses (add/delete)
-    |
-    +-- Activity Tab
-        +-- Complete timeline of all changes/events
-```
-
----
-
-### Phase 3: New Sub-Components
-
-**New Directory: `src/components/clients/detail/`**
-
-| Component | Purpose |
+| Component | Details |
 |-----------|---------|
-| `ClientHeader.tsx` | Name, contact info, badges, quick actions |
-| `ClientOverviewTab.tsx` | Summary cards for services, activity, upcoming |
-| `ClientServicesTab.tsx` | Expandable service cards with inline details |
-| `ClientLiabilitiesTab.tsx` | Table of all liabilities with filtering |
-| `ClientPaymentsTab.tsx` | Transaction history table |
-| `ClientTasksTab.tsx` | Task list with quick status updates |
-| `ClientDetailsTab.tsx` | Contact info, phones, addresses (refactor from existing) |
-| `ClientActivityTab.tsx` | Complete activity timeline |
-| `ServiceSummaryCard.tsx` | Compact service card for Overview tab |
+| **Monthly Draft** | 1 draft per month for the program term (e.g., 36 drafts for a 36-month program) |
+| **Processor Fee** | $10 per month, collected with each draft |
+| **Contingency Fee** | 27% of settlement amount, becomes AR when debt is settled |
+| **Fee Collection** | Split evenly across settlement term OR collected in full (after first creditor payment) |
+| **Settlement Payments** | Paid to creditors per accepted settlement terms |
 
 ---
 
-### Phase 4: Routing and Navigation Updates
+## Phase 1: Database Schema Updates
 
-**File: `src/App.tsx`**
+### 1.1 Update Transactions Table
 
-Add new route:
+Add new columns to support the transaction workflow:
+
 ```text
-/clients/:id -> ClientDetailPage
+New Columns:
+- scheduled_date: date (when the transaction is scheduled to process)
+- settlement_id: uuid (links fee/settlement payments to specific settlements) 
+- liability_id: uuid (links to the specific liability for settlement payments)
+- parent_transaction_id: uuid (for linking fees to their associated draft)
+- description: text (human-readable description)
+- sequence_number: integer (for ordering within a series)
 ```
 
-**File: `src/pages/Clients.tsx`**
+### 1.2 Update Transaction Enums
 
-Update click handler to navigate to `/clients/${client.id}` instead of opening sheet.
+**Transaction Types:**
+- `draft` - Monthly client draft
+- `processor_fee` - $10 monthly processor fee
+- `settlement_payment` - Payment to creditor
+- `contingency_fee` - 27% fee payment from client
 
-**File: `src/components/services/ServiceDetailSheet.tsx`**
+**Transaction Statuses (replacing current):**
+- `open` - Scheduled for future
+- `pending` - In process
+- `cleared` - Successfully completed
+- `cancelled` - Cancelled
 
-Add prominent "View Full Client Profile" link/button that navigates to `/clients/${clientId}`.
+### 1.3 Add Settlement Schedule Details
 
----
+Enhance the `settlements` table:
 
-### Phase 5: Service Detail Sheet Simplification
-
-Make the existing `ServiceDetailSheet` lighter-weight and service-focused:
-
-- Add client name as clickable link to client profile
-- Keep Status, Program, Financials tabs
-- Add "View Full Client Profile" as primary action
-- Remove duplicated client contact info
-
----
-
-## File Changes Summary
-
-### New Files (10 files)
 ```text
-src/pages/ClientDetail.tsx
-src/hooks/useClientData.ts
-src/components/clients/detail/ClientHeader.tsx
-src/components/clients/detail/ClientOverviewTab.tsx
-src/components/clients/detail/ClientServicesTab.tsx
-src/components/clients/detail/ClientLiabilitiesTab.tsx
-src/components/clients/detail/ClientPaymentsTab.tsx
-src/components/clients/detail/ClientTasksTab.tsx
-src/components/clients/detail/ClientDetailsTab.tsx
-src/components/clients/detail/ServiceSummaryCard.tsx
-```
-
-### Modified Files (4 files)
-```text
-src/App.tsx - Add /clients/:id route
-src/pages/Clients.tsx - Change row click to navigate
-src/components/services/ServiceDetailSheet.tsx - Add client link
-src/components/layout/AppSidebar.tsx - Ensure Clients is prominent
-```
-
-### Deprecated (keep for now)
-```text
-src/components/clients/ClientDetailSheet.tsx - Can be removed after migration
+New Columns:
+- first_payment_date: date
+- payment_schedule: jsonb (detailed payment schedule)
+- fee_collection_method: text ('split' | 'lump_sum')
+- fee_start_offset_months: integer (months after first settlement payment)
 ```
 
 ---
 
-## Technical Details
+## Phase 2: Service Enrollment Transaction Generation
 
-### Data Query Strategy
+### 2.1 Create Transaction Generator Logic
 
-The Overview tab aggregates data efficiently:
+When a client enrolls, automatically generate scheduled transactions:
 
 ```text
-Services Summary Query:
-- Count of active services
-- Total enrolled debt across services
-- Total settled amount
-- Settlement percentage
+For a 36-month program at $450/month:
 
-Liabilities Aggregation:
-- Join through client_services to get all liabilities
-- Group by status for summary counts
+Month 1:  Draft $450 (open) + Processor Fee $10 (open)
+Month 2:  Draft $450 (open) + Processor Fee $10 (open)
+...
+Month 36: Draft $450 (open) + Processor Fee $10 (open)
 
-Recent Activity:
-- Query service_status_history
-- Query liability_actions  
-- Combine and sort by timestamp
+Total: 72 transactions created at enrollment
 ```
 
-### URL Structure
-```text
-/clients              - Client list (existing)
-/clients/:id          - Client detail hub (new)
-/clients/:id/services - Direct link to services tab
-/clients/:id/tasks    - Direct link to tasks tab
-```
+### 2.2 Escrow Balance Projection
 
-### State Management
+Create a utility to project escrow balance over time:
 
-Each tab lazy-loads its data when activated to avoid over-fetching:
 ```text
-<TabsContent value="liabilities">
-  <Suspense fallback={<Skeleton />}>
-    <ClientLiabilitiesTab clientId={id} />
-  </Suspense>
-</TabsContent>
+Escrow projection factors:
++ Cleared drafts (inflow)
+- Processor fees (outflow)
+- Settlement payments (outflow)
+- Contingency fees (outflow)
+= Projected escrow at any point
 ```
 
 ---
 
-## UI/UX Specifications
+## Phase 3: Settlement Offer Builder
 
-### Client Header
-- Full width, fixed at top of detail page
-- Client avatar/initials circle
-- Name prominently displayed (24px bold)
-- Email and primary phone on second line
-- Badge row: Status | TCPA | Preferred Contact
-- Action buttons aligned right: Log Comm, Schedule, Upload, Edit
+### 3.1 New Component: SettlementOfferBuilder
 
-### Tab Navigation
-- Horizontal tabs below header
-- Sticky when scrolling
-- 8 tabs total: Overview, Services, Liabilities, Payments, Tasks, Comms, Documents, Activity
-- Note: Communications and Documents tabs will show "Coming Soon" placeholder initially
+A modal/dialog that opens when creating a settlement offer, showing:
 
-### Overview Tab Cards
-- Services card shows 2-3 most recent/active services
-- Each service card is clickable to expand
-- Shows: Status badges, enrolled debt, settled %, team members
-- "View All Services" link if more than 3
+```text
++------------------------------------------------------------------+
+| Settlement Offer Builder                                    [X]  |
++------------------------------------------------------------------+
+|                                                                   |
+| CREDITOR: Capital One                                            |
+| Current Balance: $14,200                                         |
+| Recommended Settlement: 45-55% ($6,390 - $7,810)                |
+|                                                                   |
++------------------------------------------------------------------+
+|                                                                   |
+| OFFER PARAMETERS                                                 |
+| ┌──────────────────────────────────────────────────────────────┐|
+| │ Settlement Amount: [________] (50% = $7,100)                 │|
+| │ Number of Payments: [6]                                       │|
+| │ First Payment Date: [Mar 15, 2026]                           │|
+| │ Payment per Month: $1,183.33                                  │|
+| └──────────────────────────────────────────────────────────────┘|
+|                                                                   |
+| CONTINGENCY FEE (27%)                                            |
+| Fee Amount: $1,917.00                                            |
+| Collection: [Split across 6 months] / [Lump sum after 1st pmt]  |
+|                                                                   |
++------------------------------------------------------------------+
+|                                                                   |
+| ESCROW PROJECTION                                                |
+| ┌──────────────────────────────────────────────────────────────┐|
+| │ Month     | Escrow In | Settlement | Fees | Balance          │|
+| │───────────+───────────+────────────+──────+──────────────────│|
+| │ Feb 2026  | $450      | -          | $10  | $2,340           │|
+| │ Mar 2026  | $450      | $1,183     | $330 | $1,277  WARNING  │|
+| │ Apr 2026  | $450      | $1,183     | $330 | $214    DANGER   │|
+| │ May 2026  | $450      | $1,183     | $330 | -$849   NEGATIVE │|
+| └──────────────────────────────────────────────────────────────┘|
+|                                                                   |
+| !!! THIS SETTLEMENT WOULD CAUSE NEGATIVE BALANCE !!!            |
+|                                                                   |
++------------------------------------------------------------------+
+|                                                                   |
+| SUGGESTED ADJUSTMENTS                                            |
+| ┌──────────────────────────────────────────────────────────────┐|
+| │ Option A: Increase monthly draft by $75 for 6 months         │|
+| │ Option B: Add one-time payment of $450 before settlement     │|
+| │ Option C: Delay first payment by 2 months                    │|
+| │ Option D: Extend settlement to 9 payments                    │|
+| └──────────────────────────────────────────────────────────────┘|
+|                                                                   |
+| [Cancel]                               [Apply Adjustment] [Save] |
++------------------------------------------------------------------+
+```
 
-### Responsive Behavior
-- Tabs stack vertically on mobile
-- Tables become card lists on mobile
-- Quick actions collapse to dropdown menu
+### 3.2 Projection Algorithm
+
+```text
+function projectEscrow(
+  currentBalance: number,
+  scheduledTransactions: Transaction[],
+  proposedSettlement: {
+    amount: number,
+    payments: number,
+    startDate: Date,
+    feeMethod: 'split' | 'lump_sum'
+  }
+): ProjectionResult {
+
+  1. Get all future "open" transactions (drafts, existing settlements)
+  2. Add proposed settlement payments to timeline
+  3. Add 27% fee payments based on collection method
+  4. Walk through each month:
+     - Add incoming drafts
+     - Subtract outgoing payments
+     - Track running balance
+  5. Flag any month with negative balance
+  6. If negative, calculate adjustment options
+
+  return {
+    projections: MonthlyProjection[],
+    isViable: boolean,
+    shortfall: number,
+    suggestions: AdjustmentOption[]
+  }
+}
+```
+
+### 3.3 Suggestion Engine
+
+When a settlement would cause negative balance, suggest:
+
+| Suggestion Type | Calculation |
+|-----------------|-------------|
+| Increase Draft | `shortfall / remainingMonths` |
+| One-Time Payment | `maxNegativeBalance + buffer` |
+| Delay Start | Find month with sufficient balance |
+| Extend Term | Recalculate with more payments |
+
+---
+
+## Phase 4: UI Components
+
+### 4.1 New Files to Create
+
+```text
+src/components/liabilities/SettlementOfferBuilder.tsx
+  - Main builder component with all inputs
+  
+src/components/liabilities/EscrowProjectionTable.tsx
+  - Visual table showing month-by-month projections
+  
+src/components/liabilities/AdjustmentSuggestions.tsx
+  - Cards showing possible adjustments
+
+src/hooks/useEscrowProjection.ts
+  - Logic for calculating projections
+
+src/hooks/useTransactionSchedule.ts
+  - Fetch and manage scheduled transactions
+```
+
+### 4.2 Modify Existing Components
+
+**LiabilityDetailSheet.tsx:**
+- Replace "New Offer" button with "Build Offer" button
+- Opens SettlementOfferBuilder instead of simple form
+
+**SettlementFormDialog.tsx:**
+- Keep for quick edits, but deprecate for new offers
+- SettlementOfferBuilder becomes primary creation flow
+
+---
+
+## Phase 5: Transaction Management Updates
+
+### 5.1 Automatic Transaction Generation
+
+When a settlement is accepted:
+
+```text
+1. Create settlement payment transactions:
+   - Type: settlement_payment
+   - Status: open
+   - Scheduled dates based on payment plan
+
+2. Create contingency fee transactions:
+   - Type: contingency_fee  
+   - Amount: settlement_amount * 0.27 / number_of_fee_payments
+   - First fee after first settlement payment clears
+```
+
+### 5.2 Transaction Status Workflow
+
+```text
+OPEN → PENDING → CLEARED
+                ↘ CANCELLED
+
+- Transactions start as OPEN (scheduled)
+- Move to PENDING on processing day
+- Move to CLEARED when confirmed
+- Can be CANCELLED at any point before CLEARED
+```
+
+### 5.3 Update Payments Page
+
+Add filters for new transaction types and statuses.
 
 ---
 
 ## Implementation Order
 
-1. **Data Layer First**: Create `useClientData.ts` with all aggregation hooks
-2. **Page Shell**: Create `ClientDetail.tsx` with header and empty tabs
-3. **Overview Tab**: Build summary cards with real data
-4. **Details Tab**: Refactor existing phone/address management
-5. **Services Tab**: Create expandable service cards
-6. **Liabilities Tab**: Table with all debts across services
-7. **Payments Tab**: Transaction history table
-8. **Tasks Tab**: Task list with filters
-9. **Navigation**: Update routing and click handlers
-10. **Service Sheet**: Add client profile link
+| Step | Task | Priority |
+|------|------|----------|
+| 1 | Database migration for transactions and settlements tables | High |
+| 2 | Update TypeScript types and hooks for new fields | High |
+| 3 | Create useEscrowProjection hook with projection logic | High |
+| 4 | Build SettlementOfferBuilder component | High |
+| 5 | Add EscrowProjectionTable visualization | Medium |
+| 6 | Implement AdjustmentSuggestions component | Medium |
+| 7 | Update LiabilityDetailSheet to use new builder | Medium |
+| 8 | Create transaction generation on enrollment | Medium |
+| 9 | Update Payments page with new filters | Low |
+| 10 | Add sample data for testing | Low |
 
 ---
 
-## Success Metrics
+## Technical Considerations
 
-After implementation, users should be able to:
-- Open a client and see ALL their services immediately
-- View total debt and settlement progress without navigation
-- See recent activity across all services
-- Access any related data without leaving the client page
-- Navigate to full client view from any service detail
+### Data Integrity
+- Settlement transactions are auto-generated but can be manually adjusted
+- Fee calculations use 27% (configurable via `settlement_fee_percentage`)
+- Processor fee is hardcoded at $10 but could be made configurable
+
+### Performance
+- Projection calculations done client-side for responsiveness
+- Scheduled transactions indexed by `client_service_id` and `scheduled_date`
+- Use React Query for caching transaction data
+
+### Edge Cases
+- Paused programs: suspend scheduled transactions
+- NSF: mark draft as failed, reschedule
+- Partial payments: track remaining balances
+- Multiple settlements: stack projections correctly
 
 ---
 
-## Dependencies
+## Summary
 
-- Existing components: Badge, Card, Table, Tabs, Sheet
-- Existing hooks: useClient, useClientServices, useLiabilities, useTransactions, useTasks
-- No new npm packages required
-- No database schema changes needed
+This implementation transforms the settlement workflow from a simple offer form into an intelligent builder that:
+
+1. Shows real-time escrow impact of proposed settlements
+2. Warns when a settlement would cause negative balance
+3. Suggests specific adjustments to make settlements viable
+4. Auto-generates all related transactions when accepted
+5. Provides full visibility into the financial timeline
