@@ -12,7 +12,7 @@ import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/lib/auth';
 
 const serviceSchema = z.object({
-  status: z.enum(['pending', 'active', 'graduated', 'dropped', 'cancelled']),
+  status: z.enum(['pending', 'active', 'graduated', 'dropped']),
   primary_client_id: z.string().optional().nullable(),
   program_type: z.string().default('debt_settlement'),
   term_months: z.number().min(1).max(120).optional().nullable(),
@@ -129,7 +129,6 @@ export function ServiceFormDialog({ open, onOpenChange }: ServiceFormDialogProps
                         <SelectItem value="active">Active</SelectItem>
                         <SelectItem value="graduated">Graduated</SelectItem>
                         <SelectItem value="dropped">Dropped</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

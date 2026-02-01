@@ -1,7 +1,7 @@
 // Multi-dimensional service status types
 
 // Primary Status (Lifecycle)
-export type PrimaryServiceStatus = 'pending' | 'active' | 'graduated' | 'dropped' | 'cancelled';
+export type PrimaryServiceStatus = 'pending' | 'active' | 'graduated' | 'dropped';
 
 // Payment Status (Financial State - only relevant when primary status is 'active')
 export type PaymentStatus = 'current' | 'paused' | 'nsf' | 'past_due' | 'suspended' | null;
@@ -20,12 +20,12 @@ export const primaryStatusConfig: Record<PrimaryServiceStatus, { label: string; 
   pending: { 
     label: 'Pending', 
     className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-    description: 'Agreement signed, not yet started'
+    description: 'Awaiting first draft to clear'
   },
   active: { 
     label: 'Active', 
     className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-    description: 'Service currently running'
+    description: 'First draft cleared, program running'
   },
   graduated: { 
     label: 'Graduated', 
@@ -35,12 +35,7 @@ export const primaryStatusConfig: Record<PrimaryServiceStatus, { label: string; 
   dropped: { 
     label: 'Dropped', 
     className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-    description: 'Client stopped participating'
-  },
-  cancelled: { 
-    label: 'Cancelled', 
-    className: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-    description: 'Formally cancelled'
+    description: 'Client left or was removed from program'
   },
 };
 

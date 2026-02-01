@@ -76,7 +76,6 @@ export default function ServicesPage() {
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="graduated">Graduated</SelectItem>
             <SelectItem value="dropped">Dropped</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
 
