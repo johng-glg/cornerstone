@@ -205,6 +205,13 @@ export function useAcceptSettlement() {
         .single();
       if (error) throw error;
 
+      // Update liability status to settled
+      const { error: liabilityUpdateError } = await supabase
+        .from('liabilities')
+        .update({ status: 'settled' })
+        .eq('id', liabilityId);
+      if (liabilityUpdateError) throw liabilityUpdateError;
+
       // Calculate transactions to schedule
       const transactions: Array<{
         client_service_id: string;
