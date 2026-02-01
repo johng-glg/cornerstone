@@ -6,16 +6,15 @@ import type { TransactionForClient } from '@/hooks/useClientData';
 
 interface EscrowBalanceChartProps {
   transactions: TransactionForClient[] | undefined;
-  currentEscrowBalance?: number;
 }
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
 
-export function EscrowBalanceChart({ transactions, currentEscrowBalance = 0 }: EscrowBalanceChartProps) {
+export function EscrowBalanceChart({ transactions }: EscrowBalanceChartProps) {
   const { projectionData, summary } = useMemo(() => {
     if (!transactions || transactions.length === 0) {
-      return { projectionData: [], summary: { totalInflow: 0, totalOutflow: 0, projectedPeak: 0 } };
+      return { projectionData: [], summary: { totalInflow: 0, totalOutflow: 0, projectedPeak: 0, calculatedBalance: 0 } };
     }
 
     // Sort transactions by scheduled_date or created_at
@@ -25,7 +24,7 @@ export function EscrowBalanceChart({ transactions, currentEscrowBalance = 0 }: E
       return dateA - dateB;
     });
 
-    // Group by month and calculate running balance
+    // Group by month
     const monthlyMap = new Map<string, { inflow: number; outflow: number; transactions: TransactionForClient[] }>();
     
     sorted.forEach((t) => {
@@ -47,32 +46,11 @@ export function EscrowBalanceChart({ transactions, currentEscrowBalance = 0 }: E
       }
     });
 
-    // Convert to array and calculate running balance
-    let runningBalance = currentEscrowBalance;
+    // Start from 0 and accumulate - simple forward calculation
+    let runningBalance = 0;
     let totalInflow = 0;
     let totalOutflow = 0;
-    let projectedPeak = currentEscrowBalance;
-    
-    // Find the earliest cleared transaction to start from there
-    const clearedTransactions = sorted.filter(t => t.status === 'cleared');
-    const firstClearedDate = clearedTransactions.length > 0 
-      ? new Date(clearedTransactions[0].scheduled_date || clearedTransactions[0].created_at)
-      : new Date();
-    
-    // Calculate what the balance was before the first transaction
-    // We need to work backwards from current balance
-    let historicalBalance = currentEscrowBalance;
-    sorted.forEach(t => {
-      if (t.status === 'cleared') {
-        if (t.transaction_type === 'draft') {
-          historicalBalance -= t.amount;
-        } else {
-          historicalBalance += t.amount;
-        }
-      }
-    });
-    
-    runningBalance = historicalBalance;
+    let projectedPeak = 0;
 
     const projectionData = Array.from(monthlyMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
@@ -80,9 +58,8 @@ export function EscrowBalanceChart({ transactions, currentEscrowBalance = 0 }: E
         const [year, month] = key.split('-');
         const date = new Date(parseInt(year), parseInt(month) - 1);
         
-        // Apply transactions for this month
+        // Apply transactions for this month (only non-cancelled)
         data.transactions.forEach(t => {
-          // Only count non-cancelled transactions
           if (t.status !== 'cancelled') {
             if (t.transaction_type === 'draft') {
               runningBalance += t.amount;
@@ -111,9 +88,20 @@ export function EscrowBalanceChart({ transactions, currentEscrowBalance = 0 }: E
 
     return { 
       projectionData, 
-      summary: { totalInflow, totalOutflow, projectedPeak } 
+      summary: { totalInflow, totalOutflow, projectedPeak, calculatedBalance: runningBalance } 
     };
-  }, [transactions, currentEscrowBalance]);
+  }, [transactions]);
+
+  // Calculate current balance from cleared transactions only
+  const currentBalance = useMemo(() => {
+    if (!transactions) return 0;
+    return transactions.reduce((balance, t) => {
+      if (t.status === 'cleared') {
+        return t.transaction_type === 'draft' ? balance + t.amount : balance - t.amount;
+      }
+      return balance;
+    }, 0);
+  }, [transactions]);
 
   if (!transactions || transactions.length === 0) {
     return null;
@@ -134,7 +122,7 @@ export function EscrowBalanceChart({ transactions, currentEscrowBalance = 0 }: E
               <Wallet className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Current Balance</span>
             </div>
-            <p className="text-2xl font-bold mt-1">{formatCurrency(currentEscrowBalance)}</p>
+            <p className="text-2xl font-bold mt-1">{formatCurrency(currentBalance)}</p>
           </CardContent>
         </Card>
         <Card>
