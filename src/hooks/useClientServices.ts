@@ -26,7 +26,7 @@ export function useClientServices(status?: ServiceStatus) {
         .from('client_services')
         .select(`
           *,
-          primary_client:clients!client_services_primary_client_id_fkey(id, first_name, last_name, email),
+          primary_client:clients!engagements_primary_contact_id_fkey(id, first_name, last_name, email),
           client_service_types(
             *,
             service:services(id, name, service_type)
@@ -58,7 +58,7 @@ export function useClientService(id: string | undefined) {
         .from('client_services')
         .select(`
           *,
-          primary_client:clients!client_services_primary_client_id_fkey(id, first_name, last_name, email),
+          primary_client:clients!engagements_primary_contact_id_fkey(id, first_name, last_name, email),
           client_service_clients(
             *,
             client:clients(id, first_name, last_name, email)
