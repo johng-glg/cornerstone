@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useTransactions, type Transaction } from '@/hooks/useTransactions';
 import { TransactionList } from '@/components/payments/TransactionList';
 import { TransactionDetailSheet } from '@/components/payments/TransactionDetailSheet';
+import { PaymentsSummaryChart } from '@/components/payments/PaymentsSummaryChart';
 
 const statusOptions = [
   { value: 'all', label: 'All Statuses' },
@@ -61,6 +62,9 @@ export default function PaymentsPage() {
           <p className="text-muted-foreground">View and manage transaction history</p>
         </div>
       </div>
+
+      {/* Summary Chart */}
+      <PaymentsSummaryChart transactions={transactions} />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4">
