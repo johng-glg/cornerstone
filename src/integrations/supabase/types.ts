@@ -1714,6 +1714,7 @@ export type Database = {
         | "rejected"
         | "completed"
         | "defaulted"
+        | "cancelled"
       task_priority: "low" | "medium" | "high" | "urgent"
       task_status: "pending" | "in_progress" | "completed" | "cancelled"
       task_type:
@@ -1999,6 +2000,7 @@ export const Constants = {
         "rejected",
         "completed",
         "defaulted",
+        "cancelled",
       ],
       task_priority: ["low", "medium", "high", "urgent"],
       task_status: ["pending", "in_progress", "completed", "cancelled"],
