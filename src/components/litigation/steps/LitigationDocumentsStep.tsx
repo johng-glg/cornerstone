@@ -1,9 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText, Upload, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { FileText, Upload, AlertCircle, X, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import type { LitigationData } from '../LitigationWizard';
 
 interface LitigationDocumentsStepProps {
@@ -12,12 +15,189 @@ interface LitigationDocumentsStepProps {
   setCanProceed: (can: boolean) => void;
 }
 
+interface DocumentUploadProps {
+  label: string;
+  description: string;
+  isUploaded: boolean;
+  onUploadChange: (uploaded: boolean, url?: string) => void;
+  uploadedUrl?: string;
+  tempFolderId: string;
+  documentType: 'complaint' | 'summons';
+}
+
+function DocumentUploadCard({
+  label,
+  description,
+  isUploaded,
+  onUploadChange,
+  uploadedUrl,
+  tempFolderId,
+  documentType,
+}: DocumentUploadProps) {
+  const [isUploading, setIsUploading] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Maximum file size is 10MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    setFileName(file.name);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `temp/${tempFolderId}/${documentType}-${Date.now()}.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from('litigation-documents')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) throw error;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('litigation-documents')
+        .getPublicUrl(data.path);
+
+      onUploadChange(true, publicUrlData.publicUrl);
+      toast({ title: 'File uploaded successfully' });
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: 'Upload failed',
+        description: (error as Error).message,
+        variant: 'destructive',
+      });
+      setFileName(null);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleRemove = () => {
+    onUploadChange(false, undefined);
+    setFileName(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleCheckboxChange = (checked: boolean) => {
+    if (!checked) {
+      handleRemove();
+    } else {
+      onUploadChange(true, uploadedUrl);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-3">
+          <FileText className="h-5 w-5 text-muted-foreground" />
+          <div>
+            <CardTitle className="text-base">{label}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center gap-3">
+          <Checkbox
+            id={`${documentType}_received`}
+            checked={isUploaded}
+            onCheckedChange={handleCheckboxChange}
+          />
+          <Label htmlFor={`${documentType}_received`} className="font-normal cursor-pointer">
+            Document received
+          </Label>
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={handleFileSelect}
+          accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+        />
+
+        {uploadedUrl ? (
+          <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+            <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">
+                {fileName || 'Uploaded document'}
+              </p>
+              <a
+                href={uploadedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline truncate block"
+              >
+                View file
+              </a>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleRemove}
+              className="flex-shrink-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload {label}
+              </>
+            )}
+          </Button>
+        )}
+
+        <p className="text-xs text-muted-foreground">
+          PDF, DOC, DOCX, TXT, JPG, PNG (max 10MB)
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function LitigationDocumentsStep({
   data,
   updateData,
   setCanProceed,
 }: LitigationDocumentsStepProps) {
-  // At minimum, need to confirm documents are received
+  // Generate a temp folder ID if we don't have one
+  const tempFolderId = data.lead_id || `temp-${Date.now()}`;
+
   useEffect(() => {
     const isValid = data.complaint_uploaded || data.summons_uploaded;
     setCanProceed(isValid);
@@ -28,58 +208,40 @@ export function LitigationDocumentsStep({
       <div className="space-y-2">
         <h3 className="font-heading text-lg font-semibold">Documents</h3>
         <p className="text-sm text-muted-foreground">
-          Confirm receipt of litigation documents. (Upload functionality coming soon)
+          Upload or confirm receipt of litigation documents.
         </p>
       </div>
 
       <div className="grid gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-3">
-              <FileText className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <CardTitle className="text-base">Complaint / Petition</CardTitle>
-                <CardDescription>The lawsuit document filed against the client</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              <Checkbox
-                id="complaint_received"
-                checked={data.complaint_uploaded || false}
-                onCheckedChange={(checked) => updateData({ complaint_uploaded: !!checked })}
-              />
-              <Label htmlFor="complaint_received" className="font-normal cursor-pointer">
-                Complaint document received
-              </Label>
-            </div>
-          </CardContent>
-        </Card>
+        <DocumentUploadCard
+          label="Complaint / Petition"
+          description="The lawsuit document filed against the client"
+          isUploaded={data.complaint_uploaded || false}
+          uploadedUrl={data.complaint_url}
+          onUploadChange={(uploaded, url) => {
+            updateData({ 
+              complaint_uploaded: uploaded,
+              complaint_url: url 
+            });
+          }}
+          tempFolderId={tempFolderId}
+          documentType="complaint"
+        />
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-3">
-              <FileText className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <CardTitle className="text-base">Summons</CardTitle>
-                <CardDescription>The official summons with court and deadline information</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              <Checkbox
-                id="summons_received"
-                checked={data.summons_uploaded || false}
-                onCheckedChange={(checked) => updateData({ summons_uploaded: !!checked })}
-              />
-              <Label htmlFor="summons_received" className="font-normal cursor-pointer">
-                Summons document received
-              </Label>
-            </div>
-          </CardContent>
-        </Card>
+        <DocumentUploadCard
+          label="Summons"
+          description="The official summons with court and deadline information"
+          isUploaded={data.summons_uploaded || false}
+          uploadedUrl={data.summons_url}
+          onUploadChange={(uploaded, url) => {
+            updateData({ 
+              summons_uploaded: uploaded,
+              summons_url: url 
+            });
+          }}
+          tempFolderId={tempFolderId}
+          documentType="summons"
+        />
       </div>
 
       {!data.complaint_uploaded && !data.summons_uploaded && (
@@ -90,15 +252,6 @@ export function LitigationDocumentsStep({
           </AlertDescription>
         </Alert>
       )}
-
-      <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
-        <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
-        <p className="text-sm text-muted-foreground">
-          Document upload functionality coming soon.
-          <br />
-          For now, please confirm document receipt above.
-        </p>
-      </div>
     </div>
   );
 }

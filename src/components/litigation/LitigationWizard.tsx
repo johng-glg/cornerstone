@@ -32,6 +32,9 @@ export const LITIGATION_STEPS: { id: LitigationStep; label: string }[] = [
 export const ELIGIBLE_STATES = ['TX', 'CA', 'FL', 'IL', 'GA'];
 
 export interface LitigationData {
+  // Lead reference
+  lead_id?: string;
+  
   // Eligibility
   state?: string;
   debt_amount?: number;
@@ -44,9 +47,11 @@ export interface LitigationData {
   court_name?: string;
   case_number?: string;
   
-  // Documents (placeholders for now)
+  // Documents
   complaint_uploaded?: boolean;
+  complaint_url?: string;
   summons_uploaded?: boolean;
+  summons_url?: string;
 }
 
 interface LitigationWizardProps {
@@ -74,6 +79,7 @@ export function LitigationWizard({ leadId, onClose, onSuccess }: LitigationWizar
   useEffect(() => {
     if (lead) {
       setData({
+        lead_id: lead.id,
         state: lead.state || '',
         debt_amount: lead.estimated_debt_amount || undefined,
         service_date: (lead as any).service_date || '',

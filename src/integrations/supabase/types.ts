@@ -108,6 +108,54 @@ export type Database = {
           },
         ]
       }
+      client_documents: {
+        Row: {
+          client_id: string
+          created_at: string
+          document_type: string
+          file_url: string
+          id: string
+          notes: string | null
+          title: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          document_type?: string
+          file_url: string
+          id?: string
+          notes?: string | null
+          title: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          document_type?: string
+          file_url?: string
+          id?: string
+          notes?: string | null
+          title?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_documents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_phones: {
         Row: {
           client_id: string
