@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LeadFormDialog } from './LeadFormDialog';
 import { 
   Phone, 
   Mail, 
@@ -33,7 +34,11 @@ import {
   MessageSquare,
   ArrowRightCircle,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Pencil,
+  Flag,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -53,6 +58,7 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
   const [activityType, setActivityType] = useState<string>('call');
   const [activityNotes, setActivityNotes] = useState('');
   const [outcome, setOutcome] = useState<string>('');
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   const handleLogActivity = async () => {
     if (!leadId || !activityNotes) return;
@@ -88,9 +94,9 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
           </div>
         ) : lead ? (
           <>
-            <SheetHeader>
-              <div className="flex items-start justify-between">
-                <div>
+            <SheetHeader className="pr-8">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
                   <SheetTitle className="font-heading text-2xl">
                     {lead.first_name} {lead.last_name}
                   </SheetTitle>
@@ -101,12 +107,17 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
                     </Badge>
                   </SheetDescription>
                 </div>
-                {lead.status !== 'converted' && lead.status !== 'lost' && (
-                  <Button onClick={() => onConvert(lead.id)}>
-                    <ArrowRightCircle className="mr-2 h-4 w-4" />
-                    Convert
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Button variant="outline" size="icon" onClick={() => setShowEditDialog(true)}>
+                    <Pencil className="h-4 w-4" />
                   </Button>
-                )}
+                  {lead.status !== 'converted' && lead.status !== 'lost' && (
+                    <Button onClick={() => onConvert(lead.id)}>
+                      <ArrowRightCircle className="mr-2 h-4 w-4" />
+                      Convert
+                    </Button>
+                  )}
+                </div>
               </div>
             </SheetHeader>
 
@@ -265,6 +276,58 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
                   </CardContent>
                 </Card>
 
+                {/* Stage Transition Timeline */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-muted-foreground">Stage History</h4>
+                  <div className="space-y-2">
+                    {lead.new_at && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <Flag className="h-4 w-4 text-blue-500" />
+                        <span className="font-medium">New</span>
+                        <span className="text-muted-foreground">
+                          {format(new Date(lead.new_at), 'MMM d, yyyy h:mm a')}
+                        </span>
+                      </div>
+                    )}
+                    {lead.contacted_at && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <Phone className="h-4 w-4 text-yellow-500" />
+                        <span className="font-medium">Contacted</span>
+                        <span className="text-muted-foreground">
+                          {format(new Date(lead.contacted_at), 'MMM d, yyyy h:mm a')}
+                        </span>
+                      </div>
+                    )}
+                    {lead.qualified_at && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        <span className="font-medium">Qualified</span>
+                        <span className="text-muted-foreground">
+                          {format(new Date(lead.qualified_at), 'MMM d, yyyy h:mm a')}
+                        </span>
+                      </div>
+                    )}
+                    {lead.converted_at && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <ArrowRightCircle className="h-4 w-4 text-primary" />
+                        <span className="font-medium">Converted</span>
+                        <span className="text-muted-foreground">
+                          {format(new Date(lead.converted_at), 'MMM d, yyyy h:mm a')}
+                        </span>
+                      </div>
+                    )}
+                    {lead.lost_at && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <XCircle className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">Lost</span>
+                        <span className="text-muted-foreground">
+                          {format(new Date(lead.lost_at), 'MMM d, yyyy h:mm a')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="space-y-3">
                   <h4 className="text-sm font-medium text-muted-foreground">Activity Timeline</h4>
                   {activitiesLoading ? (
@@ -310,6 +373,11 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
                 </div>
               </TabsContent>
             </Tabs>
+            <LeadFormDialog
+              open={showEditDialog}
+              onOpenChange={setShowEditDialog}
+              lead={lead}
+            />
           </>
         ) : (
           <p className="text-muted-foreground">Lead not found</p>
