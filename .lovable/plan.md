@@ -1,45 +1,86 @@
 
 
-# Load Mock Data - Step 1: Companies
+# Add Test Staff Without Email Confirmation
 
-## Overview
+## The Challenge
 
-Load foundation data one table at a time to avoid timeouts. This first step creates the company hierarchy that all other data depends on.
+The `staff` table requires a valid `user_id` referencing `auth.users`. This means you can't add staff records without creating actual authentication accounts first.
 
-## Step 1: Companies (This Migration)
+## Solution: Create a Backend Function for Admin User Creation
 
-Insert 2 company records:
+I'll create a secure backend function that allows admins to create test users with auto-confirmed emails. This bypasses the email verification step while maintaining proper security.
 
-| Name | Type | Role |
-|------|------|------|
-| Johnson & Associates Law Firm | law_firm | Main company (parent) |
-| Legal Solutions Affiliate | affiliate | Child company |
+## What This Enables
 
-## Loading Order (Future Steps)
+- Add staff members directly from the Staff Management page
+- No email confirmation required for test accounts
+- You control the password for all test accounts
+- Proper authentication records are created (users can actually log in)
 
-After this migration succeeds, we'll continue with:
+## Implementation Steps
 
-1. **Step 2**: Staff (5 members)
-2. **Step 3**: Contacts + Phones + Addresses (8 contacts)
-3. **Step 4**: Leads + Lead Activities (6 leads)
-4. **Step 5**: Creditors (8 creditors)
-5. **Step 6**: Engagements + Links (5 engagements)
-6. **Step 7**: Tasks (10 tasks)
-7. **Step 8**: Liabilities (12 liabilities)
-8. **Step 9**: Settlements + Actions (6 settlements)
-9. **Step 10**: Transactions (8 transactions)
+### Step 1: Create Backend Function
+
+A new backend function (`create-staff-user`) that:
+- Accepts staff details (name, email, department, etc.)
+- Creates an auth user with a default test password
+- Auto-confirms the email (no verification needed)
+- Creates the corresponding staff record
+- Optionally assigns roles
+
+### Step 2: Add Staff Form Dialog
+
+A new form component (`StaffFormDialog.tsx`) with fields for:
+- First Name, Last Name
+- Email (will be used for login)
+- Phone (optional)
+- Department (dropdown: admin, attorney, negotiations, case_manager, etc.)
+- Job Title (optional)
+- Company assignment
+- Active status
+
+### Step 3: Update Staff Page
+
+- Add "Add Staff" button
+- Add edit functionality with pencil icon on hover
+- Show loading states during user creation
 
 ## Technical Details
 
-```sql
--- Insert parent company first
-INSERT INTO companies (name, company_type, address_line1, city, state, zip_code, phone, email, website, is_active, data_visibility)
-VALUES 
-  ('Johnson & Associates Law Firm', 'law_firm', '123 Legal Plaza, Suite 500', 'Los Angeles', 'CA', '90001', '(555) 123-4567', 'info@johnsonlaw.com', 'www.johnsonlaw.com', true, 'company_wide');
-
--- Insert affiliate company with parent reference
-INSERT INTO companies (name, company_type, address_line1, city, state, zip_code, phone, email, is_active, data_visibility, parent_company_id)
-SELECT 'Legal Solutions Affiliate', 'affiliate', '456 Partner Street', 'San Diego', 'CA', '92101', '(555) 987-6543', 'info@legalsolutions.com', true, 'own_only', id
-FROM companies WHERE name = 'Johnson & Associates Law Firm';
+```text
+┌─────────────────┐     ┌──────────────────────┐     ┌─────────────┐
+│  Staff Form     │────▶│  create-staff-user   │────▶│  auth.users │
+│  (Frontend)     │     │  (Backend Function)  │     │  + staff    │
+└─────────────────┘     └──────────────────────┘     └─────────────┘
 ```
+
+**Backend Function Logic:**
+1. Verify caller is admin (RLS check)
+2. Create auth user with `supabase.auth.admin.createUser({ email_confirm: true })`
+3. Insert staff record linked to new user
+4. Optionally add roles to `user_roles` table
+5. Return success/error
+
+**Security:**
+- Only admins can call this function
+- Default password is `TestPass123!` (you can change it)
+- Created users can reset their password via email later
+
+## Test Accounts to Create
+
+Once implemented, you can add these test staff:
+
+| Name | Department | Role |
+|------|------------|------|
+| Sarah Mitchell | attorney | attorney |
+| Mike Chen | negotiations | negotiator |
+| Emily Rodriguez | case_manager | case_manager |
+| David Kim | sales_intake | sales_rep |
+
+## Outcome
+
+After this is implemented, you'll be able to:
+1. Click "Add Staff" on the Staff Management page
+2. Fill in the form with test user details
+3. Staff member is created and can log in immediately (no email needed)
 
