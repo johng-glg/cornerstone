@@ -131,7 +131,7 @@ export function useTransactionsForClient(clientId: string | undefined) {
           client_service:client_services!transactions_engagement_id_fkey(id, service_number)
         `)
         .in('client_service_id', serviceIds)
-        .order('created_at', { ascending: false });
+        .order('scheduled_date', { ascending: true, nullsFirst: false });
       
       if (error) throw error;
       return data as TransactionForClient[];
