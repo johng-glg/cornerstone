@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, Mail, Phone, Building2 } from 'lucide-react';
+import { Users, Mail, Phone, Building2, Plus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -13,8 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { StaffFormDialog } from '@/components/staff/StaffFormDialog';
 
 export default function StaffPage() {
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const { data: staff, isLoading } = useQuery({
     queryKey: ['staff-list'],
     queryFn: async () => {
@@ -87,7 +91,13 @@ export default function StaffPage() {
             {staff?.length || 0} staff members
           </p>
         </div>
+        <Button onClick={() => setShowAddDialog(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Staff
+        </Button>
       </div>
+
+      <StaffFormDialog open={showAddDialog} onOpenChange={setShowAddDialog} />
 
       <Card>
         <CardContent className="p-0">
