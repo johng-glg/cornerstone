@@ -61,18 +61,31 @@ export function useCreateSettlement() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (settlement: SettlementInsert) => {
+    mutationFn: async (settlement: SettlementInsert & { staffId?: string }) => {
+      const { staffId, ...settlementData } = settlement;
       const { data, error } = await supabase
         .from('settlements')
-        .insert([settlement])
+        .insert([settlementData])
         .select()
         .single();
       if (error) throw error;
+      
+      // Log action
+      const formattedAmount = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(data.offer_amount);
+      await supabase.from('liability_actions').insert({
+        liability_id: data.liability_id,
+        action_type: 'settlement',
+        description: `Settlement offer of ${formattedAmount} created (${data.payment_type === 'lump_sum' ? 'Lump Sum' : `${data.number_of_payments || 1} payments`})`,
+        amount: data.offer_amount,
+        staff_id: staffId || null,
+      });
+      
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['settlements'] });
       queryClient.invalidateQueries({ queryKey: ['settlements', data.liability_id] });
+      queryClient.invalidateQueries({ queryKey: ['liability_actions', data.liability_id] });
       toast({ title: 'Settlement offer created' });
     },
     onError: (error: Error) => {
@@ -143,7 +156,7 @@ export function useAcceptSettlement() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, liabilityId, offerAmount, staffId }: { id: string; liabilityId: string; offerAmount: number; staffId?: string }) => {
       const { data, error } = await supabase
         .from('settlements')
         .update({
@@ -154,11 +167,23 @@ export function useAcceptSettlement() {
         .select()
         .single();
       if (error) throw error;
+      
+      // Log action
+      const formattedAmount = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(offerAmount);
+      await supabase.from('liability_actions').insert({
+        liability_id: liabilityId,
+        action_type: 'settlement',
+        description: `Settlement offer of ${formattedAmount} was accepted`,
+        amount: offerAmount,
+        staff_id: staffId || null,
+      });
+      
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['settlements'] });
       queryClient.invalidateQueries({ queryKey: ['settlements', data.liability_id] });
+      queryClient.invalidateQueries({ queryKey: ['liability_actions', data.liability_id] });
       toast({ title: 'Settlement accepted' });
     },
     onError: (error: Error) => {
@@ -198,7 +223,7 @@ export function useCompleteSettlement() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, liabilityId, staffId }: { id: string; liabilityId: string; staffId?: string }) => {
       const { data, error } = await supabase
         .from('settlements')
         .update({
@@ -209,15 +234,63 @@ export function useCompleteSettlement() {
         .select()
         .single();
       if (error) throw error;
+      
+      // Log action
+      await supabase.from('liability_actions').insert({
+        liability_id: liabilityId,
+        action_type: 'settlement',
+        description: `Settlement marked as completed`,
+        staff_id: staffId || null,
+      });
+      
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['settlements'] });
       queryClient.invalidateQueries({ queryKey: ['settlements', data.liability_id] });
+      queryClient.invalidateQueries({ queryKey: ['liability_actions', data.liability_id] });
       toast({ title: 'Settlement marked as completed' });
     },
     onError: (error: Error) => {
       toast({ title: 'Failed to complete settlement', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useDeleteSettlement() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, liabilityId, offerAmount, staffId }: { id: string; liabilityId: string; offerAmount: number; staffId?: string }) => {
+      const { data, error } = await supabase
+        .from('settlements')
+        .update({ status: 'cancelled' as SettlementStatus })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      
+      // Log action
+      const formattedAmount = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(offerAmount);
+      await supabase.from('liability_actions').insert({
+        liability_id: liabilityId,
+        action_type: 'settlement',
+        description: `Settlement offer of ${formattedAmount} was deleted`,
+        amount: offerAmount,
+        staff_id: staffId || null,
+      });
+      
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['settlements'] });
+      queryClient.invalidateQueries({ queryKey: ['settlements', data.liability_id] });
+      queryClient.invalidateQueries({ queryKey: ['liability_actions', data.liability_id] });
+      toast({ title: 'Settlement deleted' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to delete settlement', description: error.message, variant: 'destructive' });
     },
   });
 }
