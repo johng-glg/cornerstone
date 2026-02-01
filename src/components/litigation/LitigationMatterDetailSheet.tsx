@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format, isPast } from 'date-fns';
-import { Scale, Building2, Calendar, MapPin, User, Edit, Plus, DollarSign } from 'lucide-react';
+import { Scale, Building2, Calendar, MapPin, User, Edit, Plus, DollarSign, MessageSquare, Save } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
 import { useLitigationMatter, type LitigationStatus, useUpdateLitigationMatter } from '@/hooks/useLitigationMatters';
 import { useLitigationHearings, useDeleteLitigationHearing, type LitigationHearing } from '@/hooks/useLitigationHearings';
 import { useDeleteLitigationDocument } from '@/hooks/useLitigationDocuments';
@@ -77,6 +78,8 @@ export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: Li
   const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
   const [activityDialogOpen, setActivityDialogOpen] = useState(false);
   const [assignmentDialogOpen, setAssignmentDialogOpen] = useState(false);
+  const [notesEdit, setNotesEdit] = useState<string | null>(null);
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
 
   const handleStatusChange = (newStatus: LitigationStatus) => {
     if (matter) {
@@ -98,6 +101,18 @@ export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: Li
   const handleDeleteDocument = (docId: string) => {
     if (matterId) {
       deleteDocument.mutate({ id: docId, matterId });
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    if (matter && notesEdit !== null) {
+      setIsSavingNotes(true);
+      try {
+        await updateMatter.mutateAsync({ id: matter.id, notes: notesEdit });
+        setNotesEdit(null);
+      } finally {
+        setIsSavingNotes(false);
+      }
     }
   };
 
@@ -142,8 +157,9 @@ export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: Li
               </SheetHeader>
 
               <Tabs defaultValue="overview" className="mt-4">
-                <TabsList className="grid w-full grid-cols-5">
+                <TabsList className="grid w-full grid-cols-6">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="notes">Notes</TabsTrigger>
                   <TabsTrigger value="team">Team</TabsTrigger>
                   <TabsTrigger value="events">Events</TabsTrigger>
                   <TabsTrigger value="docs">Docs</TabsTrigger>
@@ -252,14 +268,70 @@ export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: Li
                     </CardContent>
                   </Card>
 
-                  {/* Notes */}
-                  {matter.notes && (
+                </TabsContent>
+
+                <TabsContent value="notes" className="mt-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4" />
+                      Matter Notes
+                    </h3>
+                    {notesEdit === null ? (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setNotesEdit(matter.notes || '')}
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setNotesEdit(null)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          onClick={handleSaveNotes}
+                          disabled={isSavingNotes}
+                        >
+                          <Save className="h-4 w-4 mr-1" />
+                          {isSavingNotes ? 'Saving...' : 'Save'}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {notesEdit !== null ? (
+                    <Textarea
+                      value={notesEdit}
+                      onChange={(e) => setNotesEdit(e.target.value)}
+                      placeholder="Add notes about this litigation matter..."
+                      className="min-h-[200px]"
+                    />
+                  ) : matter.notes ? (
                     <Card>
                       <CardContent className="pt-4">
-                        <h4 className="font-medium mb-2">Notes</h4>
-                        <p className="text-sm text-muted-foreground">{matter.notes}</p>
+                        <p className="text-sm whitespace-pre-wrap">{matter.notes}</p>
                       </CardContent>
                     </Card>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">
+                      <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No notes added</p>
+                      <Button 
+                        variant="link" 
+                        size="sm" 
+                        onClick={() => setNotesEdit('')}
+                        className="mt-2"
+                      >
+                        Add notes
+                      </Button>
+                    </div>
                   )}
                 </TabsContent>
 
