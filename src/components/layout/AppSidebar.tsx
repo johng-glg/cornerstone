@@ -80,12 +80,12 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center gap-3 px-4 py-4">
-          <div className="bg-sidebar-primary p-2 rounded-lg">
+        <div className={`flex items-center py-4 ${collapsed ? 'justify-center px-2' : 'gap-3 px-4'}`}>
+          <div className="bg-sidebar-primary p-2 rounded-lg flex-shrink-0">
             <Scale className="h-5 w-5 text-sidebar-primary-foreground" />
           </div>
           {!collapsed && (
-            <div className="flex flex-col">
+            <div className="flex flex-col min-w-0">
               <span className="font-heading font-bold text-sidebar-foreground text-sm">
                 GUARDIAN
               </span>
