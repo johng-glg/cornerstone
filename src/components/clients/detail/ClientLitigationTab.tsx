@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Scale, Calendar, AlertTriangle, Building2, FileText, ExternalLink } from 'lucide-react';
+import { Scale, Calendar, AlertTriangle, Building2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLitigationMattersForClient, type LitigationMatter, type LitigationStatus } from '@/hooks/useLitigationMatters';
+import { LitigationMatterDetailSheet } from '@/components/litigation/LitigationMatterDetailSheet';
 import { format, differenceInDays, isPast } from 'date-fns';
 
 interface ClientLitigationTabProps {
@@ -48,6 +48,13 @@ const formatCurrency = (amount: number | null) =>
 
 export function ClientLitigationTab({ clientId }: ClientLitigationTabProps) {
   const { data: matters, isLoading } = useLitigationMattersForClient(clientId);
+  const [selectedMatterId, setSelectedMatterId] = useState<string | null>(null);
+  const [detailSheetOpen, setDetailSheetOpen] = useState(false);
+
+  const handleMatterClick = (matterId: string) => {
+    setSelectedMatterId(matterId);
+    setDetailSheetOpen(true);
+  };
 
   if (isLoading) {
     return (
@@ -75,82 +82,102 @@ export function ClientLitigationTab({ clientId }: ClientLitigationTabProps) {
   });
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Scale className="h-5 w-5 text-muted-foreground" />
-          <h2 className="text-lg font-semibold">Litigation Matters</h2>
-          {activeMatters.length > 0 && (
-            <Badge variant="secondary">{activeMatters.length} Active</Badge>
-          )}
+    <>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Scale className="h-5 w-5 text-muted-foreground" />
+            <h2 className="text-lg font-semibold">Litigation Matters</h2>
+            {activeMatters.length > 0 && (
+              <Badge variant="secondary">{activeMatters.length} Active</Badge>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Urgent Deadlines Alert */}
-      {urgentMatters.length > 0 && (
-        <Card className="border-red-200 bg-red-50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2 text-red-800">
-              <AlertTriangle className="h-4 w-4" />
-              Upcoming Deadlines
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {urgentMatters.map((matter) => (
-                <div key={matter.id} className="flex items-center justify-between text-sm">
-                  <span className="text-red-800">
-                    {matter.case_number || 'No case #'} - Response due
-                  </span>
-                  <Badge className="bg-red-100 text-red-800">
-                    {matter.response_deadline && format(new Date(matter.response_deadline), 'MMM d, yyyy')}
-                  </Badge>
-                </div>
+        {/* Urgent Deadlines Alert */}
+        {urgentMatters.length > 0 && (
+          <Card className="border-red-200 bg-red-50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2 text-red-800">
+                <AlertTriangle className="h-4 w-4" />
+                Upcoming Deadlines
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {urgentMatters.map((matter) => (
+                  <div 
+                    key={matter.id} 
+                    className="flex items-center justify-between text-sm cursor-pointer hover:bg-red-100 rounded p-1 -m-1"
+                    onClick={() => handleMatterClick(matter.id)}
+                  >
+                    <span className="text-red-800">
+                      {matter.case_number || 'No case #'} - Response due
+                    </span>
+                    <Badge className="bg-red-100 text-red-800">
+                      {matter.response_deadline && format(new Date(matter.response_deadline), 'MMM d, yyyy')}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Active Matters */}
+        {activeMatters.length > 0 ? (
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground">Active Cases</h3>
+            <div className="grid gap-4">
+              {activeMatters.map((matter) => (
+                <MatterCard 
+                  key={matter.id} 
+                  matter={matter} 
+                  onClick={() => handleMatterClick(matter.id)}
+                />
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Active Matters */}
-      {activeMatters.length > 0 ? (
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground">Active Cases</h3>
-          <div className="grid gap-4">
-            {activeMatters.map((matter) => (
-              <MatterCard key={matter.id} matter={matter} />
-            ))}
           </div>
-        </div>
-      ) : (
-        <Card className="border-dashed">
-          <CardContent className="py-8 text-center text-muted-foreground">
-            <Scale className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>No active litigation matters</p>
-            <p className="text-sm mt-1">
-              Add a matter from a liability's detail view using "Add Matter"
-            </p>
-          </CardContent>
-        </Card>
-      )}
+        ) : (
+          <Card className="border-dashed">
+            <CardContent className="py-8 text-center text-muted-foreground">
+              <Scale className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>No active litigation matters</p>
+              <p className="text-sm mt-1">
+                Add a matter from a liability's detail view using "Add Matter"
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
-      {/* Closed Matters */}
-      {closedMatters.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground">Closed Cases</h3>
-          <div className="grid gap-4 opacity-75">
-            {closedMatters.map((matter) => (
-              <MatterCard key={matter.id} matter={matter} />
-            ))}
+        {/* Closed Matters */}
+        {closedMatters.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground">Closed Cases</h3>
+            <div className="grid gap-4 opacity-75">
+              {closedMatters.map((matter) => (
+                <MatterCard 
+                  key={matter.id} 
+                  matter={matter}
+                  onClick={() => handleMatterClick(matter.id)}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+
+      <LitigationMatterDetailSheet
+        matterId={selectedMatterId}
+        open={detailSheetOpen}
+        onOpenChange={setDetailSheetOpen}
+      />
+    </>
   );
 }
 
-function MatterCard({ matter }: { matter: LitigationMatter }) {
+function MatterCard({ matter, onClick }: { matter: LitigationMatter; onClick: () => void }) {
   const creditorName = matter.liability?.current_creditor?.name || 
                        matter.liability?.original_creditor?.name || 
                        'Unknown Creditor';
@@ -159,7 +186,10 @@ function MatterCard({ matter }: { matter: LitigationMatter }) {
                     matter.status === 'pending_response';
 
   return (
-    <Card className={isOverdue ? 'border-red-300' : ''}>
+    <Card 
+      className={`cursor-pointer transition-colors hover:bg-muted/50 ${isOverdue ? 'border-red-300' : ''}`}
+      onClick={onClick}
+    >
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div className="space-y-1">

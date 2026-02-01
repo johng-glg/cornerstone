@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -37,6 +38,9 @@ const formSchema = z.object({
   status: z.string().default('pending_response'),
   service_date: z.string().optional(),
   response_deadline: z.string().optional(),
+  next_hearing_date: z.string().optional(),
+  judgment_amount: z.string().optional(),
+  settlement_amount: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -61,6 +65,14 @@ const statusOptions: { value: LitigationStatus; label: string }[] = [
   { value: 'judgment', label: 'Judgment' },
 ];
 
+const usStates = [
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
+];
+
 export function LitigationMatterFormDialog({
   open,
   onOpenChange,
@@ -75,18 +87,60 @@ export function LitigationMatterFormDialog({
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      case_number: matter?.case_number || '',
-      court_name: matter?.court_name || '',
-      county: matter?.county || '',
-      state: matter?.state || '',
-      opposing_party: matter?.opposing_party || '',
-      opposing_counsel: matter?.opposing_counsel || '',
-      status: matter?.status || 'pending_response',
-      service_date: matter?.service_date || '',
-      response_deadline: matter?.response_deadline || '',
-      notes: matter?.notes || '',
+      case_number: '',
+      court_name: '',
+      county: '',
+      state: '',
+      opposing_party: '',
+      opposing_counsel: '',
+      status: 'pending_response',
+      service_date: '',
+      response_deadline: '',
+      next_hearing_date: '',
+      judgment_amount: '',
+      settlement_amount: '',
+      notes: '',
     },
   });
+
+  // Reset form when matter changes
+  useEffect(() => {
+    if (matter) {
+      form.reset({
+        case_number: matter.case_number || '',
+        court_name: matter.court_name || '',
+        county: matter.county || '',
+        state: matter.state || '',
+        opposing_party: matter.opposing_party || '',
+        opposing_counsel: matter.opposing_counsel || '',
+        status: matter.status || 'pending_response',
+        service_date: matter.service_date || '',
+        response_deadline: matter.response_deadline || '',
+        next_hearing_date: matter.next_hearing_date 
+          ? new Date(matter.next_hearing_date).toISOString().slice(0, 16) 
+          : '',
+        judgment_amount: matter.judgment_amount?.toString() || '',
+        settlement_amount: matter.settlement_amount?.toString() || '',
+        notes: matter.notes || '',
+      });
+    } else {
+      form.reset({
+        case_number: '',
+        court_name: '',
+        county: '',
+        state: '',
+        opposing_party: '',
+        opposing_counsel: '',
+        status: 'pending_response',
+        service_date: '',
+        response_deadline: '',
+        next_hearing_date: '',
+        judgment_amount: '',
+        settlement_amount: '',
+        notes: '',
+      });
+    }
+  }, [matter, form]);
 
   const onSubmit = (values: FormValues) => {
     const data = {
@@ -101,10 +155,12 @@ export function LitigationMatterFormDialog({
       status: values.status as LitigationStatus,
       service_date: values.service_date || null,
       response_deadline: values.response_deadline || null,
+      next_hearing_date: values.next_hearing_date 
+        ? new Date(values.next_hearing_date).toISOString() 
+        : null,
+      judgment_amount: values.judgment_amount ? parseFloat(values.judgment_amount) : null,
+      settlement_amount: values.settlement_amount ? parseFloat(values.settlement_amount) : null,
       notes: values.notes || null,
-      next_hearing_date: null,
-      judgment_amount: null,
-      settlement_amount: null,
     };
 
     if (isEditing) {
@@ -119,9 +175,9 @@ export function LitigationMatterFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'Edit Matter' : 'Add Litigation Matter'}</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit Litigation Matter' : 'Add Litigation Matter'}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -147,7 +203,7 @@ export function LitigationMatterFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select status" />
@@ -202,8 +258,49 @@ export function LitigationMatterFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>State</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select state" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {usStates.map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="opposing_party"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Opposing Party</FormLabel>
                     <FormControl>
-                      <Input placeholder="State" {...field} />
+                      <Input placeholder="Plaintiff/Creditor name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="opposing_counsel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Opposing Counsel</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Attorney/Law firm name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -211,35 +308,7 @@ export function LitigationMatterFormDialog({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="opposing_party"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Opposing Party</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Plaintiff/Creditor name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="opposing_counsel"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Opposing Counsel</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Attorney/Law firm name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="service_date"
@@ -262,6 +331,50 @@ export function LitigationMatterFormDialog({
                     <FormLabel>Response Deadline</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="next_hearing_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Next Hearing</FormLabel>
+                    <FormControl>
+                      <Input type="datetime-local" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="judgment_amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Judgment Amount</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="settlement_amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Settlement Amount</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

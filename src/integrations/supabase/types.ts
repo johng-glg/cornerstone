@@ -1129,6 +1129,158 @@ export type Database = {
           },
         ]
       }
+      litigation_activities: {
+        Row: {
+          activity_date: string | null
+          activity_type: string
+          created_at: string
+          description: string
+          document_url: string | null
+          id: string
+          matter_id: string
+          outcome: string | null
+          staff_id: string | null
+        }
+        Insert: {
+          activity_date?: string | null
+          activity_type: string
+          created_at?: string
+          description: string
+          document_url?: string | null
+          id?: string
+          matter_id: string
+          outcome?: string | null
+          staff_id?: string | null
+        }
+        Update: {
+          activity_date?: string | null
+          activity_type?: string
+          created_at?: string
+          description?: string
+          document_url?: string | null
+          id?: string
+          matter_id?: string
+          outcome?: string | null
+          staff_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "litigation_activities_matter_id_fkey"
+            columns: ["matter_id"]
+            isOneToOne: false
+            referencedRelation: "litigation_matters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "litigation_activities_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      litigation_documents: {
+        Row: {
+          created_at: string
+          deadline_date: string | null
+          document_type: string
+          file_url: string | null
+          filed_date: string | null
+          id: string
+          matter_id: string
+          notes: string | null
+          title: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          deadline_date?: string | null
+          document_type: string
+          file_url?: string | null
+          filed_date?: string | null
+          id?: string
+          matter_id: string
+          notes?: string | null
+          title: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          deadline_date?: string | null
+          document_type?: string
+          file_url?: string | null
+          filed_date?: string | null
+          id?: string
+          matter_id?: string
+          notes?: string | null
+          title?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "litigation_documents_matter_id_fkey"
+            columns: ["matter_id"]
+            isOneToOne: false
+            referencedRelation: "litigation_matters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "litigation_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      litigation_hearings: {
+        Row: {
+          created_at: string
+          hearing_type: string
+          id: string
+          judge_name: string | null
+          location: string | null
+          matter_id: string
+          notes: string | null
+          outcome: string | null
+          scheduled_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          hearing_type: string
+          id?: string
+          judge_name?: string | null
+          location?: string | null
+          matter_id: string
+          notes?: string | null
+          outcome?: string | null
+          scheduled_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          hearing_type?: string
+          id?: string
+          judge_name?: string | null
+          location?: string | null
+          matter_id?: string
+          notes?: string | null
+          outcome?: string | null
+          scheduled_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "litigation_hearings_matter_id_fkey"
+            columns: ["matter_id"]
+            isOneToOne: false
+            referencedRelation: "litigation_matters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       litigation_matters: {
         Row: {
           case_number: string | null
@@ -1718,7 +1870,12 @@ export type Database = {
         | "self_employed"
         | "retired"
         | "disabled"
-      entity_type: "engagement" | "case" | "liability" | "lead"
+      entity_type:
+        | "engagement"
+        | "case"
+        | "liability"
+        | "lead"
+        | "litigation_matter"
       fee_collection_method: "split" | "lump_sum"
       hardship_reason:
         | "job_loss"
@@ -2005,7 +2162,13 @@ export const Constants = {
         "retired",
         "disabled",
       ],
-      entity_type: ["engagement", "case", "liability", "lead"],
+      entity_type: [
+        "engagement",
+        "case",
+        "liability",
+        "lead",
+        "litigation_matter",
+      ],
       fee_collection_method: ["split", "lump_sum"],
       hardship_reason: [
         "job_loss",
