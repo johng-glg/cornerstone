@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useCreateLead, type LeadInsert } from '@/hooks/useLeads';
+import { useCreateLead, useUpdateLead, type LeadInsert, type Lead } from '@/hooks/useLeads';
 import { useStaff } from '@/hooks/useStaff';
 import { useCurrentStaff } from '@/hooks/useStaff';
 import {
@@ -52,12 +52,15 @@ type LeadFormData = z.infer<typeof leadSchema>;
 interface LeadFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  lead?: Lead | null;
 }
 
-export function LeadFormDialog({ open, onOpenChange }: LeadFormDialogProps) {
+export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps) {
   const createLead = useCreateLead();
+  const updateLead = useUpdateLead();
   const { data: salesStaff } = useStaff('sales_intake');
   const { data: currentStaff } = useCurrentStaff();
+  const isEditing = !!lead;
 
   const form = useForm<LeadFormData>({
     resolver: zodResolver(leadSchema),
@@ -73,7 +76,56 @@ export function LeadFormDialog({ open, onOpenChange }: LeadFormDialogProps) {
     },
   });
 
+  // Reset form when lead changes (for edit mode)
+  useEffect(() => {
+    if (lead) {
+      form.reset({
+        first_name: lead.first_name,
+        last_name: lead.last_name,
+        email: lead.email || '',
+        phone: lead.phone || '',
+        source: lead.source,
+        interest_type: lead.interest_type,
+        estimated_debt_amount: lead.estimated_debt_amount || undefined,
+        number_of_debts: lead.number_of_debts || undefined,
+        has_active_lawsuit: lead.has_active_lawsuit || false,
+        assigned_to: lead.assigned_to || undefined,
+        notes: lead.notes || '',
+      });
+    } else {
+      form.reset({
+        first_name: '',
+        last_name: '',
+        email: '',
+        phone: '',
+        source: 'phone',
+        interest_type: 'debt_resolution',
+        has_active_lawsuit: false,
+        notes: '',
+      });
+    }
+  }, [lead, form]);
+
   const onSubmit = async (data: LeadFormData) => {
+    if (isEditing) {
+      await updateLead.mutateAsync({
+        id: lead.id,
+        first_name: data.first_name,
+        last_name: data.last_name,
+        email: data.email || null,
+        phone: data.phone || null,
+        source: data.source,
+        interest_type: data.interest_type,
+        estimated_debt_amount: data.estimated_debt_amount || null,
+        number_of_debts: data.number_of_debts || null,
+        has_active_lawsuit: data.has_active_lawsuit,
+        assigned_to: data.assigned_to || null,
+        notes: data.notes || null,
+      });
+      onOpenChange(false);
+      return;
+    }
+
     if (!currentStaff?.company_id) {
       return;
     }
@@ -98,13 +150,19 @@ export function LeadFormDialog({ open, onOpenChange }: LeadFormDialogProps) {
     onOpenChange(false);
   };
 
+  const isPending = createLead.isPending || updateLead.isPending;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-heading text-xl">NEW LEAD</DialogTitle>
+          <DialogTitle className="font-heading text-xl">
+            {isEditing ? 'EDIT LEAD' : 'NEW LEAD'}
+          </DialogTitle>
           <DialogDescription>
-            Enter the lead's information to add them to the pipeline.
+            {isEditing 
+              ? 'Update the lead information below.'
+              : 'Enter the lead\'s information to add them to the pipeline.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -328,9 +386,9 @@ export function LeadFormDialog({ open, onOpenChange }: LeadFormDialogProps) {
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={createLead.isPending}>
-                {createLead.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Lead
+              <Button type="submit" disabled={isPending}>
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEditing ? 'Update Lead' : 'Create Lead'}
               </Button>
             </div>
           </form>

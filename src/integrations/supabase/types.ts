@@ -756,6 +756,8 @@ export type Database = {
         Row: {
           assigned_to: string | null
           company_id: string
+          contacted_at: string | null
+          converted_at: string | null
           converted_service_id: string | null
           created_at: string
           credit_auth_date: string | null
@@ -780,11 +782,14 @@ export type Database = {
           job_title: string | null
           last_name: string
           lead_number: string
+          lost_at: string | null
           monthly_income: number | null
+          new_at: string | null
           notes: string | null
           number_of_debts: number | null
           originating_company_id: string | null
           phone: string | null
+          qualified_at: string | null
           secured_credit_resolved: boolean | null
           source: Database["public"]["Enums"]["lead_source"]
           ssn_last4_encrypted: string | null
@@ -797,6 +802,8 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           company_id: string
+          contacted_at?: string | null
+          converted_at?: string | null
           converted_service_id?: string | null
           created_at?: string
           credit_auth_date?: string | null
@@ -823,11 +830,14 @@ export type Database = {
           job_title?: string | null
           last_name: string
           lead_number: string
+          lost_at?: string | null
           monthly_income?: number | null
+          new_at?: string | null
           notes?: string | null
           number_of_debts?: number | null
           originating_company_id?: string | null
           phone?: string | null
+          qualified_at?: string | null
           secured_credit_resolved?: boolean | null
           source?: Database["public"]["Enums"]["lead_source"]
           ssn_last4_encrypted?: string | null
@@ -840,6 +850,8 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           company_id?: string
+          contacted_at?: string | null
+          converted_at?: string | null
           converted_service_id?: string | null
           created_at?: string
           credit_auth_date?: string | null
@@ -866,11 +878,14 @@ export type Database = {
           job_title?: string | null
           last_name?: string
           lead_number?: string
+          lost_at?: string | null
           monthly_income?: number | null
+          new_at?: string | null
           notes?: string | null
           number_of_debts?: number | null
           originating_company_id?: string | null
           phone?: string | null
+          qualified_at?: string | null
           secured_credit_resolved?: boolean | null
           source?: Database["public"]["Enums"]["lead_source"]
           ssn_last4_encrypted?: string | null
