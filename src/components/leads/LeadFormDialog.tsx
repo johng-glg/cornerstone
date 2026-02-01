@@ -39,7 +39,7 @@ const leadSchema = z.object({
   email: z.string().email('Invalid email').optional().or(z.literal('')),
   phone: z.string().optional(),
   source: z.enum(['web_form', 'referral', 'phone', 'advertisement', 'walk_in', 'other']),
-  interest_type: z.enum(['debt_resolution', 'litigation', 'both']),
+  interest_type: z.enum(['debt_resolution', 'litigation']),
   estimated_debt_amount: z.number().min(0).optional(),
   number_of_debts: z.number().min(0).optional(),
   has_active_lawsuit: z.boolean().default(false),
@@ -85,7 +85,7 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
         email: lead.email || '',
         phone: lead.phone || '',
         source: lead.source,
-        interest_type: lead.interest_type,
+        interest_type: lead.interest_type === 'both' ? 'debt_resolution' : lead.interest_type,
         estimated_debt_amount: lead.estimated_debt_amount || undefined,
         number_of_debts: lead.number_of_debts || undefined,
         has_active_lawsuit: lead.has_active_lawsuit || false,
@@ -270,7 +270,6 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                       <SelectContent>
                         <SelectItem value="debt_resolution">Debt Resolution</SelectItem>
                         <SelectItem value="litigation">Litigation</SelectItem>
-                        <SelectItem value="both">Both</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

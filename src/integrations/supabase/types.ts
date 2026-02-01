@@ -755,10 +755,12 @@ export type Database = {
       leads: {
         Row: {
           assigned_to: string | null
+          case_number: string | null
           company_id: string
           contacted_at: string | null
           converted_at: string | null
           converted_service_id: string | null
+          court_name: string | null
           created_at: string
           credit_auth_date: string | null
           credit_auth_given: boolean | null
@@ -787,10 +789,13 @@ export type Database = {
           new_at: string | null
           notes: string | null
           number_of_debts: number | null
+          opposing_party: string | null
           originating_company_id: string | null
           phone: string | null
           qualified_at: string | null
+          response_deadline: string | null
           secured_credit_resolved: boolean | null
+          service_date: string | null
           source: Database["public"]["Enums"]["lead_source"]
           ssn_last4_encrypted: string | null
           state: string | null
@@ -801,10 +806,12 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          case_number?: string | null
           company_id: string
           contacted_at?: string | null
           converted_at?: string | null
           converted_service_id?: string | null
+          court_name?: string | null
           created_at?: string
           credit_auth_date?: string | null
           credit_auth_given?: boolean | null
@@ -835,10 +842,13 @@ export type Database = {
           new_at?: string | null
           notes?: string | null
           number_of_debts?: number | null
+          opposing_party?: string | null
           originating_company_id?: string | null
           phone?: string | null
           qualified_at?: string | null
+          response_deadline?: string | null
           secured_credit_resolved?: boolean | null
+          service_date?: string | null
           source?: Database["public"]["Enums"]["lead_source"]
           ssn_last4_encrypted?: string | null
           state?: string | null
@@ -849,10 +859,12 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          case_number?: string | null
           company_id?: string
           contacted_at?: string | null
           converted_at?: string | null
           converted_service_id?: string | null
+          court_name?: string | null
           created_at?: string
           credit_auth_date?: string | null
           credit_auth_given?: boolean | null
@@ -883,10 +895,13 @@ export type Database = {
           new_at?: string | null
           notes?: string | null
           number_of_debts?: number | null
+          opposing_party?: string | null
           originating_company_id?: string | null
           phone?: string | null
           qualified_at?: string | null
+          response_deadline?: string | null
           secured_credit_resolved?: boolean | null
+          service_date?: string | null
           source?: Database["public"]["Enums"]["lead_source"]
           ssn_last4_encrypted?: string | null
           state?: string | null
