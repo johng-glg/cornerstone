@@ -49,9 +49,11 @@ const statusLabels: Record<string, string> = {
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 
+type ConfirmAction = 'approve' | 'accept' | 'delete' | null;
+
 export function SettlementCard({ settlement }: SettlementCardProps) {
   const { staff, hasRole } = useAuth();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   
   const approveSettlement = useApproveSettlement();
   const acceptSettlement = useAcceptSettlement();
@@ -68,8 +70,14 @@ export function SettlementCard({ settlement }: SettlementCardProps) {
 
   const handleApprove = () => {
     if (staff?.id) {
-      approveSettlement.mutate({ id: settlement.id, staffId: staff.id });
+      approveSettlement.mutate({
+        id: settlement.id,
+        liabilityId: settlement.liability_id,
+        offerAmount: settlement.offer_amount,
+        staffId: staff.id,
+      });
     }
+    setConfirmAction(null);
   };
 
   const handleAccept = () => {
@@ -79,6 +87,7 @@ export function SettlementCard({ settlement }: SettlementCardProps) {
       offerAmount: settlement.offer_amount,
       staffId: staff?.id,
     });
+    setConfirmAction(null);
   };
 
   const handleComplete = () => {
@@ -96,8 +105,41 @@ export function SettlementCard({ settlement }: SettlementCardProps) {
       offerAmount: settlement.offer_amount,
       staffId: staff?.id,
     });
-    setShowDeleteConfirm(false);
+    setConfirmAction(null);
   };
+
+  const getConfirmDialogContent = () => {
+    switch (confirmAction) {
+      case 'approve':
+        return {
+          title: 'Approve Settlement Offer?',
+          description: `You are about to approve the ${formatCurrency(settlement.offer_amount)} settlement offer. This confirms the offer meets legal requirements and can be presented to the client.`,
+          actionLabel: 'Approve',
+          actionClass: '',
+          onConfirm: handleApprove,
+        };
+      case 'accept':
+        return {
+          title: 'Accept Settlement Offer?',
+          description: `You are about to mark the ${formatCurrency(settlement.offer_amount)} settlement as accepted by the client. This will begin the payment process.`,
+          actionLabel: 'Accept',
+          actionClass: '',
+          onConfirm: handleAccept,
+        };
+      case 'delete':
+        return {
+          title: 'Delete Settlement Offer?',
+          description: `This will mark the ${formatCurrency(settlement.offer_amount)} settlement offer as deleted. It will remain visible in the history but can no longer be acted upon.`,
+          actionLabel: 'Delete',
+          actionClass: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+          onConfirm: handleDelete,
+        };
+      default:
+        return null;
+    }
+  };
+
+  const dialogContent = getConfirmDialogContent();
 
   return (
     <>
@@ -116,7 +158,7 @@ export function SettlementCard({ settlement }: SettlementCardProps) {
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                  onClick={() => setShowDeleteConfirm(true)}
+                  onClick={() => setConfirmAction('delete')}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -186,7 +228,7 @@ export function SettlementCard({ settlement }: SettlementCardProps) {
               {needsApproval && canApprove && (
                 <Button 
                   size="sm" 
-                  onClick={handleApprove}
+                  onClick={() => setConfirmAction('approve')}
                   disabled={approveSettlement.isPending}
                 >
                   <Gavel className="h-4 w-4 mr-1" />
@@ -198,7 +240,7 @@ export function SettlementCard({ settlement }: SettlementCardProps) {
                 <>
                   <Button 
                     size="sm" 
-                    onClick={handleAccept}
+                    onClick={() => setConfirmAction('accept')}
                     disabled={acceptSettlement.isPending}
                   >
                     <Check className="h-4 w-4 mr-1" />
@@ -231,23 +273,20 @@ export function SettlementCard({ settlement }: SettlementCardProps) {
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      {/* Confirmation Dialog */}
+      <AlertDialog open={confirmAction !== null} onOpenChange={(open) => !open && setConfirmAction(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Settlement Offer?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will mark the {formatCurrency(settlement.offer_amount)} settlement offer as deleted. 
-              It will remain visible in the history but can no longer be acted upon.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{dialogContent?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{dialogContent?.description}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={dialogContent?.onConfirm}
+              className={dialogContent?.actionClass}
             >
-              Delete Offer
+              {dialogContent?.actionLabel}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

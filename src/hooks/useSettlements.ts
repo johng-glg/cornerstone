@@ -126,7 +126,7 @@ export function useApproveSettlement() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, staffId }: { id: string; staffId: string }) => {
+    mutationFn: async ({ id, liabilityId, offerAmount, staffId }: { id: string; liabilityId: string; offerAmount: number; staffId: string }) => {
       const { data, error } = await supabase
         .from('settlements')
         .update({
@@ -138,11 +138,23 @@ export function useApproveSettlement() {
         .select()
         .single();
       if (error) throw error;
+      
+      // Log action
+      const formattedAmount = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(offerAmount);
+      await supabase.from('liability_actions').insert({
+        liability_id: liabilityId,
+        action_type: 'settlement',
+        description: `Settlement offer of ${formattedAmount} approved by attorney`,
+        amount: offerAmount,
+        staff_id: staffId,
+      });
+      
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['settlements'] });
       queryClient.invalidateQueries({ queryKey: ['settlements', data.liability_id] });
+      queryClient.invalidateQueries({ queryKey: ['liability_actions', data.liability_id] });
       toast({ title: 'Settlement approved by attorney' });
     },
     onError: (error: Error) => {
