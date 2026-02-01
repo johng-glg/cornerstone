@@ -240,6 +240,8 @@ export type Database = {
           enrolled_date: string | null
           escrow_balance: number | null
           estimated_completion_date: string | null
+          estimated_settlement_percentage: number | null
+          first_draft_date: string | null
           first_payment_date: string | null
           id: string
           monthly_payment: number | null
@@ -248,9 +250,11 @@ export type Database = {
           originating_company_id: string | null
           owning_company_id: string
           payment_frequency: string | null
+          plan_type: Database["public"]["Enums"]["plan_type"] | null
           primary_client_id: string | null
           program_start_date: string | null
           program_type: string | null
+          requires_management_approval: boolean | null
           service_number: string
           settlement_fee_percentage: number | null
           status: Database["public"]["Enums"]["service_status"]
@@ -264,6 +268,8 @@ export type Database = {
           enrolled_date?: string | null
           escrow_balance?: number | null
           estimated_completion_date?: string | null
+          estimated_settlement_percentage?: number | null
+          first_draft_date?: string | null
           first_payment_date?: string | null
           id?: string
           monthly_payment?: number | null
@@ -272,9 +278,11 @@ export type Database = {
           originating_company_id?: string | null
           owning_company_id: string
           payment_frequency?: string | null
+          plan_type?: Database["public"]["Enums"]["plan_type"] | null
           primary_client_id?: string | null
           program_start_date?: string | null
           program_type?: string | null
+          requires_management_approval?: boolean | null
           service_number: string
           settlement_fee_percentage?: number | null
           status?: Database["public"]["Enums"]["service_status"]
@@ -288,6 +296,8 @@ export type Database = {
           enrolled_date?: string | null
           escrow_balance?: number | null
           estimated_completion_date?: string | null
+          estimated_settlement_percentage?: number | null
+          first_draft_date?: string | null
           first_payment_date?: string | null
           id?: string
           monthly_payment?: number | null
@@ -296,9 +306,11 @@ export type Database = {
           originating_company_id?: string | null
           owning_company_id?: string
           payment_frequency?: string | null
+          plan_type?: Database["public"]["Enums"]["plan_type"] | null
           primary_client_id?: string | null
           program_start_date?: string | null
           program_type?: string | null
+          requires_management_approval?: boolean | null
           service_number?: string
           settlement_fee_percentage?: number | null
           status?: Database["public"]["Enums"]["service_status"]
@@ -619,72 +631,254 @@ export type Database = {
           },
         ]
       }
+      lead_banking: {
+        Row: {
+          account_number_encrypted: string | null
+          account_type: Database["public"]["Enums"]["bank_account_type"]
+          bank_name: string
+          created_at: string
+          id: string
+          lead_id: string
+          routing_number_encrypted: string | null
+        }
+        Insert: {
+          account_number_encrypted?: string | null
+          account_type?: Database["public"]["Enums"]["bank_account_type"]
+          bank_name: string
+          created_at?: string
+          id?: string
+          lead_id: string
+          routing_number_encrypted?: string | null
+        }
+        Update: {
+          account_number_encrypted?: string | null
+          account_type?: Database["public"]["Enums"]["bank_account_type"]
+          bank_name?: string
+          created_at?: string
+          id?: string
+          lead_id?: string
+          routing_number_encrypted?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_banking_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_debts: {
+        Row: {
+          account_number_last4: string | null
+          account_type: Database["public"]["Enums"]["liability_type"]
+          created_at: string
+          creditor_id: string | null
+          creditor_name: string
+          current_balance: number
+          id: string
+          is_enrolled: boolean
+          lead_id: string
+          original_balance: number | null
+        }
+        Insert: {
+          account_number_last4?: string | null
+          account_type?: Database["public"]["Enums"]["liability_type"]
+          created_at?: string
+          creditor_id?: string | null
+          creditor_name: string
+          current_balance: number
+          id?: string
+          is_enrolled?: boolean
+          lead_id: string
+          original_balance?: number | null
+        }
+        Update: {
+          account_number_last4?: string | null
+          account_type?: Database["public"]["Enums"]["liability_type"]
+          created_at?: string
+          creditor_id?: string | null
+          creditor_name?: string
+          current_balance?: number
+          id?: string
+          is_enrolled?: boolean
+          lead_id?: string
+          original_balance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_debts_creditor_id_fkey"
+            columns: ["creditor_id"]
+            isOneToOne: false
+            referencedRelation: "creditors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_debts_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_disclosures: {
+        Row: {
+          acknowledged_at: string
+          disclosure_type: string
+          id: string
+          lead_id: string
+        }
+        Insert: {
+          acknowledged_at?: string
+          disclosure_type: string
+          id?: string
+          lead_id: string
+        }
+        Update: {
+          acknowledged_at?: string
+          disclosure_type?: string
+          id?: string
+          lead_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_disclosures_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_to: string | null
           company_id: string
           converted_service_id: string | null
           created_at: string
+          credit_auth_date: string | null
+          credit_auth_given: boolean | null
+          date_of_birth: string | null
           disqualification_reason: string | null
           email: string | null
+          employer_name: string | null
+          employment_status:
+            | Database["public"]["Enums"]["employment_status"]
+            | null
           estimated_debt_amount: number | null
           first_name: string
+          hardship_notes: string | null
+          hardship_reason: Database["public"]["Enums"]["hardship_reason"] | null
           has_active_lawsuit: boolean | null
+          has_federal_accounts: boolean | null
+          has_security_clearance: boolean | null
           id: string
+          in_bankruptcy: boolean | null
           interest_type: Database["public"]["Enums"]["lead_interest"]
+          job_title: string | null
           last_name: string
           lead_number: string
+          monthly_income: number | null
           notes: string | null
           number_of_debts: number | null
           originating_company_id: string | null
           phone: string | null
+          secured_credit_resolved: boolean | null
           source: Database["public"]["Enums"]["lead_source"]
+          ssn_last4_encrypted: string | null
+          state: string | null
           status: Database["public"]["Enums"]["lead_status"]
           updated_at: string
+          wizard_data: Json | null
+          wizard_step: number | null
         }
         Insert: {
           assigned_to?: string | null
           company_id: string
           converted_service_id?: string | null
           created_at?: string
+          credit_auth_date?: string | null
+          credit_auth_given?: boolean | null
+          date_of_birth?: string | null
           disqualification_reason?: string | null
           email?: string | null
+          employer_name?: string | null
+          employment_status?:
+            | Database["public"]["Enums"]["employment_status"]
+            | null
           estimated_debt_amount?: number | null
           first_name: string
+          hardship_notes?: string | null
+          hardship_reason?:
+            | Database["public"]["Enums"]["hardship_reason"]
+            | null
           has_active_lawsuit?: boolean | null
+          has_federal_accounts?: boolean | null
+          has_security_clearance?: boolean | null
           id?: string
+          in_bankruptcy?: boolean | null
           interest_type?: Database["public"]["Enums"]["lead_interest"]
+          job_title?: string | null
           last_name: string
           lead_number: string
+          monthly_income?: number | null
           notes?: string | null
           number_of_debts?: number | null
           originating_company_id?: string | null
           phone?: string | null
+          secured_credit_resolved?: boolean | null
           source?: Database["public"]["Enums"]["lead_source"]
+          ssn_last4_encrypted?: string | null
+          state?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           updated_at?: string
+          wizard_data?: Json | null
+          wizard_step?: number | null
         }
         Update: {
           assigned_to?: string | null
           company_id?: string
           converted_service_id?: string | null
           created_at?: string
+          credit_auth_date?: string | null
+          credit_auth_given?: boolean | null
+          date_of_birth?: string | null
           disqualification_reason?: string | null
           email?: string | null
+          employer_name?: string | null
+          employment_status?:
+            | Database["public"]["Enums"]["employment_status"]
+            | null
           estimated_debt_amount?: number | null
           first_name?: string
+          hardship_notes?: string | null
+          hardship_reason?:
+            | Database["public"]["Enums"]["hardship_reason"]
+            | null
           has_active_lawsuit?: boolean | null
+          has_federal_accounts?: boolean | null
+          has_security_clearance?: boolean | null
           id?: string
+          in_bankruptcy?: boolean | null
           interest_type?: Database["public"]["Enums"]["lead_interest"]
+          job_title?: string | null
           last_name?: string
           lead_number?: string
+          monthly_income?: number | null
           notes?: string | null
           number_of_debts?: number | null
           originating_company_id?: string | null
           phone?: string | null
+          secured_credit_resolved?: boolean | null
           source?: Database["public"]["Enums"]["lead_source"]
+          ssn_last4_encrypted?: string | null
+          state?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           updated_at?: string
+          wizard_data?: Json | null
+          wizard_step?: number | null
         }
         Relationships: [
           {
@@ -1209,6 +1403,7 @@ export type Database = {
         | "case_manager"
         | "negotiator"
         | "sales_rep"
+      bank_account_type: "checking" | "savings"
       client_relationship:
         | "primary_client"
         | "co_client"
@@ -1231,7 +1426,20 @@ export type Database = {
         | "negotiations"
         | "payment_processing"
         | "correspondence"
+      employment_status:
+        | "employed"
+        | "unemployed"
+        | "self_employed"
+        | "retired"
+        | "disabled"
       entity_type: "engagement" | "case" | "liability" | "lead"
+      hardship_reason:
+        | "job_loss"
+        | "medical_emergency"
+        | "divorce"
+        | "reduced_income"
+        | "business_failure"
+        | "other"
       lead_interest: "debt_resolution" | "litigation" | "both"
       lead_source:
         | "web_form"
@@ -1240,7 +1448,17 @@ export type Database = {
         | "advertisement"
         | "walk_in"
         | "other"
-      lead_status: "new" | "contacted" | "qualified" | "converted" | "lost"
+      lead_status:
+        | "new"
+        | "contacted"
+        | "qualified"
+        | "converted"
+        | "lost"
+        | "intake"
+        | "credit_review"
+        | "plan_selection"
+        | "qc_pending"
+        | "docs_pending"
       liability_status:
         | "enrolled"
         | "in_negotiation"
@@ -1258,6 +1476,7 @@ export type Database = {
         | "other"
       payment_type: "lump_sum" | "payment_plan"
       phone_type: "mobile" | "home" | "work" | "fax" | "other"
+      plan_type: "glg_standard" | "glg_adjustable" | "glg_exception"
       service_status: "prospect" | "active" | "suspended" | "closed"
       service_type: "debt_resolution" | "consumer_defense"
       settlement_status:
@@ -1423,6 +1642,7 @@ export const Constants = {
         "negotiator",
         "sales_rep",
       ],
+      bank_account_type: ["checking", "savings"],
       client_relationship: [
         "primary_client",
         "co_client",
@@ -1448,7 +1668,22 @@ export const Constants = {
         "payment_processing",
         "correspondence",
       ],
+      employment_status: [
+        "employed",
+        "unemployed",
+        "self_employed",
+        "retired",
+        "disabled",
+      ],
       entity_type: ["engagement", "case", "liability", "lead"],
+      hardship_reason: [
+        "job_loss",
+        "medical_emergency",
+        "divorce",
+        "reduced_income",
+        "business_failure",
+        "other",
+      ],
       lead_interest: ["debt_resolution", "litigation", "both"],
       lead_source: [
         "web_form",
@@ -1458,7 +1693,18 @@ export const Constants = {
         "walk_in",
         "other",
       ],
-      lead_status: ["new", "contacted", "qualified", "converted", "lost"],
+      lead_status: [
+        "new",
+        "contacted",
+        "qualified",
+        "converted",
+        "lost",
+        "intake",
+        "credit_review",
+        "plan_selection",
+        "qc_pending",
+        "docs_pending",
+      ],
       liability_status: [
         "enrolled",
         "in_negotiation",
@@ -1478,6 +1724,7 @@ export const Constants = {
       ],
       payment_type: ["lump_sum", "payment_plan"],
       phone_type: ["mobile", "home", "work", "fax", "other"],
+      plan_type: ["glg_standard", "glg_adjustable", "glg_exception"],
       service_status: ["prospect", "active", "suspended", "closed"],
       service_type: ["debt_resolution", "consumer_defense"],
       settlement_status: [
