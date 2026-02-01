@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLead, useUpdateLead } from '@/hooks/useLeads';
+import { useLead, useUpdateLeadStatus, type LeadStatus } from '@/hooks/useLeads';
 import { useLeadActivities, useCreateLeadActivity } from '@/hooks/useLeadActivities';
 import { useCurrentStaff } from '@/hooks/useStaff';
 import {
@@ -53,12 +53,18 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
   const { data: lead, isLoading } = useLead(leadId ?? undefined);
   const { data: activities, isLoading: activitiesLoading } = useLeadActivities(leadId ?? undefined);
   const createActivity = useCreateLeadActivity();
+  const updateStatus = useUpdateLeadStatus();
   const { data: currentStaff } = useCurrentStaff();
   
   const [activityType, setActivityType] = useState<string>('call');
   const [activityNotes, setActivityNotes] = useState('');
   const [outcome, setOutcome] = useState<string>('');
   const [showEditDialog, setShowEditDialog] = useState(false);
+
+  const handleStatusChange = (newStatus: LeadStatus) => {
+    if (!leadId) return;
+    updateStatus.mutate({ id: leadId, status: newStatus });
+  };
 
   const handleLogActivity = async () => {
     if (!leadId || !activityNotes) return;
@@ -75,9 +81,14 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
     setOutcome('');
   };
 
-  const statusColors = {
+  const statusColors: Record<string, string> = {
     new: 'bg-blue-100 text-blue-800 border-blue-200',
     contacted: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    intake: 'bg-orange-100 text-orange-800 border-orange-200',
+    credit_review: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+    plan_selection: 'bg-purple-100 text-purple-800 border-purple-200',
+    qc_pending: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+    docs_pending: 'bg-amber-100 text-amber-800 border-amber-200',
     qualified: 'bg-green-100 text-green-800 border-green-200',
     converted: 'bg-primary/20 text-primary border-primary/30',
     lost: 'bg-muted text-muted-foreground border-muted',
@@ -102,9 +113,23 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
                   </SheetTitle>
                   <SheetDescription className="flex items-center gap-2 mt-1">
                     <span>{lead.lead_number}</span>
-                    <Badge className={cn('border', statusColors[lead.status])}>
-                      {lead.status}
-                    </Badge>
+                    <Select value={lead.status} onValueChange={(v) => handleStatusChange(v as LeadStatus)}>
+                      <SelectTrigger className={cn('h-7 w-auto gap-1 text-xs border', statusColors[lead.status as keyof typeof statusColors] || 'bg-muted')}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="new">New</SelectItem>
+                        <SelectItem value="contacted">Contacted</SelectItem>
+                        <SelectItem value="intake">Intake</SelectItem>
+                        <SelectItem value="credit_review">Credit Review</SelectItem>
+                        <SelectItem value="plan_selection">Plan Selection</SelectItem>
+                        <SelectItem value="qc_pending">QC Pending</SelectItem>
+                        <SelectItem value="docs_pending">Docs Pending</SelectItem>
+                        <SelectItem value="qualified">Qualified</SelectItem>
+                        <SelectItem value="converted">Converted</SelectItem>
+                        <SelectItem value="lost">Lost</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </SheetDescription>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
