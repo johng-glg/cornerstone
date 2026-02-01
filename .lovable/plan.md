@@ -1,59 +1,153 @@
-# Phases 1-3 Implementation Complete
 
-## Completed Items
+# Implementation Plan: Remaining Phase 1-3 Items
 
-### Priority 1 - Staff Attribution on Status Change UI ✅
-- Added `useCurrentStaff` hook to `LitigationMatterDetailSheet.tsx`
-- Status changes now pass `staffId` to the mutation for activity logging
+## Overview
 
-### Priority 3.1 - LitigationWizard Integration ✅
-- Created `useLitigationConversion` hook that handles the full conversion flow:
-  1. Creates `clients` record from lead data
-  2. Creates `client_services` record with status 'pending'
-  3. Creates `liabilities` record with debt info
-  4. Creates `litigation_matters` record linked to liability and service
-  5. Updates lead with `converted_service_id` and status 'converted'
-  6. Creates `client_phones` record if lead has phone
-- Updated `LitigationWizard.tsx` to use the new conversion hook
-- Wizard now navigates to new client's detail page on success
-
-### Priority 3.2 - Document File Upload ✅
-- Created `litigation-documents` storage bucket with RLS policies
-- Created `DocumentFileUpload` component for file upload UI
-- Updated `LitigationDocumentFormDialog` with tabs for upload vs URL input
-- Added `uploaded_by` staff attribution to document creation
-- Supports PDF, DOC, DOCX, TXT, JPG, PNG files (max 10MB)
+This plan completes three items to finalize Phases 1-3:
+1. **LitigationDocumentsStep** - Add actual file upload capability to the wizard
+2. **Client Documents Tab** - Build out the documents tab for clients
+3. **Settings Page** - Create a functional settings page
 
 ---
 
-## Deferred to Later Phases
+## 1. LitigationDocumentsStep File Upload
 
-### Reports Page
-- Currently placeholder text only
-- Recommended for Phase 4+
+### Current State
+The `LitigationDocumentsStep.tsx` uses checkboxes to confirm document receipt and shows a "coming soon" placeholder for file uploads.
 
-### Settings Page  
-- Currently placeholder text only
-- Recommended for Phase 4+
+### Changes
+Replace the placeholder with the existing `DocumentFileUpload` component to allow actual file uploads during the wizard flow.
+
+**Key Considerations:**
+- During the wizard, we don't have a `matter_id` yet (the matter is created at the end)
+- Solution: Use a temporary folder path (e.g., `temp/{leadId}/`) for uploads during the wizard
+- After conversion, documents can be associated with the created matter
+
+**File Changes:**
+- `src/components/litigation/steps/LitigationDocumentsStep.tsx`
+  - Import and use `DocumentFileUpload` component
+  - Create simplified upload components for complaint and summons
+  - Store uploaded URLs in the wizard data for later association
+
+---
+
+## 2. Client Documents Tab
+
+### Current State
+The Documents tab in `ClientDetail.tsx` shows a placeholder: "Documents feature coming soon..."
+
+### Database Design
+Create a new `client_documents` table to store client-level documents (contracts, IDs, disclosures, etc.)
+
+**Schema:**
+```text
+client_documents
+├── id (uuid, PK)
+├── client_id (uuid, FK → clients)
+├── document_type (text) - e.g., 'id_verification', 'contract', 'disclosure', 'correspondence', 'other'
+├── title (text)
+├── file_url (text)
+├── notes (text, nullable)
+├── uploaded_by (uuid, FK → staff, nullable)
+├── created_at (timestamp)
+```
+
+**New Files:**
+- `src/hooks/useClientDocuments.ts` - CRUD hooks following the same pattern as `useLitigationDocuments`
+- `src/components/clients/detail/ClientDocumentsTab.tsx` - Document list with upload capability
+- `src/components/clients/ClientDocumentFormDialog.tsx` - Form dialog for adding/editing documents
+
+**RLS Policies:**
+- Staff can view/manage documents for clients in their company hierarchy
+
+---
+
+## 3. Settings Page
+
+### Current State
+Inline placeholder in `App.tsx`: `"Settings coming soon..."`
+
+### Proposed Settings Sections
+
+| Section | Description | Data Source |
+|---------|-------------|-------------|
+| **Profile** | User's own name, email, avatar, phone | `staff` table (current user) |
+| **Notifications** | Email/in-app notification preferences | Future `user_preferences` table or local state |
+| **Company** | View company info (read-only for most) | `companies` table |
+| **Appearance** | Theme toggle (light/dark) | Local storage / next-themes |
+
+**New Files:**
+- `src/pages/Settings.tsx` - Full settings page with tabs
+- `src/components/settings/ProfileSettingsTab.tsx` - Edit profile info
+- `src/components/settings/AppearanceSettingsTab.tsx` - Theme toggle
+- `src/components/settings/CompanySettingsTab.tsx` - View company info
+
+**Implementation Notes:**
+- Use the existing `next-themes` package for dark/light mode toggle
+- Profile updates will use a new `useUpdateCurrentStaff` mutation
+- Keep it simple for Phase 3 - notifications can be enhanced later
+
+---
+
+## Technical Details
+
+### Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/hooks/useClientDocuments.ts` | CRUD hooks for client documents |
+| `src/components/clients/detail/ClientDocumentsTab.tsx` | Documents tab UI |
+| `src/components/clients/ClientDocumentFormDialog.tsx` | Add/edit document dialog |
+| `src/pages/Settings.tsx` | Main settings page |
+| `src/components/settings/ProfileSettingsTab.tsx` | Profile editing |
+| `src/components/settings/AppearanceSettingsTab.tsx` | Theme settings |
+| `src/components/settings/CompanySettingsTab.tsx` | Company info display |
+
+### Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/components/litigation/steps/LitigationDocumentsStep.tsx` | Add file upload UI |
+| `src/pages/ClientDetail.tsx` | Enable Documents tab, render new component |
+| `src/App.tsx` | Replace inline SettingsPage with proper import |
+| `src/hooks/useStaff.ts` | Add `useUpdateCurrentStaff` mutation |
+
+### Database Migration
+
+Create `client_documents` table with RLS policies for document storage at the client level.
+
+---
+
+## Implementation Order
+
+1. **Database Migration** - Create `client_documents` table
+2. **LitigationDocumentsStep** - Add upload capability (quick win)
+3. **Client Documents Tab** - Hook, dialog, and tab component
+4. **Settings Page** - Profile, appearance, and company tabs
+5. **App.tsx Update** - Wire up the new Settings page
 
 ---
 
 ## Testing Checklist
 
-1. **Status Change with Staff:**
-   - [x] Change matter status via dropdown
-   - [x] Check Activity tab shows staff name on the log entry
+After implementation:
 
-2. **LitigationWizard Flow:**
-   - [ ] Create litigation-interest lead
-   - [ ] Open the lead and click Convert
-   - [ ] Complete wizard steps
-   - [ ] Verify: Client created, Service created, Liability created, Matter created
-   - [ ] Verify: Lead shows as converted with link to client
-   - [ ] Verify: Navigated to new client detail page
+1. **Litigation Wizard Documents**
+   - Start a litigation conversion
+   - Reach the Documents step
+   - Upload a complaint document
+   - Verify file appears and can be removed
+   - Complete conversion successfully
 
-3. **Document Upload:**
-   - [ ] Open a litigation matter
-   - [ ] Go to Docs tab and click Add Document
-   - [ ] Upload a PDF file
-   - [ ] Verify file appears in document list with download link
+2. **Client Documents Tab**
+   - Open a client's detail page
+   - Go to Documents tab (should now be enabled)
+   - Click "Add Document"
+   - Upload a file (e.g., PDF)
+   - Verify document appears in list with download link
+
+3. **Settings Page**
+   - Navigate to Settings from sidebar or user menu
+   - **Profile Tab**: Update phone number, verify it saves
+   - **Appearance Tab**: Toggle dark/light mode
+   - **Company Tab**: Verify company info displays correctly
