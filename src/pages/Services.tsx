@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { Plus, Search, FileText, User } from 'lucide-react';
+import { Plus, FileText, User, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useEngagements, type Engagement, type EngagementStatus } from '@/hooks/useEngagements';
-import { EngagementFormDialog } from '@/components/engagements/EngagementFormDialog';
-import { EngagementDetailSheet } from '@/components/engagements/EngagementDetailSheet';
+import { useClientServices, type ClientService, type ServiceStatus } from '@/hooks/useClientServices';
+import { ServiceFormDialog } from '@/components/services/ServiceFormDialog';
+import { ServiceDetailSheet } from '@/components/services/ServiceDetailSheet';
 import { format } from 'date-fns';
 
 const statusConfig: Record<string, { label: string; className: string }> = {
@@ -18,17 +17,20 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   closed: { label: 'Closed', className: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300' },
 };
 
-export default function EngagementsPage() {
-  const [statusFilter, setStatusFilter] = useState<EngagementStatus | 'all'>('all');
-  const [showForm, setShowForm] = useState(false);
-  const [selectedEngagementId, setSelectedEngagementId] = useState<string | null>(null);
+const formatCurrency = (amount: number | null) =>
+  amount ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount) : '—';
 
-  const { data: engagements, isLoading } = useEngagements(
+export default function ServicesPage() {
+  const [statusFilter, setStatusFilter] = useState<ServiceStatus | 'all'>('all');
+  const [showForm, setShowForm] = useState(false);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+
+  const { data: services, isLoading } = useClientServices(
     statusFilter === 'all' ? undefined : statusFilter
   );
 
-  const handleViewEngagement = (engagement: Engagement) => {
-    setSelectedEngagementId(engagement.id);
+  const handleViewService = (service: ClientService) => {
+    setSelectedServiceId(service.id);
   };
 
   return (
@@ -36,18 +38,18 @@ export default function EngagementsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Engagements</h1>
-          <p className="text-muted-foreground">Manage client engagements and services</p>
+          <h1 className="text-2xl font-bold">Services</h1>
+          <p className="text-muted-foreground">Manage client services and debt settlement programs</p>
         </div>
         <Button onClick={() => setShowForm(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          New Engagement
+          New Service
         </Button>
       </div>
 
       {/* Filters */}
       <div className="flex items-center gap-4">
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as EngagementStatus | 'all')}>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as ServiceStatus | 'all')}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
@@ -61,15 +63,16 @@ export default function EngagementsPage() {
         </Select>
       </div>
 
-      {/* Engagements Table */}
+      {/* Services Table */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Engagement #</TableHead>
-              <TableHead>Primary Contact</TableHead>
+              <TableHead>Service #</TableHead>
+              <TableHead>Client</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Services</TableHead>
+              <TableHead>Program</TableHead>
+              <TableHead>Enrolled Debt</TableHead>
               <TableHead>Created</TableHead>
             </TableRow>
           </TableHeader>
@@ -82,67 +85,61 @@ export default function EngagementsPage() {
                   <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                 </TableRow>
               ))
-            ) : engagements && engagements.length > 0 ? (
-              engagements.map((engagement) => (
+            ) : services && services.length > 0 ? (
+              services.map((service) => (
                 <TableRow
-                  key={engagement.id}
+                  key={service.id}
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleViewEngagement(engagement)}
+                  onClick={() => handleViewService(service)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{engagement.engagement_number}</span>
+                      <span className="font-medium">{service.service_number}</span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    {engagement.primary_contact ? (
+                    {service.primary_client ? (
                       <div className="flex items-center gap-2">
                         <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
                           <User className="h-3 w-3 text-primary" />
                         </div>
                         <span className="text-sm">
-                          {engagement.primary_contact.first_name} {engagement.primary_contact.last_name}
+                          {service.primary_client.first_name} {service.primary_client.last_name}
                         </span>
                       </div>
                     ) : (
-                      <span className="text-muted-foreground text-sm">No contact</span>
+                      <span className="text-muted-foreground text-sm">No client</span>
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge className={statusConfig[engagement.status]?.className}>
-                      {statusConfig[engagement.status]?.label}
+                    <Badge className={statusConfig[service.status]?.className}>
+                      {statusConfig[service.status]?.label}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {engagement.engagement_services && engagement.engagement_services.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {engagement.engagement_services.slice(0, 2).map((es) => (
-                          <Badge key={es.id} variant="outline" className="text-xs">
-                            {es.service?.name}
-                          </Badge>
-                        ))}
-                        {engagement.engagement_services.length > 2 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{engagement.engagement_services.length - 2}
-                          </Badge>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">—</span>
-                    )}
+                    <Badge variant="outline" className="capitalize">
+                      {service.program_type?.replace('_', ' ') || 'Debt Settlement'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1 text-sm">
+                      <DollarSign className="h-3 w-3 text-muted-foreground" />
+                      {formatCurrency(service.total_enrolled_debt)}
+                    </div>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(engagement.created_at), 'MMM d, yyyy')}
+                    {format(new Date(service.created_at), 'MMM d, yyyy')}
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  No engagements found. Create your first engagement!
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  No services found. Create your first service!
                 </TableCell>
               </TableRow>
             )}
@@ -151,16 +148,16 @@ export default function EngagementsPage() {
       </div>
 
       {/* Form Dialog */}
-      <EngagementFormDialog
+      <ServiceFormDialog
         open={showForm}
         onOpenChange={setShowForm}
       />
 
       {/* Detail Sheet */}
-      <EngagementDetailSheet
-        engagementId={selectedEngagementId}
-        open={!!selectedEngagementId}
-        onOpenChange={(open) => !open && setSelectedEngagementId(null)}
+      <ServiceDetailSheet
+        serviceId={selectedServiceId}
+        open={!!selectedServiceId}
+        onOpenChange={(open) => !open && setSelectedServiceId(null)}
       />
     </div>
   );

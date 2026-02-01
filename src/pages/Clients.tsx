@@ -5,25 +5,25 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useContacts, type Contact } from '@/hooks/useContacts';
-import { ContactFormDialog } from '@/components/contacts/ContactFormDialog';
-import { ContactDetailSheet } from '@/components/contacts/ContactDetailSheet';
+import { useClients, type Client } from '@/hooks/useClients';
+import { ClientFormDialog } from '@/components/clients/ClientFormDialog';
+import { ClientDetailSheet } from '@/components/clients/ClientDetailSheet';
 import { format } from 'date-fns';
 
-export default function ContactsPage() {
+export default function ClientsPage() {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
-  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
 
-  const { data: contacts, isLoading } = useContacts(search || undefined);
+  const { data: clients, isLoading } = useClients(search || undefined);
 
-  const handleViewContact = (contact: Contact) => {
-    setSelectedContactId(contact.id);
+  const handleViewClient = (client: Client) => {
+    setSelectedClientId(client.id);
   };
 
-  const handleEditContact = (contact: Contact) => {
-    setEditingContact(contact);
+  const handleEditClient = (client: Client) => {
+    setEditingClient(client);
     setShowForm(true);
   };
 
@@ -40,12 +40,12 @@ export default function ContactsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Contacts</h1>
-          <p className="text-muted-foreground">Manage client contacts and their information</p>
+          <h1 className="text-2xl font-bold">Clients</h1>
+          <p className="text-muted-foreground">Manage client information and profiles</p>
         </div>
-        <Button onClick={() => { setEditingContact(null); setShowForm(true); }}>
+        <Button onClick={() => { setEditingClient(null); setShowForm(true); }}>
           <Plus className="h-4 w-4 mr-2" />
-          New Contact
+          New Client
         </Button>
       </div>
 
@@ -54,7 +54,7 @@ export default function ContactsPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search contacts..."
+            placeholder="Search clients..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -62,7 +62,7 @@ export default function ContactsPage() {
         </div>
       </div>
 
-      {/* Contacts Table */}
+      {/* Clients Table */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
@@ -85,15 +85,15 @@ export default function ContactsPage() {
                   <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                 </TableRow>
               ))
-            ) : contacts && contacts.length > 0 ? (
-              contacts.map((contact) => {
-                const primaryPhone = contact.phones?.find((p) => p.is_primary) || contact.phones?.[0];
+            ) : clients && clients.length > 0 ? (
+              clients.map((client) => {
+                const primaryPhone = client.phones?.find((p) => p.is_primary) || client.phones?.[0];
                 
                 return (
                   <TableRow
-                    key={contact.id}
+                    key={client.id}
                     className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleViewContact(contact)}
+                    onClick={() => handleViewClient(client)}
                   >
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -102,21 +102,21 @@ export default function ContactsPage() {
                         </div>
                         <div>
                           <p className="font-medium">
-                            {contact.first_name} {contact.last_name}
+                            {client.first_name} {client.last_name}
                           </p>
-                          {contact.preferred_contact_method && (
+                          {client.preferred_contact_method && (
                             <p className="text-xs text-muted-foreground">
-                              Prefers: {phoneTypeLabels[contact.preferred_contact_method]}
+                              Prefers: {phoneTypeLabels[client.preferred_contact_method]}
                             </p>
                           )}
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      {contact.email ? (
+                      {client.email ? (
                         <div className="flex items-center gap-1 text-sm">
                           <Mail className="h-3 w-3 text-muted-foreground" />
-                          {contact.email}
+                          {client.email}
                         </div>
                       ) : (
                         <span className="text-muted-foreground text-sm">—</span>
@@ -133,14 +133,14 @@ export default function ContactsPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {contact.tcpa_consent ? (
+                      {client.tcpa_consent ? (
                         <Badge variant="secondary" className="text-xs">Consented</Badge>
                       ) : (
                         <Badge variant="outline" className="text-xs">No</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {format(new Date(contact.created_at), 'MMM d, yyyy')}
+                      {format(new Date(client.created_at), 'MMM d, yyyy')}
                     </TableCell>
                   </TableRow>
                 );
@@ -148,7 +148,7 @@ export default function ContactsPage() {
             ) : (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  {search ? 'No contacts match your search' : 'No contacts yet. Create your first contact!'}
+                  {search ? 'No clients match your search' : 'No clients yet. Create your first client!'}
                 </TableCell>
               </TableRow>
             )}
@@ -157,22 +157,22 @@ export default function ContactsPage() {
       </div>
 
       {/* Form Dialog */}
-      <ContactFormDialog
+      <ClientFormDialog
         open={showForm}
         onOpenChange={setShowForm}
-        contact={editingContact}
+        client={editingClient}
       />
 
       {/* Detail Sheet */}
-      <ContactDetailSheet
-        contactId={selectedContactId}
-        open={!!selectedContactId}
-        onOpenChange={(open) => !open && setSelectedContactId(null)}
+      <ClientDetailSheet
+        clientId={selectedClientId}
+        open={!!selectedClientId}
+        onOpenChange={(open) => !open && setSelectedClientId(null)}
         onEdit={() => {
-          const contact = contacts?.find((c) => c.id === selectedContactId);
-          if (contact) {
-            setSelectedContactId(null);
-            handleEditContact(contact);
+          const client = clients?.find((c) => c.id === selectedClientId);
+          if (client) {
+            setSelectedClientId(null);
+            handleEditClient(client);
           }
         }}
       />
