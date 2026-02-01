@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -31,30 +31,34 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { Constants } from '@/integrations/supabase/types';
+import { Constants, type Enums } from '@/integrations/supabase/types';
 
-const departments = Constants.public.Enums.department;
 const appRoles = Constants.public.Enums.app_role;
 
-const jobTitles = [
-  'Admin',
-  'Attorney',
-  'Customer Service',
-  'Payment Processing',
-  'Negotiations',
-  'Sales',
-] as const;
+// Map roles to their corresponding departments
+const roleToDepartment: Record<Enums<'app_role'>, Enums<'department'>> = {
+  admin: 'admin',
+  attorney: 'attorney',
+  paralegal: 'attorney',
+  negotiator: 'negotiations',
+  case_manager: 'case_manager',
+  sales_rep: 'sales_intake',
+  client_services_rep: 'client_services',
+  payment_processor: 'payment_processing',
+  correspondent: 'correspondence',
+  viewer: 'admin',
+};
 
 const formSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email address'),
   phone: z.string().optional(),
-  department: z.enum(departments as unknown as [string, ...string[]]),
-  job_title: z.string().optional(),
   company_id: z.string().min(1, 'Company is required'),
   is_active: z.boolean(),
-  role: z.enum(appRoles as unknown as [string, ...string[]]).optional(),
+  role: z.enum(appRoles as unknown as [string, ...string[]], {
+    required_error: 'Role is required',
+  }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -88,27 +92,31 @@ export function StaffFormDialog({ open, onOpenChange }: StaffFormDialogProps) {
       last_name: '',
       email: '',
       phone: '',
-      department: 'admin',
-      job_title: '',
       company_id: '',
       is_active: true,
       role: undefined,
     },
   });
 
+  const selectedRole = form.watch('role');
+
+  // Auto-set department based on role
+  const department = selectedRole ? roleToDepartment[selectedRole as Enums<'app_role'>] : null;
+
   const createStaffMutation = useMutation({
     mutationFn: async (values: FormValues) => {
+      const derivedDepartment = roleToDepartment[values.role as Enums<'app_role'>];
+      
       const { data, error } = await supabase.functions.invoke('create-staff-user', {
         body: {
           email: values.email,
           first_name: values.first_name,
           last_name: values.last_name,
-          department: values.department,
+          department: derivedDepartment,
           company_id: values.company_id,
           phone: values.phone || undefined,
-          job_title: values.job_title || undefined,
           is_active: values.is_active,
-          roles: values.role ? [values.role] : undefined,
+          roles: [values.role],
         },
       });
 
@@ -138,11 +146,11 @@ export function StaffFormDialog({ open, onOpenChange }: StaffFormDialogProps) {
     createStaffMutation.mutate(values);
   };
 
-  const formatDepartment = (dept: string) => 
-    dept.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-
   const formatRole = (role: string) =>
     role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+  const formatDepartment = (dept: string) =>
+    dept.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -213,74 +221,22 @@ export function StaffFormDialog({ open, onOpenChange }: StaffFormDialogProps) {
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="department"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Department</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select department" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {departments.map((dept) => (
-                          <SelectItem key={dept} value={dept}>
-                            {formatDepartment(dept)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Role (optional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select role" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {appRoles.map((role) => (
-                          <SelectItem key={role} value={role}>
-                            {formatRole(role)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
             <FormField
               control={form.control}
-              name="job_title"
+              name="role"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Job Title (optional)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ''}>
+                  <FormLabel>Role</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select job title" />
+                        <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {jobTitles.map((title) => (
-                        <SelectItem key={title} value={title}>
-                          {title}
+                      {appRoles.map((role) => (
+                        <SelectItem key={role} value={role}>
+                          {formatRole(role)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -289,6 +245,14 @@ export function StaffFormDialog({ open, onOpenChange }: StaffFormDialogProps) {
                 </FormItem>
               )}
             />
+
+            {department && (
+              <div className="rounded-lg border p-3 bg-muted/50">
+                <p className="text-sm text-muted-foreground">
+                  Department: <span className="font-medium text-foreground">{formatDepartment(department)}</span>
+                </p>
+              </div>
+            )}
 
             <FormField
               control={form.control}

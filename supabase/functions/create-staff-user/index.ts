@@ -13,7 +13,6 @@ interface CreateStaffRequest {
   department: string
   company_id: string
   phone?: string
-  job_title?: string
   is_active?: boolean
   roles?: string[]
 }
@@ -123,7 +122,6 @@ Deno.serve(async (req) => {
         department: body.department,
         company_id: body.company_id,
         phone: body.phone || null,
-        job_title: body.job_title || null,
         is_active: body.is_active !== undefined ? body.is_active : true
       })
       .select()
