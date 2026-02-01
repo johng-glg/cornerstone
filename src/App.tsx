@@ -13,6 +13,7 @@ import ClientDetailPage from "./pages/ClientDetail";
 import ServicesPage from "./pages/Services";
 import TasksPage from "./pages/Tasks";
 import LiabilitiesPage from "./pages/Liabilities";
+import LitigationPage from "./pages/Litigation";
 import CreditorsPage from "./pages/Creditors";
 import PaymentsPage from "./pages/Payments";
 import NotFound from "./pages/NotFound";
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/clients" element={<AppLayout><ClientsPage /></AppLayout>} />
             <Route path="/clients/:id" element={<AppLayout><ClientDetailPage /></AppLayout>} />
             <Route path="/liabilities" element={<AppLayout><LiabilitiesPage /></AppLayout>} />
+            <Route path="/litigation" element={<AppLayout><LitigationPage /></AppLayout>} />
             <Route path="/tasks" element={<AppLayout><TasksPage /></AppLayout>} />
             <Route path="/creditors" element={<AppLayout><CreditorsPage /></AppLayout>} />
             <Route path="/reports" element={<AppLayout><ReportsPage /></AppLayout>} />
