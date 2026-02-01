@@ -231,7 +231,7 @@ export function useAcceptSettlement() {
         ? new Date(settlement.first_payment_date) 
         : new Date();
 
-      // Schedule settlement payments
+      // Schedule settlement payments (open = scheduled, not yet processed)
       for (let i = 0; i < numberOfPayments; i++) {
         const paymentDate = new Date(firstPaymentDate);
         paymentDate.setMonth(paymentDate.getMonth() + i);
@@ -243,7 +243,7 @@ export function useAcceptSettlement() {
           transaction_type: 'settlement_payment',
           amount: paymentAmount,
           scheduled_date: paymentDate.toISOString().split('T')[0],
-          status: 'pending',
+          status: 'open',
           sequence_number: i + 1,
           description: `Settlement payment ${i + 1} of ${numberOfPayments}`,
         });
@@ -268,7 +268,7 @@ export function useAcceptSettlement() {
           transaction_type: 'contingency_fee',
           amount: totalFee,
           scheduled_date: feeDate.toISOString().split('T')[0],
-          status: 'pending',
+          status: 'open',
           sequence_number: 1,
           description: 'Contingency fee (lump sum)',
         });
@@ -286,7 +286,7 @@ export function useAcceptSettlement() {
             transaction_type: 'contingency_fee',
             amount: feePerPayment,
             scheduled_date: feeDate.toISOString().split('T')[0],
-            status: 'pending',
+            status: 'open',
             sequence_number: i + 1,
             description: `Contingency fee ${i + 1} of ${numberOfPayments}`,
           });
