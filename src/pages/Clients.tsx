@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Mail, Phone, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,15 +9,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useClients, type Client } from '@/hooks/useClients';
 import { ClientFormDialog } from '@/components/clients/ClientFormDialog';
-import { ClientDetailSheet } from '@/components/clients/ClientDetailSheet';
 import { format } from 'date-fns';
 import { clientStatusConfig, type ClientStatus } from '@/types/serviceStatus';
 
 export default function ClientsPage() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ClientStatus | 'all'>('all');
   const [showForm, setShowForm] = useState(false);
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
 
   const { data: clients, isLoading } = useClients(
@@ -25,7 +25,7 @@ export default function ClientsPage() {
   );
 
   const handleViewClient = (client: Client) => {
-    setSelectedClientId(client.id);
+    navigate(`/clients/${client.id}`);
   };
 
   const handleEditClient = (client: Client) => {
@@ -186,20 +186,6 @@ export default function ClientsPage() {
         open={showForm}
         onOpenChange={setShowForm}
         client={editingClient}
-      />
-
-      {/* Detail Sheet */}
-      <ClientDetailSheet
-        clientId={selectedClientId}
-        open={!!selectedClientId}
-        onOpenChange={(open) => !open && setSelectedClientId(null)}
-        onEdit={() => {
-          const client = clients?.find((c) => c.id === selectedClientId);
-          if (client) {
-            setSelectedClientId(null);
-            handleEditClient(client);
-          }
-        }}
       />
     </div>
   );
