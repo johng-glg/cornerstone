@@ -31,7 +31,12 @@ export function ServiceStatusBadges({
   showLabels = false,
   compact = false,
 }: ServiceStatusBadgesProps) {
-  const primaryConfig = primaryStatusConfig[primaryStatus];
+  // Fallback for invalid/legacy status values
+  const primaryConfig = primaryStatusConfig[primaryStatus] || {
+    label: primaryStatus || 'Unknown',
+    className: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+    description: 'Unknown status'
+  };
   const isActive = primaryStatus === 'active';
 
   return (
@@ -98,7 +103,10 @@ export function ServiceStatusBadges({
 
 // Simple badge for just the primary status
 export function PrimaryStatusBadge({ status, compact = false }: { status: PrimaryServiceStatus; compact?: boolean }) {
-  const config = primaryStatusConfig[status];
+  const config = primaryStatusConfig[status] || {
+    label: status || 'Unknown',
+    className: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+  };
   return (
     <Badge className={`${config.className} ${compact ? 'text-xs px-1.5 py-0' : ''}`}>
       {config.label}
