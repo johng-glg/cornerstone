@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, LayoutGrid, List, Calendar, User, AlertCircle, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +41,7 @@ const typeLabels: Record<string, string> = {
 type SortDirection = 'asc' | 'desc' | 'none';
 
 export default function TasksPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [view, setView] = useState<'list' | 'kanban'>('kanban');
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | 'all'>('all');
   const [showCompleted, setShowCompleted] = useState(false);
@@ -51,6 +53,16 @@ export default function TasksPage() {
   const [showForm, setShowForm] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  // Handle ?action=new query param to auto-open dialog
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      setEditingTask(null);
+      setShowForm(true);
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data: tasks, isLoading } = useTasks(
     priorityFilter === 'all'

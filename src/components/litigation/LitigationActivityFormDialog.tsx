@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCreateLitigationActivity } from '@/hooks/useLitigationActivities';
+import { useCurrentStaff } from '@/hooks/useStaff';
 
 const activitySchema = z.object({
   activity_type: z.string().min(1, 'Activity type is required'),
@@ -55,6 +56,7 @@ export function LitigationActivityFormDialog({
   onOpenChange,
 }: LitigationActivityFormDialogProps) {
   const createActivity = useCreateLitigationActivity();
+  const { data: currentStaff } = useCurrentStaff();
 
   const form = useForm<ActivityFormData>({
     resolver: zodResolver(activitySchema),
@@ -72,7 +74,7 @@ export function LitigationActivityFormDialog({
       description: data.description,
       outcome: data.outcome || null,
       activity_date: null,
-      staff_id: null, // Will be set by current user in a future enhancement
+      staff_id: currentStaff?.id || null,
       document_url: null,
     });
     

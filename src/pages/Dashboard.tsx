@@ -97,25 +97,13 @@ export default function Dashboard() {
         <CardContent className="pt-6">
           <div className="flex flex-wrap gap-3">
             <Button asChild>
-              <Link to="/leads/new">
+              <Link to="/leads?action=new">
                 <UserPlus className="mr-2 h-4 w-4" />
                 New Lead
               </Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link to="/engagements/new">
-                <Briefcase className="mr-2 h-4 w-4" />
-                New Engagement
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/contacts/new">
-                <UserPlus className="mr-2 h-4 w-4" />
-                New Contact
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/tasks/new">
+              <Link to="/tasks?action=new">
                 <CheckSquare className="mr-2 h-4 w-4" />
                 New Task
               </Link>

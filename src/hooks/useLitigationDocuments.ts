@@ -21,6 +21,7 @@ export interface LitigationDocument {
 }
 
 export type LitigationDocumentInsert = Omit<LitigationDocument, 'id' | 'created_at' | 'uploader'>;
+export type LitigationDocumentUpdate = Partial<LitigationDocumentInsert> & { id: string };
 
 export function useLitigationDocuments(matterId: string | undefined) {
   return useQuery({
@@ -62,6 +63,31 @@ export function useCreateLitigationDocument() {
     },
     onError: (error: Error) => {
       toast({ title: 'Failed to add document', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useUpdateLitigationDocument() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: LitigationDocumentUpdate) => {
+      const { data, error } = await supabase
+        .from('litigation_documents')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['litigation_documents', data.matter_id] });
+      toast({ title: 'Document updated' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to update document', description: error.message, variant: 'destructive' });
     },
   });
 }
