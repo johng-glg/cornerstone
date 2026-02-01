@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Tables, TablesInsert, TablesUpdate, Enums } from '@/integrations/supabase/types';
+import type { ClientStatus } from '@/types/serviceStatus';
 
 export type Client = Tables<'clients'> & {
   phones?: Tables<'client_phones'>[];
@@ -12,10 +13,11 @@ export type ClientInsert = Omit<TablesInsert<'clients'>, 'id' | 'created_at' | '
 export type ClientUpdate = TablesUpdate<'clients'>;
 export type PhoneType = Enums<'phone_type'>;
 export type AddressType = Enums<'address_type'>;
+export type { ClientStatus };
 
-export function useClients(search?: string) {
+export function useClients(search?: string, statusFilter?: ClientStatus) {
   return useQuery({
-    queryKey: ['clients', search],
+    queryKey: ['clients', search, statusFilter],
     queryFn: async () => {
       let query = supabase
         .from('clients')
@@ -29,6 +31,10 @@ export function useClients(search?: string) {
 
       if (search) {
         query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%`);
+      }
+      
+      if (statusFilter) {
+        query = query.eq('status', statusFilter);
       }
 
       const { data, error } = await query;

@@ -1,37 +1,46 @@
 import { useState } from 'react';
-import { Plus, FileText, User, DollarSign } from 'lucide-react';
+import { Plus, FileText, User, DollarSign, AlertTriangle, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useClientServices, type ClientService, type ServiceStatus } from '@/hooks/useClientServices';
+import { useClientServices, type ClientService, type ServiceFilters } from '@/hooks/useClientServices';
 import { ServiceFormDialog } from '@/components/services/ServiceFormDialog';
 import { ServiceDetailSheet } from '@/components/services/ServiceDetailSheet';
+import { ServiceStatusBadges } from '@/components/services/ServiceStatusBadges';
 import { format } from 'date-fns';
-
-const statusConfig: Record<string, { label: string; className: string }> = {
-  prospect: { label: 'Prospect', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
-  active: { label: 'Active', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
-  suspended: { label: 'Suspended', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' },
-  closed: { label: 'Closed', className: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300' },
-};
+import type { PrimaryServiceStatus, PaymentStatus, ContactStatus } from '@/types/serviceStatus';
 
 const formatCurrency = (amount: number | null) =>
   amount ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount) : '—';
 
 export default function ServicesPage() {
-  const [statusFilter, setStatusFilter] = useState<ServiceStatus | 'all'>('all');
+  const [filters, setFilters] = useState<ServiceFilters>({});
   const [showForm, setShowForm] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
 
   const { data: services, isLoading } = useClientServices(
-    statusFilter === 'all' ? undefined : statusFilter
+    Object.keys(filters).length > 0 ? filters : undefined
   );
 
   const handleViewService = (service: ClientService) => {
     setSelectedServiceId(service.id);
   };
+
+  const updateFilter = <K extends keyof ServiceFilters>(key: K, value: ServiceFilters[K] | 'all') => {
+    setFilters(prev => {
+      const next = { ...prev };
+      if (value === 'all' || value === undefined) {
+        delete next[key];
+      } else {
+        next[key] = value;
+      }
+      return next;
+    });
+  };
+
+  const clearFilters = () => setFilters({});
+  const hasFilters = Object.keys(filters).length > 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -48,19 +57,86 @@ export default function ServicesPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4">
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as ServiceStatus | 'all')}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="All Statuses" />
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Filters:</span>
+        </div>
+        
+        <Select 
+          value={filters.primaryStatus || 'all'} 
+          onValueChange={(v) => updateFilter('primaryStatus', v as PrimaryServiceStatus)}
+        >
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="prospect">Prospect</SelectItem>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="suspended">Suspended</SelectItem>
-            <SelectItem value="closed">Closed</SelectItem>
+            <SelectItem value="graduated">Graduated</SelectItem>
+            <SelectItem value="dropped">Dropped</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
+
+        <Select 
+          value={filters.paymentStatus || 'all'} 
+          onValueChange={(v) => updateFilter('paymentStatus', v === 'all' ? undefined : v as PaymentStatus)}
+        >
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Payment" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Payment</SelectItem>
+            <SelectItem value="current">Current</SelectItem>
+            <SelectItem value="paused">Paused</SelectItem>
+            <SelectItem value="nsf">NSF</SelectItem>
+            <SelectItem value="past_due">Past Due</SelectItem>
+            <SelectItem value="suspended">Suspended</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select 
+          value={filters.contactStatus || 'all'} 
+          onValueChange={(v) => updateFilter('contactStatus', v === 'all' ? undefined : v as ContactStatus)}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Contact" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Contact</SelectItem>
+            <SelectItem value="reachable">Reachable</SelectItem>
+            <SelectItem value="hard_to_reach">Hard to Reach</SelectItem>
+            <SelectItem value="unreachable">Unreachable</SelectItem>
+            <SelectItem value="no_contact_allowed">No Contact</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select 
+          value={filters.retentionFlag === true ? 'flagged' : filters.retentionFlag === false ? 'not_flagged' : 'all'} 
+          onValueChange={(v) => updateFilter('retentionFlag', v === 'all' ? undefined : v === 'flagged' ? true : false)}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Retention" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Retention</SelectItem>
+            <SelectItem value="flagged">
+              <span className="flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                Flagged
+              </span>
+            </SelectItem>
+            <SelectItem value="not_flagged">Not Flagged</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {hasFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
+            Clear Filters
+          </Button>
+        )}
       </div>
 
       {/* Services Table */}
@@ -82,7 +158,7 @@ export default function ServicesPage() {
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-40" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-24" /></TableCell>
@@ -116,14 +192,19 @@ export default function ServicesPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge className={statusConfig[service.status]?.className}>
-                      {statusConfig[service.status]?.label}
-                    </Badge>
+                    <ServiceStatusBadges
+                      primaryStatus={service.status as PrimaryServiceStatus}
+                      paymentStatus={service.payment_status as PaymentStatus}
+                      retentionFlag={service.retention_flag ?? false}
+                      retentionType={service.retention_type as any}
+                      contactStatus={service.contact_status as ContactStatus}
+                      compact
+                    />
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="capitalize">
+                    <span className="text-sm capitalize">
                       {service.program_type?.replace('_', ' ') || 'Debt Settlement'}
-                    </Badge>
+                    </span>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 text-sm">
@@ -139,7 +220,7 @@ export default function ServicesPage() {
             ) : (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  No services found. Create your first service!
+                  {hasFilters ? 'No services match your filters' : 'No services found. Create your first service!'}
                 </TableCell>
               </TableRow>
             )}

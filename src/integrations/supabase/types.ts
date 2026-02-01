@@ -236,6 +236,11 @@ export type Database = {
       client_services: {
         Row: {
           closed_date: string | null
+          contact_attempts_count: number | null
+          contact_status:
+            | Database["public"]["Enums"]["contact_status_enum"]
+            | null
+          contact_status_changed_at: string | null
           created_at: string
           enrolled_date: string | null
           escrow_balance: number | null
@@ -244,17 +249,31 @@ export type Database = {
           first_draft_date: string | null
           first_payment_date: string | null
           id: string
+          last_contact_attempt_date: string | null
+          last_successful_contact_date: string | null
           monthly_payment: number | null
           monthly_service_fee: number | null
           notes: string | null
           originating_company_id: string | null
           owning_company_id: string
           payment_frequency: string | null
+          payment_status:
+            | Database["public"]["Enums"]["payment_status_enum"]
+            | null
+          payment_status_changed_at: string | null
           plan_type: Database["public"]["Enums"]["plan_type"] | null
           primary_client_id: string | null
+          primary_status_changed_at: string | null
           program_start_date: string | null
           program_type: string | null
           requires_management_approval: boolean | null
+          retention_assigned_to: string | null
+          retention_date: string | null
+          retention_flag: boolean | null
+          retention_reason: string | null
+          retention_type:
+            | Database["public"]["Enums"]["retention_type_enum"]
+            | null
           service_number: string
           settlement_fee_percentage: number | null
           status: Database["public"]["Enums"]["service_status"]
@@ -264,6 +283,11 @@ export type Database = {
         }
         Insert: {
           closed_date?: string | null
+          contact_attempts_count?: number | null
+          contact_status?:
+            | Database["public"]["Enums"]["contact_status_enum"]
+            | null
+          contact_status_changed_at?: string | null
           created_at?: string
           enrolled_date?: string | null
           escrow_balance?: number | null
@@ -272,17 +296,31 @@ export type Database = {
           first_draft_date?: string | null
           first_payment_date?: string | null
           id?: string
+          last_contact_attempt_date?: string | null
+          last_successful_contact_date?: string | null
           monthly_payment?: number | null
           monthly_service_fee?: number | null
           notes?: string | null
           originating_company_id?: string | null
           owning_company_id: string
           payment_frequency?: string | null
+          payment_status?:
+            | Database["public"]["Enums"]["payment_status_enum"]
+            | null
+          payment_status_changed_at?: string | null
           plan_type?: Database["public"]["Enums"]["plan_type"] | null
           primary_client_id?: string | null
+          primary_status_changed_at?: string | null
           program_start_date?: string | null
           program_type?: string | null
           requires_management_approval?: boolean | null
+          retention_assigned_to?: string | null
+          retention_date?: string | null
+          retention_flag?: boolean | null
+          retention_reason?: string | null
+          retention_type?:
+            | Database["public"]["Enums"]["retention_type_enum"]
+            | null
           service_number: string
           settlement_fee_percentage?: number | null
           status?: Database["public"]["Enums"]["service_status"]
@@ -292,6 +330,11 @@ export type Database = {
         }
         Update: {
           closed_date?: string | null
+          contact_attempts_count?: number | null
+          contact_status?:
+            | Database["public"]["Enums"]["contact_status_enum"]
+            | null
+          contact_status_changed_at?: string | null
           created_at?: string
           enrolled_date?: string | null
           escrow_balance?: number | null
@@ -300,17 +343,31 @@ export type Database = {
           first_draft_date?: string | null
           first_payment_date?: string | null
           id?: string
+          last_contact_attempt_date?: string | null
+          last_successful_contact_date?: string | null
           monthly_payment?: number | null
           monthly_service_fee?: number | null
           notes?: string | null
           originating_company_id?: string | null
           owning_company_id?: string
           payment_frequency?: string | null
+          payment_status?:
+            | Database["public"]["Enums"]["payment_status_enum"]
+            | null
+          payment_status_changed_at?: string | null
           plan_type?: Database["public"]["Enums"]["plan_type"] | null
           primary_client_id?: string | null
+          primary_status_changed_at?: string | null
           program_start_date?: string | null
           program_type?: string | null
           requires_management_approval?: boolean | null
+          retention_assigned_to?: string | null
+          retention_date?: string | null
+          retention_flag?: boolean | null
+          retention_reason?: string | null
+          retention_type?:
+            | Database["public"]["Enums"]["retention_type_enum"]
+            | null
           service_number?: string
           settlement_fee_percentage?: number | null
           status?: Database["public"]["Enums"]["service_status"]
@@ -319,6 +376,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "client_services_retention_assigned_to_fkey"
+            columns: ["retention_assigned_to"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "engagements_originating_company_id_fkey"
             columns: ["originating_company_id"]
@@ -358,6 +422,7 @@ export type Database = {
             | Database["public"]["Enums"]["phone_type"]
             | null
           ssn_encrypted: string | null
+          status: Database["public"]["Enums"]["client_status_enum"] | null
           tcpa_consent: boolean | null
           tcpa_consent_date: string | null
           updated_at: string
@@ -377,6 +442,7 @@ export type Database = {
             | Database["public"]["Enums"]["phone_type"]
             | null
           ssn_encrypted?: string | null
+          status?: Database["public"]["Enums"]["client_status_enum"] | null
           tcpa_consent?: boolean | null
           tcpa_consent_date?: string | null
           updated_at?: string
@@ -396,6 +462,7 @@ export type Database = {
             | Database["public"]["Enums"]["phone_type"]
             | null
           ssn_encrypted?: string | null
+          status?: Database["public"]["Enums"]["client_status_enum"] | null
           tcpa_consent?: boolean | null
           tcpa_consent_date?: string | null
           updated_at?: string
@@ -1086,6 +1153,54 @@ export type Database = {
         }
         Relationships: []
       }
+      service_status_history: {
+        Row: {
+          changed_by: string | null
+          client_service_id: string
+          created_at: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          reason: string | null
+          status_dimension: string
+        }
+        Insert: {
+          changed_by?: string | null
+          client_service_id: string
+          created_at?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          reason?: string | null
+          status_dimension: string
+        }
+        Update: {
+          changed_by?: string | null
+          client_service_id?: string
+          created_at?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          reason?: string | null
+          status_dimension?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_status_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_status_history_client_service_id_fkey"
+            columns: ["client_service_id"]
+            isOneToOne: false
+            referencedRelation: "client_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           created_at: string
@@ -1440,7 +1555,13 @@ export type Database = {
         | "spouse"
         | "authorized_contact"
         | "other"
+      client_status_enum: "active" | "inactive"
       company_type: "law_firm" | "affiliate" | "financing_company"
+      contact_status_enum:
+        | "reachable"
+        | "hard_to_reach"
+        | "unreachable"
+        | "no_contact_allowed"
       creditor_type:
         | "original_creditor"
         | "collection_agency"
@@ -1504,10 +1625,30 @@ export type Database = {
         | "student_loan"
         | "mortgage"
         | "other"
+      payment_status_enum:
+        | "current"
+        | "paused"
+        | "nsf"
+        | "past_due"
+        | "suspended"
       payment_type: "lump_sum" | "payment_plan"
       phone_type: "mobile" | "home" | "work" | "fax" | "other"
       plan_type: "glg_standard" | "glg_adjustable" | "glg_exception"
-      service_status: "prospect" | "active" | "suspended" | "closed"
+      retention_type_enum:
+        | "client_requested_cancel"
+        | "company_initiated_cancel"
+        | "at_risk"
+        | "churn_risk"
+        | "complaint"
+      service_status:
+        | "prospect"
+        | "active"
+        | "suspended"
+        | "closed"
+        | "pending"
+        | "graduated"
+        | "dropped"
+        | "cancelled"
       service_type: "debt_resolution" | "consumer_defense"
       settlement_status:
         | "offered"
@@ -1680,7 +1821,14 @@ export const Constants = {
         "authorized_contact",
         "other",
       ],
+      client_status_enum: ["active", "inactive"],
       company_type: ["law_firm", "affiliate", "financing_company"],
+      contact_status_enum: [
+        "reachable",
+        "hard_to_reach",
+        "unreachable",
+        "no_contact_allowed",
+      ],
       creditor_type: [
         "original_creditor",
         "collection_agency",
@@ -1752,10 +1900,33 @@ export const Constants = {
         "mortgage",
         "other",
       ],
+      payment_status_enum: [
+        "current",
+        "paused",
+        "nsf",
+        "past_due",
+        "suspended",
+      ],
       payment_type: ["lump_sum", "payment_plan"],
       phone_type: ["mobile", "home", "work", "fax", "other"],
       plan_type: ["glg_standard", "glg_adjustable", "glg_exception"],
-      service_status: ["prospect", "active", "suspended", "closed"],
+      retention_type_enum: [
+        "client_requested_cancel",
+        "company_initiated_cancel",
+        "at_risk",
+        "churn_risk",
+        "complaint",
+      ],
+      service_status: [
+        "prospect",
+        "active",
+        "suspended",
+        "closed",
+        "pending",
+        "graduated",
+        "dropped",
+        "cancelled",
+      ],
       service_type: ["debt_resolution", "consumer_defense"],
       settlement_status: [
         "offered",
