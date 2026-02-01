@@ -7,12 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useCreateClientService, type ServiceStatus } from '@/hooks/useClientServices';
+import { useCreateClientService } from '@/hooks/useClientServices';
 import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/lib/auth';
 
 const serviceSchema = z.object({
-  status: z.enum(['prospect', 'active', 'suspended', 'closed']),
+  status: z.enum(['pending', 'active', 'graduated', 'dropped', 'cancelled']),
   primary_client_id: z.string().optional().nullable(),
   program_type: z.string().default('debt_settlement'),
   term_months: z.number().min(1).max(120).optional().nullable(),
@@ -40,7 +40,7 @@ export function ServiceFormDialog({ open, onOpenChange }: ServiceFormDialogProps
   const form = useForm<ServiceFormData>({
     resolver: zodResolver(serviceSchema),
     defaultValues: {
-      status: 'prospect',
+      status: 'pending',
       primary_client_id: null,
       program_type: 'debt_settlement',
       term_months: 48,
@@ -125,10 +125,11 @@ export function ServiceFormDialog({ open, onOpenChange }: ServiceFormDialogProps
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="prospect">Prospect</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="suspended">Suspended</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
+                        <SelectItem value="graduated">Graduated</SelectItem>
+                        <SelectItem value="dropped">Dropped</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

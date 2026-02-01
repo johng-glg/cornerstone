@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ClientPhoneForm } from './ClientPhoneForm';
 import { ClientAddressForm } from './ClientAddressForm';
 import { format } from 'date-fns';
+import { clientStatusConfig, type ClientStatus } from '@/types/serviceStatus';
 
 interface ClientDetailSheetProps {
   clientId: string | null;
@@ -39,6 +40,9 @@ export function ClientDetailSheet({ clientId, open, onOpenChange, onEdit }: Clie
     mailing: 'Mailing',
     other: 'Other',
   };
+
+  const clientStatus = (client?.status as ClientStatus) || 'inactive';
+  const statusConfig = clientStatusConfig[clientStatus];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -70,6 +74,9 @@ export function ClientDetailSheet({ clientId, open, onOpenChange, onEdit }: Clie
               </div>
               
               <div className="flex flex-wrap gap-2">
+                <Badge className={statusConfig.className}>
+                  {statusConfig.label}
+                </Badge>
                 {client.tcpa_consent && (
                   <Badge variant="secondary" className="flex items-center gap-1">
                     <Check className="h-3 w-3" />

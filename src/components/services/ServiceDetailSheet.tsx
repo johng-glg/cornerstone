@@ -1,13 +1,20 @@
+import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Calendar, FileText, DollarSign, Briefcase } from 'lucide-react';
-import { useClientService, useUpdateClientServiceStatus, type ServiceStatus } from '@/hooks/useClientServices';
+import { User, Calendar, FileText, DollarSign, Briefcase, Edit2 } from 'lucide-react';
+import { useClientService, useUpdatePrimaryStatus, useUpdatePaymentStatus, useUpdateContactStatus, useUpdateRetention } from '@/hooks/useClientServices';
+import { useServiceStatusHistory } from '@/hooks/useServiceStatusHistory';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ServiceStatusBadges, PrimaryStatusBadge, PaymentStatusBadge, ContactStatusBadge } from './ServiceStatusBadges';
+import { StatusChangeModal } from './StatusChangeModal';
+import { RetentionPanel } from './RetentionPanel';
+import { primaryStatusConfig, paymentStatusConfig, contactStatusConfig } from '@/types/serviceStatus';
+import type { PrimaryServiceStatus, PaymentStatus, ContactStatus, RetentionType } from '@/types/serviceStatus';
 
 interface ServiceDetailSheetProps {
   serviceId: string | null;
@@ -15,25 +22,69 @@ interface ServiceDetailSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const statusConfig: Record<string, { label: string; className: string }> = {
-  prospect: { label: 'Prospect', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
-  active: { label: 'Active', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
-  suspended: { label: 'Suspended', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' },
-  closed: { label: 'Closed', className: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300' },
-};
-
 const formatCurrency = (amount: number | null) =>
   amount ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount) : '—';
 
 export function ServiceDetailSheet({ serviceId, open, onOpenChange }: ServiceDetailSheetProps) {
   const { data: service, isLoading } = useClientService(serviceId || undefined);
-  const updateStatus = useUpdateClientServiceStatus();
+  const { data: statusHistory } = useServiceStatusHistory(serviceId || undefined);
+  const updatePrimaryStatus = useUpdatePrimaryStatus();
+  const updatePaymentStatus = useUpdatePaymentStatus();
+  const updateContactStatus = useUpdateContactStatus();
+  const updateRetention = useUpdateRetention();
 
-  const handleStatusChange = (status: ServiceStatus) => {
-    if (service) {
-      updateStatus.mutate({ id: service.id, status });
+  const [statusModal, setStatusModal] = useState<{
+    open: boolean;
+    dimension: 'primary' | 'payment' | 'contact';
+  }>({ open: false, dimension: 'primary' });
+
+  const handleStatusChange = (newValue: string, reason: string) => {
+    if (!service) return;
+
+    switch (statusModal.dimension) {
+      case 'primary':
+        updatePrimaryStatus.mutate({
+          id: service.id,
+          oldStatus: service.status,
+          newStatus: newValue as PrimaryServiceStatus,
+          reason,
+        });
+        break;
+      case 'payment':
+        updatePaymentStatus.mutate({
+          id: service.id,
+          oldStatus: service.payment_status as string | null,
+          newStatus: newValue as PaymentStatus,
+          reason,
+        });
+        break;
+      case 'contact':
+        updateContactStatus.mutate({
+          id: service.id,
+          oldStatus: service.contact_status as string | null,
+          newStatus: newValue as ContactStatus,
+          reason,
+        });
+        break;
     }
   };
+
+  const handleRetentionUpdate = (data: {
+    retention_flag: boolean;
+    retention_type: RetentionType;
+    retention_date: string | null;
+    retention_reason: string | null;
+    retention_assigned_to: string | null;
+  }) => {
+    if (!service) return;
+    updateRetention.mutate({
+      id: service.id,
+      ...data,
+      oldRetentionType: service.retention_type as RetentionType,
+    });
+  };
+
+  const isActive = service?.status === 'active';
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -60,34 +111,146 @@ export function ServiceDetailSheet({ serviceId, open, onOpenChange }: ServiceDet
                     </p>
                   )}
                 </div>
-                <Badge className={statusConfig[service.status]?.className}>
-                  {statusConfig[service.status]?.label}
-                </Badge>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Change Status</label>
-                <Select value={service.status} onValueChange={(value) => handleStatusChange(value as ServiceStatus)}>
-                  <SelectTrigger className="w-40 mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="prospect">Prospect</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="suspended">Suspended</SelectItem>
-                    <SelectItem value="closed">Closed</SelectItem>
-                  </SelectContent>
-                </Select>
+                <ServiceStatusBadges
+                  primaryStatus={service.status as PrimaryServiceStatus}
+                  paymentStatus={service.payment_status as PaymentStatus}
+                  retentionFlag={service.retention_flag ?? false}
+                  retentionType={service.retention_type as RetentionType}
+                  contactStatus={service.contact_status as ContactStatus}
+                />
               </div>
             </SheetHeader>
 
             <Separator className="my-4" />
 
-            <Tabs defaultValue="program" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="program">Program Details</TabsTrigger>
+            <Tabs defaultValue="status" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="status">Status</TabsTrigger>
+                <TabsTrigger value="program">Program</TabsTrigger>
                 <TabsTrigger value="financials">Financials</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="status" className="space-y-4 mt-4">
+                {/* Status Overview Card */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Status Overview</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Primary Status */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Primary Status</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <PrimaryStatusBadge status={service.status as PrimaryServiceStatus} />
+                          {service.primary_status_changed_at && (
+                            <span className="text-xs text-muted-foreground">
+                              Changed {format(new Date(service.primary_status_changed_at), 'MMM d')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setStatusModal({ open: true, dimension: 'primary' })}
+                      >
+                        <Edit2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+
+                    {/* Payment Status - Only show for active services */}
+                    {isActive && (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Payment Status</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            {service.payment_status ? (
+                              <PaymentStatusBadge status={service.payment_status as NonNullable<PaymentStatus>} />
+                            ) : (
+                              <Badge variant="outline">Not Set</Badge>
+                            )}
+                            {service.payment_status_changed_at && (
+                              <span className="text-xs text-muted-foreground">
+                                Changed {format(new Date(service.payment_status_changed_at), 'MMM d')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setStatusModal({ open: true, dimension: 'payment' })}
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Contact Status */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Contact Status</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <ContactStatusBadge status={service.contact_status as ContactStatus || 'reachable'} />
+                          {service.contact_status_changed_at && (
+                            <span className="text-xs text-muted-foreground">
+                              Changed {format(new Date(service.contact_status_changed_at), 'MMM d')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setStatusModal({ open: true, dimension: 'contact' })}
+                      >
+                        <Edit2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Retention Panel */}
+                <RetentionPanel
+                  retentionFlag={service.retention_flag ?? false}
+                  retentionType={service.retention_type as RetentionType}
+                  retentionDate={service.retention_date as string | null}
+                  retentionReason={service.retention_reason as string | null}
+                  retentionAssignedTo={service.retention_assigned_to as string | null}
+                  onUpdate={handleRetentionUpdate}
+                  isPending={updateRetention.isPending}
+                />
+
+                {/* Status History */}
+                {statusHistory && statusHistory.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Recent Status Changes</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {statusHistory.slice(0, 5).map((entry) => (
+                          <div key={entry.id} className="text-sm border-l-2 border-muted pl-3">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium capitalize">{entry.status_dimension}</span>
+                              <span className="text-muted-foreground">→</span>
+                              <span>{entry.new_value}</span>
+                            </div>
+                            {entry.reason && (
+                              <p className="text-muted-foreground text-xs mt-0.5">{entry.reason}</p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {format(new Date(entry.created_at), 'MMM d, yyyy h:mm a')}
+                              {entry.staff && ` by ${entry.staff.first_name} ${entry.staff.last_name}`}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
 
               <TabsContent value="program" className="space-y-4 mt-4">
                 <Card>
@@ -233,6 +396,24 @@ export function ServiceDetailSheet({ serviceId, open, onOpenChange }: ServiceDet
                 </Card>
               </TabsContent>
             </Tabs>
+
+            {/* Status Change Modal */}
+            <StatusChangeModal
+              open={statusModal.open}
+              onOpenChange={(open) => setStatusModal(prev => ({ ...prev, open }))}
+              dimension={statusModal.dimension}
+              currentValue={
+                statusModal.dimension === 'primary' ? service.status :
+                statusModal.dimension === 'payment' ? service.payment_status as string :
+                service.contact_status as string
+              }
+              onSubmit={handleStatusChange}
+              isPending={
+                updatePrimaryStatus.isPending || 
+                updatePaymentStatus.isPending || 
+                updateContactStatus.isPending
+              }
+            />
           </>
         ) : (
           <p className="text-muted-foreground">Service not found</p>

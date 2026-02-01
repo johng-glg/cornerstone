@@ -5,18 +5,24 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useClients, type Client } from '@/hooks/useClients';
 import { ClientFormDialog } from '@/components/clients/ClientFormDialog';
 import { ClientDetailSheet } from '@/components/clients/ClientDetailSheet';
 import { format } from 'date-fns';
+import { clientStatusConfig, type ClientStatus } from '@/types/serviceStatus';
 
 export default function ClientsPage() {
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ClientStatus | 'all'>('all');
   const [showForm, setShowForm] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
 
-  const { data: clients, isLoading } = useClients(search || undefined);
+  const { data: clients, isLoading } = useClients(
+    search || undefined, 
+    statusFilter === 'all' ? undefined : statusFilter
+  );
 
   const handleViewClient = (client: Client) => {
     setSelectedClientId(client.id);
@@ -49,7 +55,7 @@ export default function ClientsPage() {
         </Button>
       </div>
 
-      {/* Search */}
+      {/* Search and Filters */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -60,6 +66,16 @@ export default function ClientsPage() {
             className="pl-9"
           />
         </div>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as ClientStatus | 'all')}>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Clients Table */}
@@ -68,6 +84,7 @@ export default function ClientsPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>TCPA</TableHead>
@@ -79,6 +96,7 @@ export default function ClientsPage() {
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-40" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-5 w-16" /></TableCell>
@@ -88,6 +106,8 @@ export default function ClientsPage() {
             ) : clients && clients.length > 0 ? (
               clients.map((client) => {
                 const primaryPhone = client.phones?.find((p) => p.is_primary) || client.phones?.[0];
+                const clientStatus = (client.status as ClientStatus) || 'inactive';
+                const statusConfig = clientStatusConfig[clientStatus];
                 
                 return (
                   <TableRow
@@ -111,6 +131,11 @@ export default function ClientsPage() {
                           )}
                         </div>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={statusConfig.className}>
+                        {statusConfig.label}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       {client.email ? (
@@ -147,8 +172,8 @@ export default function ClientsPage() {
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  {search ? 'No clients match your search' : 'No clients yet. Create your first client!'}
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  {search || statusFilter !== 'all' ? 'No clients match your search' : 'No clients yet. Create your first client!'}
                 </TableCell>
               </TableRow>
             )}
