@@ -35,14 +35,14 @@ export default function PaymentsPage() {
     typeFilter === 'all' ? undefined : typeFilter
   );
 
-  // Filter by search (engagement number or client name)
+  // Filter by search (service number or client name)
   const filteredTransactions = transactions?.filter((t) => {
     if (!search) return true;
     const searchLower = search.toLowerCase();
-    const clientName = `${t.engagement?.primary_contact?.first_name || ''} ${t.engagement?.primary_contact?.last_name || ''}`.toLowerCase();
-    const engNum = t.engagement?.engagement_number?.toLowerCase() || '';
+    const clientName = `${t.client_service?.primary_client?.first_name || ''} ${t.client_service?.primary_client?.last_name || ''}`.toLowerCase();
+    const svcNum = t.client_service?.service_number?.toLowerCase() || '';
     const externalId = t.external_id?.toLowerCase() || '';
-    return clientName.includes(searchLower) || engNum.includes(searchLower) || externalId.includes(searchLower);
+    return clientName.includes(searchLower) || svcNum.includes(searchLower) || externalId.includes(searchLower);
   });
 
   const handleSelectTransaction = (transaction: Transaction) => {
@@ -67,7 +67,7 @@ export default function PaymentsPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by client, engagement, reference..."
+            placeholder="Search by client, service, reference..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"

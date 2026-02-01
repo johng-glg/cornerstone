@@ -142,7 +142,7 @@ export function CreditorDetailSheet({ creditorId, open, onOpenChange, onEdit }: 
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Engagement</TableHead>
+                        <TableHead>Service</TableHead>
                         <TableHead>Role</TableHead>
                         <TableHead className="text-right">Balance</TableHead>
                       </TableRow>
@@ -151,7 +151,7 @@ export function CreditorDetailSheet({ creditorId, open, onOpenChange, onEdit }: 
                       {relatedLiabilities.slice(0, 10).map((liability) => (
                         <TableRow key={liability.id}>
                           <TableCell className="text-sm">
-                            {liability.engagement?.engagement_number || 'N/A'}
+                            {liability.client_service?.service_number || 'N/A'}
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="text-xs">

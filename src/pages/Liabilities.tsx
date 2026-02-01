@@ -58,14 +58,14 @@ export default function LiabilitiesPage() {
     typeFilter === 'all' ? undefined : typeFilter
   );
 
-  // Filter by search (client name or engagement number)
+  // Filter by search (client name or service number)
   const filteredLiabilities = liabilities?.filter((l) => {
     if (!search) return true;
     const searchLower = search.toLowerCase();
-    const clientName = `${l.engagement?.primary_contact?.first_name || ''} ${l.engagement?.primary_contact?.last_name || ''}`.toLowerCase();
-    const engNum = l.engagement?.engagement_number?.toLowerCase() || '';
+    const clientName = `${l.client_service?.primary_client?.first_name || ''} ${l.client_service?.primary_client?.last_name || ''}`.toLowerCase();
+    const svcNum = l.client_service?.service_number?.toLowerCase() || '';
     const creditorName = l.current_creditor?.name?.toLowerCase() || l.original_creditor?.name?.toLowerCase() || '';
-    return clientName.includes(searchLower) || engNum.includes(searchLower) || creditorName.includes(searchLower);
+    return clientName.includes(searchLower) || svcNum.includes(searchLower) || creditorName.includes(searchLower);
   });
 
   const handleViewLiability = (liability: Liability) => {
@@ -96,7 +96,7 @@ export default function LiabilitiesPage() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by client, engagement, creditor..."
+            placeholder="Search by client, service, creditor..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -132,7 +132,7 @@ export default function LiabilitiesPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Type</TableHead>
-              <TableHead>Client / Engagement</TableHead>
+              <TableHead>Client / Service</TableHead>
               <TableHead>Creditor</TableHead>
               <TableHead>Account</TableHead>
               <TableHead className="text-right">Current Balance</TableHead>
@@ -171,10 +171,10 @@ export default function LiabilitiesPage() {
                   <TableCell>
                     <div>
                       <p className="font-medium">
-                        {liability.engagement?.primary_contact?.first_name} {liability.engagement?.primary_contact?.last_name}
+                        {liability.client_service?.primary_client?.first_name} {liability.client_service?.primary_client?.last_name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {liability.engagement?.engagement_number}
+                        {liability.client_service?.service_number}
                       </p>
                     </div>
                   </TableCell>

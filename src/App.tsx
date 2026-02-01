@@ -8,8 +8,8 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import LeadsPage from "./pages/Leads";
-import ContactsPage from "./pages/Contacts";
-import EngagementsPage from "./pages/Engagements";
+import ClientsPage from "./pages/Clients";
+import ServicesPage from "./pages/Services";
 import TasksPage from "./pages/Tasks";
 import LiabilitiesPage from "./pages/Liabilities";
 import CreditorsPage from "./pages/Creditors";
@@ -38,8 +38,8 @@ const App = () => (
             {/* Protected routes with layout */}
             <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
             <Route path="/leads" element={<AppLayout><LeadsPage /></AppLayout>} />
-            <Route path="/engagements" element={<AppLayout><EngagementsPage /></AppLayout>} />
-            <Route path="/contacts" element={<AppLayout><ContactsPage /></AppLayout>} />
+            <Route path="/services" element={<AppLayout><ServicesPage /></AppLayout>} />
+            <Route path="/clients" element={<AppLayout><ClientsPage /></AppLayout>} />
             <Route path="/liabilities" element={<AppLayout><LiabilitiesPage /></AppLayout>} />
             <Route path="/tasks" element={<AppLayout><TasksPage /></AppLayout>} />
             <Route path="/creditors" element={<AppLayout><CreditorsPage /></AppLayout>} />

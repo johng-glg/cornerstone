@@ -1,119 +1,36 @@
+# Engagements→Services and Contacts→Clients Refactor - COMPLETED
 
-# Complete the Engagements→Services and Contacts→Clients Refactor
+This refactor has been completed. All "Engagements" references are now "Services" and all "Contacts" references are now "Clients".
 
-This plan will fix all remaining build errors to complete the architectural refactor.
+## Summary of Changes Made
 
-## Summary of Changes
-
-The refactor is approximately 60% complete. The database was successfully migrated, and new hooks/pages were created, but many UI components still reference the old terminology. This plan fixes all remaining issues.
-
----
-
-## Phase 1: Fix App Router and Navigation
-
-### 1.1 Update `src/App.tsx`
-- Change imports from `ContactsPage`/`EngagementsPage` to `ClientsPage`/`ServicesPage`
-- Update routes from `/contacts` and `/engagements` to `/clients` and `/services`
-
-### 1.2 Update `src/components/layout/AppSidebar.tsx`
-- Rename "Engagements" → "Services" with URL `/services`
-- Rename "Contacts" → "Clients" with URL `/clients`
-
----
-
-## Phase 2: Fix LeadConversionWizard
-
-### 2.1 Update `src/components/leads/LeadConversionWizard.tsx`
-This is the most complex file requiring updates:
-
-**Table name changes:**
+### Database (Completed Previously)
 - `contacts` → `clients`
 - `contact_phones` → `client_phones`
+- `contact_addresses` → `client_addresses`
 - `engagements` → `client_services`
 - `engagement_contacts` → `client_service_clients`
 - `engagement_services` → `client_service_types`
-
-**Column name changes:**
-- `contact_id` → `client_id`
-- `engagement_id` → `client_service_id`
-- `converted_engagement_id` → `converted_service_id`
-- `primary_contact_id` → `primary_client_id`
+- `engagement_id` → `client_service_id` (in liabilities, transactions tables)
+- `converted_engagement_id` → `converted_service_id` (in leads table)
+- `primary_contact_id` → `primary_client_id` (in client_services table)
 - `engagement_number` → `service_number`
 
-**UI text updates:**
-- "CONVERT LEAD TO ENGAGEMENT" → "CONVERT LEAD TO CLIENT SERVICE"
-- "Contact Info" → "Client Info"
-- Query invalidation keys updated
-
----
-
-## Phase 3: Fix Liability Components
-
-### 3.1 Update `src/components/liabilities/LiabilityFormDialog.tsx`
-- Change import from `useEngagements` to `useClientServices`
-- Update schema field from `engagement_id` to `client_service_id`
-- Update form labels from "Engagement" to "Service"
-- Update select options to show `service_number` instead of `engagement_number`
-
-### 3.2 Update `src/components/liabilities/LiabilityDetailSheet.tsx`
-- Change all `liability.engagement` references to `liability.client_service`
-- Update field names: `engagement_number` → `service_number`, `primary_contact` → `primary_client`
-- Update card title from "Engagement" to "Service"
-
----
-
-## Phase 4: Fix Creditor Components
-
-### 4.1 Update `src/components/creditors/CreditorDetailSheet.tsx`
-- Change `liability.engagement` to `liability.client_service`
-- Update table header from "Engagement" to "Service"
-- Update field reference from `engagement_number` to `service_number`
-
----
-
-## Phase 5: Fix Payment Components
-
-### 5.1 Update `src/components/payments/TransactionDetailSheet.tsx`
-- Change all `transaction.engagement` references to `transaction.client_service`
-- Update field names: `engagement_number` → `service_number`, `primary_contact` → `primary_client`
-- Update card title from "Engagement" to "Service"
-
-### 5.2 Update `src/components/payments/TransactionList.tsx`
-- Change all `transaction.engagement` references to `transaction.client_service`
-- Update field names accordingly
-
-### 5.3 Update `src/pages/Payments.tsx`
-- Update filter comments/labels if they reference "engagement"
-
----
-
-## Phase 6: Fix Hook Type Issues
-
-### 6.1 Update `src/hooks/useClientServices.ts`
-- Fix type casting issue where `primary_client` is returned as an array from the Supabase query but typed as a single object
-- Either adjust the type definition or transform the data after fetching
-
----
-
-## Files to be Modified
-
-| File | Change Type |
-|------|-------------|
-| `src/App.tsx` | Update imports and routes |
-| `src/components/layout/AppSidebar.tsx` | Update navigation labels and URLs |
-| `src/components/leads/LeadConversionWizard.tsx` | Full refactor of table/column names |
-| `src/components/liabilities/LiabilityFormDialog.tsx` | Update imports and schema |
-| `src/components/liabilities/LiabilityDetailSheet.tsx` | Update property references |
-| `src/components/creditors/CreditorDetailSheet.tsx` | Update property references |
-| `src/components/payments/TransactionDetailSheet.tsx` | Update property references |
-| `src/components/payments/TransactionList.tsx` | Update property references |
-| `src/hooks/useClientServices.ts` | Fix type casting |
-
----
+### UI/Code Changes (Completed)
+1. **App.tsx** - Updated imports and routes for `/clients` and `/services`
+2. **AppSidebar.tsx** - Navigation updated to "Services" and "Clients"
+3. **LeadConversionWizard.tsx** - Full refactor to use new table/column names
+4. **LiabilityFormDialog.tsx** - Uses `useClientServices` hook, `client_service_id` field
+5. **LiabilityDetailSheet.tsx** - References `liability.client_service`
+6. **CreditorDetailSheet.tsx** - References `liability.client_service`
+7. **TransactionDetailSheet.tsx** - References `transaction.client_service`
+8. **TransactionList.tsx** - References `transaction.client_service`
+9. **Liabilities.tsx** - Updated search/display to use client_service
+10. **Payments.tsx** - Updated search to use client_service
+11. **useClientServices.ts** - Fixed type casting for primary_client array→object
+12. **useLiabilities.ts** - Updated FK hints for client_service join
+13. **useTransactions.ts** - Updated FK hints for client_service join
 
 ## Technical Notes
-
-- The database schema is already correct - only UI/code changes needed
-- All changes maintain backward compatibility with existing data
-- Query invalidation keys will be updated to match new naming
-- The `client_phones` table reference in LeadConversionWizard will need verification that this table exists (it may need to be `client_phones` or we may need to check if it was migrated from `contact_phones`)
+- The database FK constraint names retained their original names (e.g., `liabilities_engagement_id_fkey`) even though columns were renamed. The Supabase queries use these FK hints for joins.
+- The `primary_client` field from Supabase joins returns as an array, which is transformed to a single object in the hooks.

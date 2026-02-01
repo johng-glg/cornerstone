@@ -40,7 +40,11 @@ export function useClientServices(status?: ServiceStatus) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as ClientService[];
+      // Transform primary_client from array to single object (Supabase returns array for FK joins)
+      return (data || []).map(item => ({
+        ...item,
+        primary_client: Array.isArray(item.primary_client) ? item.primary_client[0] : item.primary_client,
+      })) as ClientService[];
     },
   });
 }
@@ -67,7 +71,11 @@ export function useClientService(id: string | undefined) {
         .eq('id', id)
         .single();
       if (error) throw error;
-      return data as ClientService;
+      // Transform primary_client from array to single object
+      return {
+        ...data,
+        primary_client: Array.isArray(data.primary_client) ? data.primary_client[0] : data.primary_client,
+      } as ClientService;
     },
     enabled: !!id,
   });

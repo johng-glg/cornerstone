@@ -9,11 +9,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useCreateLiability, useUpdateLiability, type Liability } from '@/hooks/useLiabilities';
-import { useEngagements } from '@/hooks/useEngagements';
+import { useClientServices } from '@/hooks/useClientServices';
 import { useCreditors } from '@/hooks/useCreditors';
 
 const liabilitySchema = z.object({
-  engagement_id: z.string().min(1, 'Engagement is required'),
+  client_service_id: z.string().min(1, 'Service is required'),
   liability_type: z.enum(['credit_card', 'medical', 'auto_loan', 'personal_loan', 'student_loan', 'mortgage', 'other']),
   status: z.enum(['enrolled', 'in_negotiation', 'settled', 'in_litigation', 'dismissed', 'cancelled']),
   original_creditor_id: z.string().optional().nullable(),
@@ -32,7 +32,7 @@ interface LiabilityFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   liability?: Liability | null;
-  defaultEngagementId?: string;
+  defaultClientServiceId?: string;
 }
 
 const liabilityTypeLabels: Record<string, string> = {
@@ -54,17 +54,17 @@ const liabilityStatusLabels: Record<string, string> = {
   cancelled: 'Cancelled',
 };
 
-export function LiabilityFormDialog({ open, onOpenChange, liability, defaultEngagementId }: LiabilityFormDialogProps) {
+export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClientServiceId }: LiabilityFormDialogProps) {
   const createLiability = useCreateLiability();
   const updateLiability = useUpdateLiability();
-  const { data: engagements } = useEngagements();
+  const { data: clientServices } = useClientServices();
   const { data: creditors } = useCreditors();
   const isEditing = !!liability;
 
   const form = useForm<LiabilityFormData>({
     resolver: zodResolver(liabilitySchema),
     defaultValues: {
-      engagement_id: defaultEngagementId || '',
+      client_service_id: defaultClientServiceId || '',
       liability_type: 'credit_card',
       status: 'enrolled',
       original_creditor_id: null,
@@ -81,7 +81,7 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultEnga
   useEffect(() => {
     if (liability) {
       form.reset({
-        engagement_id: liability.engagement_id,
+        client_service_id: liability.client_service_id,
         liability_type: liability.liability_type,
         status: liability.status,
         original_creditor_id: liability.original_creditor_id || null,
@@ -95,7 +95,7 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultEnga
       });
     } else {
       form.reset({
-        engagement_id: defaultEngagementId || '',
+        client_service_id: defaultClientServiceId || '',
         liability_type: 'credit_card',
         status: 'enrolled',
         original_creditor_id: null,
@@ -108,11 +108,11 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultEnga
         notes: '',
       });
     }
-  }, [liability, defaultEngagementId, form]);
+  }, [liability, defaultClientServiceId, form]);
 
   const onSubmit = async (data: LiabilityFormData) => {
     const liabilityData = {
-      engagement_id: data.engagement_id,
+      client_service_id: data.client_service_id,
       liability_type: data.liability_type,
       status: data.status,
       original_creditor_id: data.original_creditor_id || null,
@@ -144,20 +144,20 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultEnga
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="engagement_id"
+              name="client_service_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Engagement *</FormLabel>
+                  <FormLabel>Service *</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select engagement" />
+                        <SelectValue placeholder="Select service" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {engagements?.map((eng) => (
-                        <SelectItem key={eng.id} value={eng.id}>
-                          {eng.engagement_number} - {eng.primary_contact?.first_name} {eng.primary_contact?.last_name}
+                      {clientServices?.map((svc) => (
+                        <SelectItem key={svc.id} value={svc.id}>
+                          {svc.service_number} - {svc.primary_client?.first_name} {svc.primary_client?.last_name}
                         </SelectItem>
                       ))}
                     </SelectContent>

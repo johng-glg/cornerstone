@@ -26,11 +26,11 @@ export function useLiabilities(status?: LiabilityStatus, type?: LiabilityType, c
           *,
           original_creditor:creditors!liabilities_original_creditor_id_fkey(id, name, creditor_type),
           current_creditor:creditors!liabilities_current_creditor_id_fkey(id, name, creditor_type),
-          client_service:client_services!liabilities_client_service_id_fkey(
+          client_service:client_services!liabilities_engagement_id_fkey(
             id, 
             service_number, 
             status,
-            primary_client:clients!client_services_primary_client_id_fkey(id, first_name, last_name)
+            primary_client:clients!engagements_primary_contact_id_fkey(id, first_name, last_name)
           )
         `)
         .order('created_at', { ascending: false });
@@ -65,11 +65,11 @@ export function useLiability(id: string | undefined) {
           *,
           original_creditor:creditors!liabilities_original_creditor_id_fkey(*),
           current_creditor:creditors!liabilities_current_creditor_id_fkey(*),
-          client_service:client_services!liabilities_client_service_id_fkey(
+          client_service:client_services!liabilities_engagement_id_fkey(
             id, 
             service_number, 
             status,
-            primary_client:clients!client_services_primary_client_id_fkey(id, first_name, last_name, email)
+            primary_client:clients!engagements_primary_contact_id_fkey(id, first_name, last_name, email)
           )
         `)
         .eq('id', id)

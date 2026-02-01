@@ -22,10 +22,10 @@ export function useTransactions(status?: string, type?: string, clientServiceId?
         .select(`
           *,
           processor:payment_processors!transactions_processor_id_fkey(id, name, processor_type),
-          client_service:client_services!transactions_client_service_id_fkey(
+          client_service:client_services!transactions_engagement_id_fkey(
             id, 
             service_number,
-            primary_client:clients!client_services_primary_client_id_fkey(id, first_name, last_name)
+            primary_client:clients!engagements_primary_contact_id_fkey(id, first_name, last_name)
           )
         `)
         .order('created_at', { ascending: false });
@@ -59,10 +59,10 @@ export function useTransaction(id: string | undefined) {
         .select(`
           *,
           processor:payment_processors!transactions_processor_id_fkey(*),
-          client_service:client_services!transactions_client_service_id_fkey(
+          client_service:client_services!transactions_engagement_id_fkey(
             id, 
             service_number,
-            primary_client:clients!client_services_primary_client_id_fkey(id, first_name, last_name, email)
+            primary_client:clients!engagements_primary_contact_id_fkey(id, first_name, last_name, email)
           )
         `)
         .eq('id', id)
