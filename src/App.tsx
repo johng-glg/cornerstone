@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import LeadsPage from "./pages/Leads";
 import ClientsPage from "./pages/Clients";
+import ClientDetailPage from "./pages/ClientDetail";
 import ServicesPage from "./pages/Services";
 import TasksPage from "./pages/Tasks";
 import LiabilitiesPage from "./pages/Liabilities";
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/leads" element={<AppLayout><LeadsPage /></AppLayout>} />
             <Route path="/services" element={<AppLayout><ServicesPage /></AppLayout>} />
             <Route path="/clients" element={<AppLayout><ClientsPage /></AppLayout>} />
+            <Route path="/clients/:id" element={<AppLayout><ClientDetailPage /></AppLayout>} />
             <Route path="/liabilities" element={<AppLayout><LiabilitiesPage /></AppLayout>} />
             <Route path="/tasks" element={<AppLayout><TasksPage /></AppLayout>} />
             <Route path="/creditors" element={<AppLayout><CreditorsPage /></AppLayout>} />

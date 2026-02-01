@@ -1,11 +1,12 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Calendar, FileText, DollarSign, Briefcase, Edit2 } from 'lucide-react';
+import { User, Calendar, FileText, DollarSign, Briefcase, Edit2, ExternalLink } from 'lucide-react';
 import { useClientService, useUpdatePrimaryStatus, useUpdatePaymentStatus, useUpdateContactStatus, useUpdateRetention } from '@/hooks/useClientServices';
 import { useServiceStatusHistory } from '@/hooks/useServiceStatusHistory';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,6 +27,7 @@ const formatCurrency = (amount: number | null) =>
   amount ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount) : '—';
 
 export function ServiceDetailSheet({ serviceId, open, onOpenChange }: ServiceDetailSheetProps) {
+  const navigate = useNavigate();
   const { data: service, isLoading } = useClientService(serviceId || undefined);
   const { data: statusHistory } = useServiceStatusHistory(serviceId || undefined);
   const updatePrimaryStatus = useUpdatePrimaryStatus();
@@ -105,10 +107,19 @@ export function ServiceDetailSheet({ serviceId, open, onOpenChange }: ServiceDet
                     {service.service_number}
                   </SheetTitle>
                   {service.primary_client && (
-                    <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mt-1 p-0 h-auto font-normal"
+                      onClick={() => {
+                        onOpenChange(false);
+                        navigate(`/clients/${service.primary_client!.id}`);
+                      }}
+                    >
                       <User className="h-3 w-3" />
                       {service.primary_client.first_name} {service.primary_client.last_name}
-                    </p>
+                      <ExternalLink className="h-3 w-3 ml-1" />
+                    </Button>
                   )}
                 </div>
                 <ServiceStatusBadges
