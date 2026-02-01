@@ -12,6 +12,7 @@ import { ClientPaymentsTab } from '@/components/clients/detail/ClientPaymentsTab
 import { ClientTasksTab } from '@/components/clients/detail/ClientTasksTab';
 import { ClientDetailsTab } from '@/components/clients/detail/ClientDetailsTab';
 import { ClientLitigationTab } from '@/components/clients/detail/ClientLitigationTab';
+import { ClientDocumentsTab } from '@/components/clients/detail/ClientDocumentsTab';
 
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -73,9 +74,9 @@ export default function ClientDetailPage() {
               <TabsTrigger value="litigation">Litigation</TabsTrigger>
               <TabsTrigger value="payments">Payments</TabsTrigger>
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
+              <TabsTrigger value="documents">Documents</TabsTrigger>
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="comms" disabled>Comms</TabsTrigger>
-              <TabsTrigger value="documents" disabled>Documents</TabsTrigger>
             </TabsList>
           </div>
 
@@ -108,6 +109,10 @@ export default function ClientDetailPage() {
               <ClientTasksTab clientId={client.id} />
             </TabsContent>
 
+            <TabsContent value="documents" className="mt-0">
+              <ClientDocumentsTab clientId={client.id} />
+            </TabsContent>
+
             <TabsContent value="details" className="mt-0">
               <ClientDetailsTab client={client} />
             </TabsContent>
@@ -115,12 +120,6 @@ export default function ClientDetailPage() {
             <TabsContent value="comms" className="mt-0">
               <div className="border rounded-lg p-8 text-center text-muted-foreground">
                 Communications feature coming soon...
-              </div>
-            </TabsContent>
-
-            <TabsContent value="documents" className="mt-0">
-              <div className="border rounded-lg p-8 text-center text-muted-foreground">
-                Documents feature coming soon...
               </div>
             </TabsContent>
           </div>

@@ -19,10 +19,10 @@ import PaymentsPage from "./pages/Payments";
 import NotFound from "./pages/NotFound";
 import CompaniesPage from "./pages/Companies";
 import StaffPage from "./pages/Staff";
+import SettingsPage from "./pages/Settings";
 
 // Placeholder pages - will be implemented in future phases
 const ReportsPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Reports</h1><p className="text-muted-foreground mt-2">Reports coming soon...</p></div>;
-const SettingsPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Settings</h1><p className="text-muted-foreground mt-2">Settings coming soon...</p></div>;
 
 const queryClient = new QueryClient();
 
