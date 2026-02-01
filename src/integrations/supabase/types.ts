@@ -1129,6 +1129,84 @@ export type Database = {
           },
         ]
       }
+      litigation_matters: {
+        Row: {
+          case_number: string | null
+          client_service_id: string
+          county: string | null
+          court_name: string | null
+          created_at: string
+          id: string
+          judgment_amount: number | null
+          liability_id: string
+          next_hearing_date: string | null
+          notes: string | null
+          opposing_counsel: string | null
+          opposing_party: string | null
+          response_deadline: string | null
+          service_date: string | null
+          settlement_amount: number | null
+          state: string | null
+          status: Database["public"]["Enums"]["litigation_status"]
+          updated_at: string
+        }
+        Insert: {
+          case_number?: string | null
+          client_service_id: string
+          county?: string | null
+          court_name?: string | null
+          created_at?: string
+          id?: string
+          judgment_amount?: number | null
+          liability_id: string
+          next_hearing_date?: string | null
+          notes?: string | null
+          opposing_counsel?: string | null
+          opposing_party?: string | null
+          response_deadline?: string | null
+          service_date?: string | null
+          settlement_amount?: number | null
+          state?: string | null
+          status?: Database["public"]["Enums"]["litigation_status"]
+          updated_at?: string
+        }
+        Update: {
+          case_number?: string | null
+          client_service_id?: string
+          county?: string | null
+          court_name?: string | null
+          created_at?: string
+          id?: string
+          judgment_amount?: number | null
+          liability_id?: string
+          next_hearing_date?: string | null
+          notes?: string | null
+          opposing_counsel?: string | null
+          opposing_party?: string | null
+          response_deadline?: string | null
+          service_date?: string | null
+          settlement_amount?: number | null
+          state?: string | null
+          status?: Database["public"]["Enums"]["litigation_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "litigation_matters_client_service_id_fkey"
+            columns: ["client_service_id"]
+            isOneToOne: false
+            referencedRelation: "client_services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "litigation_matters_liability_id_fkey"
+            columns: ["liability_id"]
+            isOneToOne: false
+            referencedRelation: "liabilities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_processors: {
         Row: {
           created_at: string
@@ -1683,6 +1761,15 @@ export type Database = {
         | "student_loan"
         | "mortgage"
         | "other"
+      litigation_status:
+        | "pending_response"
+        | "discovery"
+        | "negotiation"
+        | "trial_prep"
+        | "trial"
+        | "settled"
+        | "dismissed"
+        | "judgment"
       payment_status_enum:
         | "current"
         | "paused"
@@ -1965,6 +2052,16 @@ export const Constants = {
         "student_loan",
         "mortgage",
         "other",
+      ],
+      litigation_status: [
+        "pending_response",
+        "discovery",
+        "negotiation",
+        "trial_prep",
+        "trial",
+        "settled",
+        "dismissed",
+        "judgment",
       ],
       payment_status_enum: [
         "current",

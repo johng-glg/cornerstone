@@ -5,15 +5,17 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Building2, FileText, Plus, Handshake, History, Calculator } from 'lucide-react';
+import { DollarSign, Building2, FileText, Plus, Handshake, History, Calculator, Scale } from 'lucide-react';
 import { useLiability } from '@/hooks/useLiabilities';
 import { useSettlements } from '@/hooks/useSettlements';
 import { useClientService } from '@/hooks/useClientServices';
+import { useLitigationMatters } from '@/hooks/useLitigationMatters';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SettlementFormDialog } from './SettlementFormDialog';
 import { SettlementCard } from './SettlementCard';
 import { LiabilityActionsTimeline } from './LiabilityActionsTimeline';
 import { SettlementOfferBuilder } from './SettlementOfferBuilder';
+import { LitigationMatterFormDialog } from '@/components/litigation/LitigationMatterFormDialog';
 
 interface LiabilityDetailSheetProps {
   liabilityId: string | null;
@@ -60,8 +62,13 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
   const { data: liability, isLoading } = useLiability(liabilityId || undefined);
   const { data: settlements } = useSettlements(liabilityId || undefined);
   const { data: clientService } = useClientService(liability?.client_service_id);
+  const { data: litigationMatters } = useLitigationMatters(liability?.client_service_id);
   const [showSettlementForm, setShowSettlementForm] = useState(false);
   const [showOfferBuilder, setShowOfferBuilder] = useState(false);
+  const [showMatterForm, setShowMatterForm] = useState(false);
+
+  // Check if this liability already has a litigation matter
+  const existingMatter = litigationMatters?.find(m => m.liability_id === liabilityId);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -85,9 +92,21 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
                     Account: {maskAccountNumber(liability.account_number)}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={onEdit}>
-                  Edit
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={onEdit}>
+                    Edit
+                  </Button>
+                  {!existingMatter && liability.status !== 'in_litigation' && (
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setShowMatterForm(true)}
+                    >
+                      <Scale className="h-4 w-4 mr-1" />
+                      Add Matter
+                    </Button>
+                  )}
+                </div>
               </div>
               
               <div className="flex flex-wrap gap-2">
@@ -251,6 +270,16 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
                 clientServiceId={liability.client_service_id}
                 currentEscrowBalance={clientService?.escrow_balance || 0}
                 monthlyDraft={clientService?.monthly_payment || 0}
+              />
+            )}
+
+            {/* Litigation Matter Form */}
+            {showMatterForm && liabilityId && liability?.client_service_id && (
+              <LitigationMatterFormDialog
+                open={showMatterForm}
+                onOpenChange={setShowMatterForm}
+                liabilityId={liabilityId}
+                clientServiceId={liability.client_service_id}
               />
             )}
           </>

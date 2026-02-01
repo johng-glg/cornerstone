@@ -11,6 +11,7 @@ import { ClientLiabilitiesTab } from '@/components/clients/detail/ClientLiabilit
 import { ClientPaymentsTab } from '@/components/clients/detail/ClientPaymentsTab';
 import { ClientTasksTab } from '@/components/clients/detail/ClientTasksTab';
 import { ClientDetailsTab } from '@/components/clients/detail/ClientDetailsTab';
+import { ClientLitigationTab } from '@/components/clients/detail/ClientLitigationTab';
 
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -69,6 +70,7 @@ export default function ClientDetailPage() {
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="services">Services</TabsTrigger>
               <TabsTrigger value="liabilities">Liabilities</TabsTrigger>
+              <TabsTrigger value="litigation">Litigation</TabsTrigger>
               <TabsTrigger value="payments">Payments</TabsTrigger>
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
               <TabsTrigger value="details">Details</TabsTrigger>
@@ -92,6 +94,10 @@ export default function ClientDetailPage() {
 
             <TabsContent value="liabilities" className="mt-0">
               <ClientLiabilitiesTab clientId={client.id} />
+            </TabsContent>
+
+            <TabsContent value="litigation" className="mt-0">
+              <ClientLitigationTab clientId={client.id} />
             </TabsContent>
 
             <TabsContent value="payments" className="mt-0">
