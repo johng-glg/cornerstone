@@ -3,8 +3,9 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
-import { useTransactionsForClient } from '@/hooks/useClientData';
+import { useTransactionsForClient, useClientServicesForClient } from '@/hooks/useClientData';
 import { TransactionDetailSheet } from '@/components/payments/TransactionDetailSheet';
+import { EscrowBalanceChart } from './EscrowBalanceChart';
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface ClientPaymentsTabProps {
@@ -74,9 +75,16 @@ function SortableHeader({
 
 export function ClientPaymentsTab({ clientId }: ClientPaymentsTabProps) {
   const { data: transactions, isLoading } = useTransactionsForClient(clientId);
+  const { data: clientServices } = useClientServicesForClient(clientId);
   const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  // Calculate total escrow balance from all client services
+  const currentEscrowBalance = useMemo(() => {
+    if (!clientServices) return 0;
+    return clientServices.reduce((sum, cs) => sum + (cs.escrow_balance || 0), 0);
+  }, [clientServices]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -120,10 +128,18 @@ export function ClientPaymentsTab({ clientId }: ClientPaymentsTabProps) {
 
   if (isLoading) {
     return (
-      <div className="space-y-2">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full" />
-        ))}
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full" />
+          ))}
+        </div>
+        <Skeleton className="h-[300px] w-full" />
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -137,7 +153,14 @@ export function ClientPaymentsTab({ clientId }: ClientPaymentsTabProps) {
   }
 
   return (
-    <>
+    <div className="space-y-6">
+      {/* Escrow Balance Chart */}
+      <EscrowBalanceChart 
+        transactions={transactions} 
+        currentEscrowBalance={currentEscrowBalance}
+      />
+
+      {/* Transactions Table */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
@@ -200,6 +223,6 @@ export function ClientPaymentsTab({ clientId }: ClientPaymentsTabProps) {
         open={!!selectedTransactionId}
         onOpenChange={(open) => !open && setSelectedTransactionId(null)}
       />
-    </>
+    </div>
   );
 }
