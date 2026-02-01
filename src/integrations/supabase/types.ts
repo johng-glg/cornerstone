@@ -1226,7 +1226,7 @@ export type Database = {
         | "other"
       payment_type: "lump_sum" | "payment_plan"
       phone_type: "mobile" | "home" | "work" | "fax" | "other"
-      service_type: "debt_resolution" | "consumer_defense" | "hybrid"
+      service_type: "debt_resolution" | "consumer_defense"
       settlement_status:
         | "offered"
         | "accepted"
@@ -1446,7 +1446,7 @@ export const Constants = {
       ],
       payment_type: ["lump_sum", "payment_plan"],
       phone_type: ["mobile", "home", "work", "fax", "other"],
-      service_type: ["debt_resolution", "consumer_defense", "hybrid"],
+      service_type: ["debt_resolution", "consumer_defense"],
       settlement_status: [
         "offered",
         "accepted",
