@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useLead, useUpdateLead } from '@/hooks/useLeads';
+import { useNavigate } from 'react-router-dom';
+import { useLead } from '@/hooks/useLeads';
 import { useCurrentStaff } from '@/hooks/useStaff';
+import { useLitigationConversion } from '@/hooks/useLitigationConversion';
 import {
   Dialog,
   DialogContent,
@@ -54,8 +56,9 @@ interface LitigationWizardProps {
 }
 
 export function LitigationWizard({ leadId, onClose, onSuccess }: LitigationWizardProps) {
+  const navigate = useNavigate();
   const { data: lead, isLoading } = useLead(leadId ?? undefined);
-  const updateLead = useUpdateLead();
+  const litigationConversion = useLitigationConversion();
   const { data: currentStaff } = useCurrentStaff();
   const { toast } = useToast();
 
@@ -137,30 +140,20 @@ export function LitigationWizard({ leadId, onClose, onSuccess }: LitigationWizar
   };
 
   const handleConvert = async () => {
-    if (!leadId || !currentStaff) return;
+    if (!lead || !currentStaff) return;
 
     try {
-      // Update lead with litigation info and mark as converted
-      await updateLead.mutateAsync({
-        id: leadId,
-        status: 'converted',
-        state: data.state,
-        estimated_debt_amount: data.debt_amount,
-        service_date: data.service_date || null,
-        response_deadline: data.response_deadline || null,
-        opposing_party: data.opposing_party || null,
-        court_name: data.court_name || null,
-        case_number: data.case_number || null,
-      } as any);
-
-      toast({ title: 'Lead converted to litigation case successfully!' });
-      onSuccess();
-    } catch (error) {
-      toast({ 
-        title: 'Failed to convert lead', 
-        description: (error as Error).message, 
-        variant: 'destructive' 
+      const result = await litigationConversion.mutateAsync({
+        lead,
+        data,
+        companyId: lead.company_id,
       });
+
+      onSuccess();
+      // Navigate to the new client's detail page
+      navigate(`/clients/${result.clientId}`);
+    } catch (error) {
+      // Error is handled in the mutation hook
     }
   };
 
@@ -244,8 +237,8 @@ export function LitigationWizard({ leadId, onClose, onSuccess }: LitigationWizar
           </Button>
 
           {currentStep === 'review' ? (
-            <Button onClick={handleConvert} disabled={updateLead.isPending || !canProceed}>
-              {updateLead.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button onClick={handleConvert} disabled={litigationConversion.isPending || !canProceed}>
+              {litigationConversion.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <CheckCircle2 className="mr-2 h-4 w-4" />
               Convert to Case
             </Button>
