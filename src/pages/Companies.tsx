@@ -144,10 +144,12 @@ export default function CompaniesPage() {
                   <span>{company.website}</span>
                 </div>
               )}
-              <div className="pt-2 border-t text-xs text-muted-foreground">
-                <span>Visibility: </span>
-                <span className="capitalize">{company.data_visibility.replace('_', ' ')}</span>
-              </div>
+              {company.data_visibility && (
+                <div className="pt-2 border-t text-xs text-muted-foreground">
+                  <span>Visibility: </span>
+                  <span className="capitalize">{company.data_visibility.replace('_', ' ')}</span>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
