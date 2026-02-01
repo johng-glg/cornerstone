@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, LayoutGrid, List, Calendar, User, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Plus, LayoutGrid, List, Calendar, User, AlertCircle, Eye, EyeOff, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -37,10 +37,13 @@ const typeLabels: Record<string, string> = {
   general: 'General',
 };
 
+type SortDirection = 'asc' | 'desc' | 'none';
+
 export default function TasksPage() {
   const [view, setView] = useState<'list' | 'kanban'>('kanban');
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | 'all'>('all');
   const [showCompleted, setShowCompleted] = useState(false);
+  const [dateSort, setDateSort] = useState<SortDirection>('asc');
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
     from: undefined,
     to: undefined,
@@ -55,11 +58,11 @@ export default function TasksPage() {
       : { priority: priorityFilter }
   );
 
-  // Filter tasks: hide completed/cancelled by default, apply date filter
+  // Filter and sort tasks
   const filteredTasks = useMemo(() => {
     if (!tasks) return [];
     
-    return tasks.filter((task) => {
+    let result = tasks.filter((task) => {
       // Filter out completed/cancelled unless toggle is on
       if (!showCompleted && (task.status === 'completed' || task.status === 'cancelled')) {
         return false;
@@ -84,7 +87,23 @@ export default function TasksPage() {
       
       return true;
     });
-  }, [tasks, showCompleted, dateRange]);
+
+    // Sort by date
+    if (dateSort !== 'none') {
+      result = [...result].sort((a, b) => {
+        // Tasks without due dates go to the end
+        if (!a.due_date && !b.due_date) return 0;
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        
+        const dateA = new Date(a.due_date).getTime();
+        const dateB = new Date(b.due_date).getTime();
+        return dateSort === 'asc' ? dateA - dateB : dateB - dateA;
+      });
+    }
+
+    return result;
+  }, [tasks, showCompleted, dateRange, dateSort]);
 
   // Count hidden tasks
   const hiddenCount = useMemo(() => {
@@ -103,6 +122,20 @@ export default function TasksPage() {
 
   const clearDateFilter = () => {
     setDateRange({ from: undefined, to: undefined });
+  };
+
+  const toggleDateSort = () => {
+    setDateSort((prev) => {
+      if (prev === 'none') return 'asc';
+      if (prev === 'asc') return 'desc';
+      return 'none';
+    });
+  };
+
+  const getSortIcon = () => {
+    if (dateSort === 'asc') return <ArrowUp className="h-4 w-4" />;
+    if (dateSort === 'desc') return <ArrowDown className="h-4 w-4" />;
+    return <ArrowUpDown className="h-4 w-4" />;
   };
 
   return (
@@ -187,6 +220,16 @@ export default function TasksPage() {
           >
             {showCompleted ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
             {showCompleted ? 'Showing all' : `${hiddenCount} hidden`}
+          </Button>
+          {/* Date Sort */}
+          <Button
+            variant={dateSort !== 'none' ? "secondary" : "outline"}
+            size="sm"
+            onClick={toggleDateSort}
+            className="gap-2"
+          >
+            {getSortIcon()}
+            {dateSort === 'asc' ? 'Earliest first' : dateSort === 'desc' ? 'Latest first' : 'Sort by date'}
           </Button>
         </div>
 
