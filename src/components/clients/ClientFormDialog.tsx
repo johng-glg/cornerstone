@@ -5,15 +5,14 @@ import { z } from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useCreateContact, useUpdateContact, type Contact } from '@/hooks/useContacts';
+import { useCreateClient, useUpdateClient, type Client } from '@/hooks/useClients';
 import { useAuth } from '@/lib/auth';
 
-const contactSchema = z.object({
+const clientSchema = z.object({
   first_name: z.string().min(1, 'First name is required').max(100),
   last_name: z.string().min(1, 'Last name is required').max(100),
   middle_name: z.string().max(100).optional().nullable(),
@@ -24,36 +23,36 @@ const contactSchema = z.object({
   notes: z.string().max(1000).optional().nullable(),
 });
 
-type ContactFormData = z.infer<typeof contactSchema>;
+type ClientFormData = z.infer<typeof clientSchema>;
 
-interface ContactFormDialogProps {
+interface ClientFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  contact?: Contact | null;
+  client?: Client | null;
 }
 
-export function ContactFormDialog({ open, onOpenChange, contact }: ContactFormDialogProps) {
+export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialogProps) {
   const { staff } = useAuth();
-  const createContact = useCreateContact();
-  const updateContact = useUpdateContact();
-  const isEditing = !!contact;
+  const createClient = useCreateClient();
+  const updateClient = useUpdateClient();
+  const isEditing = !!client;
 
-  const form = useForm<ContactFormData>({
-    resolver: zodResolver(contactSchema),
+  const form = useForm<ClientFormData>({
+    resolver: zodResolver(clientSchema),
     defaultValues: {
-      first_name: contact?.first_name || '',
-      last_name: contact?.last_name || '',
-      middle_name: contact?.middle_name || '',
-      email: contact?.email || '',
-      date_of_birth: contact?.date_of_birth || '',
-      preferred_contact_method: contact?.preferred_contact_method || undefined,
-      tcpa_consent: contact?.tcpa_consent || false,
-      notes: contact?.notes || '',
+      first_name: client?.first_name || '',
+      last_name: client?.last_name || '',
+      middle_name: client?.middle_name || '',
+      email: client?.email || '',
+      date_of_birth: client?.date_of_birth || '',
+      preferred_contact_method: client?.preferred_contact_method || undefined,
+      tcpa_consent: client?.tcpa_consent || false,
+      notes: client?.notes || '',
     },
   });
 
-  const onSubmit = async (data: ContactFormData) => {
-    const contactData = {
+  const onSubmit = async (data: ClientFormData) => {
+    const clientData = {
       first_name: data.first_name,
       last_name: data.last_name,
       email: data.email || null,
@@ -66,10 +65,10 @@ export function ContactFormDialog({ open, onOpenChange, contact }: ContactFormDi
       company_id: staff?.company_id || '',
     };
 
-    if (isEditing && contact) {
-      await updateContact.mutateAsync({ id: contact.id, ...contactData });
+    if (isEditing && client) {
+      await updateClient.mutateAsync({ id: client.id, ...clientData });
     } else {
-      await createContact.mutateAsync(contactData);
+      await createClient.mutateAsync(clientData);
     }
     
     onOpenChange(false);
@@ -80,7 +79,7 @@ export function ContactFormDialog({ open, onOpenChange, contact }: ContactFormDi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'Edit Contact' : 'New Contact'}</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit Client' : 'New Client'}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -193,7 +192,7 @@ export function ContactFormDialog({ open, onOpenChange, contact }: ContactFormDi
                   <div className="space-y-1 leading-none">
                     <FormLabel>TCPA Consent</FormLabel>
                     <p className="text-sm text-muted-foreground">
-                      Contact has consented to receive calls/texts
+                      Client has consented to receive calls/texts
                     </p>
                   </div>
                 </FormItem>
@@ -218,8 +217,8 @@ export function ContactFormDialog({ open, onOpenChange, contact }: ContactFormDi
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={createContact.isPending || updateContact.isPending}>
-                {isEditing ? 'Save Changes' : 'Create Contact'}
+              <Button type="submit" disabled={createClient.isPending || updateClient.isPending}>
+                {isEditing ? 'Save Changes' : 'Create Client'}
               </Button>
             </DialogFooter>
           </form>

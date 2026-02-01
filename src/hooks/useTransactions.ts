@@ -5,27 +5,27 @@ import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase
 
 export type Transaction = Tables<'transactions'> & {
   processor?: Tables<'payment_processors'> | null;
-  engagement?: Tables<'engagements'> & {
-    primary_contact?: Tables<'contacts'> | null;
+  client_service?: Tables<'client_services'> & {
+    primary_client?: Tables<'clients'> | null;
   };
 };
 
 export type TransactionInsert = Omit<TablesInsert<'transactions'>, 'id' | 'created_at' | 'updated_at'>;
 export type TransactionUpdate = TablesUpdate<'transactions'>;
 
-export function useTransactions(status?: string, type?: string, engagementId?: string) {
+export function useTransactions(status?: string, type?: string, clientServiceId?: string) {
   return useQuery({
-    queryKey: ['transactions', status, type, engagementId],
+    queryKey: ['transactions', status, type, clientServiceId],
     queryFn: async () => {
       let query = supabase
         .from('transactions')
         .select(`
           *,
           processor:payment_processors!transactions_processor_id_fkey(id, name, processor_type),
-          engagement:engagements!transactions_engagement_id_fkey(
+          client_service:client_services!transactions_client_service_id_fkey(
             id, 
-            engagement_number,
-            primary_contact:contacts!engagements_primary_contact_id_fkey(id, first_name, last_name)
+            service_number,
+            primary_client:clients!client_services_primary_client_id_fkey(id, first_name, last_name)
           )
         `)
         .order('created_at', { ascending: false });
@@ -38,8 +38,8 @@ export function useTransactions(status?: string, type?: string, engagementId?: s
         query = query.eq('transaction_type', type);
       }
 
-      if (engagementId) {
-        query = query.eq('engagement_id', engagementId);
+      if (clientServiceId) {
+        query = query.eq('client_service_id', clientServiceId);
       }
 
       const { data, error } = await query;
@@ -59,10 +59,10 @@ export function useTransaction(id: string | undefined) {
         .select(`
           *,
           processor:payment_processors!transactions_processor_id_fkey(*),
-          engagement:engagements!transactions_engagement_id_fkey(
+          client_service:client_services!transactions_client_service_id_fkey(
             id, 
-            engagement_number,
-            primary_contact:contacts!engagements_primary_contact_id_fkey(id, first_name, last_name, email)
+            service_number,
+            primary_client:clients!client_services_primary_client_id_fkey(id, first_name, last_name, email)
           )
         `)
         .eq('id', id)

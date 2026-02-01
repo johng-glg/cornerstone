@@ -6,8 +6,8 @@ import type { Tables, TablesInsert, TablesUpdate, Enums } from '@/integrations/s
 export type Liability = Tables<'liabilities'> & {
   original_creditor?: Tables<'creditors'> | null;
   current_creditor?: Tables<'creditors'> | null;
-  engagement?: Tables<'engagements'> & {
-    primary_contact?: Tables<'contacts'> | null;
+  client_service?: Tables<'client_services'> & {
+    primary_client?: Tables<'clients'> | null;
   };
 };
 
@@ -16,9 +16,9 @@ export type LiabilityUpdate = TablesUpdate<'liabilities'>;
 export type LiabilityStatus = Enums<'liability_status'>;
 export type LiabilityType = Enums<'liability_type'>;
 
-export function useLiabilities(status?: LiabilityStatus, type?: LiabilityType, engagementId?: string) {
+export function useLiabilities(status?: LiabilityStatus, type?: LiabilityType, clientServiceId?: string) {
   return useQuery({
-    queryKey: ['liabilities', status, type, engagementId],
+    queryKey: ['liabilities', status, type, clientServiceId],
     queryFn: async () => {
       let query = supabase
         .from('liabilities')
@@ -26,11 +26,11 @@ export function useLiabilities(status?: LiabilityStatus, type?: LiabilityType, e
           *,
           original_creditor:creditors!liabilities_original_creditor_id_fkey(id, name, creditor_type),
           current_creditor:creditors!liabilities_current_creditor_id_fkey(id, name, creditor_type),
-          engagement:engagements!liabilities_engagement_id_fkey(
+          client_service:client_services!liabilities_client_service_id_fkey(
             id, 
-            engagement_number, 
+            service_number, 
             status,
-            primary_contact:contacts!engagements_primary_contact_id_fkey(id, first_name, last_name)
+            primary_client:clients!client_services_primary_client_id_fkey(id, first_name, last_name)
           )
         `)
         .order('created_at', { ascending: false });
@@ -43,8 +43,8 @@ export function useLiabilities(status?: LiabilityStatus, type?: LiabilityType, e
         query = query.eq('liability_type', type);
       }
 
-      if (engagementId) {
-        query = query.eq('engagement_id', engagementId);
+      if (clientServiceId) {
+        query = query.eq('client_service_id', clientServiceId);
       }
 
       const { data, error } = await query;
@@ -65,11 +65,11 @@ export function useLiability(id: string | undefined) {
           *,
           original_creditor:creditors!liabilities_original_creditor_id_fkey(*),
           current_creditor:creditors!liabilities_current_creditor_id_fkey(*),
-          engagement:engagements!liabilities_engagement_id_fkey(
+          client_service:client_services!liabilities_client_service_id_fkey(
             id, 
-            engagement_number, 
+            service_number, 
             status,
-            primary_contact:contacts!engagements_primary_contact_id_fkey(id, first_name, last_name, email)
+            primary_client:clients!client_services_primary_client_id_fkey(id, first_name, last_name, email)
           )
         `)
         .eq('id', id)

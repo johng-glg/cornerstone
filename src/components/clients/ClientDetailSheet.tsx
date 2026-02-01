@@ -4,27 +4,26 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Phone, Mail, MapPin, Plus, Trash2, User, Calendar, MessageSquare, Check } from 'lucide-react';
-import { useContact } from '@/hooks/useContacts';
+import { Phone, Mail, MapPin, Plus, Trash2, Check } from 'lucide-react';
+import { useClient, useDeleteClientPhone, useDeleteClientAddress } from '@/hooks/useClients';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ContactPhoneForm } from './ContactPhoneForm';
-import { ContactAddressForm } from './ContactAddressForm';
-import { useDeleteContactPhone, useDeleteContactAddress } from '@/hooks/useContacts';
+import { ClientPhoneForm } from './ClientPhoneForm';
+import { ClientAddressForm } from './ClientAddressForm';
 import { format } from 'date-fns';
 
-interface ContactDetailSheetProps {
-  contactId: string | null;
+interface ClientDetailSheetProps {
+  clientId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEdit: () => void;
 }
 
-export function ContactDetailSheet({ contactId, open, onOpenChange, onEdit }: ContactDetailSheetProps) {
-  const { data: contact, isLoading } = useContact(contactId || undefined);
+export function ClientDetailSheet({ clientId, open, onOpenChange, onEdit }: ClientDetailSheetProps) {
+  const { data: client, isLoading } = useClient(clientId || undefined);
   const [showPhoneForm, setShowPhoneForm] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
-  const deletePhone = useDeleteContactPhone();
-  const deleteAddress = useDeleteContactAddress();
+  const deletePhone = useDeleteClientPhone();
+  const deleteAddress = useDeleteClientAddress();
 
   const phoneTypeLabels: Record<string, string> = {
     mobile: 'Mobile',
@@ -50,18 +49,18 @@ export function ContactDetailSheet({ contactId, open, onOpenChange, onEdit }: Co
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-32 w-full" />
           </div>
-        ) : contact ? (
+        ) : client ? (
           <>
             <SheetHeader className="space-y-4">
               <div className="flex items-start justify-between">
                 <div>
                   <SheetTitle className="text-xl">
-                    {contact.first_name} {contact.middle_name ? `${contact.middle_name} ` : ''}{contact.last_name}
+                    {client.first_name} {client.middle_name ? `${client.middle_name} ` : ''}{client.last_name}
                   </SheetTitle>
-                  {contact.email && (
+                  {client.email && (
                     <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                       <Mail className="h-3 w-3" />
-                      {contact.email}
+                      {client.email}
                     </p>
                   )}
                 </div>
@@ -71,15 +70,15 @@ export function ContactDetailSheet({ contactId, open, onOpenChange, onEdit }: Co
               </div>
               
               <div className="flex flex-wrap gap-2">
-                {contact.tcpa_consent && (
+                {client.tcpa_consent && (
                   <Badge variant="secondary" className="flex items-center gap-1">
                     <Check className="h-3 w-3" />
                     TCPA Consent
                   </Badge>
                 )}
-                {contact.preferred_contact_method && (
+                {client.preferred_contact_method && (
                   <Badge variant="outline">
-                    Preferred: {phoneTypeLabels[contact.preferred_contact_method]}
+                    Preferred: {phoneTypeLabels[client.preferred_contact_method]}
                   </Badge>
                 )}
               </div>
@@ -99,32 +98,32 @@ export function ContactDetailSheet({ contactId, open, onOpenChange, onEdit }: Co
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Date of Birth</label>
                     <p className="text-sm">
-                      {contact.date_of_birth 
-                        ? format(new Date(contact.date_of_birth), 'MMM d, yyyy')
+                      {client.date_of_birth 
+                        ? format(new Date(client.date_of_birth), 'MMM d, yyyy')
                         : 'Not provided'}
                     </p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Created</label>
                     <p className="text-sm">
-                      {format(new Date(contact.created_at), 'MMM d, yyyy')}
+                      {format(new Date(client.created_at), 'MMM d, yyyy')}
                     </p>
                   </div>
                 </div>
 
-                {contact.tcpa_consent_date && (
+                {client.tcpa_consent_date && (
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">TCPA Consent Date</label>
                     <p className="text-sm">
-                      {format(new Date(contact.tcpa_consent_date), 'MMM d, yyyy h:mm a')}
+                      {format(new Date(client.tcpa_consent_date), 'MMM d, yyyy h:mm a')}
                     </p>
                   </div>
                 )}
 
-                {contact.notes && (
+                {client.notes && (
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Notes</label>
-                    <p className="text-sm whitespace-pre-wrap">{contact.notes}</p>
+                    <p className="text-sm whitespace-pre-wrap">{client.notes}</p>
                   </div>
                 )}
               </TabsContent>
@@ -138,9 +137,9 @@ export function ContactDetailSheet({ contactId, open, onOpenChange, onEdit }: Co
                   </Button>
                 </div>
 
-                {contact.phones && contact.phones.length > 0 ? (
+                {client.phones && client.phones.length > 0 ? (
                   <div className="space-y-2">
-                    {contact.phones.map((phone) => (
+                    {client.phones.map((phone) => (
                       <div key={phone.id} className="flex items-center justify-between p-3 rounded-lg border">
                         <div className="flex items-center gap-3">
                           <Phone className="h-4 w-4 text-muted-foreground" />
@@ -155,7 +154,7 @@ export function ContactDetailSheet({ contactId, open, onOpenChange, onEdit }: Co
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => deletePhone.mutate({ id: phone.id, contactId: contact.id })}
+                          onClick={() => deletePhone.mutate({ id: phone.id, clientId: client.id })}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -169,8 +168,8 @@ export function ContactDetailSheet({ contactId, open, onOpenChange, onEdit }: Co
                 )}
 
                 {showPhoneForm && (
-                  <ContactPhoneForm
-                    contactId={contact.id}
+                  <ClientPhoneForm
+                    clientId={client.id}
                     onClose={() => setShowPhoneForm(false)}
                   />
                 )}
@@ -185,9 +184,9 @@ export function ContactDetailSheet({ contactId, open, onOpenChange, onEdit }: Co
                   </Button>
                 </div>
 
-                {contact.addresses && contact.addresses.length > 0 ? (
+                {client.addresses && client.addresses.length > 0 ? (
                   <div className="space-y-2">
-                    {contact.addresses.map((address) => (
+                    {client.addresses.map((address) => (
                       <div key={address.id} className="flex items-start justify-between p-3 rounded-lg border">
                         <div className="flex items-start gap-3">
                           <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
@@ -208,7 +207,7 @@ export function ContactDetailSheet({ contactId, open, onOpenChange, onEdit }: Co
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => deleteAddress.mutate({ id: address.id, contactId: contact.id })}
+                          onClick={() => deleteAddress.mutate({ id: address.id, clientId: client.id })}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -222,8 +221,8 @@ export function ContactDetailSheet({ contactId, open, onOpenChange, onEdit }: Co
                 )}
 
                 {showAddressForm && (
-                  <ContactAddressForm
-                    contactId={contact.id}
+                  <ClientAddressForm
+                    clientId={client.id}
                     onClose={() => setShowAddressForm(false)}
                   />
                 )}
@@ -231,7 +230,7 @@ export function ContactDetailSheet({ contactId, open, onOpenChange, onEdit }: Co
             </Tabs>
           </>
         ) : (
-          <p className="text-muted-foreground">Contact not found</p>
+          <p className="text-muted-foreground">Client not found</p>
         )}
       </SheetContent>
     </Sheet>

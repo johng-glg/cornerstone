@@ -58,6 +58,346 @@ export type Database = {
           },
         ]
       }
+      client_addresses: {
+        Row: {
+          address_line1: string
+          address_line2: string | null
+          address_type: Database["public"]["Enums"]["address_type"]
+          city: string
+          client_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_primary: boolean
+          state: string
+          zip_code: string
+        }
+        Insert: {
+          address_line1: string
+          address_line2?: string | null
+          address_type?: Database["public"]["Enums"]["address_type"]
+          city: string
+          client_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_primary?: boolean
+          state: string
+          zip_code: string
+        }
+        Update: {
+          address_line1?: string
+          address_line2?: string | null
+          address_type?: Database["public"]["Enums"]["address_type"]
+          city?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_primary?: boolean
+          state?: string
+          zip_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_addresses_contact_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_phones: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_primary: boolean
+          phone_number: string
+          phone_type: Database["public"]["Enums"]["phone_type"]
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_primary?: boolean
+          phone_number: string
+          phone_type?: Database["public"]["Enums"]["phone_type"]
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_primary?: boolean
+          phone_number?: string
+          phone_type?: Database["public"]["Enums"]["phone_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_phones_contact_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_service_clients: {
+        Row: {
+          client_id: string
+          client_service_id: string
+          created_at: string
+          id: string
+          is_primary: boolean
+          relationship: Database["public"]["Enums"]["client_relationship"]
+        }
+        Insert: {
+          client_id: string
+          client_service_id: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          relationship?: Database["public"]["Enums"]["client_relationship"]
+        }
+        Update: {
+          client_id?: string
+          client_service_id?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          relationship?: Database["public"]["Enums"]["client_relationship"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engagement_contacts_contact_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_contacts_engagement_id_fkey"
+            columns: ["client_service_id"]
+            isOneToOne: false
+            referencedRelation: "client_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_service_types: {
+        Row: {
+          client_service_id: string
+          created_at: string
+          end_date: string | null
+          id: string
+          is_active: boolean
+          service_id: string
+          start_date: string
+        }
+        Insert: {
+          client_service_id: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          service_id: string
+          start_date?: string
+        }
+        Update: {
+          client_service_id?: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          service_id?: string
+          start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engagement_services_engagement_id_fkey"
+            columns: ["client_service_id"]
+            isOneToOne: false
+            referencedRelation: "client_services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagement_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_services: {
+        Row: {
+          closed_date: string | null
+          created_at: string
+          enrolled_date: string | null
+          escrow_balance: number | null
+          estimated_completion_date: string | null
+          first_payment_date: string | null
+          id: string
+          monthly_payment: number | null
+          monthly_service_fee: number | null
+          notes: string | null
+          originating_company_id: string | null
+          owning_company_id: string
+          payment_frequency: string | null
+          primary_client_id: string | null
+          program_start_date: string | null
+          program_type: string | null
+          service_number: string
+          settlement_fee_percentage: number | null
+          status: Database["public"]["Enums"]["service_status"]
+          term_months: number | null
+          total_enrolled_debt: number | null
+          updated_at: string
+        }
+        Insert: {
+          closed_date?: string | null
+          created_at?: string
+          enrolled_date?: string | null
+          escrow_balance?: number | null
+          estimated_completion_date?: string | null
+          first_payment_date?: string | null
+          id?: string
+          monthly_payment?: number | null
+          monthly_service_fee?: number | null
+          notes?: string | null
+          originating_company_id?: string | null
+          owning_company_id: string
+          payment_frequency?: string | null
+          primary_client_id?: string | null
+          program_start_date?: string | null
+          program_type?: string | null
+          service_number: string
+          settlement_fee_percentage?: number | null
+          status?: Database["public"]["Enums"]["service_status"]
+          term_months?: number | null
+          total_enrolled_debt?: number | null
+          updated_at?: string
+        }
+        Update: {
+          closed_date?: string | null
+          created_at?: string
+          enrolled_date?: string | null
+          escrow_balance?: number | null
+          estimated_completion_date?: string | null
+          first_payment_date?: string | null
+          id?: string
+          monthly_payment?: number | null
+          monthly_service_fee?: number | null
+          notes?: string | null
+          originating_company_id?: string | null
+          owning_company_id?: string
+          payment_frequency?: string | null
+          primary_client_id?: string | null
+          program_start_date?: string | null
+          program_type?: string | null
+          service_number?: string
+          settlement_fee_percentage?: number | null
+          status?: Database["public"]["Enums"]["service_status"]
+          term_months?: number | null
+          total_enrolled_debt?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engagements_originating_company_id_fkey"
+            columns: ["originating_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagements_owning_company_id_fkey"
+            columns: ["owning_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagements_primary_contact_id_fkey"
+            columns: ["primary_client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          company_id: string
+          created_at: string
+          date_of_birth: string | null
+          email: string | null
+          first_name: string
+          id: string
+          is_active: boolean
+          last_name: string
+          middle_name: string | null
+          notes: string | null
+          preferred_contact_method:
+            | Database["public"]["Enums"]["phone_type"]
+            | null
+          ssn_encrypted: string | null
+          tcpa_consent: boolean | null
+          tcpa_consent_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          first_name: string
+          id?: string
+          is_active?: boolean
+          last_name: string
+          middle_name?: string | null
+          notes?: string | null
+          preferred_contact_method?:
+            | Database["public"]["Enums"]["phone_type"]
+            | null
+          ssn_encrypted?: string | null
+          tcpa_consent?: boolean | null
+          tcpa_consent_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          first_name?: string
+          id?: string
+          is_active?: boolean
+          last_name?: string
+          middle_name?: string | null
+          notes?: string | null
+          preferred_contact_method?:
+            | Database["public"]["Enums"]["phone_type"]
+            | null
+          ssn_encrypted?: string | null
+          tcpa_consent?: boolean | null
+          tcpa_consent_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           address_line1: string | null
@@ -174,162 +514,6 @@ export type Database = {
           },
         ]
       }
-      contact_addresses: {
-        Row: {
-          address_line1: string
-          address_line2: string | null
-          address_type: Database["public"]["Enums"]["address_type"]
-          city: string
-          contact_id: string
-          created_at: string
-          id: string
-          is_active: boolean
-          is_primary: boolean
-          state: string
-          zip_code: string
-        }
-        Insert: {
-          address_line1: string
-          address_line2?: string | null
-          address_type?: Database["public"]["Enums"]["address_type"]
-          city: string
-          contact_id: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          is_primary?: boolean
-          state: string
-          zip_code: string
-        }
-        Update: {
-          address_line1?: string
-          address_line2?: string | null
-          address_type?: Database["public"]["Enums"]["address_type"]
-          city?: string
-          contact_id?: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          is_primary?: boolean
-          state?: string
-          zip_code?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "contact_addresses_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      contact_phones: {
-        Row: {
-          contact_id: string
-          created_at: string
-          id: string
-          is_active: boolean
-          is_primary: boolean
-          phone_number: string
-          phone_type: Database["public"]["Enums"]["phone_type"]
-        }
-        Insert: {
-          contact_id: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          is_primary?: boolean
-          phone_number: string
-          phone_type?: Database["public"]["Enums"]["phone_type"]
-        }
-        Update: {
-          contact_id?: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          is_primary?: boolean
-          phone_number?: string
-          phone_type?: Database["public"]["Enums"]["phone_type"]
-        }
-        Relationships: [
-          {
-            foreignKeyName: "contact_phones_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      contacts: {
-        Row: {
-          company_id: string
-          created_at: string
-          date_of_birth: string | null
-          email: string | null
-          first_name: string
-          id: string
-          is_active: boolean
-          last_name: string
-          middle_name: string | null
-          notes: string | null
-          preferred_contact_method:
-            | Database["public"]["Enums"]["phone_type"]
-            | null
-          ssn_encrypted: string | null
-          tcpa_consent: boolean | null
-          tcpa_consent_date: string | null
-          updated_at: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          date_of_birth?: string | null
-          email?: string | null
-          first_name: string
-          id?: string
-          is_active?: boolean
-          last_name: string
-          middle_name?: string | null
-          notes?: string | null
-          preferred_contact_method?:
-            | Database["public"]["Enums"]["phone_type"]
-            | null
-          ssn_encrypted?: string | null
-          tcpa_consent?: boolean | null
-          tcpa_consent_date?: string | null
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          date_of_birth?: string | null
-          email?: string | null
-          first_name?: string
-          id?: string
-          is_active?: boolean
-          last_name?: string
-          middle_name?: string | null
-          notes?: string | null
-          preferred_contact_method?:
-            | Database["public"]["Enums"]["phone_type"]
-            | null
-          ssn_encrypted?: string | null
-          tcpa_consent?: boolean | null
-          tcpa_consent_date?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "contacts_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       creditors: {
         Row: {
           address_line1: string | null
@@ -383,157 +567,6 @@ export type Database = {
           zip_code?: string | null
         }
         Relationships: []
-      }
-      engagement_contacts: {
-        Row: {
-          contact_id: string
-          created_at: string
-          engagement_id: string
-          id: string
-          is_primary: boolean
-          relationship: Database["public"]["Enums"]["contact_relationship"]
-        }
-        Insert: {
-          contact_id: string
-          created_at?: string
-          engagement_id: string
-          id?: string
-          is_primary?: boolean
-          relationship?: Database["public"]["Enums"]["contact_relationship"]
-        }
-        Update: {
-          contact_id?: string
-          created_at?: string
-          engagement_id?: string
-          id?: string
-          is_primary?: boolean
-          relationship?: Database["public"]["Enums"]["contact_relationship"]
-        }
-        Relationships: [
-          {
-            foreignKeyName: "engagement_contacts_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "engagement_contacts_engagement_id_fkey"
-            columns: ["engagement_id"]
-            isOneToOne: false
-            referencedRelation: "engagements"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      engagement_services: {
-        Row: {
-          created_at: string
-          end_date: string | null
-          engagement_id: string
-          id: string
-          is_active: boolean
-          service_id: string
-          start_date: string
-        }
-        Insert: {
-          created_at?: string
-          end_date?: string | null
-          engagement_id: string
-          id?: string
-          is_active?: boolean
-          service_id: string
-          start_date?: string
-        }
-        Update: {
-          created_at?: string
-          end_date?: string | null
-          engagement_id?: string
-          id?: string
-          is_active?: boolean
-          service_id?: string
-          start_date?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "engagement_services_engagement_id_fkey"
-            columns: ["engagement_id"]
-            isOneToOne: false
-            referencedRelation: "engagements"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "engagement_services_service_id_fkey"
-            columns: ["service_id"]
-            isOneToOne: false
-            referencedRelation: "services"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      engagements: {
-        Row: {
-          closed_date: string | null
-          created_at: string
-          engagement_number: string
-          enrolled_date: string | null
-          id: string
-          notes: string | null
-          originating_company_id: string | null
-          owning_company_id: string
-          primary_contact_id: string | null
-          status: Database["public"]["Enums"]["engagement_status"]
-          updated_at: string
-        }
-        Insert: {
-          closed_date?: string | null
-          created_at?: string
-          engagement_number: string
-          enrolled_date?: string | null
-          id?: string
-          notes?: string | null
-          originating_company_id?: string | null
-          owning_company_id: string
-          primary_contact_id?: string | null
-          status?: Database["public"]["Enums"]["engagement_status"]
-          updated_at?: string
-        }
-        Update: {
-          closed_date?: string | null
-          created_at?: string
-          engagement_number?: string
-          enrolled_date?: string | null
-          id?: string
-          notes?: string | null
-          originating_company_id?: string | null
-          owning_company_id?: string
-          primary_contact_id?: string | null
-          status?: Database["public"]["Enums"]["engagement_status"]
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "engagements_originating_company_id_fkey"
-            columns: ["originating_company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "engagements_owning_company_id_fkey"
-            columns: ["owning_company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "engagements_primary_contact_id_fkey"
-            columns: ["primary_contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       lead_activities: {
         Row: {
@@ -590,7 +623,7 @@ export type Database = {
         Row: {
           assigned_to: string | null
           company_id: string
-          converted_engagement_id: string | null
+          converted_service_id: string | null
           created_at: string
           disqualification_reason: string | null
           email: string | null
@@ -612,7 +645,7 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           company_id: string
-          converted_engagement_id?: string | null
+          converted_service_id?: string | null
           created_at?: string
           disqualification_reason?: string | null
           email?: string | null
@@ -634,7 +667,7 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           company_id?: string
-          converted_engagement_id?: string | null
+          converted_service_id?: string | null
           created_at?: string
           disqualification_reason?: string | null
           email?: string | null
@@ -670,9 +703,9 @@ export type Database = {
           },
           {
             foreignKeyName: "leads_converted_engagement_id_fkey"
-            columns: ["converted_engagement_id"]
+            columns: ["converted_service_id"]
             isOneToOne: false
-            referencedRelation: "engagements"
+            referencedRelation: "client_services"
             referencedColumns: ["id"]
           },
           {
@@ -687,10 +720,10 @@ export type Database = {
       liabilities: {
         Row: {
           account_number: string | null
+          client_service_id: string
           created_at: string
           current_balance: number | null
           current_creditor_id: string | null
-          engagement_id: string
           enrolled_balance: number | null
           id: string
           liability_type: Database["public"]["Enums"]["liability_type"]
@@ -703,10 +736,10 @@ export type Database = {
         }
         Insert: {
           account_number?: string | null
+          client_service_id: string
           created_at?: string
           current_balance?: number | null
           current_creditor_id?: string | null
-          engagement_id: string
           enrolled_balance?: number | null
           id?: string
           liability_type?: Database["public"]["Enums"]["liability_type"]
@@ -719,10 +752,10 @@ export type Database = {
         }
         Update: {
           account_number?: string | null
+          client_service_id?: string
           created_at?: string
           current_balance?: number | null
           current_creditor_id?: string | null
-          engagement_id?: string
           enrolled_balance?: number | null
           id?: string
           liability_type?: Database["public"]["Enums"]["liability_type"]
@@ -743,9 +776,9 @@ export type Database = {
           },
           {
             foreignKeyName: "liabilities_engagement_id_fkey"
-            columns: ["engagement_id"]
+            columns: ["client_service_id"]
             isOneToOne: false
-            referencedRelation: "engagements"
+            referencedRelation: "client_services"
             referencedColumns: ["id"]
           },
           {
@@ -1063,8 +1096,8 @@ export type Database = {
       transactions: {
         Row: {
           amount: number
+          client_service_id: string
           created_at: string
-          engagement_id: string
           error_message: string | null
           external_id: string | null
           id: string
@@ -1076,8 +1109,8 @@ export type Database = {
         }
         Insert: {
           amount: number
+          client_service_id: string
           created_at?: string
-          engagement_id: string
           error_message?: string | null
           external_id?: string | null
           id?: string
@@ -1089,8 +1122,8 @@ export type Database = {
         }
         Update: {
           amount?: number
+          client_service_id?: string
           created_at?: string
-          engagement_id?: string
           error_message?: string | null
           external_id?: string | null
           id?: string
@@ -1103,9 +1136,9 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "transactions_engagement_id_fkey"
-            columns: ["engagement_id"]
+            columns: ["client_service_id"]
             isOneToOne: false
-            referencedRelation: "engagements"
+            referencedRelation: "client_services"
             referencedColumns: ["id"]
           },
           {
@@ -1176,13 +1209,13 @@ export type Database = {
         | "case_manager"
         | "negotiator"
         | "sales_rep"
-      company_type: "law_firm" | "affiliate" | "financing_company"
-      contact_relationship:
+      client_relationship:
         | "primary_client"
         | "co_client"
         | "spouse"
         | "authorized_contact"
         | "other"
+      company_type: "law_firm" | "affiliate" | "financing_company"
       creditor_type:
         | "original_creditor"
         | "collection_agency"
@@ -1198,7 +1231,6 @@ export type Database = {
         | "negotiations"
         | "payment_processing"
         | "correspondence"
-      engagement_status: "prospect" | "active" | "suspended" | "closed"
       entity_type: "engagement" | "case" | "liability" | "lead"
       lead_interest: "debt_resolution" | "litigation" | "both"
       lead_source:
@@ -1226,6 +1258,7 @@ export type Database = {
         | "other"
       payment_type: "lump_sum" | "payment_plan"
       phone_type: "mobile" | "home" | "work" | "fax" | "other"
+      service_status: "prospect" | "active" | "suspended" | "closed"
       service_type: "debt_resolution" | "consumer_defense"
       settlement_status:
         | "offered"
@@ -1390,14 +1423,14 @@ export const Constants = {
         "negotiator",
         "sales_rep",
       ],
-      company_type: ["law_firm", "affiliate", "financing_company"],
-      contact_relationship: [
+      client_relationship: [
         "primary_client",
         "co_client",
         "spouse",
         "authorized_contact",
         "other",
       ],
+      company_type: ["law_firm", "affiliate", "financing_company"],
       creditor_type: [
         "original_creditor",
         "collection_agency",
@@ -1415,7 +1448,6 @@ export const Constants = {
         "payment_processing",
         "correspondence",
       ],
-      engagement_status: ["prospect", "active", "suspended", "closed"],
       entity_type: ["engagement", "case", "liability", "lead"],
       lead_interest: ["debt_resolution", "litigation", "both"],
       lead_source: [
@@ -1446,6 +1478,7 @@ export const Constants = {
       ],
       payment_type: ["lump_sum", "payment_plan"],
       phone_type: ["mobile", "home", "work", "fax", "other"],
+      service_status: ["prospect", "active", "suspended", "closed"],
       service_type: ["debt_resolution", "consumer_defense"],
       settlement_status: [
         "offered",

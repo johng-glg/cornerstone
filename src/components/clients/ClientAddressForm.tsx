@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useCreateContactAddress } from '@/hooks/useContacts';
+import { useCreateClientAddress } from '@/hooks/useClients';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const addressSchema = z.object({
@@ -21,13 +21,13 @@ const addressSchema = z.object({
 
 type AddressFormData = z.infer<typeof addressSchema>;
 
-interface ContactAddressFormProps {
-  contactId: string;
+interface ClientAddressFormProps {
+  clientId: string;
   onClose: () => void;
 }
 
-export function ContactAddressForm({ contactId, onClose }: ContactAddressFormProps) {
-  const createAddress = useCreateContactAddress();
+export function ClientAddressForm({ clientId, onClose }: ClientAddressFormProps) {
+  const createAddress = useCreateClientAddress();
 
   const form = useForm<AddressFormData>({
     resolver: zodResolver(addressSchema),
@@ -44,7 +44,7 @@ export function ContactAddressForm({ contactId, onClose }: ContactAddressFormPro
 
   const onSubmit = async (data: AddressFormData) => {
     await createAddress.mutateAsync({
-      contact_id: contactId,
+      client_id: clientId,
       address_line1: data.address_line1,
       address_line2: data.address_line2 || null,
       city: data.city,

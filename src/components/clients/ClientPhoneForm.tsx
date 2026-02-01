@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useCreateContactPhone } from '@/hooks/useContacts';
+import { useCreateClientPhone } from '@/hooks/useClients';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const phoneSchema = z.object({
@@ -17,13 +17,13 @@ const phoneSchema = z.object({
 
 type PhoneFormData = z.infer<typeof phoneSchema>;
 
-interface ContactPhoneFormProps {
-  contactId: string;
+interface ClientPhoneFormProps {
+  clientId: string;
   onClose: () => void;
 }
 
-export function ContactPhoneForm({ contactId, onClose }: ContactPhoneFormProps) {
-  const createPhone = useCreateContactPhone();
+export function ClientPhoneForm({ clientId, onClose }: ClientPhoneFormProps) {
+  const createPhone = useCreateClientPhone();
 
   const form = useForm<PhoneFormData>({
     resolver: zodResolver(phoneSchema),
@@ -36,7 +36,7 @@ export function ContactPhoneForm({ contactId, onClose }: ContactPhoneFormProps) 
 
   const onSubmit = async (data: PhoneFormData) => {
     await createPhone.mutateAsync({
-      contact_id: contactId,
+      client_id: clientId,
       phone_number: data.phone_number,
       phone_type: data.phone_type,
       is_primary: data.is_primary,

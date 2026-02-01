@@ -3,26 +3,26 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Tables, TablesInsert, TablesUpdate, Enums } from '@/integrations/supabase/types';
 
-export type Contact = Tables<'contacts'> & {
-  phones?: Tables<'contact_phones'>[];
-  addresses?: Tables<'contact_addresses'>[];
+export type Client = Tables<'clients'> & {
+  phones?: Tables<'client_phones'>[];
+  addresses?: Tables<'client_addresses'>[];
 };
 
-export type ContactInsert = Omit<TablesInsert<'contacts'>, 'id' | 'created_at' | 'updated_at'>;
-export type ContactUpdate = TablesUpdate<'contacts'>;
+export type ClientInsert = Omit<TablesInsert<'clients'>, 'id' | 'created_at' | 'updated_at'>;
+export type ClientUpdate = TablesUpdate<'clients'>;
 export type PhoneType = Enums<'phone_type'>;
 export type AddressType = Enums<'address_type'>;
 
-export function useContacts(search?: string) {
+export function useClients(search?: string) {
   return useQuery({
-    queryKey: ['contacts', search],
+    queryKey: ['clients', search],
     queryFn: async () => {
       let query = supabase
-        .from('contacts')
+        .from('clients')
         .select(`
           *,
-          phones:contact_phones(*),
-          addresses:contact_addresses(*)
+          phones:client_phones(*),
+          addresses:client_addresses(*)
         `)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
@@ -33,64 +33,64 @@ export function useContacts(search?: string) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as Contact[];
+      return data as Client[];
     },
   });
 }
 
-export function useContact(id: string | undefined) {
+export function useClient(id: string | undefined) {
   return useQuery({
-    queryKey: ['contact', id],
+    queryKey: ['client', id],
     queryFn: async () => {
       if (!id) return null;
       const { data, error } = await supabase
-        .from('contacts')
+        .from('clients')
         .select(`
           *,
-          phones:contact_phones(*),
-          addresses:contact_addresses(*)
+          phones:client_phones(*),
+          addresses:client_addresses(*)
         `)
         .eq('id', id)
         .single();
       if (error) throw error;
-      return data as Contact;
+      return data as Client;
     },
     enabled: !!id,
   });
 }
 
-export function useCreateContact() {
+export function useCreateClient() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (contact: ContactInsert) => {
+    mutationFn: async (client: ClientInsert) => {
       const { data, error } = await supabase
-        .from('contacts')
-        .insert([contact])
+        .from('clients')
+        .insert([client])
         .select()
         .single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
-      toast({ title: 'Contact created successfully' });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      toast({ title: 'Client created successfully' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Failed to create contact', description: error.message, variant: 'destructive' });
+      toast({ title: 'Failed to create client', description: error.message, variant: 'destructive' });
     },
   });
 }
 
-export function useUpdateContact() {
+export function useUpdateClient() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: ContactUpdate & { id: string }) => {
+    mutationFn: async ({ id, ...updates }: ClientUpdate & { id: string }) => {
       const { data, error } = await supabase
-        .from('contacts')
+        .from('clients')
         .update(updates)
         .eq('id', id)
         .select()
@@ -99,25 +99,25 @@ export function useUpdateContact() {
       return data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
-      queryClient.invalidateQueries({ queryKey: ['contact', data.id] });
-      toast({ title: 'Contact updated successfully' });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['client', data.id] });
+      toast({ title: 'Client updated successfully' });
     },
     onError: (error: Error) => {
-      toast({ title: 'Failed to update contact', description: error.message, variant: 'destructive' });
+      toast({ title: 'Failed to update client', description: error.message, variant: 'destructive' });
     },
   });
 }
 
 // Phone hooks
-export function useCreateContactPhone() {
+export function useCreateClientPhone() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (phone: TablesInsert<'contact_phones'>) => {
+    mutationFn: async (phone: TablesInsert<'client_phones'>) => {
       const { data, error } = await supabase
-        .from('contact_phones')
+        .from('client_phones')
         .insert([phone])
         .select()
         .single();
@@ -125,8 +125,8 @@ export function useCreateContactPhone() {
       return data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['contact', data.contact_id] });
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['client', data.client_id] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
       toast({ title: 'Phone added successfully' });
     },
     onError: (error: Error) => {
@@ -135,22 +135,22 @@ export function useCreateContactPhone() {
   });
 }
 
-export function useDeleteContactPhone() {
+export function useDeleteClientPhone() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, contactId }: { id: string; contactId: string }) => {
+    mutationFn: async ({ id, clientId }: { id: string; clientId: string }) => {
       const { error } = await supabase
-        .from('contact_phones')
+        .from('client_phones')
         .delete()
         .eq('id', id);
       if (error) throw error;
-      return contactId;
+      return clientId;
     },
-    onSuccess: (contactId) => {
-      queryClient.invalidateQueries({ queryKey: ['contact', contactId] });
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    onSuccess: (clientId) => {
+      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
       toast({ title: 'Phone removed successfully' });
     },
     onError: (error: Error) => {
@@ -160,14 +160,14 @@ export function useDeleteContactPhone() {
 }
 
 // Address hooks
-export function useCreateContactAddress() {
+export function useCreateClientAddress() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (address: TablesInsert<'contact_addresses'>) => {
+    mutationFn: async (address: TablesInsert<'client_addresses'>) => {
       const { data, error } = await supabase
-        .from('contact_addresses')
+        .from('client_addresses')
         .insert([address])
         .select()
         .single();
@@ -175,8 +175,8 @@ export function useCreateContactAddress() {
       return data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['contact', data.contact_id] });
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['client', data.client_id] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
       toast({ title: 'Address added successfully' });
     },
     onError: (error: Error) => {
@@ -185,22 +185,22 @@ export function useCreateContactAddress() {
   });
 }
 
-export function useDeleteContactAddress() {
+export function useDeleteClientAddress() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, contactId }: { id: string; contactId: string }) => {
+    mutationFn: async ({ id, clientId }: { id: string; clientId: string }) => {
       const { error } = await supabase
-        .from('contact_addresses')
+        .from('client_addresses')
         .delete()
         .eq('id', id);
       if (error) throw error;
-      return contactId;
+      return clientId;
     },
-    onSuccess: (contactId) => {
-      queryClient.invalidateQueries({ queryKey: ['contact', contactId] });
-      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    onSuccess: (clientId) => {
+      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
       toast({ title: 'Address removed successfully' });
     },
     onError: (error: Error) => {
