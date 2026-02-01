@@ -3,7 +3,9 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useLiabilitiesForClient } from '@/hooks/useClientData';
+import { useLiability } from '@/hooks/useLiabilities';
 import { LiabilityDetailSheet } from '@/components/liabilities/LiabilityDetailSheet';
+import { LiabilityFormDialog } from '@/components/liabilities/LiabilityFormDialog';
 
 interface ClientLiabilitiesTabProps {
   clientId: string;
@@ -34,6 +36,24 @@ const typeLabels: Record<string, string> = {
 export function ClientLiabilitiesTab({ clientId }: ClientLiabilitiesTabProps) {
   const { data: liabilities, isLoading } = useLiabilitiesForClient(clientId);
   const [selectedLiabilityId, setSelectedLiabilityId] = useState<string | null>(null);
+  const [editingLiabilityId, setEditingLiabilityId] = useState<string | null>(null);
+  
+  // Fetch the full liability data for editing
+  const { data: editingLiability } = useLiability(editingLiabilityId || undefined);
+
+  const handleEdit = () => {
+    // Transfer from detail view to edit mode
+    if (selectedLiabilityId) {
+      setEditingLiabilityId(selectedLiabilityId);
+      setSelectedLiabilityId(null);
+    }
+  };
+
+  const handleEditDialogClose = (open: boolean) => {
+    if (!open) {
+      setEditingLiabilityId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -100,7 +120,13 @@ export function ClientLiabilitiesTab({ clientId }: ClientLiabilitiesTabProps) {
         liabilityId={selectedLiabilityId}
         open={!!selectedLiabilityId}
         onOpenChange={(open) => !open && setSelectedLiabilityId(null)}
-        onEdit={() => {}}
+        onEdit={handleEdit}
+      />
+
+      <LiabilityFormDialog
+        open={!!editingLiabilityId}
+        onOpenChange={handleEditDialogClose}
+        liability={editingLiability}
       />
     </>
   );
