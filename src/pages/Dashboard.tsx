@@ -92,6 +92,38 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
 
+      {/* Quick Actions */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap gap-3">
+            <Button asChild>
+              <Link to="/leads/new">
+                <UserPlus className="mr-2 h-4 w-4" />
+                New Lead
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/engagements/new">
+                <Briefcase className="mr-2 h-4 w-4" />
+                New Engagement
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/contacts/new">
+                <UserPlus className="mr-2 h-4 w-4" />
+                New Contact
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/tasks/new">
+                <CheckSquare className="mr-2 h-4 w-4" />
+                New Task
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statsCards.map((stat) => (
@@ -193,38 +225,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Quick Actions */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap gap-3">
-            <Button asChild>
-              <Link to="/leads/new">
-                <UserPlus className="mr-2 h-4 w-4" />
-                New Lead
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/engagements/new">
-                <Briefcase className="mr-2 h-4 w-4" />
-                New Engagement
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/contacts/new">
-                <UserPlus className="mr-2 h-4 w-4" />
-                New Contact
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/tasks/new">
-                <CheckSquare className="mr-2 h-4 w-4" />
-                New Task
-              </Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
