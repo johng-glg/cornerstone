@@ -9,16 +9,23 @@ import { PaymentsSummaryChart } from '@/components/payments/PaymentsSummaryChart
 
 const statusOptions = [
   { value: 'all', label: 'All Statuses' },
+  { value: 'open', label: 'Open' },
   { value: 'pending', label: 'Pending' },
-  { value: 'processing', label: 'Processing' },
+  { value: 'cleared', label: 'Cleared' },
+  { value: 'cancelled', label: 'Cancelled' },
+  // Legacy statuses for backwards compatibility
   { value: 'completed', label: 'Completed' },
   { value: 'failed', label: 'Failed' },
-  { value: 'cancelled', label: 'Cancelled' },
   { value: 'refunded', label: 'Refunded' },
 ];
 
 const typeOptions = [
   { value: 'all', label: 'All Types' },
+  { value: 'draft', label: 'Draft' },
+  { value: 'processor_fee', label: 'Processor Fee' },
+  { value: 'settlement_payment', label: 'Settlement Payment' },
+  { value: 'contingency_fee', label: 'Contingency Fee' },
+  // Legacy types
   { value: 'payment', label: 'Payment' },
   { value: 'withdrawal', label: 'Withdrawal' },
   { value: 'refund', label: 'Refund' },

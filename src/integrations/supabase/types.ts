@@ -1236,6 +1236,11 @@ export type Database = {
           attorney_approved_date: string | null
           completed_date: string | null
           created_at: string
+          fee_collection_method:
+            | Database["public"]["Enums"]["fee_collection_method"]
+            | null
+          fee_start_offset_months: number | null
+          first_payment_date: string | null
           id: string
           liability_id: string
           notes: string | null
@@ -1243,6 +1248,7 @@ export type Database = {
           offer_amount: number
           offer_percentage: number | null
           offered_date: string
+          payment_schedule: Json | null
           payment_type: Database["public"]["Enums"]["payment_type"]
           status: Database["public"]["Enums"]["settlement_status"]
           updated_at: string
@@ -1254,6 +1260,11 @@ export type Database = {
           attorney_approved_date?: string | null
           completed_date?: string | null
           created_at?: string
+          fee_collection_method?:
+            | Database["public"]["Enums"]["fee_collection_method"]
+            | null
+          fee_start_offset_months?: number | null
+          first_payment_date?: string | null
           id?: string
           liability_id: string
           notes?: string | null
@@ -1261,6 +1272,7 @@ export type Database = {
           offer_amount: number
           offer_percentage?: number | null
           offered_date?: string
+          payment_schedule?: Json | null
           payment_type?: Database["public"]["Enums"]["payment_type"]
           status?: Database["public"]["Enums"]["settlement_status"]
           updated_at?: string
@@ -1272,6 +1284,11 @@ export type Database = {
           attorney_approved_date?: string | null
           completed_date?: string | null
           created_at?: string
+          fee_collection_method?:
+            | Database["public"]["Enums"]["fee_collection_method"]
+            | null
+          fee_start_offset_months?: number | null
+          first_payment_date?: string | null
           id?: string
           liability_id?: string
           notes?: string | null
@@ -1279,6 +1296,7 @@ export type Database = {
           offer_amount?: number
           offer_percentage?: number | null
           offered_date?: string
+          payment_schedule?: Json | null
           payment_type?: Database["public"]["Enums"]["payment_type"]
           status?: Database["public"]["Enums"]["settlement_status"]
           updated_at?: string
@@ -1437,11 +1455,17 @@ export type Database = {
           amount: number
           client_service_id: string
           created_at: string
+          description: string | null
           error_message: string | null
           external_id: string | null
           id: string
+          liability_id: string | null
+          parent_transaction_id: string | null
           processed_at: string | null
           processor_id: string | null
+          scheduled_date: string | null
+          sequence_number: number | null
+          settlement_id: string | null
           status: string
           transaction_type: string
           updated_at: string
@@ -1450,11 +1474,17 @@ export type Database = {
           amount: number
           client_service_id: string
           created_at?: string
+          description?: string | null
           error_message?: string | null
           external_id?: string | null
           id?: string
+          liability_id?: string | null
+          parent_transaction_id?: string | null
           processed_at?: string | null
           processor_id?: string | null
+          scheduled_date?: string | null
+          sequence_number?: number | null
+          settlement_id?: string | null
           status?: string
           transaction_type: string
           updated_at?: string
@@ -1463,11 +1493,17 @@ export type Database = {
           amount?: number
           client_service_id?: string
           created_at?: string
+          description?: string | null
           error_message?: string | null
           external_id?: string | null
           id?: string
+          liability_id?: string | null
+          parent_transaction_id?: string | null
           processed_at?: string | null
           processor_id?: string | null
+          scheduled_date?: string | null
+          sequence_number?: number | null
+          settlement_id?: string | null
           status?: string
           transaction_type?: string
           updated_at?: string
@@ -1481,10 +1517,31 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "transactions_liability_id_fkey"
+            columns: ["liability_id"]
+            isOneToOne: false
+            referencedRelation: "liabilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_transaction_id_fkey"
+            columns: ["parent_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "transactions_processor_id_fkey"
             columns: ["processor_id"]
             isOneToOne: false
             referencedRelation: "payment_processors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_settlement_id_fkey"
+            columns: ["settlement_id"]
+            isOneToOne: false
+            referencedRelation: "settlements"
             referencedColumns: ["id"]
           },
         ]
@@ -1584,6 +1641,7 @@ export type Database = {
         | "retired"
         | "disabled"
       entity_type: "engagement" | "case" | "liability" | "lead"
+      fee_collection_method: "split" | "lump_sum"
       hardship_reason:
         | "job_loss"
         | "medical_emergency"
@@ -1665,6 +1723,12 @@ export type Database = {
         | "settlement_negotiation"
         | "client_call"
         | "general"
+      transaction_status: "open" | "pending" | "cleared" | "cancelled"
+      transaction_type:
+        | "draft"
+        | "processor_fee"
+        | "settlement_payment"
+        | "contingency_fee"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1854,6 +1918,7 @@ export const Constants = {
         "disabled",
       ],
       entity_type: ["engagement", "case", "liability", "lead"],
+      fee_collection_method: ["split", "lump_sum"],
       hardship_reason: [
         "job_loss",
         "medical_emergency",
@@ -1944,6 +2009,13 @@ export const Constants = {
         "settlement_negotiation",
         "client_call",
         "general",
+      ],
+      transaction_status: ["open", "pending", "cleared", "cancelled"],
+      transaction_type: [
+        "draft",
+        "processor_fee",
+        "settlement_payment",
+        "contingency_fee",
       ],
     },
   },

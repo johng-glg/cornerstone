@@ -8,10 +8,21 @@ export type Transaction = Tables<'transactions'> & {
   client_service?: Tables<'client_services'> & {
     primary_client?: Tables<'clients'> | null;
   };
+  // New fields from migration
+  scheduled_date?: string | null;
+  settlement_id?: string | null;
+  liability_id?: string | null;
+  parent_transaction_id?: string | null;
+  description?: string | null;
+  sequence_number?: number | null;
 };
 
 export type TransactionInsert = Omit<TablesInsert<'transactions'>, 'id' | 'created_at' | 'updated_at'>;
 export type TransactionUpdate = TablesUpdate<'transactions'>;
+
+// Transaction types
+export type TransactionType = 'draft' | 'processor_fee' | 'settlement_payment' | 'contingency_fee';
+export type TransactionStatus = 'open' | 'pending' | 'cleared' | 'cancelled';
 
 export function useTransactions(status?: string, type?: string, clientServiceId?: string) {
   return useQuery({
@@ -90,6 +101,7 @@ export function useCreateTransaction() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['scheduled-transactions'] });
       toast({ title: 'Transaction created' });
     },
     onError: (error: Error) => {
@@ -116,10 +128,36 @@ export function useUpdateTransaction() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['transaction', data.id] });
+      queryClient.invalidateQueries({ queryKey: ['scheduled-transactions'] });
       toast({ title: 'Transaction updated' });
     },
     onError: (error: Error) => {
       toast({ title: 'Failed to update transaction', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+// Create multiple transactions at once (for generating scheduled drafts)
+export function useCreateTransactionsBatch() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (transactions: TransactionInsert[]) => {
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert(transactions)
+        .select();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['scheduled-transactions'] });
+      toast({ title: `Transactions created` });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to create transactions', description: error.message, variant: 'destructive' });
     },
   });
 }

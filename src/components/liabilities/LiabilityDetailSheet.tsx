@@ -5,13 +5,15 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Building2, FileText, Plus, Handshake, History } from 'lucide-react';
+import { DollarSign, Building2, FileText, Plus, Handshake, History, Calculator } from 'lucide-react';
 import { useLiability } from '@/hooks/useLiabilities';
 import { useSettlements } from '@/hooks/useSettlements';
+import { useClientService } from '@/hooks/useClientServices';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SettlementFormDialog } from './SettlementFormDialog';
 import { SettlementCard } from './SettlementCard';
 import { LiabilityActionsTimeline } from './LiabilityActionsTimeline';
+import { SettlementOfferBuilder } from './SettlementOfferBuilder';
 
 interface LiabilityDetailSheetProps {
   liabilityId: string | null;
@@ -57,7 +59,9 @@ const maskAccountNumber = (num: string | null) =>
 export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }: LiabilityDetailSheetProps) {
   const { data: liability, isLoading } = useLiability(liabilityId || undefined);
   const { data: settlements } = useSettlements(liabilityId || undefined);
+  const { data: clientService } = useClientService(liability?.client_service_id);
   const [showSettlementForm, setShowSettlementForm] = useState(false);
+  const [showOfferBuilder, setShowOfferBuilder] = useState(false);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -195,10 +199,16 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
                     <Handshake className="h-4 w-4 text-muted-foreground" />
                     <h4 className="font-medium">Settlement Offers</h4>
                   </div>
-                  <Button size="sm" onClick={() => setShowSettlementForm(true)}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    New Offer
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setShowSettlementForm(true)}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Quick Offer
+                    </Button>
+                    <Button size="sm" onClick={() => setShowOfferBuilder(true)}>
+                      <Calculator className="h-4 w-4 mr-1" />
+                      Build Offer
+                    </Button>
+                  </div>
                 </div>
 
                 {settlements && settlements.length > 0 ? (
@@ -223,12 +233,24 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
               </TabsContent>
             </Tabs>
 
-            {/* Settlement Form */}
+            {/* Settlement Form (Quick) */}
             {showSettlementForm && liabilityId && (
               <SettlementFormDialog
                 open={showSettlementForm}
                 onOpenChange={setShowSettlementForm}
                 liabilityId={liabilityId}
+              />
+            )}
+
+            {/* Settlement Offer Builder (Advanced) */}
+            {showOfferBuilder && liabilityId && liability?.client_service_id && (
+              <SettlementOfferBuilder
+                open={showOfferBuilder}
+                onOpenChange={setShowOfferBuilder}
+                liabilityId={liabilityId}
+                clientServiceId={liability.client_service_id}
+                currentEscrowBalance={clientService?.escrow_balance || 0}
+                monthlyDraft={clientService?.monthly_payment || 0}
               />
             )}
           </>
