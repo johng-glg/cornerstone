@@ -1,112 +1,45 @@
 
-# Load Mock Data for Phases 1-3
+
+# Load Mock Data - Step 1: Companies
 
 ## Overview
 
-Load realistic sample data into all database tables to enable testing of the Leads, Contacts, Engagements, Tasks, Creditors, Liabilities, Settlements, and Payments modules.
+Load foundation data one table at a time to avoid timeouts. This first step creates the company hierarchy that all other data depends on.
 
-## Data to be Created
+## Step 1: Companies (This Migration)
 
-### Foundation Data (Required First)
+Insert 2 company records:
 
-| Table | Records | Description |
-|-------|---------|-------------|
-| `companies` | 2 | Main law firm + affiliate company |
-| `staff` | 5 | Admin, Attorney, Negotiator, Case Manager, Sales Rep |
-| `services` | 3 | Debt Resolution, Consumer Defense, Hybrid |
-| `payment_processors` | 2 | ACH processor + Credit Card processor |
+| Name | Type | Role |
+|------|------|------|
+| Johnson & Associates Law Firm | law_firm | Main company (parent) |
+| Legal Solutions Affiliate | affiliate | Child company |
 
-### Phase 1: Leads & Contacts
+## Loading Order (Future Steps)
 
-| Table | Records | Description |
-|-------|---------|-------------|
-| `contacts` | 8 | Client contacts with varied details |
-| `contact_phones` | 10 | Primary/secondary phone numbers |
-| `contact_addresses` | 8 | Home and mailing addresses |
-| `leads` | 6 | Leads across all statuses (new, contacted, qualified, converted, lost) |
-| `lead_activities` | 12 | Activity history for leads |
+After this migration succeeds, we'll continue with:
 
-### Phase 2: Engagements & Tasks
+1. **Step 2**: Staff (5 members)
+2. **Step 3**: Contacts + Phones + Addresses (8 contacts)
+3. **Step 4**: Leads + Lead Activities (6 leads)
+4. **Step 5**: Creditors (8 creditors)
+5. **Step 6**: Engagements + Links (5 engagements)
+6. **Step 7**: Tasks (10 tasks)
+7. **Step 8**: Liabilities (12 liabilities)
+8. **Step 9**: Settlements + Actions (6 settlements)
+9. **Step 10**: Transactions (8 transactions)
 
-| Table | Records | Description |
-|-------|---------|-------------|
-| `engagements` | 5 | Engagements in various statuses (prospect, active, suspended, closed) |
-| `engagement_contacts` | 6 | Contact-engagement relationships |
-| `engagement_services` | 5 | Services linked to engagements |
-| `tasks` | 10 | Tasks across all statuses and priorities |
+## Technical Details
 
-### Phase 3: Creditors, Liabilities, Settlements, Payments
+```sql
+-- Insert parent company first
+INSERT INTO companies (name, company_type, address_line1, city, state, zip_code, phone, email, website, is_active, data_visibility)
+VALUES 
+  ('Johnson & Associates Law Firm', 'law_firm', '123 Legal Plaza, Suite 500', 'Los Angeles', 'CA', '90001', '(555) 123-4567', 'info@johnsonlaw.com', 'www.johnsonlaw.com', true, 'company_wide');
 
-| Table | Records | Description |
-|-------|---------|-------------|
-| `creditors` | 8 | Mix of original creditors, collection agencies, law firms, debt buyers |
-| `liabilities` | 12 | Liabilities across all types and statuses |
-| `settlements` | 6 | Settlement offers in various stages |
-| `liability_actions` | 15 | Activity history for liabilities |
-| `transactions` | 8 | Payment transactions |
+-- Insert affiliate company with parent reference
+INSERT INTO companies (name, company_type, address_line1, city, state, zip_code, phone, email, is_active, data_visibility, parent_company_id)
+SELECT 'Legal Solutions Affiliate', 'affiliate', '456 Partner Street', 'San Diego', 'CA', '92101', '(555) 987-6543', 'info@legalsolutions.com', true, 'own_only', id
+FROM companies WHERE name = 'Johnson & Associates Law Firm';
+```
 
----
-
-## Implementation
-
-### Single SQL Migration
-
-A database migration script will insert all mock data in the correct dependency order:
-
-1. Companies (law firm hierarchy)
-2. Staff members with departments/roles
-3. Services and Payment Processors
-4. Contacts with phones and addresses
-5. Leads with activities
-6. Engagements with contact and service linkages
-7. Tasks assigned to staff
-8. Creditors directory
-9. Liabilities linked to engagements and creditors
-10. Settlements for liabilities
-11. Liability actions (timeline history)
-12. Transactions for payment tracking
-
----
-
-## Sample Data Highlights
-
-### Staff Members
-- Sarah Johnson (Admin, admin@lawfirm.com)
-- Michael Chen (Attorney, attorney@lawfirm.com)
-- Emily Rodriguez (Negotiator, negotiations@lawfirm.com)
-- David Kim (Case Manager, casemanager@lawfirm.com)
-- Jessica Thompson (Sales Rep, sales@lawfirm.com)
-
-### Contacts
-- John & Mary Smith (married couple, co-clients)
-- Robert Williams (single client)
-- Patricia Brown (client with multiple debts)
-- And 4 more varied contacts
-
-### Creditors
-- Bank of America, Chase, Capital One (original creditors)
-- Midland Funding, Portfolio Recovery (debt buyers)
-- Hunt & Henriques (law firm)
-- IC System, Convergent (collection agencies)
-
-### Liabilities Mix
-- Credit cards: $15,000 - $45,000
-- Medical debt: $5,000 - $25,000
-- Personal loans: $10,000 - $35,000
-- Various statuses: enrolled, in_negotiation, settled, in_litigation
-
-### Settlements
-- Offered settlements awaiting attorney approval
-- Accepted settlements in payment
-- Completed settlements
-- Rejected settlement examples
-
----
-
-## Technical Notes
-
-- All UUIDs will be generated by the database
-- Foreign key references use CTEs (Common Table Expressions) for clean insertion
-- Engagement numbers auto-generated by existing trigger
-- Lead numbers auto-generated by existing trigger
-- Timestamps use realistic date ranges (past 6 months)
