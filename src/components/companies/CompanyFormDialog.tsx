@@ -60,6 +60,7 @@ interface CompanyFormDialogProps {
 export function CompanyFormDialog({ open, onOpenChange, company }: CompanyFormDialogProps) {
   const queryClient = useQueryClient();
   const isEditing = !!company;
+  const isRootCompany = isEditing && !company?.parent_company_id;
 
   const { data: companies } = useQuery({
     queryKey: ['companies'],
@@ -234,32 +235,34 @@ export function CompanyFormDialog({ open, onOpenChange, company }: CompanyFormDi
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="parent_company_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Parent Company</FormLabel>
-                    <Select 
-                      onValueChange={(val) => field.onChange(val === 'none' ? null : val)} 
-                      value={field.value || 'none'}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="None (Root)" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">None (Root Company)</SelectItem>
-                        {parentOptions.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {!isRootCompany && (
+                <FormField
+                  control={form.control}
+                  name="parent_company_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Parent Company</FormLabel>
+                      <Select 
+                        onValueChange={(val) => field.onChange(val === 'none' ? null : val)} 
+                        value={field.value || 'none'}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="None (Root)" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">None (Root Company)</SelectItem>
+                          {parentOptions.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}
@@ -284,18 +287,20 @@ export function CompanyFormDialog({ open, onOpenChange, company }: CompanyFormDi
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="is_active"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                    <FormLabel className="text-sm font-medium">Active</FormLabel>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+              {!isRootCompany && (
+                <FormField
+                  control={form.control}
+                  name="is_active"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                      <FormLabel className="text-sm font-medium">Active</FormLabel>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
 
             <div className="border-t pt-4">
