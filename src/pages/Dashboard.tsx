@@ -91,15 +91,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-heading font-bold text-foreground">
-          {getDepartmentGreeting()}
-        </h1>
-        <p className="text-muted-foreground">
-          Welcome back, {staff?.first_name || 'User'}. Here's what's happening today.
-        </p>
-      </div>
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -205,11 +196,7 @@ export default function Dashboard() {
 
       {/* Quick Actions */}
       <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Common tasks you might want to perform</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="flex flex-wrap gap-3">
             <Button asChild>
               <Link to="/leads/new">
