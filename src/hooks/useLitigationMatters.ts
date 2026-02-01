@@ -201,7 +201,18 @@ export function useUpdateLitigationMatter() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: LitigationMatterUpdate) => {
+    mutationFn: async ({ id, staffId, ...updates }: LitigationMatterUpdate & { staffId?: string }) => {
+      // Fetch current matter to detect status changes
+      let previousStatus: LitigationStatus | null = null;
+      if (updates.status) {
+        const { data: currentMatter } = await supabase
+          .from('litigation_matters')
+          .select('status')
+          .eq('id', id)
+          .single();
+        previousStatus = currentMatter?.status ?? null;
+      }
+
       const { data, error } = await supabase
         .from('litigation_matters')
         .update(updates)
@@ -209,11 +220,23 @@ export function useUpdateLitigationMatter() {
         .select()
         .single();
       if (error) throw error;
+
+      // Log activity if status changed
+      if (updates.status && previousStatus && previousStatus !== updates.status) {
+        await supabase.from('litigation_activities').insert([{
+          matter_id: id,
+          activity_type: 'status_change',
+          description: `Status changed from ${previousStatus.replace('_', ' ')} to ${updates.status.replace('_', ' ')}`,
+          staff_id: staffId || null,
+        }]);
+      }
+
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['litigation_matters'] });
       queryClient.invalidateQueries({ queryKey: ['litigation_matter', data.id] });
+      queryClient.invalidateQueries({ queryKey: ['litigation_activities', data.id] });
       toast({ title: 'Litigation matter updated' });
     },
     onError: (error: Error) => {

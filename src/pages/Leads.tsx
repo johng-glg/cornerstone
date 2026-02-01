@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLeads, useLead } from '@/hooks/useLeads';
+import { useSearchParams } from 'react-router-dom';
 import { LeadKanban } from '@/components/leads/LeadKanban';
 import { LeadFormDialog } from '@/components/leads/LeadFormDialog';
 import { LeadDetailSheet } from '@/components/leads/LeadDetailSheet';
@@ -31,6 +32,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 export default function LeadsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -38,6 +40,15 @@ export default function LeadsPage() {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [convertingLeadId, setConvertingLeadId] = useState<string | null>(null);
   const [convertingLitigationLeadId, setConvertingLitigationLeadId] = useState<string | null>(null);
+
+  // Handle ?action=new query param to auto-open dialog
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      setShowCreateDialog(true);
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data: leads, isLoading } = useLeads();
   const { data: selectedLead } = useLead(selectedLeadId ?? undefined);
