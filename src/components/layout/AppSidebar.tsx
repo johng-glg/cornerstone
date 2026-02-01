@@ -41,6 +41,7 @@ const adminNavItems = [
   { title: 'Creditors', url: '/creditors', icon: Landmark },
   { title: 'Reports', url: '/reports', icon: BarChart3 },
   { title: 'Companies', url: '/companies', icon: Building2 },
+  { title: 'Staff', url: '/staff', icon: Users },
   { title: 'Payments', url: '/payments', icon: CreditCard },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];

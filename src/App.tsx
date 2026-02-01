@@ -15,10 +15,11 @@ import LiabilitiesPage from "./pages/Liabilities";
 import CreditorsPage from "./pages/Creditors";
 import PaymentsPage from "./pages/Payments";
 import NotFound from "./pages/NotFound";
+import CompaniesPage from "./pages/Companies";
+import StaffPage from "./pages/Staff";
 
 // Placeholder pages - will be implemented in future phases
 const ReportsPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Reports</h1><p className="text-muted-foreground mt-2">Reports coming soon...</p></div>;
-const CompaniesPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Companies</h1><p className="text-muted-foreground mt-2">Company management coming soon...</p></div>;
 const SettingsPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Settings</h1><p className="text-muted-foreground mt-2">Settings coming soon...</p></div>;
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/creditors" element={<AppLayout><CreditorsPage /></AppLayout>} />
             <Route path="/reports" element={<AppLayout><ReportsPage /></AppLayout>} />
             <Route path="/companies" element={<AppLayout><CompaniesPage /></AppLayout>} />
+            <Route path="/staff" element={<AppLayout><StaffPage /></AppLayout>} />
             <Route path="/payments" element={<AppLayout><PaymentsPage /></AppLayout>} />
             <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
             
