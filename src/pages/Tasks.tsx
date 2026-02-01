@@ -259,7 +259,7 @@ export default function TasksPage() {
           ))}
         </div>
       ) : view === 'kanban' ? (
-        <TaskKanban tasks={filteredTasks} onTaskClick={handleViewTask} />
+        <TaskKanban tasks={filteredTasks} onTaskClick={handleViewTask} showCompleted={showCompleted} />
       ) : (
         <div className="border rounded-lg">
           <Table>

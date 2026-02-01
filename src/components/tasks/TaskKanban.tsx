@@ -9,6 +9,7 @@ import { format, isPast, isToday } from 'date-fns';
 interface TaskKanbanProps {
   tasks: Task[];
   onTaskClick: (task: Task) => void;
+  showCompleted?: boolean;
 }
 
 const columns: { id: TaskStatus; title: string; className: string }[] = [
@@ -34,7 +35,7 @@ const typeLabels: Record<string, string> = {
   general: 'General',
 };
 
-export function TaskKanban({ tasks, onTaskClick }: TaskKanbanProps) {
+export function TaskKanban({ tasks, onTaskClick, showCompleted = false }: TaskKanbanProps) {
   const updateStatus = useUpdateTaskStatus();
 
   const handleDragEnd = (result: DropResult) => {
@@ -52,10 +53,19 @@ export function TaskKanban({ tasks, onTaskClick }: TaskKanbanProps) {
     return tasks.filter((task) => task.status === status);
   };
 
+  // Filter columns based on showCompleted
+  const visibleColumns = showCompleted 
+    ? columns 
+    : columns.filter(col => col.id !== 'completed' && col.id !== 'cancelled');
+
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {columns.map((column) => (
+      <div className={`grid grid-cols-1 gap-4 ${
+        visibleColumns.length === 2 
+          ? 'md:grid-cols-2' 
+          : 'md:grid-cols-2 lg:grid-cols-4'
+      }`}>
+        {visibleColumns.map((column) => (
           <div key={column.id} className={`rounded-lg p-3 ${column.className}`}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-medium text-sm">{column.title}</h3>
