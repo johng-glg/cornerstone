@@ -41,14 +41,14 @@ export function TransactionList({
     return (
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Engagement</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Processor</TableHead>
-          </TableRow>
+        <TableRow>
+          <TableHead>Date</TableHead>
+          <TableHead>Service</TableHead>
+          <TableHead>Type</TableHead>
+          <TableHead className="text-right">Amount</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Processor</TableHead>
+        </TableRow>
         </TableHeader>
         <TableBody>
           {Array.from({ length: 5 }).map((_, i) => (
@@ -71,7 +71,7 @@ export function TransactionList({
       <TableHeader>
         <TableRow>
           <TableHead>Date</TableHead>
-          <TableHead>Engagement</TableHead>
+          <TableHead>Service</TableHead>
           <TableHead>Type</TableHead>
           <TableHead className="text-right">Amount</TableHead>
           <TableHead>Status</TableHead>
@@ -95,11 +95,11 @@ export function TransactionList({
               <TableCell>
                 <div>
                   <p className="font-medium text-sm">
-                    {transaction.engagement?.engagement_number || 'N/A'}
+                    {transaction.client_service?.service_number || 'N/A'}
                   </p>
-                  {transaction.engagement?.primary_contact && (
+                  {transaction.client_service?.primary_client && (
                     <p className="text-xs text-muted-foreground">
-                      {transaction.engagement.primary_contact.first_name} {transaction.engagement.primary_contact.last_name}
+                      {transaction.client_service.primary_client.first_name} {transaction.client_service.primary_client.last_name}
                     </p>
                   )}
                 </div>

@@ -91,22 +91,22 @@ export function TransactionDetailSheet({ transactionId, open, onOpenChange }: Tr
                 </CardContent>
               </Card>
 
-              {/* Engagement */}
-              {transaction.engagement && (
+              {/* Service */}
+              {transaction.client_service && (
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base flex items-center gap-2">
                       <FileText className="h-4 w-4" />
-                      Engagement
+                      Service
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="font-medium">{transaction.engagement.engagement_number}</p>
-                    {transaction.engagement.primary_contact && (
+                    <p className="font-medium">{transaction.client_service.service_number}</p>
+                    {transaction.client_service.primary_client && (
                       <p className="text-sm text-muted-foreground">
-                        {transaction.engagement.primary_contact.first_name} {transaction.engagement.primary_contact.last_name}
-                        {transaction.engagement.primary_contact.email && (
-                          <span className="block">{transaction.engagement.primary_contact.email}</span>
+                        {transaction.client_service.primary_client.first_name} {transaction.client_service.primary_client.last_name}
+                        {transaction.client_service.primary_client.email && (
+                          <span className="block">{transaction.client_service.primary_client.email}</span>
                         )}
                       </p>
                     )}

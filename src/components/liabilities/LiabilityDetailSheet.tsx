@@ -156,20 +156,20 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
                   </CardContent>
                 </Card>
 
-                {/* Engagement Link */}
-                {liability.engagement && (
+                {/* Service Link */}
+                {liability.client_service && (
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base flex items-center gap-2">
                         <FileText className="h-4 w-4" />
-                        Engagement
+                        Service
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="font-medium">{liability.engagement.engagement_number}</p>
-                      {liability.engagement.primary_contact && (
+                      <p className="font-medium">{liability.client_service.service_number}</p>
+                      {liability.client_service.primary_client && (
                         <p className="text-sm text-muted-foreground">
-                          {liability.engagement.primary_contact.first_name} {liability.engagement.primary_contact.last_name}
+                          {liability.client_service.primary_client.first_name} {liability.client_service.primary_client.last_name}
                         </p>
                       )}
                     </CardContent>

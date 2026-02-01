@@ -31,8 +31,8 @@ import {
 const mainNavItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
   { title: 'Leads', url: '/leads', icon: UserPlus },
-  { title: 'Engagements', url: '/engagements', icon: Briefcase },
-  { title: 'Contacts', url: '/contacts', icon: Users },
+  { title: 'Services', url: '/services', icon: Briefcase },
+  { title: 'Clients', url: '/clients', icon: Users },
   { title: 'Liabilities', url: '/liabilities', icon: DollarSign },
   { title: 'Tasks', url: '/tasks', icon: CheckSquare },
 ];
