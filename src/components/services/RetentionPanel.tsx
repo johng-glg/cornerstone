@@ -122,12 +122,12 @@ export function RetentionPanel({
 
           <div className="space-y-2">
             <Label>Assign To</Label>
-            <Select value={newAssignedTo} onValueChange={setNewAssignedTo}>
+            <Select value={newAssignedTo || 'unassigned'} onValueChange={(v) => setNewAssignedTo(v === 'unassigned' ? '' : v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select staff member" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
                 {staff?.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.first_name} {s.last_name}
