@@ -9,7 +9,8 @@ import {
   Building2,
   Settings,
   CreditCard,
-  Scale
+  Scale,
+  Landmark
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/lib/auth';
@@ -37,6 +38,7 @@ const mainNavItems = [
 ];
 
 const adminNavItems = [
+  { title: 'Creditors', url: '/creditors', icon: Landmark },
   { title: 'Reports', url: '/reports', icon: BarChart3 },
   { title: 'Companies', url: '/companies', icon: Building2 },
   { title: 'Payments', url: '/payments', icon: CreditCard },
@@ -58,9 +60,15 @@ export function AppSidebar() {
     if (isAdmin()) {
       return adminNavItems;
     }
-    // Show Reports to attorneys and managers
+    // Show Reports and Creditors to attorneys and managers
     if (hasRole('attorney') || hasRole('case_manager')) {
-      return adminNavItems.filter(item => item.title === 'Reports');
+      return adminNavItems.filter(item => 
+        item.title === 'Reports' || item.title === 'Creditors'
+      );
+    }
+    // Show Payments to payment processors
+    if (hasRole('payment_processor')) {
+      return adminNavItems.filter(item => item.title === 'Payments');
     }
     return [];
   };

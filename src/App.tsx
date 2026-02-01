@@ -11,13 +11,14 @@ import LeadsPage from "./pages/Leads";
 import ContactsPage from "./pages/Contacts";
 import EngagementsPage from "./pages/Engagements";
 import TasksPage from "./pages/Tasks";
+import LiabilitiesPage from "./pages/Liabilities";
+import CreditorsPage from "./pages/Creditors";
+import PaymentsPage from "./pages/Payments";
 import NotFound from "./pages/NotFound";
 
-// Placeholder pages - will be implemented in Phase 3
-const LiabilitiesPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Liabilities</h1><p className="text-muted-foreground mt-2">Liability management coming soon...</p></div>;
+// Placeholder pages - will be implemented in future phases
 const ReportsPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Reports</h1><p className="text-muted-foreground mt-2">Reports coming soon...</p></div>;
 const CompaniesPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Companies</h1><p className="text-muted-foreground mt-2">Company management coming soon...</p></div>;
-const PaymentsPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Payments</h1><p className="text-muted-foreground mt-2">Payment processing coming soon...</p></div>;
 const SettingsPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Settings</h1><p className="text-muted-foreground mt-2">Settings coming soon...</p></div>;
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/contacts" element={<AppLayout><ContactsPage /></AppLayout>} />
             <Route path="/liabilities" element={<AppLayout><LiabilitiesPage /></AppLayout>} />
             <Route path="/tasks" element={<AppLayout><TasksPage /></AppLayout>} />
+            <Route path="/creditors" element={<AppLayout><CreditorsPage /></AppLayout>} />
             <Route path="/reports" element={<AppLayout><ReportsPage /></AppLayout>} />
             <Route path="/companies" element={<AppLayout><CompaniesPage /></AppLayout>} />
             <Route path="/payments" element={<AppLayout><PaymentsPage /></AppLayout>} />
