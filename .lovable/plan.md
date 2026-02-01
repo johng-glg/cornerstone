@@ -1,323 +1,114 @@
 
-# Multi-Dimensional Service Status System
+# Populate Sample Liabilities for Active Client Services
 
 ## Overview
 
-This plan addresses "status overload" by implementing a multi-dimensional status system for services, removing the "prospect" status (since services are created through lead conversion), and adding a computed client status (Active/Inactive) based on whether they have any active services.
+This plan adds realistic sample liabilities (debts) to the 4 active client services, creating a diverse portfolio that demonstrates the debt resolution workflow.
 
 ---
 
-## Database Changes
+## Current State
 
-### 1. Remove "prospect" from service_status enum and add new primary statuses
+**4 Active Client Services:**
+| Service # | Client | Service ID |
+|-----------|--------|------------|
+| ENG-2026-0001 | Michael Johnson | 373efcd3-a4ec-4a47-9741-bba0b57f0d49 |
+| ENG-2026-0002 | Sarah Williams | 312c78f9-c439-49da-940e-ad86f6f3d4e8 |
+| ENG-2026-0003 | Robert Davis | b398972b-db12-448d-975f-31b3c4423769 |
+| ENG-2026-0006 | Emily Taylor | a24458e5-b95e-4023-962d-f58ae8568df5 |
 
-**Replace the current `service_status` enum with new values:**
-
-| Current Enum | New Enum (primary_status) |
-|--------------|---------------------------|
-| prospect | (removed - not applicable) |
-| active | active |
-| suspended | (removed - now a payment_status) |
-| closed | (split into: graduated, dropped, cancelled) |
-| (new) | pending |
-
-**New primary_status values:**
-- `pending` - Agreement signed, not yet started
-- `active` - Service currently running
-- `graduated` - Successfully completed program
-- `dropped` - Client dropped out
-- `cancelled` - Formally cancelled
-
-### 2. Add new status dimension columns to client_services
-
-```sql
--- Payment Status (only relevant when primary status is 'active')
-ALTER TABLE client_services ADD COLUMN payment_status TEXT;
--- Values: current, paused, nsf, past_due, suspended, null
-
--- Retention Status (cancellation risk tracking)
-ALTER TABLE client_services ADD COLUMN retention_flag BOOLEAN DEFAULT false;
-ALTER TABLE client_services ADD COLUMN retention_type TEXT;
--- Values: client_requested_cancel, company_initiated_cancel, at_risk, churn_risk, complaint
-ALTER TABLE client_services ADD COLUMN retention_date TIMESTAMPTZ;
-ALTER TABLE client_services ADD COLUMN retention_reason TEXT;
-ALTER TABLE client_services ADD COLUMN retention_assigned_to UUID REFERENCES staff(id);
-
--- Contact Status (client reachability)
-ALTER TABLE client_services ADD COLUMN contact_status TEXT DEFAULT 'reachable';
--- Values: reachable, hard_to_reach, unreachable, no_contact_allowed
-ALTER TABLE client_services ADD COLUMN last_successful_contact_date TIMESTAMPTZ;
-ALTER TABLE client_services ADD COLUMN contact_attempts_count INTEGER DEFAULT 0;
-ALTER TABLE client_services ADD COLUMN last_contact_attempt_date TIMESTAMPTZ;
-
--- Status history tracking
-ALTER TABLE client_services ADD COLUMN primary_status_changed_at TIMESTAMPTZ;
-ALTER TABLE client_services ADD COLUMN payment_status_changed_at TIMESTAMPTZ;
-ALTER TABLE client_services ADD COLUMN contact_status_changed_at TIMESTAMPTZ;
-```
-
-### 3. Create status history table
-
-```sql
-CREATE TABLE service_status_history (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_service_id UUID REFERENCES client_services(id) NOT NULL,
-  status_dimension TEXT NOT NULL, -- 'primary', 'payment', 'retention', 'contact'
-  old_value TEXT,
-  new_value TEXT,
-  reason TEXT,
-  changed_by UUID REFERENCES staff(id),
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
-
-### 4. Add client status field
-
-```sql
--- Clients get a computed/tracked status
-ALTER TABLE clients ADD COLUMN status TEXT DEFAULT 'inactive';
--- Values: active, inactive (driven by presence of active services)
-
--- Create a trigger to automatically update client status
-CREATE OR REPLACE FUNCTION update_client_status()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Update the primary client's status based on active services
-  UPDATE clients c
-  SET status = CASE 
-    WHEN EXISTS (
-      SELECT 1 FROM client_services cs 
-      WHERE cs.primary_client_id = c.id 
-      AND cs.status = 'active'
-    ) THEN 'active'
-    ELSE 'inactive'
-  END
-  WHERE c.id = COALESCE(NEW.primary_client_id, OLD.primary_client_id);
-  
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-```
+**20 Available Creditors:** Chase, Capital One, Discover, AmEx, Bank of America, Wells Fargo, Synchrony, Comenity, Barclays, etc.
 
 ---
 
-## Type Definitions
+## Liabilities Schema
 
-New TypeScript enums to be created:
-
-```typescript
-// Primary Service Status (lifecycle)
-type PrimaryServiceStatus = 'pending' | 'active' | 'graduated' | 'dropped' | 'cancelled';
-
-// Payment Status (financial state)
-type PaymentStatus = 'current' | 'paused' | 'nsf' | 'past_due' | 'suspended' | null;
-
-// Retention Type (cancellation risk reasons)
-type RetentionType = 'client_requested_cancel' | 'company_initiated_cancel' | 'at_risk' | 'churn_risk' | 'complaint' | null;
-
-// Contact Status (reachability)
-type ContactStatus = 'reachable' | 'hard_to_reach' | 'unreachable' | 'no_contact_allowed';
-
-// Client Status (derived from services)
-type ClientStatus = 'active' | 'inactive';
-```
+Each liability requires:
+- `client_service_id` - Link to active service
+- `liability_type` - credit_card, medical, personal_loan, auto_loan, student_loan, mortgage, other
+- `status` - enrolled, in_negotiation, settled, in_litigation, dismissed, cancelled
+- `original_creditor_id` - Link to creditor
+- `current_creditor_id` - Same as original or collection agency (if sold)
+- `original_balance` - Balance when debt originated
+- `enrolled_balance` - Balance when enrolled in program
+- `current_balance` - Current negotiated balance
+- `account_number` - Last 4 digits masked
+- `priority` - Order for settlement (1 = highest)
+- `notes` - Optional
 
 ---
 
-## UI Components to Create/Modify
+## Sample Data Plan
 
-### 1. Multi-Status Badge Component
+### Service 1: Michael Johnson (ENG-2026-0001) - $47,500 Total
+*Mix of statuses showing program progress*
 
-Create a new `ServiceStatusBadges` component that displays all relevant status dimensions:
+| Creditor | Type | Original | Enrolled | Current | Status | Priority |
+|----------|------|----------|----------|---------|--------|----------|
+| Chase | Credit Card | $12,500 | $14,200 | $0 | settled | 1 |
+| Capital One | Credit Card | $8,750 | $9,400 | $4,700 | in_negotiation | 2 |
+| Discover | Credit Card | $15,800 | $17,100 | $17,100 | enrolled | 3 |
+| Best Egg | Personal Loan | $6,200 | $6,800 | $6,800 | enrolled | 4 |
 
-```text
-+----------------------------------------------------------+
-| SVC-0001                                                  |
-| [Active] [NSF] [At Risk] [Hard to Reach]                 |
-|  ^green   ^red   ^yellow   ^orange                        |
-+----------------------------------------------------------+
-```
+### Service 2: Sarah Williams (ENG-2026-0002) - $32,800 Total
+*Early stage program - mostly enrolled*
 
-### 2. Services Page Updates
+| Creditor | Type | Original | Enrolled | Current | Status | Priority |
+|----------|------|----------|----------|---------|--------|----------|
+| American Express | Credit Card | $11,200 | $12,500 | $12,500 | enrolled | 1 |
+| Bank of America | Credit Card | $9,800 | $10,200 | $10,200 | in_negotiation | 2 |
+| Synchrony | Credit Card | $7,400 | $7,900 | $7,900 | enrolled | 3 |
+| Wells Fargo | Credit Card | $2,200 | $2,200 | $2,200 | enrolled | 4 |
 
-**Filter panel changes:**
-- Replace single status dropdown with multi-select filters for each dimension
-- Add quick filter buttons: "Needs Attention", "Payment Issues", "Retention Concerns"
+### Service 3: Robert Davis (ENG-2026-0003) - $58,200 Total
+*Larger debt portfolio with litigation*
 
-**Table columns:**
-| Service # | Client | Primary Status | Payment | Retention | Contact | Enrolled Debt |
-|-----------|--------|----------------|---------|-----------|---------|---------------|
+| Creditor | Type | Original | Enrolled | Current | Status | Priority |
+|----------|------|----------|----------|---------|--------|----------|
+| Barclays | Credit Card | $18,500 | $21,200 | $21,200 | in_litigation | 1 |
+| Credit One | Credit Card | $5,800 | $6,400 | $3,200 | in_negotiation | 2 |
+| Comenity | Credit Card | $14,200 | $15,800 | $15,800 | enrolled | 3 |
+| Lending Club | Personal Loan | $11,400 | $12,600 | $0 | settled | 4 |
+| TD Bank | Credit Card | $8,300 | $8,300 | $8,300 | enrolled | 5 |
 
-### 3. Service Detail Sheet Updates
+### Service 4: Emily Taylor (ENG-2026-0006) - $28,400 Total
+*Medical and credit mix*
 
-Add new tabs/sections:
-
-**Status Overview Card:**
-```text
-+----------------------------------------+
-| Status Overview                         |
-|----------------------------------------|
-| Primary:    [Active]  Changed: Jan 15  |
-| Payment:    [NSF]     Changed: Feb 1   |
-| Retention:  [At Risk] Flagged: Jan 28  |
-| Contact:    [Reachable]                 |
-+----------------------------------------+
-```
-
-**Status Change Modals:**
-- Each status dimension gets its own change modal with reason tracking
-- Payment status only editable when primary status is 'active'
-
-### 4. Clients Page Updates
-
-- Add "Status" column showing Active/Inactive badge
-- Add filter for client status
-
-### 5. Dashboard Widgets (future)
-
-- "Services Needing Attention" widget showing combined status issues
-- Payment status breakdown chart
-- Retention flag count
+| Creditor | Type | Original | Enrolled | Current | Status | Priority |
+|----------|------|----------|----------|---------|--------|----------|
+| US Bank | Credit Card | $9,600 | $10,800 | $10,800 | enrolled | 1 |
+| Upgrade | Personal Loan | $7,200 | $7,900 | $3,950 | in_negotiation | 2 |
+| Onemain | Personal Loan | $8,400 | $9,700 | $9,700 | enrolled | 3 |
 
 ---
 
-## Files to Modify
+## Implementation Steps
 
-### Database Migration
-- Create new migration with enum changes, new columns, history table, and triggers
+1. **Insert 16 Liabilities** via SQL insert statements with varied statuses:
+   - 7 enrolled (awaiting negotiation)
+   - 4 in_negotiation (active offers)
+   - 2 settled (completed)
+   - 1 in_litigation (legal action)
 
-### Hook Updates
-1. `src/hooks/useClientServices.ts`
-   - Update types to include new status fields
-   - Add mutations for each status dimension change
-   - Add history tracking on status changes
-
-2. `src/hooks/useClients.ts`
-   - Update Client type to include status field
-   - Add filter by client status
-
-### UI Component Updates
-3. `src/pages/Services.tsx`
-   - Remove "prospect" from filter options
-   - Add multi-dimensional filter UI
-   - Update table to show all status dimensions
-
-4. `src/components/services/ServiceDetailSheet.tsx`
-   - Complete redesign of status section
-   - Add status change controls for each dimension
-   - Add retention tracking section
-
-5. `src/components/services/ServiceFormDialog.tsx`
-   - Remove "prospect" as an option
-   - Update default status to 'pending'
-
-6. `src/pages/Clients.tsx`
-   - Add status column to table
-   - Add status filter
-
-7. `src/components/clients/ClientDetailSheet.tsx`
-   - Display client status badge
-
-### New Components to Create
-8. `src/components/services/ServiceStatusBadges.tsx`
-   - Reusable multi-status badge display
-
-9. `src/components/services/StatusChangeModal.tsx`
-   - Modal for changing status with reason tracking
-
-10. `src/components/services/RetentionPanel.tsx`
-    - Panel for managing retention flags
-
----
-
-## Status Configuration
-
-### Primary Status Config
-| Status | Label | Color | Description |
-|--------|-------|-------|-------------|
-| pending | Pending | blue | Agreement signed, not started |
-| active | Active | green | Currently running |
-| graduated | Graduated | purple | Successfully completed |
-| dropped | Dropped | red | Client stopped participating |
-| cancelled | Cancelled | gray | Formally cancelled |
-
-### Payment Status Config
-| Status | Label | Color | When Shown |
-|--------|-------|-------|------------|
-| current | Current | green | Only if active |
-| paused | Paused | yellow | Only if active |
-| nsf | NSF | red | Only if active |
-| past_due | Past Due | orange | Only if active |
-| suspended | Suspended | red | Only if active |
-
-### Contact Status Config
-| Status | Label | Color |
-|--------|-------|-------|
-| reachable | Reachable | green |
-| hard_to_reach | Hard to Reach | yellow |
-| unreachable | Unreachable | red |
-| no_contact_allowed | No Contact | gray |
-
----
-
-## Migration Strategy for Existing Data
-
-```sql
--- Convert existing statuses to new system
-UPDATE client_services SET 
-  status = CASE 
-    WHEN status = 'prospect' THEN 'pending'
-    WHEN status = 'suspended' THEN 'active'
-    WHEN status = 'closed' THEN 'cancelled'
-    ELSE status
-  END;
-
--- Set payment_status for previously suspended services
-UPDATE client_services SET 
-  payment_status = 'suspended'
-WHERE status = 'active' AND OLD.status = 'suspended';
-
--- Initialize payment_status for active services
-UPDATE client_services SET 
-  payment_status = 'current'
-WHERE status = 'active' AND payment_status IS NULL;
-
--- Initialize contact_status for all services
-UPDATE client_services SET 
-  contact_status = 'reachable'
-WHERE contact_status IS NULL;
-```
+2. **Update Client Services** to recalculate `total_enrolled_debt` based on enrolled balances
 
 ---
 
 ## Technical Notes
 
-1. **Constraint Logic**: Payment status fields only apply when primary status is 'active'. The UI will hide/show these fields conditionally.
-
-2. **History Tracking**: All status changes will be logged to `service_status_history` with the staff member who made the change and the reason.
-
-3. **Client Status Automation**: A database trigger automatically updates client status when their services change status.
-
-4. **Indexing**: Create indexes on status columns for efficient filtering:
-   ```sql
-   CREATE INDEX idx_client_services_status ON client_services(status);
-   CREATE INDEX idx_client_services_payment_status ON client_services(payment_status);
-   CREATE INDEX idx_client_services_retention_flag ON client_services(retention_flag);
-   CREATE INDEX idx_client_services_contact_status ON client_services(contact_status);
-   ```
-
-5. **RLS Policies**: The new `service_status_history` table will inherit RLS from client_services via the foreign key relationship.
+- Account numbers will be randomly generated last-4 digits (e.g., "****4521")
+- Settled liabilities have current_balance = 0
+- In-negotiation liabilities show reduced current_balance (offer amount)
+- Enrolled liabilities have current_balance = enrolled_balance
+- Priority 1 = first to settle
 
 ---
 
-## Implementation Order
+## Status Distribution Summary
 
-1. Database migration (new columns, enums, history table, triggers)
-2. Update TypeScript types and hooks
-3. Create ServiceStatusBadges component
-4. Update Services page (filters, table, detail sheet)
-5. Create status change modals with reason tracking
-6. Update Clients page with status display
-7. Add retention management panel
-8. Update ServiceFormDialog to remove prospect option
-
+| Status | Count | Description |
+|--------|-------|-------------|
+| enrolled | 7 | Waiting to begin negotiation |
+| in_negotiation | 4 | Active settlement offers |
+| settled | 2 | Successfully resolved |
+| in_litigation | 1 | Legal proceedings active |
