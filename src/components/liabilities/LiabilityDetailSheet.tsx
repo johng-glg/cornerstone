@@ -280,6 +280,7 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
                 onOpenChange={setShowMatterForm}
                 liabilityId={liabilityId}
                 clientServiceId={liability.client_service_id}
+                creditorName={liability.current_creditor?.name || liability.original_creditor?.name}
               />
             )}
           </>

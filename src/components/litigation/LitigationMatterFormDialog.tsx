@@ -51,18 +51,19 @@ interface LitigationMatterFormDialogProps {
   onOpenChange: (open: boolean) => void;
   liabilityId: string;
   clientServiceId: string;
+  creditorName?: string;
   matter?: LitigationMatter | null;
 }
 
 const statusOptions: { value: LitigationStatus; label: string }[] = [
-  { value: 'pending_response', label: 'Pending Response' },
-  { value: 'discovery', label: 'Discovery' },
-  { value: 'negotiation', label: 'Negotiation' },
-  { value: 'trial_prep', label: 'Trial Prep' },
-  { value: 'trial', label: 'Trial' },
+  { value: 'new', label: 'New' },
+  { value: 'pre_response', label: 'Pre-Response' },
+  { value: 'post_response', label: 'Post-Response' },
   { value: 'settled', label: 'Settled' },
-  { value: 'dismissed', label: 'Dismissed' },
+  { value: 'dropped', label: 'Dropped' },
   { value: 'judgment', label: 'Judgment' },
+  { value: 'declined', label: 'Declined' },
+  { value: 'dismissed', label: 'Dismissed' },
 ];
 
 const usStates = [
@@ -78,6 +79,7 @@ export function LitigationMatterFormDialog({
   onOpenChange,
   liabilityId,
   clientServiceId,
+  creditorName,
   matter,
 }: LitigationMatterFormDialogProps) {
   const createMatter = useCreateLitigationMatter();
@@ -91,9 +93,9 @@ export function LitigationMatterFormDialog({
       court_name: '',
       county: '',
       state: '',
-      opposing_party: '',
+      opposing_party: creditorName || '',
       opposing_counsel: '',
-      status: 'pending_response',
+      status: 'new',
       service_date: '',
       response_deadline: '',
       next_hearing_date: '',
@@ -103,7 +105,7 @@ export function LitigationMatterFormDialog({
     },
   });
 
-  // Reset form when matter changes
+  // Reset form when matter or creditorName changes
   useEffect(() => {
     if (matter) {
       form.reset({
@@ -113,7 +115,7 @@ export function LitigationMatterFormDialog({
         state: matter.state || '',
         opposing_party: matter.opposing_party || '',
         opposing_counsel: matter.opposing_counsel || '',
-        status: matter.status || 'pending_response',
+        status: matter.status || 'new',
         service_date: matter.service_date || '',
         response_deadline: matter.response_deadline || '',
         next_hearing_date: matter.next_hearing_date 
@@ -129,9 +131,9 @@ export function LitigationMatterFormDialog({
         court_name: '',
         county: '',
         state: '',
-        opposing_party: '',
+        opposing_party: creditorName || '',
         opposing_counsel: '',
-        status: 'pending_response',
+        status: 'new',
         service_date: '',
         response_deadline: '',
         next_hearing_date: '',
@@ -140,7 +142,7 @@ export function LitigationMatterFormDialog({
         notes: '',
       });
     }
-  }, [matter, form]);
+  }, [matter, form, creditorName]);
 
   const onSubmit = (values: FormValues) => {
     const data = {
