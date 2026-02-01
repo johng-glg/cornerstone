@@ -1919,14 +1919,14 @@ export type Database = {
         | "mortgage"
         | "other"
       litigation_status:
-        | "pending_response"
-        | "discovery"
-        | "negotiation"
-        | "trial_prep"
-        | "trial"
+        | "new"
+        | "pre_response"
+        | "post_response"
         | "settled"
-        | "dismissed"
+        | "dropped"
         | "judgment"
+        | "declined"
+        | "dismissed"
       payment_status_enum:
         | "current"
         | "paused"
@@ -2217,14 +2217,14 @@ export const Constants = {
         "other",
       ],
       litigation_status: [
-        "pending_response",
-        "discovery",
-        "negotiation",
-        "trial_prep",
-        "trial",
+        "new",
+        "pre_response",
+        "post_response",
         "settled",
-        "dismissed",
+        "dropped",
         "judgment",
+        "declined",
+        "dismissed",
       ],
       payment_status_enum: [
         "current",

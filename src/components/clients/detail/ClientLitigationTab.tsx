@@ -12,25 +12,25 @@ interface ClientLitigationTabProps {
 }
 
 const statusBadgeColors: Record<LitigationStatus, string> = {
-  pending_response: 'bg-red-100 text-red-800',
-  discovery: 'bg-blue-100 text-blue-800',
-  negotiation: 'bg-yellow-100 text-yellow-800',
-  trial_prep: 'bg-orange-100 text-orange-800',
-  trial: 'bg-purple-100 text-purple-800',
+  new: 'bg-blue-100 text-blue-800',
+  pre_response: 'bg-red-100 text-red-800',
+  post_response: 'bg-yellow-100 text-yellow-800',
   settled: 'bg-green-100 text-green-800',
-  dismissed: 'bg-gray-100 text-gray-600',
+  dropped: 'bg-gray-100 text-gray-500',
   judgment: 'bg-red-100 text-red-800',
+  declined: 'bg-orange-100 text-orange-800',
+  dismissed: 'bg-gray-100 text-gray-600',
 };
 
 const statusLabels: Record<LitigationStatus, string> = {
-  pending_response: 'Pending Response',
-  discovery: 'Discovery',
-  negotiation: 'Negotiation',
-  trial_prep: 'Trial Prep',
-  trial: 'Trial',
+  new: 'New',
+  pre_response: 'Pre-Response',
+  post_response: 'Post-Response',
   settled: 'Settled',
-  dismissed: 'Dismissed',
+  dropped: 'Dropped',
   judgment: 'Judgment',
+  declined: 'Declined',
+  dismissed: 'Dismissed',
 };
 
 const typeLabels: Record<string, string> = {
@@ -183,7 +183,7 @@ function MatterCard({ matter, onClick }: { matter: LitigationMatter; onClick: ()
                        'Unknown Creditor';
   
   const isOverdue = matter.response_deadline && isPast(new Date(matter.response_deadline)) && 
-                    matter.status === 'pending_response';
+                    matter.status === 'pre_response';
 
   return (
     <Card 

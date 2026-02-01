@@ -3,14 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export type LitigationStatus = 
-  | 'pending_response'
-  | 'discovery'
-  | 'negotiation'
-  | 'trial_prep'
-  | 'trial'
+  | 'new'
+  | 'pre_response'
+  | 'post_response'
   | 'settled'
-  | 'dismissed'
-  | 'judgment';
+  | 'dropped'
+  | 'judgment'
+  | 'declined'
+  | 'dismissed';
 
 export interface LitigationMatter {
   id: string;
@@ -172,11 +172,22 @@ export function useCreateLitigationMatter() {
         .update({ status: 'in_litigation' })
         .eq('id', matter.liability_id);
       
+      // Log the initial activity
+      await supabase
+        .from('litigation_activities')
+        .insert([{
+          matter_id: data.id,
+          activity_type: 'status_change',
+          description: 'Litigation matter created',
+          outcome: `Initial status: ${matter.status || 'new'}`,
+        }]);
+      
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['litigation_matters'] });
       queryClient.invalidateQueries({ queryKey: ['liabilities'] });
+      queryClient.invalidateQueries({ queryKey: ['litigation_activities', data.id] });
       toast({ title: 'Litigation matter created' });
     },
     onError: (error: Error) => {

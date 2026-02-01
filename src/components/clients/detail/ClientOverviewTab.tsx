@@ -1,11 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Briefcase, TrendingUp, Clock, CheckCircle, ChevronRight, AlertCircle } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Briefcase, TrendingUp, CheckCircle, Clock, FileText, Activity, MessageSquare, Scale, DollarSign, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
-import { ServiceSummaryCard } from './ServiceSummaryCard';
-import { useClientServicesForClient, useLiabilitiesForClient, useTasksForClient, type ClientActivitySummary } from '@/hooks/useClientData';
+import { useClientServicesForClient, useLiabilitiesForClient } from '@/hooks/useClientData';
+import { useClientNotes, type ClientNote } from '@/hooks/useClientNotes';
+import { useClientActivity, type ClientActivity } from '@/hooks/useClientActivity';
 
 interface ClientOverviewTabProps {
   clientId: string;
@@ -16,12 +17,37 @@ interface ClientOverviewTabProps {
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount);
 
+const activityTypeIcons: Record<string, React.ElementType> = {
+  liability_action: FileText,
+  litigation_activity: Scale,
+  task_completed: CheckCircle,
+  settlement: DollarSign,
+  status_change: RefreshCw,
+};
+
+const activityTypeColors: Record<string, string> = {
+  liability_action: 'bg-blue-100 text-blue-600',
+  litigation_activity: 'bg-purple-100 text-purple-600',
+  task_completed: 'bg-green-100 text-green-600',
+  settlement: 'bg-orange-100 text-orange-600',
+  status_change: 'bg-gray-100 text-gray-600',
+};
+
+const noteSourceColors: Record<string, string> = {
+  client: 'bg-blue-100 text-blue-700',
+  service: 'bg-green-100 text-green-700',
+  liability: 'bg-orange-100 text-orange-700',
+  litigation: 'bg-purple-100 text-purple-700',
+  task: 'bg-teal-100 text-teal-700',
+};
+
 export function ClientOverviewTab({ clientId, onViewServices, onViewTasks }: ClientOverviewTabProps) {
   const { data: services, isLoading: servicesLoading } = useClientServicesForClient(clientId);
   const { data: liabilities, isLoading: liabilitiesLoading } = useLiabilitiesForClient(clientId);
-  const { data: tasks, isLoading: tasksLoading } = useTasksForClient(clientId);
+  const { data: notes, isLoading: notesLoading } = useClientNotes(clientId);
+  const { data: activities, isLoading: activitiesLoading } = useClientActivity(clientId);
 
-  const isLoading = servicesLoading || liabilitiesLoading || tasksLoading;
+  const isLoading = servicesLoading || liabilitiesLoading;
 
   // Calculate summary stats
   const activeServices = services?.filter(s => s.status === 'active') || [];
@@ -38,17 +64,14 @@ export function ClientOverviewTab({ clientId, onViewServices, onViewTasks }: Cli
     liabilitiesByStatus[l.status] = (liabilitiesByStatus[l.status] || 0) + 1;
   });
 
-  // Upcoming tasks
-  const upcomingTasks = tasks
-    ?.filter(t => t.status !== 'completed' && t.status !== 'cancelled')
-    .slice(0, 3) || [];
-
   if (isLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-32 w-full" />
+        <div className="grid grid-cols-2 gap-6">
+          <Skeleton className="h-[400px] w-full" />
+          <Skeleton className="h-[400px] w-full" />
+        </div>
       </div>
     );
   }
@@ -118,96 +141,124 @@ export function ClientOverviewTab({ clientId, onViewServices, onViewTasks }: Cli
         </Card>
       </div>
 
-      {/* Services Section */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Briefcase className="h-4 w-4" />
-            Services ({services?.length || 0})
-          </CardTitle>
-          {services && services.length > 2 && (
-            <Button variant="ghost" size="sm" onClick={onViewServices}>
-              View All
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {services && services.length > 0 ? (
-            services.slice(0, 3).map((service) => (
-              <ServiceSummaryCard 
-                key={service.id} 
-                service={service}
-                onClick={onViewServices}
-              />
-            ))
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No services yet
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Two Column: Liabilities Summary + Upcoming */}
+      {/* Two Column: Notes + Activity */}
       <div className="grid grid-cols-2 gap-6">
-        {/* Liabilities Summary */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Liabilities Summary</CardTitle>
+        {/* All Notes */}
+        <Card className="h-[500px] flex flex-col">
+          <CardHeader className="pb-2 flex-shrink-0">
+            <CardTitle className="text-base flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              All Notes
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            {liabilities && liabilities.length > 0 ? (
-              <div className="space-y-2">
-                {Object.entries(liabilitiesByStatus).map(([status, count]) => (
-                  <div key={status} className="flex items-center justify-between text-sm">
-                    <span className="capitalize">{status.replace('_', ' ')}</span>
-                    <Badge variant="secondary">{count}</Badge>
-                  </div>
+          <CardContent className="flex-1 overflow-hidden p-0">
+            {notesLoading ? (
+              <div className="p-4 space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
                 ))}
               </div>
+            ) : notes && notes.length > 0 ? (
+              <ScrollArea className="h-full px-4 pb-4">
+                <div className="space-y-3 pt-1">
+                  {notes.map((note) => (
+                    <NoteCard key={note.id} note={note} />
+                  ))}
+                </div>
+              </ScrollArea>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No liabilities enrolled
-              </p>
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                <div className="text-center">
+                  <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No notes found</p>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Upcoming Tasks */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-base">Upcoming Tasks</CardTitle>
-            {tasks && tasks.length > 3 && (
-              <Button variant="ghost" size="sm" onClick={onViewTasks}>
-                View All
-              </Button>
-            )}
+        {/* Activity Log */}
+        <Card className="h-[500px] flex flex-col">
+          <CardHeader className="pb-2 flex-shrink-0">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Activity Log
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            {upcomingTasks.length > 0 ? (
-              <div className="space-y-3">
-                {upcomingTasks.map((task) => (
-                  <div key={task.id} className="flex items-start gap-2 text-sm">
-                    <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">{task.title}</p>
-                      {task.due_date && (
-                        <p className="text-xs text-muted-foreground">
-                          Due: {format(new Date(task.due_date), 'MMM d')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+          <CardContent className="flex-1 overflow-hidden p-0">
+            {activitiesLoading ? (
+              <div className="p-4 space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
                 ))}
               </div>
+            ) : activities && activities.length > 0 ? (
+              <ScrollArea className="h-full px-4 pb-4">
+                <div className="space-y-3 pt-1">
+                  {activities.map((activity) => (
+                    <ActivityCard key={activity.id} activity={activity} />
+                  ))}
+                </div>
+              </ScrollArea>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No upcoming tasks
-              </p>
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                <div className="text-center">
+                  <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No activity recorded</p>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+function NoteCard({ note }: { note: ClientNote }) {
+  return (
+    <div className="border rounded-lg p-3 bg-card">
+      <div className="flex items-center justify-between mb-2">
+        <Badge className={noteSourceColors[note.source] || 'bg-gray-100 text-gray-700'}>
+          {note.source_label}
+        </Badge>
+        <span className="text-xs text-muted-foreground">
+          {format(new Date(note.created_at), 'MMM d, yyyy')}
+        </span>
+      </div>
+      <p className="text-sm text-foreground whitespace-pre-wrap line-clamp-3">
+        {note.notes}
+      </p>
+    </div>
+  );
+}
+
+function ActivityCard({ activity }: { activity: ClientActivity }) {
+  const Icon = activityTypeIcons[activity.type] || FileText;
+  const colorClass = activityTypeColors[activity.type] || 'bg-gray-100 text-gray-600';
+
+  return (
+    <div className="flex gap-3 border rounded-lg p-3 bg-card">
+      <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${colorClass}`}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-medium text-muted-foreground">
+            {activity.source_label}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {format(new Date(activity.created_at), 'MMM d, h:mm a')}
+          </span>
+        </div>
+        <p className="text-sm text-foreground line-clamp-2">
+          {activity.description}
+        </p>
+        {activity.staff_name && (
+          <p className="text-xs text-muted-foreground mt-1">
+            by {activity.staff_name}
+          </p>
+        )}
       </div>
     </div>
   );
