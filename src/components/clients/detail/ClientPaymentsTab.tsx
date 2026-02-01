@@ -37,7 +37,7 @@ const typeLabels: Record<string, string> = {
   contingency_fee: 'Contingency Fee',
 };
 
-type SortField = 'date' | 'type' | 'amount' | 'status' | 'processor' | 'service';
+type SortField = 'date' | 'type' | 'amount' | 'status' | 'balance';
 type SortDirection = 'asc' | 'desc';
 
 function SortableHeader({ 
@@ -95,10 +95,37 @@ export function ClientPaymentsTab({ clientId }: ClientPaymentsTabProps) {
     }
   };
 
-  const sortedTransactions = useMemo(() => {
+  // Calculate running balance for each transaction
+  const transactionsWithBalance = useMemo(() => {
     if (!transactions) return [];
     
-    return [...transactions].sort((a, b) => {
+    // Sort by date first to calculate running balance
+    const sorted = [...transactions].sort((a, b) => {
+      const dateA = new Date(a.scheduled_date || a.created_at).getTime();
+      const dateB = new Date(b.scheduled_date || b.created_at).getTime();
+      return dateA - dateB;
+    });
+    
+    // Calculate running balance
+    let runningBalance = 0;
+    const withBalance = sorted.map(t => {
+      if (t.status !== 'cancelled') {
+        if (t.transaction_type === 'draft') {
+          runningBalance += t.amount;
+        } else {
+          runningBalance -= t.amount;
+        }
+      }
+      return { ...t, runningBalance };
+    });
+    
+    return withBalance;
+  }, [transactions]);
+
+  const sortedTransactions = useMemo(() => {
+    if (!transactionsWithBalance.length) return [];
+    
+    return [...transactionsWithBalance].sort((a, b) => {
       let comparison = 0;
       
       switch (sortField) {
@@ -114,17 +141,14 @@ export function ClientPaymentsTab({ clientId }: ClientPaymentsTabProps) {
         case 'status':
           comparison = a.status.localeCompare(b.status);
           break;
-        case 'processor':
-          comparison = (a.processor?.name || '').localeCompare(b.processor?.name || '');
-          break;
-        case 'service':
-          comparison = (a.client_service?.service_number || '').localeCompare(b.client_service?.service_number || '');
+        case 'balance':
+          comparison = a.runningBalance - b.runningBalance;
           break;
       }
       
       return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [transactions, sortField, sortDirection]);
+  }, [transactionsWithBalance, sortField, sortDirection]);
 
   if (isLoading) {
     return (
@@ -177,11 +201,8 @@ export function ClientPaymentsTab({ clientId }: ClientPaymentsTabProps) {
               <SortableHeader field="status" currentSort={sortField} currentDirection={sortDirection} onSort={handleSort}>
                 Status
               </SortableHeader>
-              <SortableHeader field="processor" currentSort={sortField} currentDirection={sortDirection} onSort={handleSort}>
-                Processor
-              </SortableHeader>
-              <SortableHeader field="service" currentSort={sortField} currentDirection={sortDirection} onSort={handleSort}>
-                Service
+              <SortableHeader field="balance" currentSort={sortField} currentDirection={sortDirection} onSort={handleSort}>
+                Balance
               </SortableHeader>
             </TableRow>
           </TableHeader>
@@ -206,11 +227,8 @@ export function ClientPaymentsTab({ clientId }: ClientPaymentsTabProps) {
                     {transaction.status}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {transaction.processor?.name || '—'}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {transaction.client_service?.service_number || '—'}
+                <TableCell className={`font-medium ${transaction.runningBalance < 0 ? 'text-destructive' : ''}`}>
+                  {formatCurrency(transaction.runningBalance)}
                 </TableCell>
               </TableRow>
             ))}
