@@ -34,6 +34,7 @@ const mainNavItems = [
   { title: 'Services', url: '/services', icon: Briefcase },
   { title: 'Clients', url: '/clients', icon: Users },
   { title: 'Liabilities', url: '/liabilities', icon: DollarSign },
+  { title: 'Litigation', url: '/litigation', icon: Scale },
   { title: 'Tasks', url: '/tasks', icon: CheckSquare },
 ];
 
