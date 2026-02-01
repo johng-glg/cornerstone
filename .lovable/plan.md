@@ -1,114 +1,294 @@
 
-# Populate Sample Liabilities for Active Client Services
+# Client-Centric Architecture Implementation Plan
 
 ## Overview
 
-This plan adds realistic sample liabilities (debts) to the 4 active client services, creating a diverse portfolio that demonstrates the debt resolution workflow.
+This plan transforms the current fragmented navigation pattern into a comprehensive Client Hub where users can view and manage everything about a client without context-switching between modules.
 
 ---
 
-## Current State
+## Current State Analysis
 
-**4 Active Client Services:**
-| Service # | Client | Service ID |
-|-----------|--------|------------|
-| ENG-2026-0001 | Michael Johnson | 373efcd3-a4ec-4a47-9741-bba0b57f0d49 |
-| ENG-2026-0002 | Sarah Williams | 312c78f9-c439-49da-940e-ad86f6f3d4e8 |
-| ENG-2026-0003 | Robert Davis | b398972b-db12-448d-975f-31b3c4423769 |
-| ENG-2026-0006 | Emily Taylor | a24458e5-b95e-4023-962d-f58ae8568df5 |
+**Problem Identified:**
+- Client Detail Sheet shows only basic contact info (name, phones, addresses)
+- Users must navigate separately to Services, Liabilities, Payments, Tasks to see related data
+- No cross-linking between entities
+- Information scattered across 5+ different pages
 
-**20 Available Creditors:** Chase, Capital One, Discover, AmEx, Bank of America, Wells Fargo, Synchrony, Comenity, Barclays, etc.
+**Current Components:**
+- `ClientDetailSheet.tsx` - 245 lines, 3 tabs (Details, Phones, Addresses)
+- `ServiceDetailSheet.tsx` - 424 lines, comprehensive but service-focused
+- Separate pages for Liabilities, Payments, Tasks
 
----
-
-## Liabilities Schema
-
-Each liability requires:
-- `client_service_id` - Link to active service
-- `liability_type` - credit_card, medical, personal_loan, auto_loan, student_loan, mortgage, other
-- `status` - enrolled, in_negotiation, settled, in_litigation, dismissed, cancelled
-- `original_creditor_id` - Link to creditor
-- `current_creditor_id` - Same as original or collection agency (if sold)
-- `original_balance` - Balance when debt originated
-- `enrolled_balance` - Balance when enrolled in program
-- `current_balance` - Current negotiated balance
-- `account_number` - Last 4 digits masked
-- `priority` - Order for settlement (1 = highest)
-- `notes` - Optional
+**Database Relationships Available:**
+- `client_services.primary_client_id` links to `clients.id`
+- `liabilities.client_service_id` links to services
+- `transactions.client_service_id` links to services
+- `tasks.entity_type` + `entity_id` can reference clients
 
 ---
 
-## Sample Data Plan
+## Architecture Decision
 
-### Service 1: Michael Johnson (ENG-2026-0001) - $47,500 Total
-*Mix of statuses showing program progress*
+**Approach: Convert Sheet to Full-Page View**
 
-| Creditor | Type | Original | Enrolled | Current | Status | Priority |
-|----------|------|----------|----------|---------|--------|----------|
-| Chase | Credit Card | $12,500 | $14,200 | $0 | settled | 1 |
-| Capital One | Credit Card | $8,750 | $9,400 | $4,700 | in_negotiation | 2 |
-| Discover | Credit Card | $15,800 | $17,100 | $17,100 | enrolled | 3 |
-| Best Egg | Personal Loan | $6,200 | $6,800 | $6,800 | enrolled | 4 |
+The current slide-out sheet is too constrained for a comprehensive client hub. The solution will:
 
-### Service 2: Sarah Williams (ENG-2026-0002) - $32,800 Total
-*Early stage program - mostly enrolled*
-
-| Creditor | Type | Original | Enrolled | Current | Status | Priority |
-|----------|------|----------|----------|---------|--------|----------|
-| American Express | Credit Card | $11,200 | $12,500 | $12,500 | enrolled | 1 |
-| Bank of America | Credit Card | $9,800 | $10,200 | $10,200 | in_negotiation | 2 |
-| Synchrony | Credit Card | $7,400 | $7,900 | $7,900 | enrolled | 3 |
-| Wells Fargo | Credit Card | $2,200 | $2,200 | $2,200 | enrolled | 4 |
-
-### Service 3: Robert Davis (ENG-2026-0003) - $58,200 Total
-*Larger debt portfolio with litigation*
-
-| Creditor | Type | Original | Enrolled | Current | Status | Priority |
-|----------|------|----------|----------|---------|--------|----------|
-| Barclays | Credit Card | $18,500 | $21,200 | $21,200 | in_litigation | 1 |
-| Credit One | Credit Card | $5,800 | $6,400 | $3,200 | in_negotiation | 2 |
-| Comenity | Credit Card | $14,200 | $15,800 | $15,800 | enrolled | 3 |
-| Lending Club | Personal Loan | $11,400 | $12,600 | $0 | settled | 4 |
-| TD Bank | Credit Card | $8,300 | $8,300 | $8,300 | enrolled | 5 |
-
-### Service 4: Emily Taylor (ENG-2026-0006) - $28,400 Total
-*Medical and credit mix*
-
-| Creditor | Type | Original | Enrolled | Current | Status | Priority |
-|----------|------|----------|----------|---------|--------|----------|
-| US Bank | Credit Card | $9,600 | $10,800 | $10,800 | enrolled | 1 |
-| Upgrade | Personal Loan | $7,200 | $7,900 | $3,950 | in_negotiation | 2 |
-| Onemain | Personal Loan | $8,400 | $9,700 | $9,700 | enrolled | 3 |
+1. Replace the side-panel `ClientDetailSheet` with a new full-page `ClientDetailPage`
+2. Use URL routing (`/clients/:id`) for proper navigation
+3. Implement tabbed interface with all client data consolidated
+4. Keep Services page as an admin/oversight view with lightweight service detail sheets
 
 ---
 
-## Implementation Steps
+## Implementation Phases
 
-1. **Insert 16 Liabilities** via SQL insert statements with varied statuses:
-   - 7 enrolled (awaiting negotiation)
-   - 4 in_negotiation (active offers)
-   - 2 settled (completed)
-   - 1 in_litigation (legal action)
+### Phase 1: Data Layer - New Hooks for Client-Centric Queries
 
-2. **Update Client Services** to recalculate `total_enrolled_debt` based on enrolled balances
+**New File: `src/hooks/useClientData.ts`**
+
+Create aggregated hooks to fetch all client-related data:
+
+```text
+Functions to create:
+- useClientServicesForClient(clientId) - All services for a client
+- useLiabilitiesForClient(clientId) - All liabilities across all client services  
+- useTransactionsForClient(clientId) - All transactions across all client services
+- useTasksForClient(clientId) - All tasks linked to client or their services
+- useClientActivitySummary(clientId) - Aggregated stats for Overview tab
+```
+
+These will be efficient queries that join through the `client_services` table.
 
 ---
 
-## Technical Notes
+### Phase 2: Client Detail Page Component Structure
 
-- Account numbers will be randomly generated last-4 digits (e.g., "****4521")
-- Settled liabilities have current_balance = 0
-- In-negotiation liabilities show reduced current_balance (offer amount)
-- Enrolled liabilities have current_balance = enrolled_balance
-- Priority 1 = first to settle
+**New File: `src/pages/ClientDetail.tsx`**
+
+```text
+ClientDetailPage
++-- Header Section
+|   +-- Client name, email, primary phone
+|   +-- Status badges (Active, TCPA, Preferred Contact)
+|   +-- Quick Actions: [Log Communication] [Schedule Call] [Upload Document] [Edit]
+|
++-- Tabs Container
+    +-- Overview Tab (default)
+    |   +-- ServicesSummaryCard (collapsed cards for each service)
+    |   +-- RecentActivityCard (last 5-10 activities)
+    |   +-- UpcomingCard (next payment, scheduled tasks)
+    |
+    +-- Services Tab
+    |   +-- Full list of all services with expandable details
+    |   +-- Each service shows status badges, financials, team
+    |   +-- Click to expand inline (not navigate away)
+    |
+    +-- Liabilities Tab
+    |   +-- Table of all liabilities across ALL services
+    |   +-- Columns: Creditor, Type, Balance, Status, Service#
+    |   +-- Click to open LiabilityDetailSheet
+    |
+    +-- Payments Tab
+    |   +-- Transaction history across ALL services
+    |   +-- Date, Amount, Type, Status, Service#
+    |
+    +-- Tasks Tab
+    |   +-- All tasks linked to client or their services
+    |   +-- Status, Priority, Due Date, Assignee
+    |
+    +-- Details Tab (formerly the only content)
+    |   +-- Contact info, DOB, notes
+    |   +-- Phone numbers (add/delete)
+    |   +-- Addresses (add/delete)
+    |
+    +-- Activity Tab
+        +-- Complete timeline of all changes/events
+```
 
 ---
 
-## Status Distribution Summary
+### Phase 3: New Sub-Components
 
-| Status | Count | Description |
-|--------|-------|-------------|
-| enrolled | 7 | Waiting to begin negotiation |
-| in_negotiation | 4 | Active settlement offers |
-| settled | 2 | Successfully resolved |
-| in_litigation | 1 | Legal proceedings active |
+**New Directory: `src/components/clients/detail/`**
+
+| Component | Purpose |
+|-----------|---------|
+| `ClientHeader.tsx` | Name, contact info, badges, quick actions |
+| `ClientOverviewTab.tsx` | Summary cards for services, activity, upcoming |
+| `ClientServicesTab.tsx` | Expandable service cards with inline details |
+| `ClientLiabilitiesTab.tsx` | Table of all liabilities with filtering |
+| `ClientPaymentsTab.tsx` | Transaction history table |
+| `ClientTasksTab.tsx` | Task list with quick status updates |
+| `ClientDetailsTab.tsx` | Contact info, phones, addresses (refactor from existing) |
+| `ClientActivityTab.tsx` | Complete activity timeline |
+| `ServiceSummaryCard.tsx` | Compact service card for Overview tab |
+
+---
+
+### Phase 4: Routing and Navigation Updates
+
+**File: `src/App.tsx`**
+
+Add new route:
+```text
+/clients/:id -> ClientDetailPage
+```
+
+**File: `src/pages/Clients.tsx`**
+
+Update click handler to navigate to `/clients/${client.id}` instead of opening sheet.
+
+**File: `src/components/services/ServiceDetailSheet.tsx`**
+
+Add prominent "View Full Client Profile" link/button that navigates to `/clients/${clientId}`.
+
+---
+
+### Phase 5: Service Detail Sheet Simplification
+
+Make the existing `ServiceDetailSheet` lighter-weight and service-focused:
+
+- Add client name as clickable link to client profile
+- Keep Status, Program, Financials tabs
+- Add "View Full Client Profile" as primary action
+- Remove duplicated client contact info
+
+---
+
+## File Changes Summary
+
+### New Files (10 files)
+```text
+src/pages/ClientDetail.tsx
+src/hooks/useClientData.ts
+src/components/clients/detail/ClientHeader.tsx
+src/components/clients/detail/ClientOverviewTab.tsx
+src/components/clients/detail/ClientServicesTab.tsx
+src/components/clients/detail/ClientLiabilitiesTab.tsx
+src/components/clients/detail/ClientPaymentsTab.tsx
+src/components/clients/detail/ClientTasksTab.tsx
+src/components/clients/detail/ClientDetailsTab.tsx
+src/components/clients/detail/ServiceSummaryCard.tsx
+```
+
+### Modified Files (4 files)
+```text
+src/App.tsx - Add /clients/:id route
+src/pages/Clients.tsx - Change row click to navigate
+src/components/services/ServiceDetailSheet.tsx - Add client link
+src/components/layout/AppSidebar.tsx - Ensure Clients is prominent
+```
+
+### Deprecated (keep for now)
+```text
+src/components/clients/ClientDetailSheet.tsx - Can be removed after migration
+```
+
+---
+
+## Technical Details
+
+### Data Query Strategy
+
+The Overview tab aggregates data efficiently:
+
+```text
+Services Summary Query:
+- Count of active services
+- Total enrolled debt across services
+- Total settled amount
+- Settlement percentage
+
+Liabilities Aggregation:
+- Join through client_services to get all liabilities
+- Group by status for summary counts
+
+Recent Activity:
+- Query service_status_history
+- Query liability_actions  
+- Combine and sort by timestamp
+```
+
+### URL Structure
+```text
+/clients              - Client list (existing)
+/clients/:id          - Client detail hub (new)
+/clients/:id/services - Direct link to services tab
+/clients/:id/tasks    - Direct link to tasks tab
+```
+
+### State Management
+
+Each tab lazy-loads its data when activated to avoid over-fetching:
+```text
+<TabsContent value="liabilities">
+  <Suspense fallback={<Skeleton />}>
+    <ClientLiabilitiesTab clientId={id} />
+  </Suspense>
+</TabsContent>
+```
+
+---
+
+## UI/UX Specifications
+
+### Client Header
+- Full width, fixed at top of detail page
+- Client avatar/initials circle
+- Name prominently displayed (24px bold)
+- Email and primary phone on second line
+- Badge row: Status | TCPA | Preferred Contact
+- Action buttons aligned right: Log Comm, Schedule, Upload, Edit
+
+### Tab Navigation
+- Horizontal tabs below header
+- Sticky when scrolling
+- 8 tabs total: Overview, Services, Liabilities, Payments, Tasks, Comms, Documents, Activity
+- Note: Communications and Documents tabs will show "Coming Soon" placeholder initially
+
+### Overview Tab Cards
+- Services card shows 2-3 most recent/active services
+- Each service card is clickable to expand
+- Shows: Status badges, enrolled debt, settled %, team members
+- "View All Services" link if more than 3
+
+### Responsive Behavior
+- Tabs stack vertically on mobile
+- Tables become card lists on mobile
+- Quick actions collapse to dropdown menu
+
+---
+
+## Implementation Order
+
+1. **Data Layer First**: Create `useClientData.ts` with all aggregation hooks
+2. **Page Shell**: Create `ClientDetail.tsx` with header and empty tabs
+3. **Overview Tab**: Build summary cards with real data
+4. **Details Tab**: Refactor existing phone/address management
+5. **Services Tab**: Create expandable service cards
+6. **Liabilities Tab**: Table with all debts across services
+7. **Payments Tab**: Transaction history table
+8. **Tasks Tab**: Task list with filters
+9. **Navigation**: Update routing and click handlers
+10. **Service Sheet**: Add client profile link
+
+---
+
+## Success Metrics
+
+After implementation, users should be able to:
+- Open a client and see ALL their services immediately
+- View total debt and settlement progress without navigation
+- See recent activity across all services
+- Access any related data without leaving the client page
+- Navigate to full client view from any service detail
+
+---
+
+## Dependencies
+
+- Existing components: Badge, Card, Table, Tabs, Sheet
+- Existing hooks: useClient, useClientServices, useLiabilities, useTransactions, useTasks
+- No new npm packages required
+- No database schema changes needed
