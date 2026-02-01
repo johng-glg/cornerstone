@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useLitigationMatter, type LitigationStatus, useUpdateLitigationMatter } from '@/hooks/useLitigationMatters';
 import { useLitigationHearings, useDeleteLitigationHearing, type LitigationHearing } from '@/hooks/useLitigationHearings';
 import { useDeleteLitigationDocument } from '@/hooks/useLitigationDocuments';
+import { useCurrentStaff } from '@/hooks/useStaff';
 import { LitigationMatterFormDialog } from './LitigationMatterFormDialog';
 import { LitigationActivityTimeline } from './LitigationActivityTimeline';
 import { LitigationHearingCard } from './LitigationHearingCard';
@@ -67,6 +68,7 @@ const formatCurrency = (amount: number | null) =>
 export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: LitigationMatterDetailSheetProps) {
   const { data: matter, isLoading } = useLitigationMatter(matterId || undefined);
   const { data: hearings } = useLitigationHearings(matterId || undefined);
+  const { data: currentStaff } = useCurrentStaff();
   const updateMatter = useUpdateLitigationMatter();
   const deleteHearing = useDeleteLitigationHearing();
   const deleteDocument = useDeleteLitigationDocument();
@@ -83,7 +85,7 @@ export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: Li
 
   const handleStatusChange = (newStatus: LitigationStatus) => {
     if (matter) {
-      updateMatter.mutate({ id: matter.id, status: newStatus });
+      updateMatter.mutate({ id: matter.id, status: newStatus, staffId: currentStaff?.id });
     }
   };
 
