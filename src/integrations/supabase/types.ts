@@ -2124,6 +2124,59 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_schedules: {
+        Row: {
+          client_service_id: string
+          created_at: string
+          draft_amount: number
+          drafts_generated: number
+          first_draft_date: string
+          frequency: Database["public"]["Enums"]["payment_frequency_enum"]
+          id: string
+          last_generated_date: string | null
+          processor_fee_amount: number
+          status: Database["public"]["Enums"]["schedule_status_enum"]
+          total_drafts: number
+          updated_at: string
+        }
+        Insert: {
+          client_service_id: string
+          created_at?: string
+          draft_amount: number
+          drafts_generated?: number
+          first_draft_date: string
+          frequency?: Database["public"]["Enums"]["payment_frequency_enum"]
+          id?: string
+          last_generated_date?: string | null
+          processor_fee_amount?: number
+          status?: Database["public"]["Enums"]["schedule_status_enum"]
+          total_drafts: number
+          updated_at?: string
+        }
+        Update: {
+          client_service_id?: string
+          created_at?: string
+          draft_amount?: number
+          drafts_generated?: number
+          first_draft_date?: string
+          frequency?: Database["public"]["Enums"]["payment_frequency_enum"]
+          id?: string
+          last_generated_date?: string | null
+          processor_fee_amount?: number
+          status?: Database["public"]["Enums"]["schedule_status_enum"]
+          total_drafts?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_schedules_client_service_id_fkey"
+            columns: ["client_service_id"]
+            isOneToOne: true
+            referencedRelation: "client_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reminder_settings: {
         Row: {
           company_id: string
@@ -2763,6 +2816,7 @@ export type Database = {
           parent_transaction_id: string | null
           processed_at: string | null
           processor_id: string | null
+          schedule_id: string | null
           scheduled_date: string | null
           sequence_number: number | null
           settlement_id: string | null
@@ -2782,6 +2836,7 @@ export type Database = {
           parent_transaction_id?: string | null
           processed_at?: string | null
           processor_id?: string | null
+          schedule_id?: string | null
           scheduled_date?: string | null
           sequence_number?: number | null
           settlement_id?: string | null
@@ -2801,6 +2856,7 @@ export type Database = {
           parent_transaction_id?: string | null
           processed_at?: string | null
           processor_id?: string | null
+          schedule_id?: string | null
           scheduled_date?: string | null
           sequence_number?: number | null
           settlement_id?: string | null
@@ -2835,6 +2891,13 @@ export type Database = {
             columns: ["processor_id"]
             isOneToOne: false
             referencedRelation: "payment_processors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "payment_schedules"
             referencedColumns: ["id"]
           },
           {
@@ -3250,6 +3313,7 @@ export type Database = {
         | "mention"
         | "system_alert"
         | "response_deadline_reminder"
+      payment_frequency_enum: "monthly" | "semi_monthly" | "bi_weekly"
       payment_status_enum:
         | "current"
         | "paused"
@@ -3268,6 +3332,7 @@ export type Database = {
         | "at_risk"
         | "churn_risk"
         | "complaint"
+      schedule_status_enum: "active" | "paused" | "completed" | "cancelled"
       service_status:
         | "prospect"
         | "active"
@@ -3602,6 +3667,7 @@ export const Constants = {
         "system_alert",
         "response_deadline_reminder",
       ],
+      payment_frequency_enum: ["monthly", "semi_monthly", "bi_weekly"],
       payment_status_enum: [
         "current",
         "paused",
@@ -3622,6 +3688,7 @@ export const Constants = {
         "churn_risk",
         "complaint",
       ],
+      schedule_status_enum: ["active", "paused", "completed", "cancelled"],
       service_status: [
         "prospect",
         "active",

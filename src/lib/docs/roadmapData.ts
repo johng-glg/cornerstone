@@ -136,10 +136,11 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     name: 'Recurring Payment Scheduling',
     category: 'Payments',
     priority: 'High',
-    description: 'Automated payment scheduling with frequency options.',
+    description: 'Automated payment scheduling with frequency options (monthly, semi-monthly, bi-weekly). Generates draft transactions and processor fees for full program term.',
     difficulty: 3,
     benefit: 5,
-    status: 'Planned',
+    status: 'Completed',
+    notes: 'Implemented payment_schedules table with usePaymentSchedule hooks. PaymentSchedulePanel in ServiceDetailSheet shows progress, upcoming drafts, and modification controls. Supports skip/reschedule individual drafts.',
   },
   {
     id: 'nsf-retry',
