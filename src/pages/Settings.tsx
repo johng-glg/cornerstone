@@ -5,6 +5,7 @@ import { CompanySettingsTab } from '@/components/settings/CompanySettingsTab';
 import { NotificationSettingsTab } from '@/components/settings/NotificationSettingsTab';
 import { ScoringProfilesTab } from '@/components/settings/ScoringProfilesTab';
 import { AssignmentRulesTab } from '@/components/settings/AssignmentRulesTab';
+import { WorkflowsTab } from '@/components/settings/WorkflowsTab';
 
 export default function SettingsPage() {
   return (
@@ -16,11 +17,12 @@ export default function SettingsPage() {
 
       <div className="flex-1 overflow-auto p-6">
         <Tabs defaultValue="profile" className="max-w-3xl">
-          <TabsList className="mb-6">
+          <TabsList className="mb-6 flex-wrap">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="scoring">Scoring</TabsTrigger>
             <TabsTrigger value="assignment">Assignment</TabsTrigger>
+            <TabsTrigger value="workflows">Workflows</TabsTrigger>
             <TabsTrigger value="appearance">Appearance</TabsTrigger>
             <TabsTrigger value="company">Company</TabsTrigger>
           </TabsList>
@@ -39,6 +41,10 @@ export default function SettingsPage() {
 
           <TabsContent value="assignment">
             <AssignmentRulesTab />
+          </TabsContent>
+
+          <TabsContent value="workflows">
+            <WorkflowsTab />
           </TabsContent>
 
           <TabsContent value="appearance">
