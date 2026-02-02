@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -44,15 +45,30 @@ export function TaskFormDialog({ open, onOpenChange, task }: TaskFormDialogProps
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskSchema),
     defaultValues: {
-      title: task?.title || '',
-      description: task?.description || '',
-      priority: task?.priority || 'medium',
-      task_type: task?.task_type || 'general',
-      status: task?.status || 'pending',
-      assigned_to: task?.assigned_to || null,
-      due_date: task?.due_date ? new Date(task.due_date) : null,
+      title: '',
+      description: '',
+      priority: 'medium',
+      task_type: 'general',
+      status: 'pending',
+      assigned_to: null,
+      due_date: null,
     },
   });
+
+  // Reset form when task changes or dialog opens
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        title: task?.title || '',
+        description: task?.description || '',
+        priority: task?.priority || 'medium',
+        task_type: task?.task_type || 'general',
+        status: task?.status || 'pending',
+        assigned_to: task?.assigned_to || null,
+        due_date: task?.due_date ? new Date(task.due_date) : null,
+      });
+    }
+  }, [open, task, form]);
 
   const onSubmit = async (data: TaskFormData) => {
     const taskData = {
