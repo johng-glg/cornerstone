@@ -36,6 +36,7 @@ import PermissionsPage from "./pages/docs/PermissionsPage";
 import FutureBuildPage from "./pages/docs/FutureBuildPage";
 import IntegrationsPage from "./pages/docs/IntegrationsPage";
 import SecurityPage from "./pages/docs/SecurityPage";
+import ERDPage from "./pages/docs/ERDPage";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/docs" element={<DocsLayout />}>
               <Route index element={<DocsOverview />} />
               <Route path="schema" element={<SchemaPage />} />
+              <Route path="erd" element={<ERDPage />} />
               <Route path="enums" element={<EnumsPage />} />
               <Route path="functions" element={<FunctionsPage />} />
               <Route path="edge-functions" element={<EdgeFunctionsPage />} />

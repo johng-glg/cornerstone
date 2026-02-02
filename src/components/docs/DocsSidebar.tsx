@@ -67,6 +67,10 @@ export function DocsSidebar({ className }: DocsSidebarProps) {
                 <ChevronRight className="h-3 w-3" />
                 Database Schema
               </NavLink>
+              <NavLink to="/docs/erd" className={linkClass('/docs/erd')}>
+                <ChevronRight className="h-3 w-3" />
+                Entity Relationship Diagram
+              </NavLink>
               <NavLink to="/docs/enums" className={linkClass('/docs/enums')}>
                 <ChevronRight className="h-3 w-3" />
                 Enums & Types
