@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProfileSettingsTab } from '@/components/settings/ProfileSettingsTab';
 import { AppearanceSettingsTab } from '@/components/settings/AppearanceSettingsTab';
 import { CompanySettingsTab } from '@/components/settings/CompanySettingsTab';
+import { NotificationSettingsTab } from '@/components/settings/NotificationSettingsTab';
 
 export default function SettingsPage() {
   return (
@@ -15,12 +16,17 @@ export default function SettingsPage() {
         <Tabs defaultValue="profile" className="max-w-3xl">
           <TabsList className="mb-6">
             <TabsTrigger value="profile">Profile</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="appearance">Appearance</TabsTrigger>
             <TabsTrigger value="company">Company</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
             <ProfileSettingsTab />
+          </TabsContent>
+
+          <TabsContent value="notifications">
+            <NotificationSettingsTab />
           </TabsContent>
 
           <TabsContent value="appearance">
