@@ -46,8 +46,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Core',
     priority: 'High',
     description: 'Bell icon dropdown with notification list, mark read functionality, and user preferences.',
-    status: 'Planned',
-    notes: 'Replace hardcoded badge in TopNav. Add notifications and notification_preferences tables.',
+    status: 'Completed',
+    notes: 'Implemented with notifications and notification_preferences tables. NotificationCenter popover in TopNav with realtime updates. Task assignment trigger creates notifications automatically.',
   },
   {
     id: 'realtime-updates',

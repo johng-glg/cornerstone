@@ -12,8 +12,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Search, Bell, LogOut, User, Settings } from 'lucide-react';
+import { Search, LogOut, User, Settings } from 'lucide-react';
 import { GlobalSearch } from '@/components/search/GlobalSearch';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 
 export function TopNav() {
   const { user, staff, signOut } = useAuth();
@@ -69,12 +70,7 @@ export function TopNav() {
 
       <div className="flex items-center gap-2">
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground flex items-center justify-center">
-            3
-          </span>
-        </Button>
+        <NotificationCenter />
 
         {/* User Menu */}
         <DropdownMenu>

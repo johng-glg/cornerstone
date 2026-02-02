@@ -1620,6 +1620,81 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          email_enabled: boolean
+          id: string
+          in_app_enabled: boolean
+          notification_type: Database["public"]["Enums"]["notification_type"]
+          sound_enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_enabled?: boolean
+          id?: string
+          in_app_enabled?: boolean
+          notification_type: Database["public"]["Enums"]["notification_type"]
+          sound_enabled?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_enabled?: boolean
+          id?: string
+          in_app_enabled?: boolean
+          notification_type?: Database["public"]["Enums"]["notification_type"]
+          sound_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          is_read: boolean
+          link: string | null
+          message: string | null
+          read_at: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          message?: string | null
+          read_at?: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          message?: string | null
+          read_at?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       payment_processors: {
         Row: {
           created_at: string
@@ -2166,6 +2241,18 @@ export type Database = {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
       }
+      create_notification: {
+        Args: {
+          _entity_id?: string
+          _entity_type?: string
+          _link?: string
+          _message?: string
+          _title: string
+          _type: Database["public"]["Enums"]["notification_type"]
+          _user_id: string
+        }
+        Returns: string
+      }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -2289,6 +2376,16 @@ export type Database = {
         | "judgment"
         | "declined"
         | "dismissed"
+      notification_type:
+        | "task_assigned"
+        | "task_due_soon"
+        | "task_overdue"
+        | "lead_assigned"
+        | "matter_assigned"
+        | "hearing_reminder"
+        | "settlement_update"
+        | "mention"
+        | "system_alert"
       payment_status_enum:
         | "current"
         | "paused"
@@ -2589,6 +2686,17 @@ export const Constants = {
         "judgment",
         "declined",
         "dismissed",
+      ],
+      notification_type: [
+        "task_assigned",
+        "task_due_soon",
+        "task_overdue",
+        "lead_assigned",
+        "matter_assigned",
+        "hearing_reminder",
+        "settlement_update",
+        "mention",
+        "system_alert",
       ],
       payment_status_enum: [
         "current",
