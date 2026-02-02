@@ -146,24 +146,24 @@ function WeekViewGrid({
     const hour = getHours(startDate);
     const minutes = getMinutes(startDate);
     
-    // Calculate top position as percentage
+    // Calculate top position in pixels (each hour = 48px)
     const hourOffset = hour - HOUR_START;
     const minuteOffset = minutes / 60;
-    const topPercent = ((hourOffset + minuteOffset) / (HOUR_END - HOUR_START + 1)) * 100;
+    const topPx = (hourOffset + minuteOffset) * 48;
     
     // Calculate height based on end_date or default to 1 hour
     let durationMinutes = 60; // default 1 hour
     if (hearing.end_date) {
       const endDate = new Date(hearing.end_date);
       durationMinutes = differenceInMinutes(endDate, startDate);
-      if (durationMinutes < 30) durationMinutes = 30; // minimum 30 min
+      if (durationMinutes < 15) durationMinutes = 15; // minimum 15 min for visibility
       if (durationMinutes > 480) durationMinutes = 480; // max 8 hours
     }
     
-    // Each hour = 48px (h-12)
-    const heightPx = (durationMinutes / 60) * 48;
+    // Each hour = 48px (h-12), so each minute = 48/60 = 0.8px
+    const heightPx = Math.max((durationMinutes / 60) * 48, 20); // minimum 20px for visibility
     
-    return { top: `${topPercent}%`, height: `${heightPx}px` };
+    return { top: `${topPx}px`, height: `${heightPx}px` };
   };
 
   return (
