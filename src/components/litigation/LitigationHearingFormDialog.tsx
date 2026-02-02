@@ -1,7 +1,9 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { addMinutes, differenceInMinutes, format } from 'date-fns';
+import { addMinutes, differenceInMinutes, format, setHours, setMinutes, parse } from 'date-fns';
+import { CalendarIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +28,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { useCreateLitigationHearing, useUpdateLitigationHearing, type LitigationHearing } from '@/hooks/useLitigationHearings';
 
 // Duration options in 15-minute increments (15 min to 8 hours)
@@ -48,9 +56,21 @@ const durationOptions = [
   { value: '480', label: '8 hours' },
 ];
 
+// Generate time options in 15-minute increments
+const timeOptions = Array.from({ length: 96 }, (_, i) => {
+  const hours = Math.floor(i / 4);
+  const minutes = (i % 4) * 15;
+  const value = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+  const label = `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+  return { value, label };
+});
+
 const hearingSchema = z.object({
   hearing_type: z.string().min(1, 'Hearing type is required'),
-  scheduled_date: z.string().min(1, 'Start date/time is required'),
+  scheduled_date: z.date({ required_error: 'Date is required' }),
+  scheduled_time: z.string().min(1, 'Time is required'),
   duration: z.string().optional(),
   location: z.string().max(200).optional(),
   judge_name: z.string().max(100).optional(),
@@ -94,6 +114,12 @@ function calculateDurationFromDates(startDate: string, endDate: string | null): 
   return validOption ? String(rounded) : '60';
 }
 
+// Extract time string from date
+function getTimeFromDate(dateString: string): string {
+  const date = new Date(dateString);
+  return format(date, 'HH:mm');
+}
+
 export function LitigationHearingFormDialog({
   matterId,
   hearing,
@@ -109,8 +135,11 @@ export function LitigationHearingFormDialog({
     defaultValues: {
       hearing_type: hearing?.hearing_type || '',
       scheduled_date: hearing?.scheduled_date 
-        ? format(new Date(hearing.scheduled_date), "yyyy-MM-dd'T'HH:mm")
-        : '',
+        ? new Date(hearing.scheduled_date)
+        : undefined,
+      scheduled_time: hearing?.scheduled_date 
+        ? getTimeFromDate(hearing.scheduled_date)
+        : '09:00',
       duration: hearing?.scheduled_date 
         ? calculateDurationFromDates(hearing.scheduled_date, hearing.end_date)
         : '60',
@@ -122,7 +151,12 @@ export function LitigationHearingFormDialog({
   });
 
   const onSubmit = async (data: HearingFormData) => {
-    const startDate = new Date(data.scheduled_date);
+    // Combine date and time
+    const [hours, minutes] = data.scheduled_time.split(':').map(Number);
+    let startDate = new Date(data.scheduled_date);
+    startDate = setHours(startDate, hours);
+    startDate = setMinutes(startDate, minutes);
+    
     const durationMinutes = parseInt(data.duration || '60', 10);
     const endDate = addMinutes(startDate, durationMinutes);
 
@@ -181,16 +215,67 @@ export function LitigationHearingFormDialog({
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="scheduled_date"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Date</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="scheduled_date"
+                name="scheduled_time"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Start Time</FormLabel>
-                    <FormControl>
-                      <Input type="datetime-local" {...field} />
-                    </FormControl>
+                    <FormLabel>Time</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select time" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="max-h-60">
+                        {timeOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
