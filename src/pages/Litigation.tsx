@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format, isPast } from 'date-fns';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, Scale, Search, Filter, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,9 +40,20 @@ const formatCurrency = (amount: number | null) =>
 
 export default function LitigationPage() {
   const { data: matters, isLoading } = useLitigationMatters();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedMatterId, setSelectedMatterId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  // Handle ?open=id query param to auto-open detail sheet
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    if (openId) {
+      setSelectedMatterId(openId);
+      searchParams.delete('open');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const filteredMatters = useMemo(() => {
     if (!matters) return [];
