@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { ServiceStatusBadges, PrimaryStatusBadge, PaymentStatusBadge, ContactStatusBadge } from './ServiceStatusBadges';
 import { StatusChangeModal } from './StatusChangeModal';
 import { RetentionPanel } from './RetentionPanel';
+import { PaymentSchedulePanel } from '@/components/payments/PaymentSchedulePanel';
 import { primaryStatusConfig, paymentStatusConfig, contactStatusConfig } from '@/types/serviceStatus';
 import type { PrimaryServiceStatus, PaymentStatus, ContactStatus, RetentionType } from '@/types/serviceStatus';
 
@@ -349,11 +350,18 @@ export function ServiceDetailSheet({ serviceId, open, onOpenChange }: ServiceDet
               </TabsContent>
 
               <TabsContent value="financials" className="space-y-4 mt-4">
+                {/* Payment Schedule Panel */}
+                <PaymentSchedulePanel 
+                  clientServiceId={service.id}
+                  termMonths={service.term_months}
+                  totalEnrolledDebt={service.total_enrolled_debt}
+                />
+
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base flex items-center gap-2">
                       <DollarSign className="h-4 w-4" />
-                      Payment Schedule
+                      Payment Details
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
