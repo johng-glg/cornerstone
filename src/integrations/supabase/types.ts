@@ -1063,8 +1063,12 @@ export type Database = {
           created_at: string
           current_balance: number | null
           current_creditor_id: string | null
+          debt_buyer_id: string | null
+          debt_buyer_other: string | null
           enrolled_balance: number | null
           id: string
+          law_firm_id: string | null
+          law_firm_other: string | null
           liability_type: Database["public"]["Enums"]["liability_type"]
           notes: string | null
           original_balance: number | null
@@ -1079,8 +1083,12 @@ export type Database = {
           created_at?: string
           current_balance?: number | null
           current_creditor_id?: string | null
+          debt_buyer_id?: string | null
+          debt_buyer_other?: string | null
           enrolled_balance?: number | null
           id?: string
+          law_firm_id?: string | null
+          law_firm_other?: string | null
           liability_type?: Database["public"]["Enums"]["liability_type"]
           notes?: string | null
           original_balance?: number | null
@@ -1095,8 +1103,12 @@ export type Database = {
           created_at?: string
           current_balance?: number | null
           current_creditor_id?: string | null
+          debt_buyer_id?: string | null
+          debt_buyer_other?: string | null
           enrolled_balance?: number | null
           id?: string
+          law_firm_id?: string | null
+          law_firm_other?: string | null
           liability_type?: Database["public"]["Enums"]["liability_type"]
           notes?: string | null
           original_balance?: number | null
@@ -1114,10 +1126,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "liabilities_debt_buyer_id_fkey"
+            columns: ["debt_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "creditors"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "liabilities_engagement_id_fkey"
             columns: ["client_service_id"]
             isOneToOne: false
             referencedRelation: "client_services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liabilities_law_firm_id_fkey"
+            columns: ["law_firm_id"]
+            isOneToOne: false
+            referencedRelation: "creditors"
             referencedColumns: ["id"]
           },
           {
