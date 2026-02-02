@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { addMinutes, differenceInMinutes } from 'date-fns';
 import {
   Dialog,
   DialogContent,
@@ -27,14 +28,34 @@ import {
 } from '@/components/ui/select';
 import { useCreateLitigationHearing, useUpdateLitigationHearing, type LitigationHearing } from '@/hooks/useLitigationHearings';
 
+// Duration options in 15-minute increments (15 min to 8 hours)
+const durationOptions = [
+  { value: '15', label: '15 minutes' },
+  { value: '30', label: '30 minutes' },
+  { value: '45', label: '45 minutes' },
+  { value: '60', label: '1 hour' },
+  { value: '75', label: '1 hour 15 min' },
+  { value: '90', label: '1 hour 30 min' },
+  { value: '105', label: '1 hour 45 min' },
+  { value: '120', label: '2 hours' },
+  { value: '150', label: '2 hours 30 min' },
+  { value: '180', label: '3 hours' },
+  { value: '210', label: '3 hours 30 min' },
+  { value: '240', label: '4 hours' },
+  { value: '300', label: '5 hours' },
+  { value: '360', label: '6 hours' },
+  { value: '420', label: '7 hours' },
+  { value: '480', label: '8 hours' },
+];
+
 const hearingSchema = z.object({
   hearing_type: z.string().min(1, 'Hearing type is required'),
   scheduled_date: z.string().min(1, 'Start date/time is required'),
-  end_date: z.string().optional(),
-  location: z.string().optional(),
-  judge_name: z.string().optional(),
-  outcome: z.string().optional(),
-  notes: z.string().optional(),
+  duration: z.string().optional(),
+  location: z.string().max(200).optional(),
+  judge_name: z.string().max(100).optional(),
+  outcome: z.string().max(500).optional(),
+  notes: z.string().max(1000).optional(),
 });
 
 type HearingFormData = z.infer<typeof hearingSchema>;
@@ -54,6 +75,25 @@ const hearingTypes = [
   { value: 'mediation', label: 'Mediation' },
 ];
 
+// Calculate duration in minutes from start and end dates
+function calculateDurationFromDates(startDate: string, endDate: string | null): string {
+  if (!endDate) return '60'; // default 1 hour
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const minutes = differenceInMinutes(end, start);
+  
+  // Round to nearest 15-minute increment
+  const rounded = Math.round(minutes / 15) * 15;
+  
+  // Clamp to valid range
+  if (rounded < 15) return '15';
+  if (rounded > 480) return '480';
+  
+  // Check if it's a valid option
+  const validOption = durationOptions.find(opt => opt.value === String(rounded));
+  return validOption ? String(rounded) : '60';
+}
+
 export function LitigationHearingFormDialog({
   matterId,
   hearing,
@@ -71,9 +111,9 @@ export function LitigationHearingFormDialog({
       scheduled_date: hearing?.scheduled_date 
         ? new Date(hearing.scheduled_date).toISOString().slice(0, 16) 
         : '',
-      end_date: hearing?.end_date 
-        ? new Date(hearing.end_date).toISOString().slice(0, 16) 
-        : '',
+      duration: hearing?.scheduled_date 
+        ? calculateDurationFromDates(hearing.scheduled_date, hearing.end_date)
+        : '60',
       location: hearing?.location || '',
       judge_name: hearing?.judge_name || '',
       outcome: hearing?.outcome || '',
@@ -82,11 +122,15 @@ export function LitigationHearingFormDialog({
   });
 
   const onSubmit = async (data: HearingFormData) => {
+    const startDate = new Date(data.scheduled_date);
+    const durationMinutes = parseInt(data.duration || '60', 10);
+    const endDate = addMinutes(startDate, durationMinutes);
+
     const hearingData = {
       matter_id: matterId,
       hearing_type: data.hearing_type,
-      scheduled_date: new Date(data.scheduled_date).toISOString(),
-      end_date: data.end_date ? new Date(data.end_date).toISOString() : null,
+      scheduled_date: startDate.toISOString(),
+      end_date: endDate.toISOString(),
       location: data.location || null,
       judge_name: data.judge_name || null,
       outcome: data.outcome || null,
@@ -154,13 +198,24 @@ export function LitigationHearingFormDialog({
 
               <FormField
                 control={form.control}
-                name="end_date"
+                name="duration"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>End Time (Optional)</FormLabel>
-                    <FormControl>
-                      <Input type="datetime-local" {...field} />
-                    </FormControl>
+                    <FormLabel>Duration</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || '60'}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select duration" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {durationOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
