@@ -104,10 +104,10 @@ export default function CompaniesPage() {
                   <CardTitle className="text-lg">{company.name}</CardTitle>
                   <div className="flex items-center gap-2 mt-1">
                     {getCompanyTypeBadge(company.company_type)}
-                    <Badge variant={company.is_active ? 'default' : 'secondary'}>
-                      {company.is_active ? 'Active' : 'Inactive'}
+                    <Badge variant={company.is_active === true ? 'default' : 'secondary'}>
+                      {company.is_active === true ? 'Active' : 'Inactive'}
                     </Badge>
-                    {!company.parent_company_id && (
+                    {company.parent_company_id === null && (
                       <Badge variant="outline">Root</Badge>
                     )}
                   </div>
