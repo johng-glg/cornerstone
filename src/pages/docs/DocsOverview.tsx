@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Database, Users, FileText, Shield, Code, BookOpen } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Database, Users, FileText, Shield, Code, BookOpen, GitBranch, Rocket } from 'lucide-react';
 
 const sections = [
   {
@@ -55,6 +56,22 @@ export default function DocsOverview() {
         <p className="text-muted-foreground mt-2 text-lg">
           Comprehensive documentation for the Guardian Litigation Group case management system.
         </p>
+      </div>
+
+      {/* Quick Access Buttons */}
+      <div className="flex flex-wrap gap-3">
+        <Button asChild variant="outline" size="lg">
+          <Link to="/docs/erd">
+            <GitBranch className="mr-2 h-4 w-4" />
+            Entity Relationship Diagram
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="lg">
+          <Link to="/docs/future-builds">
+            <Rocket className="mr-2 h-4 w-4" />
+            Future Builds & Roadmap
+          </Link>
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
