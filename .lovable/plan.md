@@ -1,297 +1,287 @@
 
-# Client Communications Tab - Phase 6 Implementation
+
+# Phase 7: Role-Based Dashboards - Implementation Plan
 
 ## Overview
 
-This plan implements a full-featured Communications tab for the Client Detail page, including call/email logging and a timeline view. This completes Phase 6 of the document/communication management functionality.
+This plan implements comprehensive role-based dashboards for all staff roles in the system. Currently, only Attorney and Case Manager dashboards exist. We will add dashboards for:
+- **Admin/Manager** - Company-wide metrics and oversight
+- **Sales/Intake Rep** - Lead pipeline and conversion tracking  
+- **Negotiator** - Settlement workflow and liability management
+- **Payment Processor** - Transaction processing and payment status
+- **Correspondence** - Communication tracking and document status
+- **Client Services Rep** - Client engagement and retention
+
+Each dashboard will feature role-specific metrics, quick actions, task lists, and activity feeds using the existing reusable components (`DashboardMetricCard`, `DeadlinesList`, `RecentActivityFeed`).
 
 ---
 
-## Database Design
+## Roles and Departments
 
-A new `client_communications` table will store all communication records tied to clients.
-
-### Table Structure
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | uuid (PK) | Primary key |
-| `client_id` | uuid (FK -> clients) | The client this communication is about |
-| `communication_type` | enum | Type: call, email, sms, meeting, note |
-| `direction` | enum | inbound or outbound |
-| `subject` | text | Subject line for emails or brief description |
-| `notes` | text | Detailed notes about the communication |
-| `outcome` | text | Result: answered, voicemail, no_answer, sent, received, completed |
-| `contact_phone` | text | Phone number used (if applicable) |
-| `contact_email` | text | Email address used (if applicable) |
-| `duration_minutes` | integer | Call duration in minutes |
-| `staff_id` | uuid (FK -> staff) | Staff member who logged this |
-| `created_at` | timestamptz | When the record was created |
-| `communication_date` | timestamptz | When the communication occurred |
-
-### Database Enums
-
-```text
-communication_type: call, email, sms, meeting, note
-communication_direction: inbound, outbound
-```
-
-### RLS Policy
-
-Staff can access communications for clients within their company:
-
-```text
-CREATE POLICY "Staff can access client communications"
-ON client_communications FOR ALL
-USING (
-  EXISTS (
-    SELECT 1 FROM clients c
-    WHERE c.id = client_communications.client_id
-    AND can_access_company(auth.uid(), c.company_id)
-  )
-);
-```
+| Role | Department | Primary Focus |
+|------|------------|---------------|
+| admin | admin | Full system access, company metrics |
+| attorney | attorney | Litigation matters, court deadlines |
+| case_manager | case_manager | Support for attorneys (paralegal function) |
+| negotiator | negotiations | Settlements, liability management |
+| sales_rep | sales_intake | Lead pipeline, conversions |
+| client_services_rep | client_services | Client engagement, retention |
+| payment_processor | payment_processing | Transactions, payments |
+| correspondence | correspondence | Communications, documents |
+| viewer | - | Read-only access |
 
 ---
 
 ## Files to Create
 
-### 1. Hook: `src/hooks/useClientCommunications.ts`
+### 1. `src/hooks/useDashboardStats.ts`
 
-Provides CRUD operations for client communications.
+New hook providing aggregated statistics for dashboards.
 
-**Exports:**
-- `useClientCommunications(clientId)` - Fetches all communications for a client with staff info
-- `useCreateClientCommunication()` - Creates a new communication record
-- `useUpdateClientCommunication()` - Updates an existing record
-- `useDeleteClientCommunication()` - Deletes a record
+**Functions:**
+- `useAdminDashboardStats()` - Company-wide metrics
+- `useSalesRepStats(staffId)` - Lead pipeline stats
+- `useNegotiatorStats(staffId)` - Settlement stats
+- `usePaymentProcessorStats()` - Transaction stats
+- `useCorrespondenceStats(staffId)` - Communication stats
+- `useClientServicesStats(staffId)` - Client engagement stats
 
-**Constants:**
-- `COMMUNICATION_TYPES` - call, email, sms, meeting, note
-- `COMMUNICATION_OUTCOMES` - answered, voicemail, no_answer, sent, received, completed
+---
 
-### 2. Tab Component: `src/components/clients/detail/ClientCommsTab.tsx`
+### 2. `src/components/dashboards/AdminDashboard.tsx`
 
-The main Communications tab component.
+Company-wide executive dashboard for admins and managers.
 
-**Layout:**
-- Header with "Communications" title and "Log Communication" button
-- Filter bar with type filter and date range
-- Timeline view showing communications in reverse chronological order
-- Empty state when no communications exist
+**Metrics:**
+- Total Active Clients
+- Active Services (by status)
+- Liabilities in Negotiation
+- Pending Tasks (company-wide)
 
-**Features:**
-- Grouped by date (Today, Yesterday, Last 7 Days, Older)
-- Type icons: Phone for calls, Mail for emails, MessageSquare for SMS, Users for meetings, FileText for notes
-- Direction indicator (inbound/outbound arrow icons)
-- Outcome badges with contextual colors
-- Click to view/edit, delete option
-- Staff attribution shown
+**Widgets:**
+- Quick Actions: New Lead, New Task, View Reports
+- Company Performance Summary (services by status)
+- Recent Activity Feed (all company activity)
+- Staff Workload Overview (tasks per staff member)
+- Upcoming Deadlines (all litigation deadlines)
 
-### 3. Form Dialog: `src/components/clients/CommunicationFormDialog.tsx`
+---
 
-Dialog for logging and editing communications.
+### 3. `src/components/dashboards/SalesRepDashboard.tsx`
 
-**Form Fields:**
-- Type (dropdown): Call, Email, SMS, Meeting, Note
-- Direction (toggle): Inbound / Outbound
-- Date/Time (datetime-local): When the communication occurred
-- Subject (text): Brief description
-- Duration (number, for calls): Minutes
-- Outcome (dropdown): Contextual based on type
-- Notes (textarea): Detailed notes
+Lead pipeline and conversion focused dashboard.
 
-**Behavior:**
-- Conditionally shows fields based on type:
-  - Call: Shows duration, direction
-  - Email: Shows direction, subject
-  - SMS: Shows direction
-  - Meeting: Shows duration
-  - Note: Minimal fields
-- Pre-fills current staff and date
-- Validates required fields
+**Metrics:**
+- My Active Leads (assigned to user)
+- Leads by Status (new, contacted, qualified)
+- Conversions This Month
+- Follow-up Tasks Due
 
-### 4. Timeline Item Component: `src/components/clients/CommunicationTimelineItem.tsx`
+**Widgets:**
+- Quick Actions: New Lead, Log Activity, View All Leads
+- Lead Pipeline Summary (leads by stage)
+- My Leads Requiring Follow-up
+- Recent Lead Activities
+- Conversion Rate Trend
 
-Individual timeline entry component.
+---
 
-**Elements:**
-- Icon based on communication type
-- Direction indicator (arrow up = outbound, arrow down = inbound)
-- Type label and outcome badge
-- Subject/notes preview (truncated)
-- Relative timestamp ("2 hours ago")
-- Staff name who logged it
-- Edit/Delete action buttons (on hover)
+### 4. `src/components/dashboards/NegotiatorDashboard.tsx`
+
+Settlement-focused dashboard for negotiators.
+
+**Metrics:**
+- Liabilities in Negotiation
+- Pending Settlements (offered, awaiting approval)
+- Settlements Awaiting Approval
+- Total Settlement Value This Month
+
+**Widgets:**
+- Quick Actions: View Liabilities, Create Settlement Offer
+- Liabilities Ready for Negotiation
+- Pending Settlement Offers (status: offered)
+- Recent Settlement Activity
+- Upcoming Payment Deadlines
+
+---
+
+### 5. `src/components/dashboards/PaymentProcessorDashboard.tsx`
+
+Transaction and payment management dashboard.
+
+**Metrics:**
+- Transactions Due Today
+- Pending Transactions
+- Cleared This Month (volume)
+- Failed/NSF Transactions
+
+**Widgets:**
+- Quick Actions: Process Transactions, View All Payments
+- Transactions Due Today (list)
+- Recently Cleared Transactions
+- Failed Transactions Requiring Attention
+- Monthly Volume Summary
+
+---
+
+### 6. `src/components/dashboards/CorrespondenceDashboard.tsx`
+
+Communication and document management dashboard.
+
+**Metrics:**
+- Documents Uploaded This Week
+- Communications Logged Today
+- Pending Follow-ups
+- My Tasks
+
+**Widgets:**
+- Quick Actions: Log Communication, Upload Document
+- Recent Communications (timeline)
+- Documents Requiring Review
+- My Pending Tasks
+
+---
+
+### 7. `src/components/dashboards/ClientServicesRepDashboard.tsx`
+
+Client engagement and retention focused dashboard.
+
+**Metrics:**
+- Active Clients (assigned)
+- Services At Risk (retention flags)
+- Communications This Week
+- Follow-up Tasks Due
+
+**Widgets:**
+- Quick Actions: Log Communication, View Clients
+- Clients Requiring Attention (retention issues)
+- Recent Client Communications
+- My Tasks
+- Service Status Distribution
 
 ---
 
 ## Files to Modify
 
-### 1. `src/pages/ClientDetail.tsx`
+### `src/pages/Dashboard.tsx`
+
+Update the role detection logic to route to appropriate dashboards.
 
 **Changes:**
-- Import `ClientCommsTab`
-- Enable the "comms" tab (remove `disabled` attribute)
-- Replace placeholder content with `<ClientCommsTab clientId={client.id} />`
+```typescript
+// Extended role detection
+const isAdmin = staff?.department === 'admin' || hasRole('admin');
+const isSalesRep = staff?.department === 'sales_intake' || hasRole('sales_rep');
+const isNegotiator = staff?.department === 'negotiations' || hasRole('negotiator');
+const isPaymentProcessor = staff?.department === 'payment_processing' || hasRole('payment_processor');
+const isCorrespondence = staff?.department === 'correspondence' || hasRole('correspondence');
+const isClientServicesRep = staff?.department === 'client_services' && !isCaseManager;
 
-### 2. `src/components/clients/detail/ClientHeader.tsx`
-
-**Changes:**
-- Make "Log Communication" button functional
-- Add `onLogCommunication` prop
-- Wire click handler to open the form dialog
+// Show role-specific dashboards
+if (isAdmin) return <AdminDashboard />;
+if (isSalesRep) return <SalesRepDashboard />;
+if (isNegotiator) return <NegotiatorDashboard />;
+if (isPaymentProcessor) return <PaymentProcessorDashboard />;
+if (isCorrespondence) return <CorrespondenceDashboard />;
+if (isClientServicesRep) return <ClientServicesRepDashboard />;
+// Existing: isAttorney, isCaseManager
+```
 
 ---
 
-## UI Design Details
+## Dashboard UI Pattern
 
-### Timeline View Layout
-
-```text
-+--------------------------------------------------+
-| Communications                    [Log Communication] |
-+--------------------------------------------------+
-| Filter: [All Types v]           [Last 30 Days v]  |
-+--------------------------------------------------+
-| TODAY                                              |
-|  +----------------------------------------------+ |
-|  | [Phone] [->] Call - Outbound                 | |
-|  |   Discussed payment schedule options         | |
-|  |   Outcome: Answered                          | |
-|  |   Duration: 15 min                           | |
-|  |   2 hours ago • by John Smith       [Edit][X]| |
-|  +----------------------------------------------+ |
-|                                                    |
-| YESTERDAY                                          |
-|  +----------------------------------------------+ |
-|  | [Mail] [<-] Email - Inbound                  | |
-|  |   Re: Account Statement Request              | |
-|  |   Client requested updated statement...      | |
-|  |   Outcome: Received                          | |
-|  |   Mar 1, 2026 2:30 PM • by Jane Doe  [Edit][X]| |
-|  +----------------------------------------------+ |
-+--------------------------------------------------+
-```
-
-### Form Dialog Layout
+Each dashboard follows a consistent layout:
 
 ```text
-+-----------------------------------------------+
-| Log Communication                         [X] |
-+-----------------------------------------------+
-| Type:      [Call v]                           |
-| Direction: (•) Outbound  ( ) Inbound          |
-| Date/Time: [Feb 2, 2026 10:30 AM      ]       |
-| Duration:  [15] minutes                        |
-| Outcome:   [Answered v]                       |
-| Subject:   [Brief description...        ]     |
-| Notes:                                         |
-| +-------------------------------------------+ |
-| | Detailed notes about the call...          | |
-| |                                           | |
-| +-------------------------------------------+ |
-|                                               |
-|                    [Cancel] [Log Communication]|
-+-----------------------------------------------+
++--------------------------------------------------+
+| [Icon] Role Dashboard                            |
+| Subtitle with context                  [Actions] |
++--------------------------------------------------+
+| [Metric 1] | [Metric 2] | [Metric 3] | [Metric 4]|
++--------------------------------------------------+
+| +-------------------+  +---------------------+   |
+| | Widget 1          |  | Widget 2            |   |
+| | (Primary Focus)   |  | (Secondary Focus)   |   |
+| +-------------------+  +---------------------+   |
++--------------------------------------------------+
+| +-------------------+  +---------------------+   |
+| | Widget 3          |  | Widget 4            |   |
+| | (Tasks/Activity)  |  | (Activity Feed)     |   |
+| +-------------------+  +---------------------+   |
++--------------------------------------------------+
 ```
-
-### Type-Specific Icons and Colors
-
-| Type | Icon | Color |
-|------|------|-------|
-| Call | Phone | blue |
-| Email | Mail | green |
-| SMS | MessageSquare | purple |
-| Meeting | Users | orange |
-| Note | FileText | gray |
-
-### Outcome Badges
-
-| Outcome | Used For | Color |
-|---------|----------|-------|
-| Answered | Call | green |
-| Voicemail | Call | yellow |
-| No Answer | Call | red |
-| Sent | Email, SMS | blue |
-| Received | Email, SMS | green |
-| Completed | Meeting | green |
-
----
-
-## Integration with Client Activity
-
-The `useClientActivity` hook (used in Overview tab) should be updated to include communications in the unified activity feed. This ensures communications appear alongside liability actions, litigation activities, and status changes.
-
-### Update to `src/hooks/useClientActivity.ts`
-
-Add a new query section to fetch recent client communications and merge them into the activities array with type `'communication'`.
 
 ---
 
 ## Technical Details
 
-### Query Pattern
+### Existing Components to Reuse
+
+- `DashboardMetricCard` - Metric display with variants (default, warning, success, destructive)
+- `DeadlinesList` - Deadline/due date lists
+- `RecentActivityFeed` - Activity timeline
+- `Card`, `CardHeader`, `CardContent` - Widget containers
+- `Button`, `Badge`, `Skeleton` - UI primitives
+
+### Query Patterns
+
+Each dashboard will use targeted queries with proper filtering:
 
 ```typescript
-// Fetch communications with staff info
-const { data, error } = await supabase
-  .from('client_communications')
-  .select(`
-    *,
-    staff:staff!client_communications_staff_id_fkey(
-      id, first_name, last_name, avatar_url
-    )
-  `)
-  .eq('client_id', clientId)
-  .order('communication_date', { ascending: false });
+// Example: Count with filter
+const { count } = await supabase
+  .from('clients')
+  .select('*', { count: 'exact', head: true })
+  .eq('status', 'active');
+
+// Example: List with limit
+const { data } = await supabase
+  .from('transactions')
+  .select('*')
+  .eq('scheduled_date', today)
+  .eq('status', 'open')
+  .order('amount', { ascending: false })
+  .limit(10);
 ```
 
-### Form Validation
+### Performance Considerations
 
-- Type: Required
-- Communication Date: Required, defaults to now
-- Subject: Optional for notes, recommended for emails
-- Notes: Optional but encouraged
-- Outcome: Required for calls and emails
-- Duration: Required for calls, optional for meetings
+- Use `count: 'exact', head: true` for metric counts without fetching rows
+- Limit list queries to 5-10 items
+- Cache with React Query for fast re-renders
+- Skeleton loading states for all async content
 
 ---
 
 ## Implementation Order
 
-1. **Database Migration**
-   - Create `communication_type` and `communication_direction` enums
-   - Create `client_communications` table
-   - Add RLS policy
+1. **Create `useDashboardStats.ts` hook** - Reusable stat queries for each role
 
-2. **Hook**
-   - Create `useClientCommunications.ts` with all CRUD operations
+2. **Create Admin Dashboard** - Company-wide metrics, staff workload, activity feed
 
-3. **Form Dialog**
-   - Create `CommunicationFormDialog.tsx` with conditional fields
+3. **Create Sales Rep Dashboard** - Lead pipeline, conversion metrics, follow-up tracking
 
-4. **Timeline Item**
-   - Create `CommunicationTimelineItem.tsx` component
+4. **Create Negotiator Dashboard** - Settlement workflow, liability pipeline, approval tracking
 
-5. **Tab Component**
-   - Create `ClientCommsTab.tsx` with timeline view and filters
+5. **Create Payment Processor Dashboard** - Transaction queue, processing metrics, volume tracking
 
-6. **Integration**
-   - Update `ClientDetail.tsx` to enable tab and import component
-   - Update `ClientHeader.tsx` to wire the Log Communication button
-   - Update `useClientActivity.ts` to include communications
+6. **Create Correspondence Dashboard** - Communication logging, document tracking, tasks
+
+7. **Create Client Services Rep Dashboard** - Client engagement, retention tracking, communications
+
+8. **Update Dashboard.tsx** - Add role detection and routing for all roles
 
 ---
 
 ## Testing Checklist
 
 After implementation:
-- Log a call with duration and outcome
-- Log an email with subject and direction
-- Edit an existing communication
-- Delete a communication
-- Verify communications appear in the Overview Activity Log
-- Test date grouping (Today, Yesterday, Older)
-- Test type filtering
-- Verify the "Log Communication" button in header opens the dialog
+- Log in as each role type and verify correct dashboard displays
+- Verify metrics show accurate counts from database
+- Test quick action buttons navigate correctly
+- Confirm tasks and activities are correctly filtered to current user
+- Test on mobile viewport for responsive layout
+- Verify empty states display appropriately
+- Check loading skeleton states during data fetch
+
