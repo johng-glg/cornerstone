@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { LeadKanban } from '@/components/leads/LeadKanban';
 import { LeadFormDialog } from '@/components/leads/LeadFormDialog';
 import { LeadDetailSheet } from '@/components/leads/LeadDetailSheet';
+import { LeadScoreBadge } from '@/components/leads/LeadScoreBadge';
 import { EnrollmentWizard } from '@/components/enrollment/EnrollmentWizard';
 import { LitigationWizard } from '@/components/litigation/LitigationWizard';
 import { useRealtimeLeads } from '@/hooks/useRealtimeLeads';
@@ -183,6 +184,7 @@ export default function LeadsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Lead</TableHead>
+                <TableHead>Score</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Interest</TableHead>
                 <TableHead>Est. Debt</TableHead>
@@ -194,14 +196,14 @@ export default function LeadsPage() {
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={7}>
                       <Skeleton className="h-10 w-full" />
                     </TableCell>
                   </TableRow>
                 ))
               ) : filteredLeads?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No leads found
                   </TableCell>
                 </TableRow>
@@ -219,6 +221,13 @@ export default function LeadsPage() {
                         </p>
                         <p className="text-sm text-muted-foreground">{lead.lead_number}</p>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <LeadScoreBadge 
+                        score={lead.lead_score ?? 0}
+                        breakdown={lead.score_breakdown_typed}
+                        size="sm"
+                      />
                     </TableCell>
                     <TableCell>
                       <Badge className={cn(statusColors[lead.status])}>

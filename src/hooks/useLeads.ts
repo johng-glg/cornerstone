@@ -1,10 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type { Tables, TablesInsert, TablesUpdate, Enums } from '@/integrations/supabase/types';
+import type { Tables, TablesInsert, TablesUpdate, Enums, Json } from '@/integrations/supabase/types';
+import type { ScoreBreakdown } from '@/types/scoring';
 
 export type Lead = Tables<'leads'> & {
   assigned_staff?: Tables<'staff'> | null;
+  // Typed score breakdown
+  score_breakdown_typed?: ScoreBreakdown | null;
 };
 
 export type LeadInsert = Omit<TablesInsert<'leads'>, 'lead_number' | 'id' | 'created_at' | 'updated_at'>;
@@ -22,6 +25,14 @@ export interface PaginatedLeadsResult {
   count: number;
 }
 
+// Helper to parse score breakdown from JSON
+function parseScoreBreakdown(breakdown: Json | null): ScoreBreakdown | null {
+  if (!breakdown || typeof breakdown !== 'object' || Array.isArray(breakdown)) {
+    return null;
+  }
+  return breakdown as unknown as ScoreBreakdown;
+}
+
 export function useLeads(options: UseLeadsOptions = {}) {
   const { status, page, pageSize } = options;
   const isPaginated = page !== undefined && pageSize !== undefined;
@@ -35,6 +46,7 @@ export function useLeads(options: UseLeadsOptions = {}) {
           *,
           assigned_staff:staff!leads_assigned_to_fkey(id, first_name, last_name, avatar_url)
         `, { count: 'exact' })
+        .order('lead_score', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false });
 
       if (status) {
@@ -50,7 +62,14 @@ export function useLeads(options: UseLeadsOptions = {}) {
 
       const { data, error, count } = await query;
       if (error) throw error;
-      return { data: data as Lead[], count: count ?? 0 };
+      
+      // Add typed score breakdown to each lead
+      const leadsWithTypedBreakdown = (data || []).map(lead => ({
+        ...lead,
+        score_breakdown_typed: parseScoreBreakdown(lead.score_breakdown),
+      })) as Lead[];
+      
+      return { data: leadsWithTypedBreakdown, count: count ?? 0 };
     },
   });
 }
@@ -69,7 +88,10 @@ export function useLead(id: string | undefined) {
         .eq('id', id)
         .single();
       if (error) throw error;
-      return data as Lead;
+      return {
+        ...data,
+        score_breakdown_typed: parseScoreBreakdown(data.score_breakdown),
+      } as Lead;
     },
     enabled: !!id,
   });

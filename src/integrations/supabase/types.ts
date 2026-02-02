@@ -1031,6 +1031,56 @@ export type Database = {
           },
         ]
       }
+      lead_scoring_profiles: {
+        Row: {
+          company_id: string
+          created_at: string
+          criteria: Json
+          description: string | null
+          id: string
+          interest_type: Database["public"]["Enums"]["lead_interest"] | null
+          is_active: boolean
+          is_default: boolean
+          name: string
+          source: Database["public"]["Enums"]["lead_source"] | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          criteria?: Json
+          description?: string | null
+          id?: string
+          interest_type?: Database["public"]["Enums"]["lead_interest"] | null
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          source?: Database["public"]["Enums"]["lead_source"] | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          criteria?: Json
+          description?: string | null
+          id?: string
+          interest_type?: Database["public"]["Enums"]["lead_interest"] | null
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          source?: Database["public"]["Enums"]["lead_source"] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_scoring_profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_to: string | null
@@ -1063,6 +1113,7 @@ export type Database = {
           job_title: string | null
           last_name: string
           lead_number: string
+          lead_score: number | null
           lost_at: string | null
           monthly_income: number | null
           new_at: string | null
@@ -1073,6 +1124,9 @@ export type Database = {
           phone: string | null
           qualified_at: string | null
           response_deadline: string | null
+          score_breakdown: Json | null
+          score_calculated_at: string | null
+          scoring_profile_id: string | null
           secured_credit_resolved: boolean | null
           service_date: string | null
           source: Database["public"]["Enums"]["lead_source"]
@@ -1116,6 +1170,7 @@ export type Database = {
           job_title?: string | null
           last_name: string
           lead_number: string
+          lead_score?: number | null
           lost_at?: string | null
           monthly_income?: number | null
           new_at?: string | null
@@ -1126,6 +1181,9 @@ export type Database = {
           phone?: string | null
           qualified_at?: string | null
           response_deadline?: string | null
+          score_breakdown?: Json | null
+          score_calculated_at?: string | null
+          scoring_profile_id?: string | null
           secured_credit_resolved?: boolean | null
           service_date?: string | null
           source?: Database["public"]["Enums"]["lead_source"]
@@ -1169,6 +1227,7 @@ export type Database = {
           job_title?: string | null
           last_name?: string
           lead_number?: string
+          lead_score?: number | null
           lost_at?: string | null
           monthly_income?: number | null
           new_at?: string | null
@@ -1179,6 +1238,9 @@ export type Database = {
           phone?: string | null
           qualified_at?: string | null
           response_deadline?: string | null
+          score_breakdown?: Json | null
+          score_calculated_at?: string | null
+          scoring_profile_id?: string | null
           secured_credit_resolved?: boolean | null
           service_date?: string | null
           source?: Database["public"]["Enums"]["lead_source"]
@@ -1216,6 +1278,13 @@ export type Database = {
             columns: ["originating_company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_scoring_profile_id_fkey"
+            columns: ["scoring_profile_id"]
+            isOneToOne: false
+            referencedRelation: "lead_scoring_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2237,6 +2306,13 @@ export type Database = {
       }
     }
     Functions: {
+      calculate_lead_score: {
+        Args: { lead_row: Database["public"]["Tables"]["leads"]["Row"] }
+        Returns: {
+          breakdown: Json
+          score: number
+        }[]
+      }
       can_access_company: {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean

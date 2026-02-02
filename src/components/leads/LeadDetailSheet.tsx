@@ -24,6 +24,8 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LeadFormDialog } from './LeadFormDialog';
+import { LeadScoreBadge } from './LeadScoreBadge';
+import { SCORE_FACTOR_LABELS } from '@/types/scoring';
 import { 
   Phone, 
   Mail, 
@@ -38,7 +40,8 @@ import {
   Pencil,
   Flag,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Target
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -148,6 +151,47 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
               </TabsList>
 
               <TabsContent value="details" className="space-y-4 mt-4">
+                {/* Lead Score Card */}
+                {(lead.lead_score ?? 0) > 0 && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <Target className="h-4 w-4" />
+                        Lead Score
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-3 mb-3">
+                        <LeadScoreBadge 
+                          score={lead.lead_score ?? 0} 
+                          size="lg" 
+                          showTooltip={false}
+                        />
+                        <div className="text-sm text-muted-foreground">
+                          {(lead.lead_score ?? 0) >= 71 && 'Very Hot - Priority lead'}
+                          {(lead.lead_score ?? 0) >= 51 && (lead.lead_score ?? 0) < 71 && 'Hot - High potential'}
+                          {(lead.lead_score ?? 0) >= 31 && (lead.lead_score ?? 0) < 51 && 'Warm - Moderate potential'}
+                          {(lead.lead_score ?? 0) < 31 && 'Cold - Needs qualification'}
+                        </div>
+                      </div>
+                      {lead.score_breakdown_typed && Object.keys(lead.score_breakdown_typed).length > 0 && (
+                        <div className="space-y-1.5 pt-2 border-t">
+                          {Object.entries(lead.score_breakdown_typed).map(([factor, points]) => (
+                            <div key={factor} className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                {SCORE_FACTOR_LABELS[factor] || factor.replace(/_/g, ' ')}
+                              </span>
+                              <span className="font-medium text-green-600 dark:text-green-400">
+                                +{points}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium text-muted-foreground">

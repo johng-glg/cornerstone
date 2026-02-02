@@ -1,10 +1,10 @@
-import { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useLeads, useUpdateLeadStatus, type Lead, type LeadStatus } from '@/hooks/useLeads';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LeadScoreBadge } from './LeadScoreBadge';
 import { Phone, Mail, DollarSign, Calendar } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -131,14 +131,23 @@ function LeadCard({ lead, isDragging, onClick }: LeadCardProps) {
             </CardTitle>
             <p className="text-xs text-muted-foreground">{lead.lead_number}</p>
           </div>
-          {lead.assigned_staff && (
-            <Avatar className="h-6 w-6">
-              <AvatarImage src={lead.assigned_staff.avatar_url || undefined} />
-              <AvatarFallback className="text-[10px]">
-                {lead.assigned_staff.first_name[0]}{lead.assigned_staff.last_name[0]}
-              </AvatarFallback>
-            </Avatar>
-          )}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {(lead.lead_score ?? 0) > 0 && (
+              <LeadScoreBadge 
+                score={lead.lead_score ?? 0} 
+                breakdown={lead.score_breakdown_typed}
+                size="sm" 
+              />
+            )}
+            {lead.assigned_staff && (
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={lead.assigned_staff.avatar_url || undefined} />
+                <AvatarFallback className="text-[10px]">
+                  {lead.assigned_staff.first_name[0]}{lead.assigned_staff.last_name[0]}
+                </AvatarFallback>
+              </Avatar>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-3 pt-1 space-y-2">
