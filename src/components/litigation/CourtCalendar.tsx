@@ -12,11 +12,13 @@ import {
   subMonths,
   isPast,
   isFuture,
-  differenceInDays
+  differenceInDays,
+  getHours,
+  getMinutes
 } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Download, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -26,6 +28,11 @@ import { useStaff } from '@/hooks/useStaff';
 import { cn } from '@/lib/utils';
 
 type ViewMode = 'month' | 'week';
+
+// Working hours for the calendar (7am to 7pm)
+const HOUR_START = 7;
+const HOUR_END = 19;
+const HOURS = Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, i) => HOUR_START + i);
 
 function getHearingUrgency(hearing: HearingWithMatter) {
   const hearingDate = new Date(hearing.scheduled_date);
@@ -111,6 +118,163 @@ function exportToICal(hearings: HearingWithMatter[]) {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// Week View with hourly slots
+function WeekViewGrid({ 
+  days, 
+  hearingsByDate, 
+  currentDate 
+}: { 
+  days: Date[]; 
+  hearingsByDate: Map<string, HearingWithMatter[]>;
+  currentDate: Date;
+}) {
+  const [selectedHearing, setSelectedHearing] = useState<HearingWithMatter | null>(null);
+
+  // Calculate hearing position based on time
+  const getHearingPosition = (hearing: HearingWithMatter) => {
+    const date = new Date(hearing.scheduled_date);
+    const hour = getHours(date);
+    const minutes = getMinutes(date);
+    
+    // Calculate top position as percentage of the hour
+    const hourOffset = hour - HOUR_START;
+    const minuteOffset = minutes / 60;
+    const topPercent = ((hourOffset + minuteOffset) / (HOUR_END - HOUR_START + 1)) * 100;
+    
+    return { top: `${topPercent}%`, height: '48px' }; // Fixed height for 1 hour
+  };
+
+  return (
+    <div className="flex flex-col">
+      {/* Day headers */}
+      <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b">
+        <div className="p-2" /> {/* Empty corner */}
+        {days.map(day => (
+          <div 
+            key={day.toISOString()} 
+            className={cn(
+              "p-2 text-center border-l",
+              isSameDay(day, new Date()) && "bg-primary/10"
+            )}
+          >
+            <div className="text-sm font-medium">{format(day, 'EEE')}</div>
+            <div className={cn(
+              "text-lg",
+              isSameDay(day, new Date()) && "text-primary font-bold"
+            )}>
+              {format(day, 'd')}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Time grid */}
+      <div className="grid grid-cols-[60px_repeat(7,1fr)] flex-1 overflow-auto max-h-[600px]">
+        {/* Hours column */}
+        <div className="relative">
+          {HOURS.map(hour => (
+            <div 
+              key={hour} 
+              className="h-12 border-b text-xs text-muted-foreground pr-2 text-right flex items-start justify-end pt-0.5"
+            >
+              {format(new Date().setHours(hour, 0), 'h a')}
+            </div>
+          ))}
+        </div>
+
+        {/* Day columns */}
+        {days.map(day => {
+          const dateKey = format(day, 'yyyy-MM-dd');
+          const dayHearings = hearingsByDate.get(dateKey) || [];
+          
+          return (
+            <div 
+              key={day.toISOString()} 
+              className={cn(
+                "relative border-l",
+                isSameDay(day, new Date()) && "bg-primary/5"
+              )}
+            >
+              {/* Hour grid lines */}
+              {HOURS.map(hour => (
+                <div key={hour} className="h-12 border-b border-dashed border-muted" />
+              ))}
+              
+              {/* Hearings positioned by time */}
+              {dayHearings.map(hearing => {
+                const hearingDate = new Date(hearing.scheduled_date);
+                const hour = getHours(hearingDate);
+                
+                // Only show if within visible hours
+                if (hour < HOUR_START || hour > HOUR_END) return null;
+                
+                const position = getHearingPosition(hearing);
+                const urgency = getHearingUrgency(hearing);
+                const clientName = hearing.litigation_matter?.client_service?.primary_client
+                  ? `${hearing.litigation_matter.client_service.primary_client.first_name} ${hearing.litigation_matter.client_service.primary_client.last_name}`
+                  : 'Unknown';
+                
+                return (
+                  <Popover key={hearing.id}>
+                    <PopoverTrigger asChild>
+                      <button
+                        className={cn(
+                          "absolute left-0.5 right-0.5 px-1 py-0.5 rounded text-xs overflow-hidden cursor-pointer hover:opacity-90 transition-opacity text-left",
+                          urgencyColors[urgency]
+                        )}
+                        style={{ top: position.top, minHeight: position.height }}
+                      >
+                        <div className="font-medium truncate">
+                          {format(hearingDate, 'h:mm a')}
+                        </div>
+                        <div className="truncate opacity-90">
+                          {hearing.hearing_type}
+                        </div>
+                        <div className="truncate text-[10px] opacity-75">
+                          {clientName}
+                        </div>
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-3" align="start">
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold">{hearing.hearing_type}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {format(hearingDate, 'EEEE, MMMM d, yyyy')} at {format(hearingDate, 'h:mm a')}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="shrink-0">
+                            {hearing.litigation_matter?.case_number || 'No Case #'}
+                          </Badge>
+                        </div>
+                        <div className="text-sm">
+                          <p><strong>Client:</strong> {clientName}</p>
+                          <p><strong>vs:</strong> {hearing.litigation_matter?.opposing_party || 'Unknown'}</p>
+                          {hearing.location && <p><strong>Location:</strong> {hearing.location}</p>}
+                          {hearing.judge_name && <p><strong>Judge:</strong> {hearing.judge_name}</p>}
+                          {hearing.litigation_matter?.court_name && (
+                            <p><strong>Court:</strong> {hearing.litigation_matter.court_name}</p>
+                          )}
+                        </div>
+                        {hearing.notes && (
+                          <p className="text-xs text-muted-foreground border-t pt-2 mt-2">
+                            {hearing.notes}
+                          </p>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export function CourtCalendar() {
@@ -297,128 +461,143 @@ export function CourtCalendar() {
       {/* Calendar Grid */}
       <Card>
         <CardContent className="p-4">
-          {/* Day Headers */}
-          <div className="grid grid-cols-7 mb-2">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
-                {day}
+          {viewMode === 'week' ? (
+            <WeekViewGrid 
+              days={displayDays} 
+              hearingsByDate={hearingsByDate}
+              currentDate={currentDate}
+            />
+          ) : (
+            <>
+              {/* Day Headers */}
+              <div className="grid grid-cols-7 mb-2">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
+                    {day}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Calendar Days */}
-          <div className="grid grid-cols-7 gap-1">
-            {displayDays.map(day => {
-              const dateKey = format(day, 'yyyy-MM-dd');
-              const dayHearings = hearingsByDate.get(dateKey) || [];
-              const isCurrentMonth = isSameMonth(day, currentDate);
-              const isToday = isSameDay(day, new Date());
-              const isSelected = selectedDate && isSameDay(day, selectedDate);
+              {/* Calendar Days */}
+              <div className="grid grid-cols-7 gap-1">
+                {displayDays.map(day => {
+                  const dateKey = format(day, 'yyyy-MM-dd');
+                  const dayHearings = hearingsByDate.get(dateKey) || [];
+                  const isCurrentMonth = isSameMonth(day, currentDate);
+                  const isToday = isSameDay(day, new Date());
+                  const isSelected = selectedDate && isSameDay(day, selectedDate);
 
-              // Determine most urgent hearing for color coding
-              const mostUrgent = dayHearings.length > 0
-                ? dayHearings.reduce((prev, curr) => {
-                    const urgencyOrder = ['urgent', 'soon', 'needs_outcome', 'normal', 'completed'];
-                    const prevIdx = urgencyOrder.indexOf(getHearingUrgency(prev));
-                    const currIdx = urgencyOrder.indexOf(getHearingUrgency(curr));
-                    return currIdx < prevIdx ? curr : prev;
-                  })
-                : null;
+                  // Determine most urgent hearing for color coding
+                  const mostUrgent = dayHearings.length > 0
+                    ? dayHearings.reduce((prev, curr) => {
+                        const urgencyOrder = ['urgent', 'soon', 'needs_outcome', 'normal', 'completed'];
+                        const prevIdx = urgencyOrder.indexOf(getHearingUrgency(prev));
+                        const currIdx = urgencyOrder.indexOf(getHearingUrgency(curr));
+                        return currIdx < prevIdx ? curr : prev;
+                      })
+                    : null;
 
-              const urgency = mostUrgent ? getHearingUrgency(mostUrgent) : null;
+                  const urgency = mostUrgent ? getHearingUrgency(mostUrgent) : null;
 
-              return (
-                <Popover key={dateKey}>
-                  <PopoverTrigger asChild>
-                    <button
-                      onClick={() => setSelectedDate(day)}
-                      className={cn(
-                        'min-h-[80px] p-2 rounded-md border text-left transition-colors',
-                        'hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary',
-                        !isCurrentMonth && 'opacity-40',
-                        isToday && 'border-primary border-2',
-                        isSelected && 'bg-accent'
-                      )}
-                    >
-                      <div className="flex items-start justify-between">
-                        <span className={cn(
-                          'text-sm',
-                          isToday && 'font-bold text-primary'
-                        )}>
-                          {format(day, 'd')}
-                        </span>
-                        {dayHearings.length > 0 && (
-                          <Badge 
-                            className={cn('text-xs px-1.5 py-0', urgency && urgencyColors[urgency])}
-                          >
-                            {dayHearings.length}
-                          </Badge>
-                        )}
-                      </div>
-                      {viewMode === 'week' && dayHearings.slice(0, 3).map(h => (
-                        <div 
-                          key={h.id} 
+                  return (
+                    <Popover key={dateKey}>
+                      <PopoverTrigger asChild>
+                        <button
+                          onClick={() => setSelectedDate(day)}
                           className={cn(
-                            'text-xs mt-1 px-1 py-0.5 rounded truncate',
-                            urgencyColors[getHearingUrgency(h)]
+                            'min-h-[80px] p-2 rounded-md border text-left transition-colors',
+                            'hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary',
+                            !isCurrentMonth && 'opacity-40',
+                            isToday && 'border-primary border-2',
+                            isSelected && 'bg-accent'
                           )}
                         >
-                          {format(new Date(h.scheduled_date), 'h:mm a')} - {h.hearing_type}
-                        </div>
-                      ))}
-                    </button>
-                  </PopoverTrigger>
-                  {dayHearings.length > 0 && (
-                    <PopoverContent className="w-80 p-0" align="start">
-                      <div className="p-3 border-b">
-                        <h4 className="font-semibold">{format(day, 'EEEE, MMMM d, yyyy')}</h4>
-                        <p className="text-sm text-muted-foreground">{dayHearings.length} hearing(s)</p>
-                      </div>
-                      <div className="max-h-[300px] overflow-y-auto p-2 space-y-2">
-                        {dayHearings
-                          .sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime())
-                          .map(hearing => {
-                            const clientName = hearing.litigation_matter?.client_service?.primary_client
-                              ? `${hearing.litigation_matter.client_service.primary_client.first_name} ${hearing.litigation_matter.client_service.primary_client.last_name}`
-                              : 'Unknown';
-                            
-                            return (
-                              <div 
-                                key={hearing.id} 
-                                className={cn(
-                                  'p-2 rounded border-l-4',
-                                  urgencyColors[getHearingUrgency(hearing)].includes('destructive') 
-                                    ? 'border-l-destructive bg-destructive/5' 
-                                    : urgencyColors[getHearingUrgency(hearing)].includes('yellow')
-                                    ? 'border-l-yellow-500 bg-yellow-50'
-                                    : 'border-l-primary bg-primary/5'
-                                )}
+                          <div className="flex items-start justify-between">
+                            <span className={cn(
+                              'text-sm',
+                              isToday && 'font-bold text-primary'
+                            )}>
+                              {format(day, 'd')}
+                            </span>
+                            {dayHearings.length > 0 && (
+                              <Badge 
+                                className={cn('text-xs px-1.5 py-0', urgency && urgencyColors[urgency])}
                               >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div>
-                                    <p className="font-medium text-sm">{hearing.hearing_type}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {clientName} vs {hearing.litigation_matter?.opposing_party || 'Unknown'}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      {format(new Date(hearing.scheduled_date), 'h:mm a')}
-                                      {hearing.location && ` • ${hearing.location}`}
-                                    </p>
+                                {dayHearings.length}
+                              </Badge>
+                            )}
+                          </div>
+                          {dayHearings.slice(0, 2).map(h => (
+                            <div 
+                              key={h.id} 
+                              className={cn(
+                                'text-xs mt-1 px-1 py-0.5 rounded truncate',
+                                urgencyColors[getHearingUrgency(h)]
+                              )}
+                            >
+                              {format(new Date(h.scheduled_date), 'h:mm a')} - {h.hearing_type}
+                            </div>
+                          ))}
+                          {dayHearings.length > 2 && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              +{dayHearings.length - 2} more
+                            </div>
+                          )}
+                        </button>
+                      </PopoverTrigger>
+                      {dayHearings.length > 0 && (
+                        <PopoverContent className="w-80 p-0" align="start">
+                          <div className="p-3 border-b">
+                            <h4 className="font-semibold">{format(day, 'EEEE, MMMM d, yyyy')}</h4>
+                            <p className="text-sm text-muted-foreground">{dayHearings.length} hearing(s)</p>
+                          </div>
+                          <div className="max-h-[300px] overflow-y-auto p-2 space-y-2">
+                            {dayHearings
+                              .sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime())
+                              .map(hearing => {
+                                const clientName = hearing.litigation_matter?.client_service?.primary_client
+                                  ? `${hearing.litigation_matter.client_service.primary_client.first_name} ${hearing.litigation_matter.client_service.primary_client.last_name}`
+                                  : 'Unknown';
+                                
+                                return (
+                                  <div 
+                                    key={hearing.id} 
+                                    className={cn(
+                                      'p-2 rounded border-l-4',
+                                      urgencyColors[getHearingUrgency(hearing)].includes('destructive') 
+                                        ? 'border-l-destructive bg-destructive/5' 
+                                        : urgencyColors[getHearingUrgency(hearing)].includes('yellow')
+                                        ? 'border-l-yellow-500 bg-yellow-50'
+                                        : 'border-l-primary bg-primary/5'
+                                    )}
+                                  >
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div>
+                                        <p className="font-medium text-sm">{hearing.hearing_type}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {clientName} vs {hearing.litigation_matter?.opposing_party || 'Unknown'}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          {format(new Date(hearing.scheduled_date), 'h:mm a')}
+                                          {hearing.location && ` • ${hearing.location}`}
+                                        </p>
+                                      </div>
+                                      <Badge variant="outline" className="text-xs shrink-0">
+                                        {hearing.litigation_matter?.case_number || 'No Case #'}
+                                      </Badge>
+                                    </div>
                                   </div>
-                                  <Badge variant="outline" className="text-xs shrink-0">
-                                    {hearing.litigation_matter?.case_number || 'No Case #'}
-                                  </Badge>
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </PopoverContent>
-                  )}
-                </Popover>
-              );
-            })}
-          </div>
+                                );
+                              })}
+                          </div>
+                        </PopoverContent>
+                      )}
+                    </Popover>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
