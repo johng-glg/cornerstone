@@ -19,6 +19,13 @@ const statusIcons = {
   Completed: CheckCircle,
 };
 
+const statusColors = {
+  Planned: 'text-muted-foreground',
+  'In Progress': 'text-info',
+  Research: 'text-warning',
+  Completed: 'bg-success text-success-foreground px-2 py-0.5 rounded-full font-medium',
+};
+
 function FeatureCard({ item }: { item: RoadmapItem }) {
   const StatusIcon = statusIcons[item.status];
   
@@ -34,8 +41,10 @@ function FeatureCard({ item }: { item: RoadmapItem }) {
           </div>
         </div>
         <CardDescription className="flex items-center gap-1.5">
-          <StatusIcon className="h-3.5 w-3.5" />
-          {item.status}
+          <span className={`inline-flex items-center gap-1.5 ${statusColors[item.status]}`}>
+            <StatusIcon className="h-3.5 w-3.5" />
+            {item.status}
+          </span>
         </CardDescription>
       </CardHeader>
       <CardContent>
