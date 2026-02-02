@@ -1,9 +1,9 @@
 
-# Workflow Automation Builder Implementation Plan
+# Deadline Reminder System Implementation Plan
 
 ## Overview
 
-This feature implements a visual workflow automation system that allows admins to define triggers, conditions, and actions for automating business processes. A key capability is **status transition restrictions** - preventing status changes unless specific conditions are met (e.g., can't mark a service as "graduated" unless all liabilities are settled).
+This feature implements an automated reminder system for litigation response deadlines and court hearings. A scheduled Edge Function runs periodically to check for upcoming deadlines and creates in-app notifications (with future email support) for assigned staff members. Users can configure reminder timing (e.g., 7 days, 3 days, 1 day before).
 
 ---
 
@@ -11,406 +11,463 @@ This feature implements a visual workflow automation system that allows admins t
 
 | Feature | Description |
 |---------|-------------|
-| **Workflow Rules** | Configurable rules with triggers, conditions, and actions |
-| **Transition Gates** | Block status changes unless conditions are satisfied |
-| **Multiple Entity Support** | Works with leads, services, liabilities, litigation, tasks |
-| **Automated Actions** | Auto-create tasks, send notifications, update fields |
-| **Condition Builder** | Visual interface for building conditional logic |
-| **Execution Logging** | Audit trail of all workflow executions |
-| **Priority Ordering** | Control execution order when multiple rules match |
+| **Deadline Reminders** | Automatic notifications for response deadlines |
+| **Hearing Reminders** | Alerts for upcoming court appearances |
+| **Configurable Timing** | Set reminder intervals (e.g., 7, 3, 1 day before) |
+| **Duplicate Prevention** | Track sent reminders to avoid repeat notifications |
+| **Per-User Preferences** | Respects existing notification preferences |
+| **Audit Trail** | Log of all reminders sent |
 
 ---
 
-## Workflow Components
+## Reminder Types
 
-### 1. Triggers (When)
-Events that initiate workflow evaluation:
-
-| Trigger Type | Description | Example |
-|--------------|-------------|---------|
-| `status_changed` | Entity status changes | Lead moves to "contacted" |
-| `field_updated` | Specific field modified | Escrow balance updated |
-| `record_created` | New record inserted | New liability created |
-| `time_based` | Scheduled/deadline | 7 days after creation |
-| `manual` | User-initiated | Button click |
-
-### 2. Conditions (If)
-Criteria that must be met for actions to execute:
-
-| Condition Type | Description | Example |
-|----------------|-------------|---------|
-| `field_equals` | Field has specific value | `status = 'active'` |
-| `field_greater` | Numeric comparison | `escrow_balance > 5000` |
-| `field_contains` | Text contains string | `notes contains 'urgent'` |
-| `related_count` | Count of related records | `liabilities.count >= 3` |
-| `related_all` | All related match condition | `liabilities.all(status = 'settled')` |
-| `date_diff` | Days between dates | `created_at > 30 days ago` |
-
-### 3. Actions (Then)
-What happens when conditions are met:
-
-| Action Type | Description | Example |
-|-------------|-------------|---------|
-| `create_task` | Generate a new task | Create follow-up task |
-| `send_notification` | Notify users | Alert assigned rep |
-| `update_field` | Modify entity field | Set `priority = 'high'` |
-| `block_transition` | Prevent status change | Block if conditions fail |
-| `trigger_webhook` | External integration | Call API endpoint |
-
----
-
-## Transition Gate Example
-
-**Scenario**: Prevent graduating a service until all liabilities are settled
-
-```text
-Workflow: "Service Graduation Gate"
-+-----------------------------------------+
-| TRIGGER: status_changed                 |
-| Entity: client_services                 |
-| To Status: graduated                    |
-+-----------------------------------------+
-           |
-           v
-+-----------------------------------------+
-| CONDITION: NOT                          |
-|   related_all(                          |
-|     liabilities.status IN               |
-|     ['settled', 'dismissed']            |
-|   )                                     |
-+-----------------------------------------+
-           |
-           v
-+-----------------------------------------+
-| ACTION: block_transition                |
-| Message: "Cannot graduate - X           |
-|   liabilities remain unresolved"        |
-+-----------------------------------------+
-```
+| Type | Source Table | Date Field | Description |
+|------|--------------|------------|-------------|
+| `response_deadline` | `litigation_matters` | `response_deadline` | Court response filing deadline |
+| `hearing` | `litigation_hearings` | `scheduled_date` | Scheduled court appearance |
+| `task_due` | `tasks` | `due_date` | Task deadline (bonus) |
 
 ---
 
 ## Database Schema
 
-### Table 1: `workflow_rules`
+### Table: `deadline_reminders`
 
-Stores workflow definitions:
-
-```sql
-CREATE TYPE workflow_trigger_type AS ENUM (
-  'status_changed',
-  'field_updated',
-  'record_created',
-  'time_based',
-  'manual'
-);
-
-CREATE TYPE workflow_entity_type AS ENUM (
-  'leads',
-  'client_services',
-  'liabilities',
-  'litigation_matters',
-  'tasks',
-  'settlements'
-);
-
-CREATE TYPE workflow_action_type AS ENUM (
-  'create_task',
-  'send_notification',
-  'update_field',
-  'block_transition',
-  'trigger_webhook'
-);
-
-CREATE TABLE workflow_rules (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  description TEXT,
-  
-  -- Trigger configuration
-  entity_type workflow_entity_type NOT NULL,
-  trigger_type workflow_trigger_type NOT NULL,
-  trigger_config JSONB NOT NULL DEFAULT '{}'::jsonb,
-  /*
-    trigger_config examples:
-    status_changed: { "from": ["pending"], "to": ["active"] }
-    field_updated: { "field": "escrow_balance" }
-    time_based: { "schedule": "0 9 * * 1", "relative_to": "created_at", "days": 7 }
-  */
-  
-  -- Conditions (array of condition groups - OR between groups, AND within)
-  conditions JSONB NOT NULL DEFAULT '[]'::jsonb,
-  /*
-    [
-      {
-        "group_id": "g1",
-        "operator": "AND",
-        "rules": [
-          { "field": "status", "operator": "equals", "value": "active" },
-          { "field": "escrow_balance", "operator": "greater_than", "value": 5000 }
-        ]
-      }
-    ]
-  */
-  
-  -- Actions to execute
-  actions JSONB NOT NULL DEFAULT '[]'::jsonb,
-  /*
-    [
-      {
-        "type": "create_task",
-        "config": {
-          "title": "Follow up with {client_name}",
-          "description": "Auto-generated from workflow",
-          "priority": "high",
-          "due_days": 3,
-          "assign_to": "entity_owner"
-        }
-      },
-      {
-        "type": "send_notification",
-        "config": {
-          "to": "entity_owner",
-          "title": "Status Changed",
-          "message": "Service {service_number} is now active"
-        }
-      }
-    ]
-  */
-  
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  is_blocking BOOLEAN NOT NULL DEFAULT false,  -- If true, can block status transitions
-  priority INTEGER NOT NULL DEFAULT 0,         -- Higher = runs first
-  
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by UUID REFERENCES staff(id)
-);
-
--- Index for rule lookup
-CREATE INDEX idx_workflow_rules_lookup 
-  ON workflow_rules(company_id, entity_type, trigger_type, is_active)
-  WHERE is_active = true;
-
--- RLS
-ALTER TABLE workflow_rules ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view company rules"
-  ON workflow_rules FOR SELECT
-  TO authenticated
-  USING (company_id = get_user_company_id(auth.uid()));
-
-CREATE POLICY "Admins can manage rules"
-  ON workflow_rules FOR ALL
-  TO authenticated
-  USING (
-    company_id = get_user_company_id(auth.uid()) 
-    AND has_role(auth.uid(), 'admin')
-  );
-```
-
-### Table 2: `workflow_executions`
-
-Audit log of workflow runs:
+Stores reminder configuration and tracks sent notifications:
 
 ```sql
-CREATE TYPE workflow_execution_status AS ENUM (
-  'success',
-  'blocked',
+CREATE TYPE reminder_type AS ENUM (
+  'response_deadline',
+  'hearing',
+  'task_due'
+);
+
+CREATE TYPE reminder_status AS ENUM (
+  'pending',
+  'sent',
   'failed',
   'skipped'
 );
 
-CREATE TABLE workflow_executions (
+CREATE TABLE deadline_reminders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  rule_id UUID NOT NULL REFERENCES workflow_rules(id) ON DELETE CASCADE,
-  entity_type workflow_entity_type NOT NULL,
-  entity_id UUID NOT NULL,
   
-  status workflow_execution_status NOT NULL,
-  trigger_data JSONB,                  -- Data that triggered the workflow
-  condition_results JSONB,             -- Which conditions passed/failed
-  actions_executed JSONB,              -- Results of each action
-  error_message TEXT,                  -- If failed, why
-  block_message TEXT,                  -- If blocking, user-facing message
+  -- What to remind about
+  reminder_type reminder_type NOT NULL,
+  entity_id UUID NOT NULL,                    -- litigation_matters.id, litigation_hearings.id, or tasks.id
+  deadline_date TIMESTAMPTZ NOT NULL,         -- The actual deadline/hearing date
   
-  executed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  duration_ms INTEGER                  -- Execution time
+  -- Who to notify
+  staff_id UUID REFERENCES staff(id) ON DELETE CASCADE,
+  
+  -- Reminder configuration
+  days_before INTEGER NOT NULL,               -- 7, 3, 1, 0 days before
+  scheduled_for TIMESTAMPTZ NOT NULL,         -- When reminder should be sent
+  
+  -- Tracking
+  status reminder_status NOT NULL DEFAULT 'pending',
+  sent_at TIMESTAMPTZ,
+  notification_id UUID REFERENCES notifications(id),
+  error_message TEXT,
+  
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  
+  -- Prevent duplicate reminders
+  UNIQUE(reminder_type, entity_id, staff_id, days_before)
 );
 
--- Index for entity history
-CREATE INDEX idx_workflow_executions_entity 
-  ON workflow_executions(entity_type, entity_id, executed_at DESC);
+-- Index for cron job query
+CREATE INDEX idx_deadline_reminders_pending 
+  ON deadline_reminders(scheduled_for, status)
+  WHERE status = 'pending';
+
+-- Index for entity lookup
+CREATE INDEX idx_deadline_reminders_entity
+  ON deadline_reminders(reminder_type, entity_id);
 
 -- RLS
-ALTER TABLE workflow_executions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE deadline_reminders ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Staff can view executions"
-  ON workflow_executions FOR SELECT
+CREATE POLICY "Staff can view their reminders"
+  ON deadline_reminders FOR SELECT
   TO authenticated
-  USING (EXISTS (
-    SELECT 1 FROM workflow_rules r 
-    WHERE r.id = rule_id 
-    AND r.company_id = get_user_company_id(auth.uid())
-  ));
+  USING (staff_id IN (SELECT id FROM staff WHERE user_id = auth.uid()));
+```
+
+### Table: `reminder_settings`
+
+Global and per-user reminder configuration:
+
+```sql
+CREATE TABLE reminder_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  
+  -- Which reminders to send (days before deadline)
+  response_deadline_days INTEGER[] NOT NULL DEFAULT '{7, 3, 1}',
+  hearing_days INTEGER[] NOT NULL DEFAULT '{7, 3, 1, 0}',  -- 0 = day of
+  task_due_days INTEGER[] NOT NULL DEFAULT '{3, 1}',
+  
+  -- Timing
+  reminder_hour INTEGER NOT NULL DEFAULT 9,   -- Send at 9 AM local
+  
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  
+  UNIQUE(company_id)
+);
+
+-- RLS
+ALTER TABLE reminder_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view company settings"
+  ON reminder_settings FOR SELECT
+  TO authenticated
+  USING (company_id = get_user_company_id(auth.uid()));
+
+CREATE POLICY "Admins can manage settings"
+  ON reminder_settings FOR ALL
+  TO authenticated
+  USING (
+    company_id = get_user_company_id(auth.uid())
+    AND has_role(auth.uid(), 'admin')
+  );
 ```
 
 ---
 
-## Core Workflow Engine Function
+## Database Function: Generate Reminders
 
-Database function to evaluate and execute workflows:
+Function to scan for upcoming deadlines and create pending reminders:
 
 ```sql
-CREATE OR REPLACE FUNCTION evaluate_workflow(
-  _entity_type workflow_entity_type,
-  _entity_id UUID,
-  _trigger_type workflow_trigger_type,
-  _trigger_data JSONB,
-  _company_id UUID
-)
-RETURNS TABLE(
-  rule_id UUID,
-  rule_name TEXT,
-  status workflow_execution_status,
-  block_message TEXT,
-  actions_result JSONB
-)
+CREATE OR REPLACE FUNCTION generate_deadline_reminders()
+RETURNS TABLE(reminders_created INTEGER, errors TEXT[])
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  _rule workflow_rules;
-  _conditions_met BOOLEAN;
-  _actions_result JSONB := '[]'::jsonb;
-  _execution_status workflow_execution_status;
-  _block_msg TEXT;
-  _start_time TIMESTAMPTZ;
-  _duration INTEGER;
+  _settings reminder_settings;
+  _days INTEGER;
+  _created INTEGER := 0;
+  _errors TEXT[] := '{}';
 BEGIN
-  FOR _rule IN
-    SELECT * FROM workflow_rules
-    WHERE company_id = _company_id
-      AND entity_type = _entity_type
-      AND trigger_type = _trigger_type
-      AND is_active = true
-    ORDER BY priority DESC
+  -- Process each company's settings
+  FOR _settings IN SELECT * FROM reminder_settings WHERE is_active = true
   LOOP
-    _start_time := clock_timestamp();
-    _conditions_met := true;
-    _block_msg := null;
-    _execution_status := 'success';
-    
-    -- Check if trigger matches
-    IF NOT check_trigger_match(_rule.trigger_config, _trigger_data) THEN
-      CONTINUE;
-    END IF;
-    
-    -- Evaluate conditions
-    _conditions_met := evaluate_conditions(
-      _rule.conditions,
-      _entity_type,
-      _entity_id
-    );
-    
-    IF NOT _conditions_met THEN
-      _execution_status := 'skipped';
-    ELSE
-      -- Execute actions
-      _actions_result := execute_workflow_actions(
-        _rule.actions,
-        _entity_type,
-        _entity_id,
-        _rule.is_blocking
-      );
+    -- Response Deadlines
+    FOREACH _days IN ARRAY _settings.response_deadline_days
+    LOOP
+      -- Find litigation matters with deadlines in range and assigned staff
+      INSERT INTO deadline_reminders (
+        reminder_type, entity_id, deadline_date, staff_id, 
+        days_before, scheduled_for
+      )
+      SELECT 
+        'response_deadline',
+        lm.id,
+        lm.response_deadline,
+        a.staff_id,
+        _days,
+        (lm.response_deadline::date - _days) + (_settings.reminder_hour || ' hours')::interval
+      FROM litigation_matters lm
+      JOIN assignments a ON a.entity_id = lm.id 
+        AND a.entity_type = 'litigation_matters' 
+        AND a.is_active = true
+      WHERE lm.response_deadline IS NOT NULL
+        AND lm.response_deadline > now()
+        AND lm.status NOT IN ('settled', 'dismissed', 'dropped', 'judgment', 'declined')
+        AND (lm.response_deadline::date - _days) >= CURRENT_DATE
+        AND (lm.response_deadline::date - _days) <= CURRENT_DATE + 1
+      ON CONFLICT (reminder_type, entity_id, staff_id, days_before) DO NOTHING;
       
-      -- Check if any action blocked
-      IF _rule.is_blocking AND (_actions_result->0->>'blocked')::boolean THEN
-        _execution_status := 'blocked';
-        _block_msg := _actions_result->0->>'message';
-      END IF;
-    END IF;
+      _created := _created + (SELECT COUNT(*) FROM deadline_reminders 
+        WHERE created_at > now() - interval '1 minute');
+    END LOOP;
     
-    _duration := EXTRACT(MILLISECONDS FROM clock_timestamp() - _start_time)::INTEGER;
-    
-    -- Log execution
-    INSERT INTO workflow_executions (
-      rule_id, entity_type, entity_id, status,
-      trigger_data, condition_results, actions_executed,
-      block_message, duration_ms
-    ) VALUES (
-      _rule.id, _entity_type, _entity_id, _execution_status,
-      _trigger_data, _rule.conditions, _actions_result,
-      _block_msg, _duration
-    );
-    
-    -- Return result
-    rule_id := _rule.id;
-    rule_name := _rule.name;
-    status := _execution_status;
-    block_message := _block_msg;
-    actions_result := _actions_result;
-    RETURN NEXT;
-    
-    -- If blocked, stop processing further rules
-    IF _execution_status = 'blocked' THEN
-      RETURN;
-    END IF;
-  END LOOP;
-END;
-$$;
-```
-
----
-
-## Transition Validation Function
-
-Function called before status changes to check for blocking rules:
-
-```sql
-CREATE OR REPLACE FUNCTION validate_status_transition(
-  _entity_type workflow_entity_type,
-  _entity_id UUID,
-  _from_status TEXT,
-  _to_status TEXT,
-  _company_id UUID
-)
-RETURNS TABLE(
-  allowed BOOLEAN,
-  block_message TEXT
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  _result RECORD;
-BEGIN
-  -- Evaluate blocking workflows
-  FOR _result IN
-    SELECT * FROM evaluate_workflow(
-      _entity_type,
-      _entity_id,
-      'status_changed',
-      jsonb_build_object('from', _from_status, 'to', _to_status),
-      _company_id
-    )
-    WHERE status = 'blocked'
-  LOOP
-    allowed := false;
-    block_message := _result.block_message;
-    RETURN NEXT;
-    RETURN;
+    -- Hearings
+    FOREACH _days IN ARRAY _settings.hearing_days
+    LOOP
+      INSERT INTO deadline_reminders (
+        reminder_type, entity_id, deadline_date, staff_id,
+        days_before, scheduled_for
+      )
+      SELECT 
+        'hearing',
+        lh.id,
+        lh.scheduled_date,
+        a.staff_id,
+        _days,
+        (lh.scheduled_date::date - _days) + (_settings.reminder_hour || ' hours')::interval
+      FROM litigation_hearings lh
+      JOIN litigation_matters lm ON lm.id = lh.matter_id
+      JOIN assignments a ON a.entity_id = lm.id 
+        AND a.entity_type = 'litigation_matters' 
+        AND a.is_active = true
+      WHERE lh.scheduled_date > now()
+        AND lh.outcome IS NULL  -- Not yet completed
+        AND lm.status NOT IN ('settled', 'dismissed', 'dropped', 'judgment', 'declined')
+        AND (lh.scheduled_date::date - _days) >= CURRENT_DATE
+        AND (lh.scheduled_date::date - _days) <= CURRENT_DATE + 1
+      ON CONFLICT (reminder_type, entity_id, staff_id, days_before) DO NOTHING;
+    END LOOP;
   END LOOP;
   
-  -- No blocking rules triggered
-  allowed := true;
-  block_message := null;
+  reminders_created := _created;
+  errors := _errors;
   RETURN NEXT;
 END;
 $$;
+```
+
+---
+
+## Edge Function: `process-deadline-reminders`
+
+Scheduled function that runs hourly to send pending reminders:
+
+```typescript
+// supabase/functions/process-deadline-reminders/index.ts
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+interface PendingReminder {
+  id: string;
+  reminder_type: 'response_deadline' | 'hearing' | 'task_due';
+  entity_id: string;
+  deadline_date: string;
+  staff_id: string;
+  days_before: number;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    console.log('Starting deadline reminder processing...');
+
+    // First, generate any new reminders needed
+    const { error: genError } = await supabase.rpc('generate_deadline_reminders');
+    if (genError) {
+      console.error('Error generating reminders:', genError);
+    }
+
+    // Fetch pending reminders that are due
+    const { data: pendingReminders, error: fetchError } = await supabase
+      .from('deadline_reminders')
+      .select('*')
+      .eq('status', 'pending')
+      .lte('scheduled_for', new Date().toISOString())
+      .limit(100);
+
+    if (fetchError) throw fetchError;
+
+    console.log(`Found ${pendingReminders?.length || 0} pending reminders`);
+
+    let sent = 0;
+    let failed = 0;
+
+    for (const reminder of pendingReminders || []) {
+      try {
+        // Get entity details for notification message
+        const { title, message, link } = await buildNotificationContent(
+          supabase, 
+          reminder
+        );
+
+        // Check user's notification preferences
+        const { data: staff } = await supabase
+          .from('staff')
+          .select('user_id')
+          .eq('id', reminder.staff_id)
+          .single();
+
+        if (!staff?.user_id) {
+          throw new Error('Staff user not found');
+        }
+
+        // Create notification
+        const { data: notification, error: notifError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: staff.user_id,
+            type: reminder.reminder_type === 'hearing' 
+              ? 'hearing_reminder' 
+              : 'task_due_soon',
+            title,
+            message,
+            link,
+            entity_type: reminder.reminder_type,
+            entity_id: reminder.entity_id,
+          })
+          .select()
+          .single();
+
+        if (notifError) throw notifError;
+
+        // Mark reminder as sent
+        await supabase
+          .from('deadline_reminders')
+          .update({
+            status: 'sent',
+            sent_at: new Date().toISOString(),
+            notification_id: notification.id,
+          })
+          .eq('id', reminder.id);
+
+        sent++;
+        console.log(`Sent reminder ${reminder.id} to staff ${reminder.staff_id}`);
+
+      } catch (err) {
+        failed++;
+        console.error(`Failed to send reminder ${reminder.id}:`, err);
+        
+        await supabase
+          .from('deadline_reminders')
+          .update({
+            status: 'failed',
+            error_message: err.message,
+          })
+          .eq('id', reminder.id);
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        processed: pendingReminders?.length || 0,
+        sent,
+        failed,
+        timestamp: new Date().toISOString(),
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('Error processing reminders:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: error.message }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500
+      }
+    );
+  }
+});
+
+async function buildNotificationContent(supabase: any, reminder: PendingReminder) {
+  const daysText = reminder.days_before === 0 
+    ? 'today' 
+    : reminder.days_before === 1 
+      ? 'tomorrow' 
+      : `in ${reminder.days_before} days`;
+
+  if (reminder.reminder_type === 'response_deadline') {
+    const { data: matter } = await supabase
+      .from('litigation_matters')
+      .select(`
+        case_number,
+        opposing_party,
+        client_service:client_services(
+          primary_client:clients(first_name, last_name)
+        )
+      `)
+      .eq('id', reminder.entity_id)
+      .single();
+
+    const clientName = matter?.client_service?.primary_client
+      ? `${matter.client_service.primary_client.first_name} ${matter.client_service.primary_client.last_name}`
+      : 'Unknown Client';
+
+    return {
+      title: `Response Deadline ${daysText}`,
+      message: `${clientName} vs ${matter?.opposing_party || 'Unknown'} - ${matter?.case_number || 'Case pending'}`,
+      link: `/litigation?matter=${reminder.entity_id}`,
+    };
+  }
+
+  if (reminder.reminder_type === 'hearing') {
+    const { data: hearing } = await supabase
+      .from('litigation_hearings')
+      .select(`
+        hearing_type,
+        location,
+        scheduled_date,
+        litigation_matter:litigation_matters(
+          case_number,
+          court_name,
+          client_service:client_services(
+            primary_client:clients(first_name, last_name)
+          )
+        )
+      `)
+      .eq('id', reminder.entity_id)
+      .single();
+
+    const clientName = hearing?.litigation_matter?.client_service?.primary_client
+      ? `${hearing.litigation_matter.client_service.primary_client.first_name} ${hearing.litigation_matter.client_service.primary_client.last_name}`
+      : 'Unknown Client';
+
+    const time = new Date(hearing?.scheduled_date).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+
+    return {
+      title: `Court Hearing ${daysText}`,
+      message: `${hearing?.hearing_type?.replace('_', ' ')} at ${time} - ${clientName}`,
+      link: `/court-calendar`,
+    };
+  }
+
+  return {
+    title: 'Deadline Reminder',
+    message: `You have a deadline ${daysText}`,
+    link: null,
+  };
+}
+```
+
+---
+
+## Cron Job Setup
+
+Set up pg_cron to run the reminder processor hourly:
+
+```sql
+-- Enable required extensions
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net;
+
+-- Schedule hourly reminder processing
+SELECT cron.schedule(
+  'process-deadline-reminders',
+  '0 * * * *',  -- Every hour at minute 0
+  $$
+  SELECT net.http_post(
+    url := 'https://scswhhmwmbjdffplwnsf.supabase.co/functions/v1/process-deadline-reminders',
+    headers := '{"Content-Type": "application/json", "Authorization": "Bearer <anon_key>"}'::jsonb,
+    body := '{}'::jsonb
+  ) AS request_id;
+  $$
+);
 ```
 
 ---
@@ -421,27 +478,27 @@ $$;
 
 | File | Purpose |
 |------|---------|
-| `src/types/workflow.ts` | TypeScript interfaces for workflows |
+| `src/types/reminders.ts` | TypeScript interfaces for reminders |
 
 ### Hooks
 
 | File | Purpose |
 |------|---------|
-| `src/hooks/useWorkflowRules.ts` | CRUD for workflow rules |
-| `src/hooks/useWorkflowExecutions.ts` | View execution history |
-| `src/hooks/useValidateTransition.ts` | Check if status change allowed |
+| `src/hooks/useDeadlineReminders.ts` | Query/manage reminders |
+| `src/hooks/useReminderSettings.ts` | CRUD for reminder settings |
 
 ### Components
 
 | File | Purpose |
 |------|---------|
-| `src/components/settings/WorkflowsTab.tsx` | Workflow list in Settings |
-| `src/components/workflows/WorkflowFormDialog.tsx` | Create/edit workflow |
-| `src/components/workflows/TriggerConfig.tsx` | Trigger configuration UI |
-| `src/components/workflows/ConditionBuilder.tsx` | Visual condition builder |
-| `src/components/workflows/ActionConfig.tsx` | Action configuration UI |
-| `src/components/workflows/WorkflowExecutionLog.tsx` | Execution history |
-| `src/components/workflows/TransitionBlockedDialog.tsx` | Show why blocked |
+| `src/components/settings/ReminderSettingsTab.tsx` | Admin configuration UI |
+| `src/components/dashboards/DeadlineRemindersWidget.tsx` | Dashboard display |
+
+### Edge Function
+
+| File | Purpose |
+|------|---------|
+| `supabase/functions/process-deadline-reminders/index.ts` | Cron job processor |
 
 ---
 
@@ -449,236 +506,171 @@ $$;
 
 | File | Changes |
 |------|---------|
-| `src/pages/Settings.tsx` | Add "Workflows" tab |
-| `src/hooks/useClientServices.ts` | Call validation before status update |
-| `src/hooks/useLitigationMatters.ts` | Call validation before status update |
-| `src/hooks/useLeads.ts` | Call validation before status update |
-| `src/components/services/StatusChangeModal.tsx` | Show block dialog if needed |
+| `src/pages/Settings.tsx` | Add "Reminders" tab |
+| `src/types/notifications.ts` | Add `response_deadline_reminder` type |
+| `supabase/config.toml` | Register new edge function |
 | `src/lib/docs/schemaData.ts` | Document new tables |
-| `src/lib/docs/featureGuides.ts` | Add workflow guide |
+| `src/lib/docs/featureGuides.ts` | Add reminder guide |
 | `src/lib/docs/roadmapData.ts` | Mark as Completed |
 
 ---
 
 ## UI Design
 
-### Workflow List (Settings Tab)
+### Reminder Settings (Settings Tab)
 
 ```text
 +---------------------------------------------------+
-| Workflow Rules                        [+ New Workflow]
+| Deadline Reminders                                 |
 +---------------------------------------------------+
-| ✓ Service Graduation Gate              [Blocking]  |
-|   client_services | status_changed | Active [Edit] |
-|   Requires all liabilities settled                 |
-+---------------------------------------------------+
-| ✓ New Lead Follow-up Task              [Active]    |
-|   leads | record_created | Active           [Edit] |
-|   Creates task 24h after lead creation             |
-+---------------------------------------------------+
-| ✓ Litigation Response Deadline         [Active]    |
-|   litigation_matters | field_updated | Active      |
-|   Notifies when deadline < 7 days             [Edit]|
+| ✓ Enable automatic deadline reminders              |
+|                                                    |
+| Response Deadline Reminders                        |
+| Send reminders: [✓] 7 days  [✓] 3 days  [✓] 1 day  |
+|                                                    |
+| Hearing Reminders                                  |
+| Send reminders: [✓] 7 days  [✓] 3 days  [✓] 1 day  |
+|                 [✓] Day of hearing                 |
+|                                                    |
+| Reminder Timing                                    |
+| Send reminders at: [▼ 9:00 AM                    ] |
 +---------------------------------------------------+
 ```
 
-### Workflow Form - Trigger Section
+### Dashboard Widget
 
 ```text
 +---------------------------------------------------+
-| WHEN (Trigger)                                     |
+| 📅 Upcoming Deadlines                              |
 +---------------------------------------------------+
-| Entity: [▼ Client Services              ]         |
-|                                                    |
-| Trigger: [▼ Status Changed              ]         |
-|                                                    |
-| From Status: [ ] Any  [✓] Pending  [ ] Active     |
-| To Status:   [ ] Any  [ ] Pending  [✓] Graduated  |
+| ⚠️ Response Deadline - TOMORROW                    |
+|    Smith vs Capital One (Case #2024-1234)         |
+|    Due: Feb 3, 2026                               |
 +---------------------------------------------------+
-```
-
-### Workflow Form - Conditions Section
-
-```text
+| 🏛 Court Hearing - in 3 days                       |
+|    Status Conference - Johnson matter              |
+|    Feb 5, 2026 at 9:30 AM                         |
 +---------------------------------------------------+
-| IF (Conditions)                                    |
+| ⏰ Response Deadline - in 7 days                   |
+|    Williams vs Chase Bank                          |
+|    Due: Feb 9, 2026                               |
 +---------------------------------------------------+
-| When ALL of these are true:                        |
-|                                                    |
-| +-----------------------------------------------+ |
-| | [▼ Related Records  ] [▼ Liabilities        ] | |
-| | [▼ NOT All         ] have status             | |
-| | [▼ In              ] [settled, dismissed    ] | |
-| |                                   [× Remove] | |
-| +-----------------------------------------------+ |
-|                                                    |
-| [+ Add Condition]  [+ Add Condition Group (OR)]   |
-+---------------------------------------------------+
-```
-
-### Workflow Form - Actions Section
-
-```text
-+---------------------------------------------------+
-| THEN (Actions)                                     |
-+---------------------------------------------------+
-| +-----------------------------------------------+ |
-| | [▼ Block Transition                         ] | |
-| |                                               | |
-| | Message to display:                           | |
-| | [Cannot graduate - {unresolved_count}        ] | |
-| | [liabilities remain unresolved               ] | |
-| |                                   [× Remove] | |
-| +-----------------------------------------------+ |
-|                                                    |
-| [+ Add Action]                                     |
-+---------------------------------------------------+
-```
-
-### Transition Blocked Dialog
-
-```text
-+---------------------------------------------------+
-| ⚠️ Status Change Blocked                           |
-+---------------------------------------------------+
-|                                                    |
-| This service cannot be changed to "Graduated"     |
-| because:                                           |
-|                                                    |
-| "Cannot graduate - 3 liabilities remain           |
-|  unresolved (must be settled or dismissed)"       |
-|                                                    |
-| Rule: Service Graduation Gate                      |
-|                                                    |
-| +-----------------------------------------------+ |
-| | Unresolved Liabilities:                       | |
-| | • Chase Credit Card - $5,432 (in_negotiation)| |
-| | • Medical Debt - $1,200 (enrolled)           | |
-| | • Personal Loan - $8,750 (in_litigation)     | |
-| +-----------------------------------------------+ |
-|                                                    |
-|                                    [OK, Got It]   |
+|                          [View Court Calendar →]  |
 +---------------------------------------------------+
 ```
 
 ---
 
-## Implementation Flow
+## Notification Types Update
 
-### 1. Status Change with Validation
-
-```typescript
-// useUpdatePrimaryStatus hook modification
-const validateTransition = useValidateTransition();
-
-mutationFn: async ({ id, oldStatus, newStatus, reason }) => {
-  // First, validate the transition
-  const validation = await validateTransition.mutateAsync({
-    entityType: 'client_services',
-    entityId: id,
-    fromStatus: oldStatus,
-    toStatus: newStatus,
-  });
-  
-  if (!validation.allowed) {
-    throw new TransitionBlockedError(validation.block_message);
-  }
-  
-  // Proceed with update
-  const { data, error } = await supabase
-    .from('client_services')
-    .update({ status: newStatus })
-    .eq('id', id)
-    .select()
-    .single();
-  
-  if (error) throw error;
-  return data;
-}
-```
-
-### 2. Condition Evaluation Logic
+Add new notification type for response deadlines:
 
 ```typescript
-// Example condition evaluation
-interface Condition {
-  field: string;
-  operator: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'contains' | 'in';
-  value: any;
-  related_entity?: string;
-  related_aggregate?: 'count' | 'all' | 'any' | 'none';
-}
+// src/types/notifications.ts
+export type NotificationType =
+  | 'task_assigned'
+  | 'task_due_soon'
+  | 'task_overdue'
+  | 'lead_assigned'
+  | 'matter_assigned'
+  | 'hearing_reminder'
+  | 'response_deadline_reminder'  // NEW
+  | 'settlement_update'
+  | 'mention'
+  | 'system_alert';
 
-function evaluateCondition(condition: Condition, entity: any, relatedData: any[]): boolean {
-  const fieldValue = entity[condition.field];
-  
-  switch (condition.operator) {
-    case 'equals':
-      return fieldValue === condition.value;
-    case 'greater_than':
-      return fieldValue > condition.value;
-    case 'in':
-      return condition.value.includes(fieldValue);
-    // ... other operators
-  }
-}
+export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
+  // ... existing
+  response_deadline_reminder: 'Response Deadline Reminders',
+  hearing_reminder: 'Hearing Reminders',
+};
 ```
 
 ---
 
-## Common Workflow Templates
+## Flow Diagram
 
-Pre-built templates for quick setup:
+```text
++----------------+     +------------------+     +------------------+
+|   pg_cron      | --> | Edge Function    | --> | notifications    |
+|   (hourly)     |     | process-deadline |     | table            |
++----------------+     +------------------+     +------------------+
+                              |
+                              v
+                       +------------------+
+                       | deadline_        |
+                       | reminders table  |
+                       +------------------+
+                              |
+        +---------------------+---------------------+
+        v                     v                     v
++----------------+    +----------------+    +----------------+
+| litigation_    |    | litigation_    |    | tasks          |
+| matters        |    | hearings       |    | (future)       |
++----------------+    +----------------+    +----------------+
+```
 
-| Template | Entity | Trigger | Description |
-|----------|--------|---------|-------------|
-| Service Graduation Gate | client_services | status → graduated | Block unless all liabilities resolved |
-| Lead Follow-up Task | leads | record_created | Create task 24h after creation |
-| Litigation Response Alert | litigation_matters | response_deadline updated | Notify when < 7 days |
-| Settlement Approval | settlements | status → accepted | Require manager approval over $10k |
-| NSF Retention Alert | client_services | payment_status → nsf | Notify retention team |
-| Task Overdue Escalation | tasks | due_date passed | Escalate to manager |
+---
+
+## Implementation Phases
+
+### Phase 1: Database Setup
+1. Create `reminder_type` and `reminder_status` enums
+2. Create `deadline_reminders` table with indexes
+3. Create `reminder_settings` table
+4. Create `generate_deadline_reminders()` function
+5. Set up RLS policies
+
+### Phase 2: Edge Function
+1. Create `process-deadline-reminders` function
+2. Add to `supabase/config.toml`
+3. Implement notification content builder
+4. Test manually before enabling cron
+
+### Phase 3: Frontend
+1. Create types and hooks
+2. Build `ReminderSettingsTab` component
+3. Add to Settings page
+4. Update notification types
+
+### Phase 4: Cron Activation
+1. Enable pg_cron extension (if not already)
+2. Schedule hourly job
+3. Monitor execution logs
 
 ---
 
 ## Files Summary
 
-### Create (9 files)
+### Create (5 files)
 
 | File | Purpose |
 |------|---------|
-| `src/types/workflow.ts` | TypeScript interfaces |
-| `src/hooks/useWorkflowRules.ts` | Rule CRUD hooks |
-| `src/hooks/useWorkflowExecutions.ts` | Execution log hooks |
-| `src/hooks/useValidateTransition.ts` | Transition validation |
-| `src/components/settings/WorkflowsTab.tsx` | Settings tab UI |
-| `src/components/workflows/WorkflowFormDialog.tsx` | Rule form |
-| `src/components/workflows/ConditionBuilder.tsx` | Condition builder |
-| `src/components/workflows/ActionConfig.tsx` | Action configuration |
-| `src/components/workflows/TransitionBlockedDialog.tsx` | Block message UI |
+| `src/types/reminders.ts` | TypeScript interfaces |
+| `src/hooks/useDeadlineReminders.ts` | Query reminders |
+| `src/hooks/useReminderSettings.ts` | Settings CRUD |
+| `src/components/settings/ReminderSettingsTab.tsx` | Admin UI |
+| `supabase/functions/process-deadline-reminders/index.ts` | Cron processor |
 
-### Modify (9 files)
+### Modify (6 files)
 
 | File | Changes |
 |------|---------|
-| `src/pages/Settings.tsx` | Add Workflows tab |
-| `src/hooks/useClientServices.ts` | Add transition validation |
-| `src/hooks/useLitigationMatters.ts` | Add transition validation |
-| `src/hooks/useLeads.ts` | Add transition validation |
-| `src/components/services/StatusChangeModal.tsx` | Handle block dialog |
+| `src/pages/Settings.tsx` | Add Reminders tab |
+| `src/types/notifications.ts` | Add response_deadline_reminder type |
+| `supabase/config.toml` | Register edge function |
 | `src/lib/docs/schemaData.ts` | Document tables |
 | `src/lib/docs/featureGuides.ts` | Add guide |
 | `src/lib/docs/roadmapData.ts` | Mark Completed |
 
 ### Database Migration (1)
 
-- Create workflow enums
-- Create `workflow_rules` table with JSONB config
-- Create `workflow_executions` table
-- Create `evaluate_workflow()` function
-- Create `validate_status_transition()` function
-- Create helper functions for condition evaluation
+- Create `reminder_type` and `reminder_status` enums
+- Create `deadline_reminders` table
+- Create `reminder_settings` table
+- Create `generate_deadline_reminders()` function
 - Set up RLS policies
+- (Optional) Enable pg_cron scheduling
 
 ---
 
@@ -686,10 +678,9 @@ Pre-built templates for quick setup:
 
 After initial implementation:
 
-1. **Visual Flow Builder**: Drag-and-drop workflow designer
-2. **Time-Based Triggers**: Cron-based scheduled workflows
-3. **Webhook Actions**: External system integration
-4. **Approval Workflows**: Multi-step approval chains
-5. **Workflow Versioning**: Track changes to rules
-6. **A/B Testing**: Compare workflow effectiveness
-7. **Template Library**: Shareable workflow templates
+1. **Email Notifications**: Send email reminders via Resend/SendGrid
+2. **SMS Reminders**: Critical deadline alerts via Twilio
+3. **Snooze Feature**: Postpone reminder by 1 hour/1 day
+4. **Custom Intervals**: Per-matter reminder configuration
+5. **Escalation Rules**: Notify manager if deadline missed
+6. **Calendar Integration**: Export to Google/Outlook calendars
