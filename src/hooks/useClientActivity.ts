@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface ClientActivity {
   id: string;
-  type: 'liability_action' | 'litigation_activity' | 'task_completed' | 'settlement' | 'status_change';
+  type: 'liability_action' | 'litigation_activity' | 'task_completed' | 'settlement' | 'status_change' | 'communication';
   description: string;
   source_label: string;
   staff_name?: string;
@@ -173,6 +173,44 @@ export function useClientActivity(clientId: string | undefined) {
             description: `Settlement offer of ${amount} - ${settlement.status}`,
             source_label: `Liability - ${creditorName}`,
             created_at: settlement.created_at,
+          });
+        });
+      }
+
+      // 5. Client Communications
+      const { data: communications } = await supabase
+        .from('client_communications')
+        .select(`
+          id,
+          communication_type,
+          direction,
+          subject,
+          outcome,
+          communication_date,
+          staff:staff(first_name, last_name)
+        `)
+        .eq('client_id', clientId)
+        .order('communication_date', { ascending: false })
+        .limit(30);
+
+      if (communications) {
+        communications.forEach(comm => {
+          const typeLabel = comm.communication_type.charAt(0).toUpperCase() + comm.communication_type.slice(1);
+          const directionLabel = comm.direction === 'outbound' ? 'Outbound' : 'Inbound';
+          const staffName = comm.staff
+            ? `${(comm.staff as any).first_name} ${(comm.staff as any).last_name}`
+            : undefined;
+          const description = comm.subject 
+            ? `${typeLabel} (${directionLabel}): ${comm.subject}`
+            : `${typeLabel} (${directionLabel})${comm.outcome ? ` - ${comm.outcome}` : ''}`;
+          
+          activities.push({
+            id: `communication-${comm.id}`,
+            type: 'communication',
+            description,
+            source_label: typeLabel,
+            staff_name: staffName,
+            created_at: comm.communication_date,
           });
         });
       }

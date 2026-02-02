@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useClient } from '@/hooks/useClients';
 import { ClientFormDialog } from '@/components/clients/ClientFormDialog';
+import { CommunicationFormDialog } from '@/components/clients/CommunicationFormDialog';
 import { ClientHeader } from '@/components/clients/detail/ClientHeader';
 import { ClientOverviewTab } from '@/components/clients/detail/ClientOverviewTab';
 import { ClientServicesTab } from '@/components/clients/detail/ClientServicesTab';
@@ -13,12 +14,14 @@ import { ClientTasksTab } from '@/components/clients/detail/ClientTasksTab';
 import { ClientDetailsTab } from '@/components/clients/detail/ClientDetailsTab';
 import { ClientLitigationTab } from '@/components/clients/detail/ClientLitigationTab';
 import { ClientDocumentsTab } from '@/components/clients/detail/ClientDocumentsTab';
+import { ClientCommsTab } from '@/components/clients/detail/ClientCommsTab';
 
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: client, isLoading } = useClient(id);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showCommDialog, setShowCommDialog] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
 
   if (isLoading) {
@@ -60,7 +63,8 @@ export default function ClientDetailPage() {
       {/* Client Header */}
       <ClientHeader 
         client={client} 
-        onEdit={() => setShowEditForm(true)} 
+        onEdit={() => setShowEditForm(true)}
+        onLogCommunication={() => setShowCommDialog(true)}
       />
 
       {/* Tabs */}
@@ -76,7 +80,7 @@ export default function ClientDetailPage() {
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
               <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="comms" disabled>Comms</TabsTrigger>
+              <TabsTrigger value="comms">Comms</TabsTrigger>
             </TabsList>
           </div>
 
@@ -118,9 +122,7 @@ export default function ClientDetailPage() {
             </TabsContent>
 
             <TabsContent value="comms" className="mt-0">
-              <div className="border rounded-lg p-8 text-center text-muted-foreground">
-                Communications feature coming soon...
-              </div>
+              <ClientCommsTab clientId={client.id} />
             </TabsContent>
           </div>
         </Tabs>
@@ -131,6 +133,13 @@ export default function ClientDetailPage() {
         open={showEditForm}
         onOpenChange={setShowEditForm}
         client={client}
+      />
+
+      {/* Communication Form Dialog */}
+      <CommunicationFormDialog
+        open={showCommDialog}
+        onOpenChange={setShowCommDialog}
+        clientId={client.id}
       />
     </div>
   );
