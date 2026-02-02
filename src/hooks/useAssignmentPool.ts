@@ -13,12 +13,7 @@ export function useAssignmentPool(ruleId: string | undefined) {
         .from('lead_assignment_pool')
         .select(`
           *,
-          staff:staff_id (
-            id,
-            first_name,
-            last_name,
-            avatar_url
-          )
+          staff:staff_id(id, first_name, last_name, avatar_url)
         `)
         .eq('rule_id', ruleId)
         .order('weight', { ascending: false });
@@ -27,37 +22,44 @@ export function useAssignmentPool(ruleId: string | undefined) {
       
       return (data || []).map(member => ({
         ...member,
-        skills: (member.skills || []) as unknown as PoolMemberSkill[],
-      })) as unknown as AssignmentPoolMember[];
+        skills: (member.skills as unknown as PoolMemberSkill[]) || [],
+      })) as AssignmentPoolMember[];
     },
     enabled: !!ruleId,
   });
 }
 
-// Get all pool memberships for a specific staff member
-export function useStaffPoolMemberships(staffId: string | undefined) {
+export function useMyPoolMembership() {
   return useQuery({
-    queryKey: ['staff_pool_memberships', staffId],
+    queryKey: ['my_pool_membership'],
     queryFn: async () => {
-      if (!staffId) return [];
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
       
+      // Get staff ID
+      const { data: staffData } = await supabase
+        .from('staff')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (!staffData) return null;
+      
+      // Get first pool membership for this staff
       const { data, error } = await supabase
         .from('lead_assignment_pool')
-        .select(`
-          *,
-          rule:rule_id (
-            id,
-            name,
-            method,
-            is_active
-          )
-        `)
-        .eq('staff_id', staffId);
+        .select('*')
+        .eq('staff_id', staffData.id)
+        .limit(1)
+        .maybeSingle();
       
-      if (error) throw error;
-      return data || [];
+      if (error || !data) return null;
+      
+      return {
+        ...data,
+        skills: (data.skills as unknown as PoolMemberSkill[]) || [],
+      } as AssignmentPoolMember;
     },
-    enabled: !!staffId,
   });
 }
 
@@ -67,7 +69,6 @@ interface AddPoolMemberInput {
   weight?: number;
   max_active_leads?: number | null;
   is_available?: boolean;
-  skills?: PoolMemberSkill[];
 }
 
 export function useAddPoolMember() {
@@ -76,17 +77,15 @@ export function useAddPoolMember() {
 
   return useMutation({
     mutationFn: async (input: AddPoolMemberInput) => {
-      const insertData = {
-        rule_id: input.rule_id,
-        staff_id: input.staff_id,
-        weight: input.weight,
-        max_active_leads: input.max_active_leads,
-        is_available: input.is_available,
-        skills: JSON.parse(JSON.stringify(input.skills || [])),
-      };
       const { data, error } = await supabase
         .from('lead_assignment_pool')
-        .insert([insertData])
+        .insert([{
+          rule_id: input.rule_id,
+          staff_id: input.staff_id,
+          weight: input.weight ?? 10,
+          max_active_leads: input.max_active_leads ?? 25,
+          is_available: input.is_available ?? true,
+        }])
         .select()
         .single();
       
@@ -95,11 +94,11 @@ export function useAddPoolMember() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['assignment_pool', variables.rule_id] });
-      toast({ title: 'Team member added to pool' });
+      toast({ title: 'Member added to pool' });
     },
     onError: (error) => {
       toast({
-        title: 'Failed to add team member',
+        title: 'Failed to add member',
         description: (error as Error).message,
         variant: 'destructive',
       });
@@ -109,45 +108,31 @@ export function useAddPoolMember() {
 
 interface UpdatePoolMemberInput {
   id: string;
-  rule_id: string;
   weight?: number;
   max_active_leads?: number | null;
   is_available?: boolean;
-  skills?: PoolMemberSkill[];
 }
 
 export function useUpdatePoolMember() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, rule_id, ...updates }: UpdatePoolMemberInput) => {
-      const updateData: Record<string, unknown> = {
-        ...updates,
-        updated_at: new Date().toISOString(),
-      };
-      if (updates.skills) {
-        updateData.skills = updates.skills as unknown as Record<string, unknown>[];
-      }
+    mutationFn: async ({ id, ...updates }: UpdatePoolMemberInput) => {
       const { data, error } = await supabase
         .from('lead_assignment_pool')
-        .update(updateData)
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', id)
         .select()
         .single();
       
       if (error) throw error;
-      return { data, rule_id };
+      return data;
     },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['assignment_pool', result.rule_id] });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Failed to update team member',
-        description: (error as Error).message,
-        variant: 'destructive',
-      });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assignment_pool'] });
     },
   });
 }
@@ -157,22 +142,21 @@ export function useRemovePoolMember() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, rule_id }: { id: string; rule_id: string }) => {
+    mutationFn: async (memberId: string) => {
       const { error } = await supabase
         .from('lead_assignment_pool')
         .delete()
-        .eq('id', id);
+        .eq('id', memberId);
       
       if (error) throw error;
-      return { rule_id };
     },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['assignment_pool', result.rule_id] });
-      toast({ title: 'Team member removed from pool' });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assignment_pool'] });
+      toast({ title: 'Member removed from pool' });
     },
     onError: (error) => {
       toast({
-        title: 'Failed to remove team member',
+        title: 'Failed to remove member',
         description: (error as Error).message,
         variant: 'destructive',
       });
@@ -180,31 +164,30 @@ export function useRemovePoolMember() {
   });
 }
 
-// Toggle availability for a staff member across all their pools
 export function useToggleAvailability() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ staffId, isAvailable }: { staffId: string; isAvailable: boolean }) => {
-      const { error } = await supabase
+    mutationFn: async ({ poolId, available }: { poolId: string; available: boolean }) => {
+      const { data, error } = await supabase
         .from('lead_assignment_pool')
-        .update({ 
-          is_available: isAvailable,
+        .update({
+          is_available: available,
           updated_at: new Date().toISOString(),
         })
-        .eq('staff_id', staffId);
+        .eq('id', poolId)
+        .select()
+        .single();
       
       if (error) throw error;
-      return { staffId, isAvailable };
+      return data;
     },
-    onSuccess: (result) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['assignment_pool'] });
-      queryClient.invalidateQueries({ queryKey: ['staff_pool_memberships', result.staffId] });
+      queryClient.invalidateQueries({ queryKey: ['my_pool_membership'] });
       toast({ 
-        title: result.isAvailable 
-          ? 'You are now available for lead assignments' 
-          : 'You are now unavailable for lead assignments' 
+        title: variables.available ? 'You are now available for leads' : 'You are now unavailable for leads' 
       });
     },
     onError: (error) => {
