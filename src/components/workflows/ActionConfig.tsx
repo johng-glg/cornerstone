@@ -8,17 +8,20 @@ import { Plus, X, Bell, CheckSquare, Edit3, Shield, Webhook } from 'lucide-react
 import {
   WorkflowAction,
   WorkflowActionType,
+  WorkflowEntityType,
   actionTypeLabels,
   CreateTaskActionConfig,
   SendNotificationActionConfig,
   UpdateFieldActionConfig,
   BlockTransitionActionConfig,
+  entityDateFields,
 } from '@/types/workflow';
 
 interface ActionConfigProps {
   actions: WorkflowAction[];
   onChange: (actions: WorkflowAction[]) => void;
   isBlocking?: boolean;
+  entityType?: WorkflowEntityType;
 }
 
 const actionIcons: Record<WorkflowActionType, React.ReactNode> = {
@@ -29,12 +32,14 @@ const actionIcons: Record<WorkflowActionType, React.ReactNode> = {
   trigger_webhook: <Webhook className="h-4 w-4" />,
 };
 
-export function ActionConfig({ actions, onChange, isBlocking }: ActionConfigProps) {
+export function ActionConfig({ actions, onChange, isBlocking, entityType }: ActionConfigProps) {
+  const dateFields = entityType ? entityDateFields[entityType] : [];
+
   const addAction = (type: WorkflowActionType) => {
     let config: any;
     switch (type) {
       case 'create_task':
-        config = { title: '', description: '', priority: 'medium', due_days: 3, assign_to: 'entity_owner' };
+        config = { title: '', description: '', priority: 'medium', due_mode: 'days', due_days: 3, assign_to: 'entity_owner' };
         break;
       case 'send_notification':
         config = { to: 'entity_owner', title: '', message: '' };
@@ -106,6 +111,63 @@ export function ActionConfig({ actions, onChange, isBlocking }: ActionConfigProp
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label>Due Date Based On</Label>
+                <Select
+                  value={config.due_mode || 'days'}
+                  onValueChange={(v) => updateAction(index, { 
+                    ...config, 
+                    due_mode: v,
+                    // Reset relevant fields when mode changes
+                    ...(v === 'days' ? { due_field: undefined, due_field_offset: undefined } : { due_days: undefined })
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="days">Days from trigger</SelectItem>
+                    <SelectItem value="field">Date field on record</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {config.due_mode === 'field' ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Date Field</Label>
+                  <Select
+                    value={config.due_field || '__none__'}
+                    onValueChange={(v) => updateAction(index, { ...config, due_field: v === '__none__' ? undefined : v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select field" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Select field...</SelectItem>
+                      {dateFields.map((field) => (
+                        <SelectItem key={field.value} value={field.value}>
+                          {field.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Offset (Days)</Label>
+                  <Input
+                    type="number"
+                    value={config.due_field_offset ?? 0}
+                    onChange={(e) => updateAction(index, { ...config, due_field_offset: parseInt(e.target.value) || 0 })}
+                    placeholder="e.g., -3 for 3 days before"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Negative = before, Positive = after
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
                 <Label>Due In (Days)</Label>
                 <Input
                   type="number"
@@ -114,7 +176,7 @@ export function ActionConfig({ actions, onChange, isBlocking }: ActionConfigProp
                   min={1}
                 />
               </div>
-            </div>
+            )}
             <div className="space-y-2">
               <Label>Assign To</Label>
               <Select

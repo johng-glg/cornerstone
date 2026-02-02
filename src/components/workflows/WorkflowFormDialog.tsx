@@ -253,6 +253,7 @@ export function WorkflowFormDialog({ open, onOpenChange, editingRule }: Workflow
                 actions={actions}
                 onChange={setActions}
                 isBlocking={isBlocking}
+                entityType={entityType}
               />
             </TabsContent>
 
