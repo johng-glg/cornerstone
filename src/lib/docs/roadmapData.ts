@@ -231,6 +231,32 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
 • Secure tokenized signing links (JWT/OTP)
 • Timeline entries for Sent, Viewed, Completed events`,
   },
+  {
+    id: 'esign-docuseal',
+    name: 'DocuSeal eSign Integration',
+    category: 'Documents',
+    priority: 'High',
+    description: 'Hybrid eSign system using self-hosted DocuSeal for signing ceremonies with CRM-owned notifications, short links, and artifact storage.',
+    status: 'Planned',
+    difficulty: 4,
+    benefit: 5,
+    notes: `CRM + DocuSeal hybrid architecture:
+• CRM is system of record; DocuSeal handles signing ceremony + PDF generation
+• Signature Requests panel on Lead/Client records with multi-signer support (Client + Co-Client)
+• Send for Signature wizard with template selection and signer configuration
+• Signing modes: Parallel (default) or Sequential
+• Delivery: Email + SMS (Twilio), Email only, or SMS only
+• CRM-owned short links (/s/{token}) that redirect to DocuSeal signing URLs
+• Inline DocuSeal field tags in DOCX/HTML templates for proper text reflow
+• Webhook receiver for DocuSeal events (viewed, signed, completed, declined)
+• Automatic artifact retrieval: Executed PDF, Completion Certificate, Evidence JSON
+• Workflow action node: "Send Template for Signature (DocuSeal)"
+• Language support: English/Spanish
+• Expiration dates and reminder scheduling
+• Status tracking: Draft, Queued, Sent, Viewed, Partially Signed, Completed, Declined, Expired, Canceled, Error
+• Timeline entries for all signature events
+• Idempotent job processing: create-send, reminders, expiration, completion`,
+  },
   
   // Automation
   {
@@ -399,6 +425,15 @@ export const INTEGRATIONS: IntegrationItem[] = [
     priority: 'Medium',
     status: 'Planned',
     notes: 'Secondary processor. Implementation after Forth Pay.',
+  },
+  {
+    id: 'docuseal',
+    name: 'DocuSeal',
+    purpose: 'Electronic signature ceremonies and PDF execution',
+    priority: 'High',
+    status: 'Research',
+    notes: 'Open-source eSign engine. Self-hosted for data control. API for submission creation, webhook for status updates, artifact retrieval.',
+    apiDocs: 'https://www.docuseal.co/docs/api',
   },
 ];
 
