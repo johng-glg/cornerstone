@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { format, isPast } from 'date-fns';
-import { Scale, Building2, Calendar, MapPin, User, Edit, Plus, DollarSign, MessageSquare, Save } from 'lucide-react';
+import { Scale, Building2, Calendar, MapPin, User, Edit, Plus, DollarSign, MessageSquare, Save, CheckSquare } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
 import { useLitigationMatter, type LitigationStatus, useUpdateLitigationMatter } from '@/hooks/useLitigationMatters';
 import { useLitigationHearings, useDeleteLitigationHearing, type LitigationHearing } from '@/hooks/useLitigationHearings';
 import { useDeleteLitigationDocument } from '@/hooks/useLitigationDocuments';
@@ -22,10 +23,12 @@ import { LitigationActivityTimeline } from './LitigationActivityTimeline';
 import { LitigationHearingCard } from './LitigationHearingCard';
 import { LitigationDocumentList } from './LitigationDocumentList';
 import { MatterTeamPanel } from './MatterTeamPanel';
+import { MatterTasksList } from './MatterTasksList';
 import { LitigationHearingFormDialog } from './LitigationHearingFormDialog';
 import { LitigationDocumentFormDialog } from './LitigationDocumentFormDialog';
 import { LitigationActivityFormDialog } from './LitigationActivityFormDialog';
 import { MatterAssignmentDialog } from './MatterAssignmentDialog';
+import { TaskFormDialog } from '@/components/tasks/TaskFormDialog';
 import {
   Select,
   SelectContent,
@@ -80,6 +83,7 @@ export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: Li
   const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
   const [activityDialogOpen, setActivityDialogOpen] = useState(false);
   const [assignmentDialogOpen, setAssignmentDialogOpen] = useState(false);
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [notesEdit, setNotesEdit] = useState<string | null>(null);
   const [isSavingNotes, setIsSavingNotes] = useState(false);
 
@@ -344,39 +348,53 @@ export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: Li
                   />
                 </TabsContent>
 
-                <TabsContent value="events" className="mt-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-muted-foreground">Hearings & Events</h3>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => {
-                        setEditingHearing(null);
-                        setHearingDialogOpen(true);
-                      }}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Schedule Hearing
-                    </Button>
+                <TabsContent value="events" className="mt-4 space-y-6">
+                  {/* Hearings Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        Hearings
+                      </h3>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => {
+                          setEditingHearing(null);
+                          setHearingDialogOpen(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Schedule
+                      </Button>
+                    </div>
+                    
+                    {hearings && hearings.length > 0 ? (
+                      <div className="space-y-3">
+                        {hearings.map((hearing) => (
+                          <LitigationHearingCard
+                            key={hearing.id}
+                            hearing={hearing}
+                            onEdit={handleEditHearing}
+                            onDelete={handleDeleteHearing}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 text-muted-foreground border rounded-lg border-dashed">
+                        <Calendar className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No hearings scheduled</p>
+                      </div>
+                    )}
                   </div>
-                  
-                  {hearings && hearings.length > 0 ? (
-                    <div className="space-y-3">
-                      {hearings.map((hearing) => (
-                        <LitigationHearingCard
-                          key={hearing.id}
-                          hearing={hearing}
-                          onEdit={handleEditHearing}
-                          onDelete={handleDeleteHearing}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">
-                      <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>No hearings scheduled</p>
-                    </div>
-                  )}
+
+                  <Separator />
+
+                  {/* Tasks Section */}
+                  <MatterTasksList 
+                    matterId={matterId} 
+                    onAddTask={() => setTaskDialogOpen(true)}
+                  />
                 </TabsContent>
 
                 <TabsContent value="docs" className="mt-4">
@@ -440,6 +458,13 @@ export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: Li
             matterId={matterId!}
             open={assignmentDialogOpen}
             onOpenChange={setAssignmentDialogOpen}
+          />
+
+          <TaskFormDialog
+            open={taskDialogOpen}
+            onOpenChange={setTaskDialogOpen}
+            defaultEntityType="litigation_matter"
+            defaultEntityId={matterId!}
           />
         </>
       )}

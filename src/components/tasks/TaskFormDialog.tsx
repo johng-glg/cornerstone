@@ -33,9 +33,11 @@ interface TaskFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task?: Task | null;
+  defaultEntityType?: 'engagement' | 'case' | 'liability' | 'lead' | 'litigation_matter';
+  defaultEntityId?: string;
 }
 
-export function TaskFormDialog({ open, onOpenChange, task }: TaskFormDialogProps) {
+export function TaskFormDialog({ open, onOpenChange, task, defaultEntityType, defaultEntityId }: TaskFormDialogProps) {
   const { staff } = useAuth();
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
@@ -80,6 +82,9 @@ export function TaskFormDialog({ open, onOpenChange, task }: TaskFormDialogProps
       assigned_to: data.assigned_to || null,
       due_date: data.due_date ? data.due_date.toISOString().split('T')[0] : null,
       company_id: staff?.company_id || '',
+      // Include entity linking if provided
+      entity_type: task?.entity_type || defaultEntityType || null,
+      entity_id: task?.entity_id || defaultEntityId || null,
     };
 
     if (isEditing && task) {
