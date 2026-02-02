@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useRealtimeSubscription } from './useRealtimeSubscription';
+import type { Tables } from '@/integrations/supabase/types';
 
 export interface LitigationActivity {
   id: string;
@@ -21,9 +23,23 @@ export interface LitigationActivity {
 
 export type LitigationActivityInsert = Omit<LitigationActivity, 'id' | 'created_at' | 'staff'>;
 
-export function useLitigationActivities(matterId: string | undefined) {
+interface UseLitigationActivitiesOptions {
+  realtime?: boolean;
+}
+
+export function useLitigationActivities(matterId: string | undefined, options?: UseLitigationActivitiesOptions) {
+  const queryKey = ['litigation_activities', matterId];
+
+  // Subscribe to realtime updates for this matter's activities
+  useRealtimeSubscription<Tables<'litigation_activities'>>({
+    table: 'litigation_activities',
+    queryKey,
+    filter: matterId ? `matter_id=eq.${matterId}` : undefined,
+    enabled: (options?.realtime ?? false) && !!matterId,
+  });
+
   return useQuery({
-    queryKey: ['litigation_activities', matterId],
+    queryKey,
     queryFn: async () => {
       if (!matterId) return [];
       const { data, error } = await supabase

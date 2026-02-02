@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { addDays, startOfDay } from 'date-fns';
+import { useRealtimeSubscription } from './useRealtimeSubscription';
 import type { Task } from '@/hooks/useTasks';
+import type { Tables } from '@/integrations/supabase/types';
 
 export interface UserActivity {
   id: string;
@@ -16,9 +18,18 @@ export interface UserActivity {
 // Fetch tasks assigned to the current user that are urgent or due soon
 export function useUserUrgentTasks() {
   const { staff } = useAuth();
+  const queryKey = ['user_urgent_tasks', staff?.id];
+
+  // Real-time updates for tasks assigned to this user
+  useRealtimeSubscription<Tables<'tasks'>>({
+    table: 'tasks',
+    queryKey,
+    filter: staff?.id ? `assigned_to=eq.${staff.id}` : undefined,
+    enabled: !!staff?.id,
+  });
   
   return useQuery({
-    queryKey: ['user_urgent_tasks', staff?.id],
+    queryKey,
     queryFn: async () => {
       if (!staff?.id) return [];
       

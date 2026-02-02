@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
+import { useRealtimeSubscription } from './useRealtimeSubscription';
+import type { Tables } from '@/integrations/supabase/types';
 
 export type StatusDimension = 'primary' | 'payment' | 'retention' | 'contact';
 
@@ -20,9 +22,23 @@ export interface ServiceStatusHistoryEntry {
   } | null;
 }
 
-export function useServiceStatusHistory(clientServiceId: string | undefined) {
+interface UseServiceStatusHistoryOptions {
+  realtime?: boolean;
+}
+
+export function useServiceStatusHistory(clientServiceId: string | undefined, options?: UseServiceStatusHistoryOptions) {
+  const queryKey = ['service_status_history', clientServiceId];
+
+  // Subscribe to realtime updates for this service's status history
+  useRealtimeSubscription<Tables<'service_status_history'>>({
+    table: 'service_status_history',
+    queryKey,
+    filter: clientServiceId ? `client_service_id=eq.${clientServiceId}` : undefined,
+    enabled: (options?.realtime ?? false) && !!clientServiceId,
+  });
+
   return useQuery({
-    queryKey: ['service_status_history', clientServiceId],
+    queryKey,
     queryFn: async () => {
       if (!clientServiceId) return [];
       const { data, error } = await supabase
