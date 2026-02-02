@@ -16,7 +16,7 @@ import {
   getHours,
   getMinutes
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Download, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Filter, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAllHearings, useUniqueCourts, useHearingTypes, type HearingWithMatter } from '@/hooks/useAllHearings';
 import { useStaff } from '@/hooks/useStaff';
+import { useLitigationMatter } from '@/hooks/useLitigationMatters';
+import { LitigationMatterDetailSheet } from '@/components/litigation/LitigationMatterDetailSheet';
 import { cn } from '@/lib/utils';
 
 type ViewMode = 'month' | 'week';
@@ -124,14 +126,14 @@ function exportToICal(hearings: HearingWithMatter[]) {
 function WeekViewGrid({ 
   days, 
   hearingsByDate, 
-  currentDate 
+  currentDate,
+  onOpenMatter
 }: { 
   days: Date[]; 
   hearingsByDate: Map<string, HearingWithMatter[]>;
   currentDate: Date;
+  onOpenMatter: (matterId: string) => void;
 }) {
-  const [selectedHearing, setSelectedHearing] = useState<HearingWithMatter | null>(null);
-
   // Calculate hearing position based on time
   const getHearingPosition = (hearing: HearingWithMatter) => {
     const date = new Date(hearing.scheduled_date);
@@ -238,7 +240,7 @@ function WeekViewGrid({
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-80 p-3" align="start">
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <p className="font-semibold">{hearing.hearing_type}</p>
@@ -260,9 +262,19 @@ function WeekViewGrid({
                           )}
                         </div>
                         {hearing.notes && (
-                          <p className="text-xs text-muted-foreground border-t pt-2 mt-2">
+                          <p className="text-xs text-muted-foreground border-t pt-2">
                             {hearing.notes}
                           </p>
+                        )}
+                        {hearing.litigation_matter?.id && (
+                          <Button 
+                            size="sm" 
+                            className="w-full"
+                            onClick={() => onOpenMatter(hearing.litigation_matter!.id)}
+                          >
+                            <ExternalLink className="h-3 w-3 mr-2" />
+                            View Matter
+                          </Button>
                         )}
                       </div>
                     </PopoverContent>
@@ -284,6 +296,11 @@ export function CourtCalendar() {
   const [courtFilter, setCourtFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [attorneyFilter, setAttorneyFilter] = useState<string>('all');
+  const [selectedMatterId, setSelectedMatterId] = useState<string | null>(null);
+
+  const handleOpenMatter = (matterId: string) => {
+    setSelectedMatterId(matterId);
+  };
 
   const { data: hearings, isLoading } = useAllHearings();
   const { data: courts } = useUniqueCourts();
@@ -466,6 +483,7 @@ export function CourtCalendar() {
               days={displayDays} 
               hearingsByDate={hearingsByDate}
               currentDate={currentDate}
+              onOpenMatter={handleOpenMatter}
             />
           ) : (
             <>
@@ -572,7 +590,7 @@ export function CourtCalendar() {
                                     )}
                                   >
                                     <div className="flex items-start justify-between gap-2">
-                                      <div>
+                                      <div className="flex-1 min-w-0">
                                         <p className="font-medium text-sm">{hearing.hearing_type}</p>
                                         <p className="text-xs text-muted-foreground">
                                           {clientName} vs {hearing.litigation_matter?.opposing_party || 'Unknown'}
@@ -582,9 +600,22 @@ export function CourtCalendar() {
                                           {hearing.location && ` • ${hearing.location}`}
                                         </p>
                                       </div>
-                                      <Badge variant="outline" className="text-xs shrink-0">
-                                        {hearing.litigation_matter?.case_number || 'No Case #'}
-                                      </Badge>
+                                      <div className="flex flex-col items-end gap-1">
+                                        <Badge variant="outline" className="text-xs shrink-0">
+                                          {hearing.litigation_matter?.case_number || 'No Case #'}
+                                        </Badge>
+                                        {hearing.litigation_matter?.id && (
+                                          <Button 
+                                            size="sm" 
+                                            variant="ghost"
+                                            className="h-6 px-2 text-xs"
+                                            onClick={() => handleOpenMatter(hearing.litigation_matter!.id)}
+                                          >
+                                            <ExternalLink className="h-3 w-3 mr-1" />
+                                            View
+                                          </Button>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 );
@@ -625,6 +656,13 @@ export function CourtCalendar() {
           <span>Completed</span>
         </div>
       </div>
+
+      {/* Matter Detail Sheet */}
+      <LitigationMatterDetailSheet
+        matterId={selectedMatterId}
+        open={!!selectedMatterId}
+        onOpenChange={(open) => !open && setSelectedMatterId(null)}
+      />
     </div>
   );
 }
