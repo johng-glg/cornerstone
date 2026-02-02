@@ -1,238 +1,297 @@
 
-# Phase 5 Completion: Court Calendar and Role-Based Dashboards
+# Client Communications Tab - Phase 6 Implementation
 
 ## Overview
 
-This plan implements the remaining Phase 5 items:
-1. **Court Calendar View** - A global calendar showing all hearings across matters
-2. **Litigation Attorney Dashboard** - Role-specific dashboard for attorneys
-3. **Case Manager Dashboard** - Role-specific dashboard for case managers
+This plan implements a full-featured Communications tab for the Client Detail page, including call/email logging and a timeline view. This completes Phase 6 of the document/communication management functionality.
 
 ---
 
-## 1. Court Calendar View
+## Database Design
 
-### Description
-A dedicated calendar view showing all litigation hearings across all matters, with filtering by attorney, court, case type, and urgency-based color coding.
+A new `client_communications` table will store all communication records tied to clients.
 
-### New Hook: `useAllHearings`
-Create a hook to fetch all hearings with their associated matter and client data:
+### Table Structure
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid (PK) | Primary key |
+| `client_id` | uuid (FK -> clients) | The client this communication is about |
+| `communication_type` | enum | Type: call, email, sms, meeting, note |
+| `direction` | enum | inbound or outbound |
+| `subject` | text | Subject line for emails or brief description |
+| `notes` | text | Detailed notes about the communication |
+| `outcome` | text | Result: answered, voicemail, no_answer, sent, received, completed |
+| `contact_phone` | text | Phone number used (if applicable) |
+| `contact_email` | text | Email address used (if applicable) |
+| `duration_minutes` | integer | Call duration in minutes |
+| `staff_id` | uuid (FK -> staff) | Staff member who logged this |
+| `created_at` | timestamptz | When the record was created |
+| `communication_date` | timestamptz | When the communication occurred |
+
+### Database Enums
 
 ```text
-litigation_hearings
-  + litigation_matter (case_number, court_name, county, state, status, opposing_party)
-    + client_service (service_number)
-      + primary_client (first_name, last_name)
-  + staff assignments (for attorney filtering)
+communication_type: call, email, sms, meeting, note
+communication_direction: inbound, outbound
 ```
 
-### New Component: `CourtCalendar.tsx`
-Located at `src/components/litigation/CourtCalendar.tsx`
+### RLS Policy
+
+Staff can access communications for clients within their company:
+
+```text
+CREATE POLICY "Staff can access client communications"
+ON client_communications FOR ALL
+USING (
+  EXISTS (
+    SELECT 1 FROM clients c
+    WHERE c.id = client_communications.client_id
+    AND can_access_company(auth.uid(), c.company_id)
+  )
+);
+```
+
+---
+
+## Files to Create
+
+### 1. Hook: `src/hooks/useClientCommunications.ts`
+
+Provides CRUD operations for client communications.
+
+**Exports:**
+- `useClientCommunications(clientId)` - Fetches all communications for a client with staff info
+- `useCreateClientCommunication()` - Creates a new communication record
+- `useUpdateClientCommunication()` - Updates an existing record
+- `useDeleteClientCommunication()` - Deletes a record
+
+**Constants:**
+- `COMMUNICATION_TYPES` - call, email, sms, meeting, note
+- `COMMUNICATION_OUTCOMES` - answered, voicemail, no_answer, sent, received, completed
+
+### 2. Tab Component: `src/components/clients/detail/ClientCommsTab.tsx`
+
+The main Communications tab component.
+
+**Layout:**
+- Header with "Communications" title and "Log Communication" button
+- Filter bar with type filter and date range
+- Timeline view showing communications in reverse chronological order
+- Empty state when no communications exist
 
 **Features:**
-- Month/Week view toggle using existing `react-day-picker` Calendar component as base
-- Custom day cells showing hearing count badges
-- Click-through to hearing details
-- Color coding by urgency:
-  - Red: Response deadline within 7 days
-  - Orange: Hearing within 14 days  
-  - Blue: Upcoming hearings
-  - Gray: Past hearings with outcome
-  - Yellow: Past hearings needing outcome
-- Filter panel:
-  - Attorney filter (from assignments)
-  - Court filter
-  - Hearing type filter
-  - Date range (7, 14, 30 days or custom)
-- Export to iCal (generate .ics file for download)
+- Grouped by date (Today, Yesterday, Last 7 Days, Older)
+- Type icons: Phone for calls, Mail for emails, MessageSquare for SMS, Users for meetings, FileText for notes
+- Direction indicator (inbound/outbound arrow icons)
+- Outcome badges with contextual colors
+- Click to view/edit, delete option
+- Staff attribution shown
 
-### New Page: `CourtCalendarPage.tsx`
-Located at `src/pages/CourtCalendar.tsx`
+### 3. Form Dialog: `src/components/clients/CommunicationFormDialog.tsx`
 
-### Routing
-Add new route at `/litigation/calendar`
+Dialog for logging and editing communications.
 
----
+**Form Fields:**
+- Type (dropdown): Call, Email, SMS, Meeting, Note
+- Direction (toggle): Inbound / Outbound
+- Date/Time (datetime-local): When the communication occurred
+- Subject (text): Brief description
+- Duration (number, for calls): Minutes
+- Outcome (dropdown): Contextual based on type
+- Notes (textarea): Detailed notes
 
-## 2. Litigation Attorney Dashboard
+**Behavior:**
+- Conditionally shows fields based on type:
+  - Call: Shows duration, direction
+  - Email: Shows direction, subject
+  - SMS: Shows direction
+  - Meeting: Shows duration
+  - Note: Minimal fields
+- Pre-fills current staff and date
+- Validates required fields
 
-### Description
-A specialized dashboard for attorneys showing their caseload, upcoming deadlines, and actions needed.
+### 4. Timeline Item Component: `src/components/clients/CommunicationTimelineItem.tsx`
 
-### New Component: `AttorneyDashboard.tsx`
-Located at `src/components/dashboards/AttorneyDashboard.tsx`
+Individual timeline entry component.
 
-**Dashboard Widgets:**
-
-| Widget | Data Source |
-|--------|-------------|
-| Active Cases by Status | `litigation_matters` filtered by attorney assignment, grouped by status |
-| Upcoming Court Deadlines (14 days) | `litigation_hearings` + response deadlines from matters |
-| Cases Requiring Action | Matters with pending tasks or missing outcomes |
-| Recent Case Events | `litigation_activities` for assigned matters |
-| My Tasks (7 days) | `tasks` assigned to current staff, linked to litigation entities |
-
-**Filters:**
-- Filter by matter status
-- Quick links to full Litigation page with pre-applied filters
-
-### Integration
-The existing Dashboard page will detect when the logged-in user has the `attorney` role or `attorney` department and show this dashboard content.
+**Elements:**
+- Icon based on communication type
+- Direction indicator (arrow up = outbound, arrow down = inbound)
+- Type label and outcome badge
+- Subject/notes preview (truncated)
+- Relative timestamp ("2 hours ago")
+- Staff name who logged it
+- Edit/Delete action buttons (on hover)
 
 ---
 
-## 3. Case Manager Dashboard
+## Files to Modify
 
-### Description
-A specialized dashboard for case managers focused on document prep, deadlines, and task completion.
+### 1. `src/pages/ClientDetail.tsx`
 
-### New Component: `CaseManagerDashboard.tsx`
-Located at `src/components/dashboards/CaseManagerDashboard.tsx`
+**Changes:**
+- Import `ClientCommsTab`
+- Enable the "comms" tab (remove `disabled` attribute)
+- Replace placeholder content with `<ClientCommsTab clientId={client.id} />`
 
-**Dashboard Widgets:**
+### 2. `src/components/clients/detail/ClientHeader.tsx`
 
-| Widget | Data Source |
-|--------|-------------|
-| My Assigned Cases | `assignments` where staff_id = current user, type = case_manager |
-| My Tasks (7 days) | `tasks` assigned to current staff |
-| Upcoming Deadlines | Response deadlines + hearing dates for assigned matters |
-| Document Prep Queue | Documents pending upload for assigned matters |
-| Recent Activity | `litigation_activities` for assigned matters |
+**Changes:**
+- Make "Log Communication" button functional
+- Add `onLogCommunication` prop
+- Wire click handler to open the form dialog
 
-**Filters:**
-- Filter by priority
-- Filter by deadline proximity
+---
 
-### Integration
-The existing Dashboard page will detect when the logged-in user has the `case_manager` role or department and show this dashboard content.
+## UI Design Details
+
+### Timeline View Layout
+
+```text
++--------------------------------------------------+
+| Communications                    [Log Communication] |
++--------------------------------------------------+
+| Filter: [All Types v]           [Last 30 Days v]  |
++--------------------------------------------------+
+| TODAY                                              |
+|  +----------------------------------------------+ |
+|  | [Phone] [->] Call - Outbound                 | |
+|  |   Discussed payment schedule options         | |
+|  |   Outcome: Answered                          | |
+|  |   Duration: 15 min                           | |
+|  |   2 hours ago • by John Smith       [Edit][X]| |
+|  +----------------------------------------------+ |
+|                                                    |
+| YESTERDAY                                          |
+|  +----------------------------------------------+ |
+|  | [Mail] [<-] Email - Inbound                  | |
+|  |   Re: Account Statement Request              | |
+|  |   Client requested updated statement...      | |
+|  |   Outcome: Received                          | |
+|  |   Mar 1, 2026 2:30 PM • by Jane Doe  [Edit][X]| |
+|  +----------------------------------------------+ |
++--------------------------------------------------+
+```
+
+### Form Dialog Layout
+
+```text
++-----------------------------------------------+
+| Log Communication                         [X] |
++-----------------------------------------------+
+| Type:      [Call v]                           |
+| Direction: (•) Outbound  ( ) Inbound          |
+| Date/Time: [Feb 2, 2026 10:30 AM      ]       |
+| Duration:  [15] minutes                        |
+| Outcome:   [Answered v]                       |
+| Subject:   [Brief description...        ]     |
+| Notes:                                         |
+| +-------------------------------------------+ |
+| | Detailed notes about the call...          | |
+| |                                           | |
+| +-------------------------------------------+ |
+|                                               |
+|                    [Cancel] [Log Communication]|
++-----------------------------------------------+
+```
+
+### Type-Specific Icons and Colors
+
+| Type | Icon | Color |
+|------|------|-------|
+| Call | Phone | blue |
+| Email | Mail | green |
+| SMS | MessageSquare | purple |
+| Meeting | Users | orange |
+| Note | FileText | gray |
+
+### Outcome Badges
+
+| Outcome | Used For | Color |
+|---------|----------|-------|
+| Answered | Call | green |
+| Voicemail | Call | yellow |
+| No Answer | Call | red |
+| Sent | Email, SMS | blue |
+| Received | Email, SMS | green |
+| Completed | Meeting | green |
+
+---
+
+## Integration with Client Activity
+
+The `useClientActivity` hook (used in Overview tab) should be updated to include communications in the unified activity feed. This ensures communications appear alongside liability actions, litigation activities, and status changes.
+
+### Update to `src/hooks/useClientActivity.ts`
+
+Add a new query section to fetch recent client communications and merge them into the activities array with type `'communication'`.
 
 ---
 
 ## Technical Details
 
-### Files to Create
+### Query Pattern
 
-| File | Purpose |
-|------|---------|
-| `src/hooks/useAllHearings.ts` | Fetch all hearings with related data for calendar |
-| `src/hooks/useAssignedMatters.ts` | Fetch matters assigned to current staff |
-| `src/components/litigation/CourtCalendar.tsx` | Calendar component with month/week views |
-| `src/components/litigation/CalendarDayCell.tsx` | Custom day cell showing hearings |
-| `src/components/litigation/HearingListPopover.tsx` | Popover showing hearings for selected day |
-| `src/pages/CourtCalendar.tsx` | Court calendar page |
-| `src/components/dashboards/AttorneyDashboard.tsx` | Attorney-specific dashboard |
-| `src/components/dashboards/CaseManagerDashboard.tsx` | Case manager-specific dashboard |
-| `src/components/dashboards/DashboardMetricCard.tsx` | Reusable metric card component |
-| `src/components/dashboards/DeadlinesList.tsx` | Shared deadlines list component |
-| `src/components/dashboards/RecentActivityFeed.tsx` | Shared activity feed component |
+```typescript
+// Fetch communications with staff info
+const { data, error } = await supabase
+  .from('client_communications')
+  .select(`
+    *,
+    staff:staff!client_communications_staff_id_fkey(
+      id, first_name, last_name, avatar_url
+    )
+  `)
+  .eq('client_id', clientId)
+  .order('communication_date', { ascending: false });
+```
 
-### Files to Modify
+### Form Validation
 
-| File | Changes |
-|------|---------|
-| `src/pages/Dashboard.tsx` | Add role detection, render appropriate dashboard |
-| `src/pages/Litigation.tsx` | Add "Calendar View" button in header |
-| `src/App.tsx` | Add `/litigation/calendar` route |
-| `src/components/layout/AppSidebar.tsx` | Add Calendar sub-item under Litigation (optional) |
-
-### No Database Changes Required
-All data already exists in the schema:
-- `litigation_hearings` - has scheduled_date, hearing_type, location, judge, outcome
-- `litigation_matters` - has response_deadline, next_hearing_date, status
-- `assignments` - has staff assignments with assignment_type
-- `tasks` - has entity_type for linking to litigation_matter
+- Type: Required
+- Communication Date: Required, defaults to now
+- Subject: Optional for notes, recommended for emails
+- Notes: Optional but encouraged
+- Outcome: Required for calls and emails
+- Duration: Required for calls, optional for meetings
 
 ---
 
 ## Implementation Order
 
-1. **Hooks First**
-   - `useAllHearings.ts` - fetch all hearings with nested data
-   - `useAssignedMatters.ts` - fetch matters for current staff
+1. **Database Migration**
+   - Create `communication_type` and `communication_direction` enums
+   - Create `client_communications` table
+   - Add RLS policy
 
-2. **Shared Dashboard Components**
-   - `DashboardMetricCard.tsx`
-   - `DeadlinesList.tsx`
-   - `RecentActivityFeed.tsx`
+2. **Hook**
+   - Create `useClientCommunications.ts` with all CRUD operations
 
-3. **Court Calendar**
-   - `CourtCalendar.tsx` and supporting components
-   - `CourtCalendarPage.tsx`
-   - Route and navigation updates
+3. **Form Dialog**
+   - Create `CommunicationFormDialog.tsx` with conditional fields
 
-4. **Attorney Dashboard**
-   - `AttorneyDashboard.tsx`
-   - Dashboard.tsx integration
+4. **Timeline Item**
+   - Create `CommunicationTimelineItem.tsx` component
 
-5. **Case Manager Dashboard**
-   - `CaseManagerDashboard.tsx`
-   - Dashboard.tsx integration
+5. **Tab Component**
+   - Create `ClientCommsTab.tsx` with timeline view and filters
 
----
-
-## UI Preview
-
-### Court Calendar Layout
-```text
-+--------------------------------------------------+
-| Court Calendar                     [Month] [Week] |
-+--------------------------------------------------+
-| Filters: [Attorney v] [Court v] [Type v] [Export] |
-+--------------------------------------------------+
-|  Sun   Mon   Tue   Wed   Thu   Fri   Sat        |
-|  --    --    --     1     2     3     4         |
-|                    [2]   [1]                     |
-|   5     6     7     8     9    10    11         |
-|        [3]         [1]  [2*]                     |
-|  ... (red badge = urgent deadline)               |
-+--------------------------------------------------+
-| Selected: Feb 6, 2026                            |
-| > Status Conference - Smith v. Capital One 10am  |
-| > Motion Hearing - Jones v. Chase 2pm            |
-| > Trial Prep - Williams v. Amex 4pm              |
-+--------------------------------------------------+
-```
-
-### Attorney Dashboard Layout
-```text
-+--------------------------------------------------+
-| Attorney Dashboard                                |
-+--------------------------------------------------+
-| [24]        [8]          [3]          [12]       |
-| Active     Pre-Response  Deadlines    Tasks      |
-| Cases      Cases         This Week    Pending    |
-+--------------------------------------------------+
-| Upcoming Deadlines         | Cases Needing Action|
-| > Response due: Feb 4      | > Outcome pending   |
-| > Hearing: Feb 6 10am      | > Settlement review |
-| > Motion deadline: Feb 8   | > Document request  |
-+--------------------------------------------------+
-| Recent Case Activity                              |
-| > Status changed: Smith v. Capital One           |
-| > Hearing scheduled: Jones v. Chase              |
-+--------------------------------------------------+
-```
+6. **Integration**
+   - Update `ClientDetail.tsx` to enable tab and import component
+   - Update `ClientHeader.tsx` to wire the Log Communication button
+   - Update `useClientActivity.ts` to include communications
 
 ---
 
 ## Testing Checklist
 
-1. **Court Calendar**
-   - View calendar and see hearings displayed on correct dates
-   - Filter by attorney and verify only their hearings show
-   - Click a date to see hearing details in popover
-   - Verify color coding matches urgency rules
-   - Test iCal export downloads valid .ics file
-
-2. **Attorney Dashboard**
-   - Log in as user with attorney role/department
-   - Verify dashboard shows attorney-specific widgets
-   - Verify case counts match actual assigned matters
-   - Verify deadlines are accurate and sorted by date
-   - Click "View All" links navigate correctly
-
-3. **Case Manager Dashboard**
-   - Log in as user with case_manager role/department
-   - Verify dashboard shows case manager widgets
-   - Verify task list shows only assigned tasks
-   - Verify document queue shows matters needing docs
+After implementation:
+- Log a call with duration and outcome
+- Log an email with subject and direction
+- Edit an existing communication
+- Delete a communication
+- Verify communications appear in the Overview Activity Log
+- Test date grouping (Today, Yesterday, Older)
+- Test type filtering
+- Verify the "Log Communication" button in header opens the dialog
