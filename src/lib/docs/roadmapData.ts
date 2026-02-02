@@ -84,8 +84,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Leads',
     priority: 'High',
     description: 'Match against existing leads AND clients. Block conversion if email exists in clients.',
-    status: 'Planned',
-    notes: 'Add unique constraint on clients.email. Show warning dialog with merge/proceed options.',
+    status: 'Completed',
+    notes: 'Implemented with useDuplicateDetection hook and DuplicateWarningDialog. Checks email, phone, and name matches with confidence levels. Blocks enrollment if client email already exists.',
   },
   {
     id: 'lead-source-metrics',
