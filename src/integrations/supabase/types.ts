@@ -758,6 +758,107 @@ export type Database = {
         }
         Relationships: []
       }
+      law_firm_contacts: {
+        Row: {
+          created_at: string
+          email: string | null
+          first_name: string
+          id: string
+          is_active: boolean
+          last_name: string
+          law_firm_id: string
+          notes: string | null
+          phone: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          first_name: string
+          id?: string
+          is_active?: boolean
+          last_name: string
+          law_firm_id: string
+          notes?: string | null
+          phone?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          id?: string
+          is_active?: boolean
+          last_name?: string
+          law_firm_id?: string
+          notes?: string | null
+          phone?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "law_firm_contacts_law_firm_id_fkey"
+            columns: ["law_firm_id"]
+            isOneToOne: false
+            referencedRelation: "law_firms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      law_firms: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          created_at: string
+          email: string | null
+          fax: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          phone: string | null
+          state: string | null
+          updated_at: string
+          zip_code: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          fax?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          phone?: string | null
+          state?: string | null
+          updated_at?: string
+          zip_code?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          created_at?: string
+          email?: string | null
+          fax?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          state?: string | null
+          updated_at?: string
+          zip_code?: string | null
+        }
+        Relationships: []
+      }
       lead_activities: {
         Row: {
           activity_type: string
@@ -1434,6 +1535,8 @@ export type Database = {
           next_hearing_date: string | null
           notes: string | null
           opposing_counsel: string | null
+          opposing_counsel_id: string | null
+          opposing_law_firm_id: string | null
           opposing_party: string | null
           response_deadline: string | null
           service_date: string | null
@@ -1454,6 +1557,8 @@ export type Database = {
           next_hearing_date?: string | null
           notes?: string | null
           opposing_counsel?: string | null
+          opposing_counsel_id?: string | null
+          opposing_law_firm_id?: string | null
           opposing_party?: string | null
           response_deadline?: string | null
           service_date?: string | null
@@ -1474,6 +1579,8 @@ export type Database = {
           next_hearing_date?: string | null
           notes?: string | null
           opposing_counsel?: string | null
+          opposing_counsel_id?: string | null
+          opposing_law_firm_id?: string | null
           opposing_party?: string | null
           response_deadline?: string | null
           service_date?: string | null
@@ -1495,6 +1602,20 @@ export type Database = {
             columns: ["liability_id"]
             isOneToOne: false
             referencedRelation: "liabilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "litigation_matters_opposing_counsel_id_fkey"
+            columns: ["opposing_counsel_id"]
+            isOneToOne: false
+            referencedRelation: "law_firm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "litigation_matters_opposing_law_firm_id_fkey"
+            columns: ["opposing_law_firm_id"]
+            isOneToOne: false
+            referencedRelation: "law_firms"
             referencedColumns: ["id"]
           },
         ]

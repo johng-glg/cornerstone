@@ -104,8 +104,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Litigation',
     priority: 'High',
     description: 'Two-tier directory: Law Firms and Firm Contacts, assignable to litigation matters.',
-    status: 'Planned',
-    notes: 'Create law_firms and law_firm_contacts tables. Add opposing_law_firm_id, opposing_counsel_id to litigation_matters.',
+    status: 'Completed',
+    notes: 'Created law_firms and law_firm_contacts tables with RLS. Added OpposingCounselSelect component for litigation matter forms.',
   },
   {
     id: 'deadline-reminders',
