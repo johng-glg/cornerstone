@@ -10,6 +10,7 @@ import {
   DollarSign,
   AtSign,
   AlertTriangle,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMarkAsRead } from '@/hooks/useNotifications';
@@ -27,6 +28,7 @@ const NOTIFICATION_ICONS: Record<NotificationType, React.ElementType> = {
   lead_assigned: UserPlus,
   matter_assigned: Gavel,
   hearing_reminder: Calendar,
+  response_deadline_reminder: FileText,
   settlement_update: DollarSign,
   mention: AtSign,
   system_alert: AlertTriangle,
@@ -39,6 +41,7 @@ const NOTIFICATION_COLORS: Record<NotificationType, string> = {
   lead_assigned: 'text-green-500 bg-green-500/10',
   matter_assigned: 'text-purple-500 bg-purple-500/10',
   hearing_reminder: 'text-orange-500 bg-orange-500/10',
+  response_deadline_reminder: 'text-red-500 bg-red-500/10',
   settlement_update: 'text-green-500 bg-green-500/10',
   mention: 'text-blue-500 bg-blue-500/10',
   system_alert: 'text-yellow-500 bg-yellow-500/10',

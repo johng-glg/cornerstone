@@ -1115,6 +1115,69 @@ export const FEATURE_GUIDES: FeatureGuide[] = [
       },
     ],
   },
+  {
+    id: 'deadline-reminders',
+    title: 'Deadline Reminder System',
+    category: 'workflow',
+    description: 'Automated notifications for response deadlines and court hearings to ensure nothing slips through the cracks.',
+    sections: [
+      {
+        title: 'Overview',
+        content: 'The Deadline Reminder System automatically monitors upcoming response deadlines and hearing dates, sending notifications to assigned staff before important dates arrive. This helps prevent missed court deadlines and ensures timely action on litigation matters.',
+      },
+      {
+        title: 'How It Works',
+        content: 'The system runs hourly and checks for upcoming deadlines based on your configured reminder intervals.',
+        steps: [
+          'Scans litigation_matters for upcoming response_deadline dates',
+          'Scans litigation_hearings for upcoming scheduled_date values',
+          'Creates pending reminders in deadline_reminders table',
+          'Sends notifications to assigned staff members',
+          'Tracks sent reminders to avoid duplicates',
+        ],
+        tips: [
+          'Reminders are only sent to staff assigned to the litigation matter',
+          'Staff can customize reminder preferences in Settings > Notifications',
+          'Reminders respect user notification preferences',
+        ],
+      },
+      {
+        title: 'Configuring Reminders',
+        content: 'Administrators can configure reminder timing in Settings > Reminders.',
+        steps: [
+          'Navigate to Settings from the sidebar',
+          'Click the Reminders tab',
+          'Enable or disable automatic reminders',
+          'Check boxes for when to send response deadline reminders (1, 3, 7, 14 days before)',
+          'Check boxes for when to send hearing reminders (including day-of)',
+          'Select the time of day reminders should be sent',
+          'Settings apply company-wide',
+        ],
+      },
+      {
+        title: 'Reminder Types',
+        content: 'Two types of reminders are currently supported:',
+        steps: [
+          'Response Deadline Reminders - For court filing deadlines on litigation matters',
+          'Hearing Reminders - For scheduled court appearances',
+        ],
+        tips: [
+          'Hearing reminders include a "Day of" option for same-day alerts',
+          'Task due date reminders will be added in a future update',
+        ],
+      },
+      {
+        title: 'Viewing Reminders',
+        content: 'Reminders appear in your notification center with relevant links.',
+        steps: [
+          'Click the bell icon in the top navigation',
+          'Response deadline reminders link to the litigation matter',
+          'Hearing reminders link to the court calendar',
+          'Mark reminders as read to clear them',
+        ],
+      },
+    ],
+  },
 ];
 
 export function getGuideById(id: string): FeatureGuide | undefined {

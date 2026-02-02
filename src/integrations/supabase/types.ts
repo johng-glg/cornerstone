@@ -758,6 +758,69 @@ export type Database = {
         }
         Relationships: []
       }
+      deadline_reminders: {
+        Row: {
+          created_at: string
+          days_before: number
+          deadline_date: string
+          entity_id: string
+          error_message: string | null
+          id: string
+          notification_id: string | null
+          reminder_type: Database["public"]["Enums"]["reminder_type"]
+          scheduled_for: string
+          sent_at: string | null
+          staff_id: string | null
+          status: Database["public"]["Enums"]["reminder_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          days_before: number
+          deadline_date: string
+          entity_id: string
+          error_message?: string | null
+          id?: string
+          notification_id?: string | null
+          reminder_type: Database["public"]["Enums"]["reminder_type"]
+          scheduled_for: string
+          sent_at?: string | null
+          staff_id?: string | null
+          status?: Database["public"]["Enums"]["reminder_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          days_before?: number
+          deadline_date?: string
+          entity_id?: string
+          error_message?: string | null
+          id?: string
+          notification_id?: string | null
+          reminder_type?: Database["public"]["Enums"]["reminder_type"]
+          scheduled_for?: string
+          sent_at?: string | null
+          staff_id?: string | null
+          status?: Database["public"]["Enums"]["reminder_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deadline_reminders_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deadline_reminders_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       law_firm_contacts: {
         Row: {
           created_at: string
@@ -2061,6 +2124,50 @@ export type Database = {
         }
         Relationships: []
       }
+      reminder_settings: {
+        Row: {
+          company_id: string
+          created_at: string
+          hearing_days: number[]
+          id: string
+          is_active: boolean
+          reminder_hour: number
+          response_deadline_days: number[]
+          task_due_days: number[]
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          hearing_days?: number[]
+          id?: string
+          is_active?: boolean
+          reminder_hour?: number
+          response_deadline_days?: number[]
+          task_due_days?: number[]
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          hearing_days?: number[]
+          id?: string
+          is_active?: boolean
+          reminder_hour?: number
+          response_deadline_days?: number[]
+          task_due_days?: number[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminder_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       report_templates: {
         Row: {
           company_id: string | null
@@ -2748,6 +2855,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      generate_deadline_reminders: {
+        Args: never
+        Returns: {
+          errors: string[]
+          reminders_created: number
+        }[]
+      }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -2907,6 +3021,7 @@ export type Database = {
         | "settlement_update"
         | "mention"
         | "system_alert"
+        | "response_deadline_reminder"
       payment_status_enum:
         | "current"
         | "paused"
@@ -2917,6 +3032,8 @@ export type Database = {
       phone_type: "mobile" | "home" | "work" | "fax" | "other"
       plan_type: "glg_standard" | "glg_adjustable" | "glg_exception"
       queue_status: "pending" | "assigned" | "expired" | "manual"
+      reminder_status: "pending" | "sent" | "failed" | "skipped"
+      reminder_type: "response_deadline" | "hearing" | "task_due"
       retention_type_enum:
         | "client_requested_cancel"
         | "company_initiated_cancel"
@@ -3253,6 +3370,7 @@ export const Constants = {
         "settlement_update",
         "mention",
         "system_alert",
+        "response_deadline_reminder",
       ],
       payment_status_enum: [
         "current",
@@ -3265,6 +3383,8 @@ export const Constants = {
       phone_type: ["mobile", "home", "work", "fax", "other"],
       plan_type: ["glg_standard", "glg_adjustable", "glg_exception"],
       queue_status: ["pending", "assigned", "expired", "manual"],
+      reminder_status: ["pending", "sent", "failed", "skipped"],
+      reminder_type: ["response_deadline", "hearing", "task_due"],
       retention_type_enum: [
         "client_requested_cancel",
         "company_initiated_cancel",

@@ -3,6 +3,7 @@ import { ProfileSettingsTab } from '@/components/settings/ProfileSettingsTab';
 import { AppearanceSettingsTab } from '@/components/settings/AppearanceSettingsTab';
 import { CompanySettingsTab } from '@/components/settings/CompanySettingsTab';
 import { NotificationSettingsTab } from '@/components/settings/NotificationSettingsTab';
+import { ReminderSettingsTab } from '@/components/settings/ReminderSettingsTab';
 import { ScoringProfilesTab } from '@/components/settings/ScoringProfilesTab';
 import { AssignmentRulesTab } from '@/components/settings/AssignmentRulesTab';
 import { WorkflowsTab } from '@/components/settings/WorkflowsTab';
@@ -20,6 +21,7 @@ export default function SettingsPage() {
           <TabsList className="mb-6 flex-wrap">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
+            <TabsTrigger value="reminders">Reminders</TabsTrigger>
             <TabsTrigger value="scoring">Scoring</TabsTrigger>
             <TabsTrigger value="assignment">Assignment</TabsTrigger>
             <TabsTrigger value="workflows">Workflows</TabsTrigger>
@@ -33,6 +35,10 @@ export default function SettingsPage() {
 
           <TabsContent value="notifications">
             <NotificationSettingsTab />
+          </TabsContent>
+
+          <TabsContent value="reminders">
+            <ReminderSettingsTab />
           </TabsContent>
 
           <TabsContent value="scoring">
