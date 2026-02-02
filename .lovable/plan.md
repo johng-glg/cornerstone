@@ -1,126 +1,235 @@
 
-# Lead Source Metrics Implementation Plan
+# Notification Center Implementation Plan
 
 ## Overview
 
-This feature implements comprehensive analytics for tracking lead performance by source and sales rep. It provides key conversion funnel metrics, retention tracking, and visual dashboards to identify which sources and reps are most effective.
+This feature implements a comprehensive notification system with a bell icon dropdown in the TopNav, persistent storage in the database, mark-read functionality, and user-configurable notification preferences. Notifications will update in real-time using the existing Supabase realtime infrastructure.
 
 ---
 
-## Key Metrics to Track
+## Key Features
 
-### By Lead Source
-| Metric | Definition | Calculation |
-|--------|------------|-------------|
-| **Contact Ratio** | % of leads that were contacted | `contacted_at IS NOT NULL / total leads` |
-| **Credit Pull Ratio** | % of leads with credit authorization | `credit_auth_given = true / total leads` |
-| **Qualification Ratio** | % of leads that reached qualified status | `qualified_at IS NOT NULL / contacted leads` |
-| **Conversion Ratio** | % of leads that converted to clients | `status = 'converted' / total leads` |
-| **Lost Ratio** | % of leads marked as lost | `status = 'lost' / total leads` |
-| **First Draft Clear Rate** | % of converted leads with successful first payment | Requires joining to `transactions` via `converted_service_id` |
-| **Retention Rate** | % of converted leads still active after N months | Requires tracking service status over time |
-
-### By Sales Rep
-| Metric | Definition | Calculation |
-|--------|------------|-------------|
-| **Total Assigned** | Leads assigned to rep | `COUNT where assigned_to = rep_id` |
-| **Contact Rate** | Rep's personal contact efficiency | `contacted / assigned` |
-| **Conversion Rate** | Rep's personal close rate | `converted / assigned` |
-| **Avg Time to Contact** | Speed of first contact | `AVG(contacted_at - created_at)` |
-| **Avg Time to Convert** | Full sales cycle length | `AVG(converted_at - created_at)` |
+| Feature | Description |
+|---------|-------------|
+| **Bell Icon Dropdown** | Replace hardcoded badge with dynamic popover showing notification list |
+| **Unread Count Badge** | Real-time count of unread notifications |
+| **Notification List** | Scrollable list with icons, timestamps, and links |
+| **Mark as Read** | Individual and bulk "Mark All Read" functionality |
+| **Notification Preferences** | Per-category toggles in Settings (in-app, email, sound) |
+| **Real-time Updates** | Live notifications using existing realtime subscription pattern |
+| **Notification Types** | Task assignments, mentions, deadlines, system alerts |
 
 ---
 
-## Database Approach
+## Database Schema
 
-Two PostgreSQL views (not materialized tables) for real-time accuracy with caching via React Query.
+### Table 1: `notifications`
 
-### View 1: `lead_source_metrics`
-
-```sql
-CREATE OR REPLACE VIEW lead_source_metrics AS
-SELECT
-  source,
-  COUNT(*) as total_leads,
-  COUNT(CASE WHEN contacted_at IS NOT NULL THEN 1 END) as contacted_count,
-  COUNT(CASE WHEN credit_auth_given = true THEN 1 END) as credit_pull_count,
-  COUNT(CASE WHEN qualified_at IS NOT NULL THEN 1 END) as qualified_count,
-  COUNT(CASE WHEN status = 'converted' THEN 1 END) as converted_count,
-  COUNT(CASE WHEN status = 'lost' THEN 1 END) as lost_count,
-  -- Ratios as decimals (multiply by 100 in UI for %)
-  ROUND(
-    COUNT(CASE WHEN contacted_at IS NOT NULL THEN 1 END)::numeric / 
-    NULLIF(COUNT(*), 0), 4
-  ) as contact_ratio,
-  ROUND(
-    COUNT(CASE WHEN credit_auth_given = true THEN 1 END)::numeric / 
-    NULLIF(COUNT(*), 0), 4
-  ) as credit_pull_ratio,
-  ROUND(
-    COUNT(CASE WHEN qualified_at IS NOT NULL THEN 1 END)::numeric / 
-    NULLIF(COUNT(CASE WHEN contacted_at IS NOT NULL THEN 1 END), 0), 4
-  ) as qualification_ratio,
-  ROUND(
-    COUNT(CASE WHEN status = 'converted' THEN 1 END)::numeric / 
-    NULLIF(COUNT(*), 0), 4
-  ) as conversion_ratio
-FROM leads
-GROUP BY source;
-```
-
-### View 2: `lead_rep_metrics`
+Stores all user notifications with type, content, and read status.
 
 ```sql
-CREATE OR REPLACE VIEW lead_rep_metrics AS
-SELECT
-  l.assigned_to as staff_id,
-  s.first_name,
-  s.last_name,
-  s.avatar_url,
-  COUNT(*) as total_assigned,
-  COUNT(CASE WHEN l.contacted_at IS NOT NULL THEN 1 END) as contacted_count,
-  COUNT(CASE WHEN l.credit_auth_given = true THEN 1 END) as credit_pull_count,
-  COUNT(CASE WHEN l.qualified_at IS NOT NULL THEN 1 END) as qualified_count,
-  COUNT(CASE WHEN l.status = 'converted' THEN 1 END) as converted_count,
-  COUNT(CASE WHEN l.status = 'lost' THEN 1 END) as lost_count,
-  -- Ratios
-  ROUND(
-    COUNT(CASE WHEN l.contacted_at IS NOT NULL THEN 1 END)::numeric / 
-    NULLIF(COUNT(*), 0), 4
-  ) as contact_ratio,
-  ROUND(
-    COUNT(CASE WHEN l.status = 'converted' THEN 1 END)::numeric / 
-    NULLIF(COUNT(*), 0), 4
-  ) as conversion_ratio,
-  -- Time metrics (in hours)
-  ROUND(
-    AVG(EXTRACT(EPOCH FROM (l.contacted_at - l.created_at)) / 3600)::numeric, 2
-  ) as avg_hours_to_contact,
-  ROUND(
-    AVG(EXTRACT(EPOCH FROM (l.converted_at - l.created_at)) / 86400)::numeric, 2
-  ) as avg_days_to_convert
-FROM leads l
-LEFT JOIN staff s ON l.assigned_to = s.id
-WHERE l.assigned_to IS NOT NULL
-GROUP BY l.assigned_to, s.first_name, s.last_name, s.avatar_url;
+CREATE TYPE notification_type AS ENUM (
+  'task_assigned',
+  'task_due_soon',
+  'task_overdue',
+  'lead_assigned',
+  'matter_assigned',
+  'hearing_reminder',
+  'settlement_update',
+  'mention',
+  'system_alert'
+);
+
+CREATE TABLE notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  type notification_type NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT,
+  link TEXT,  -- Optional navigation path (e.g., '/tasks/abc123')
+  entity_type TEXT,  -- e.g., 'task', 'lead', 'matter'
+  entity_id UUID,    -- Reference to the related entity
+  is_read BOOLEAN NOT NULL DEFAULT false,
+  read_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Indexes for performance
+CREATE INDEX idx_notifications_user_unread 
+  ON notifications(user_id, is_read) 
+  WHERE is_read = false;
+
+CREATE INDEX idx_notifications_user_created 
+  ON notifications(user_id, created_at DESC);
+
+-- Enable RLS
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+-- Users can only see their own notifications
+CREATE POLICY "Users can view own notifications"
+  ON notifications FOR SELECT
+  TO authenticated
+  USING (user_id = auth.uid());
+
+CREATE POLICY "Users can update own notifications"
+  ON notifications FOR UPDATE
+  TO authenticated
+  USING (user_id = auth.uid());
+
+-- System can insert notifications for any user (via service role)
+CREATE POLICY "Service role can insert notifications"
+  ON notifications FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+-- Enable realtime
+ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
 ```
 
-### RLS Consideration
+### Table 2: `notification_preferences`
 
-Views inherit RLS from underlying tables. Since `leads` has RLS based on `company_id`, the views will automatically filter by company.
+Stores user preferences for each notification category.
+
+```sql
+CREATE TABLE notification_preferences (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  notification_type notification_type NOT NULL,
+  in_app_enabled BOOLEAN NOT NULL DEFAULT true,
+  email_enabled BOOLEAN NOT NULL DEFAULT false,
+  sound_enabled BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  
+  UNIQUE(user_id, notification_type)
+);
+
+-- Enable RLS
+ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own preferences"
+  ON notification_preferences FOR ALL
+  TO authenticated
+  USING (user_id = auth.uid());
+```
+
+### Database Function: Create Notification
+
+Helper function to create notifications (used by triggers or edge functions):
+
+```sql
+CREATE OR REPLACE FUNCTION create_notification(
+  _user_id UUID,
+  _type notification_type,
+  _title TEXT,
+  _message TEXT DEFAULT NULL,
+  _link TEXT DEFAULT NULL,
+  _entity_type TEXT DEFAULT NULL,
+  _entity_id UUID DEFAULT NULL
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _notification_id UUID;
+  _in_app_enabled BOOLEAN;
+BEGIN
+  -- Check if user has in-app notifications enabled for this type
+  SELECT COALESCE(in_app_enabled, true) INTO _in_app_enabled
+  FROM notification_preferences
+  WHERE user_id = _user_id AND notification_type = _type;
+  
+  -- Default to true if no preference exists
+  _in_app_enabled := COALESCE(_in_app_enabled, true);
+  
+  IF _in_app_enabled THEN
+    INSERT INTO notifications (user_id, type, title, message, link, entity_type, entity_id)
+    VALUES (_user_id, _type, _title, _message, _link, _entity_type, _entity_id)
+    RETURNING id INTO _notification_id;
+  END IF;
+  
+  RETURN _notification_id;
+END;
+$$;
+```
+
+---
+
+## Notification Type Triggers
+
+### Task Assignment Trigger
+
+Automatically create notification when a task is assigned:
+
+```sql
+CREATE OR REPLACE FUNCTION notify_task_assignment()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _assignee_user_id UUID;
+BEGIN
+  -- Only notify on new assignment or reassignment
+  IF (TG_OP = 'INSERT' AND NEW.assigned_to IS NOT NULL) OR
+     (TG_OP = 'UPDATE' AND NEW.assigned_to IS DISTINCT FROM OLD.assigned_to AND NEW.assigned_to IS NOT NULL) THEN
+    
+    -- Get the user_id from staff table
+    SELECT user_id INTO _assignee_user_id
+    FROM staff WHERE id = NEW.assigned_to;
+    
+    IF _assignee_user_id IS NOT NULL THEN
+      PERFORM create_notification(
+        _assignee_user_id,
+        'task_assigned',
+        'New Task Assigned',
+        NEW.title,
+        '/tasks',
+        'task',
+        NEW.id
+      );
+    END IF;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_notify_task_assignment
+  AFTER INSERT OR UPDATE ON tasks
+  FOR EACH ROW
+  EXECUTE FUNCTION notify_task_assignment();
+```
 
 ---
 
 ## Files to Create
 
+### Core Components
+
 | File | Purpose |
 |------|---------|
-| `src/hooks/useLeadMetrics.ts` | React Query hooks for fetching source and rep metrics |
-| `src/pages/LeadMetrics.tsx` | Main metrics dashboard page |
-| `src/components/leads/LeadSourceMetricsCard.tsx` | Card showing metrics for one source |
-| `src/components/leads/LeadRepMetricsTable.tsx` | Table of rep performance |
-| `src/components/leads/LeadFunnelChart.tsx` | Funnel visualization for conversion flow |
-| `src/components/leads/MetricsDateFilter.tsx` | Date range filter for metrics |
+| `src/components/notifications/NotificationCenter.tsx` | Main dropdown component for TopNav |
+| `src/components/notifications/NotificationItem.tsx` | Individual notification row |
+| `src/components/notifications/NotificationEmptyState.tsx` | Empty state when no notifications |
+| `src/components/settings/NotificationSettingsTab.tsx` | Preferences panel in Settings |
+
+### Hooks
+
+| File | Purpose |
+|------|---------|
+| `src/hooks/useNotifications.ts` | Fetch, mark read, delete notifications |
+| `src/hooks/useNotificationPreferences.ts` | Fetch and update preferences |
+| `src/hooks/useRealtimeNotifications.ts` | Realtime subscription with sound/toast |
+
+### Types
+
+| File | Purpose |
+|------|---------|
+| `src/types/notifications.ts` | TypeScript interfaces for notifications |
 
 ---
 
@@ -128,281 +237,377 @@ Views inherit RLS from underlying tables. Since `leads` has RLS based on `compan
 
 | File | Changes |
 |------|---------|
-| `src/App.tsx` | Add route for `/leads/metrics` |
-| `src/components/layout/AppSidebar.tsx` | Add "Lead Metrics" nav item under Leads |
-| `src/components/dashboards/SalesRepDashboard.tsx` | Add source metrics widget |
-| `src/components/dashboards/AdminDashboard.tsx` | Add source/rep metrics summary |
+| `src/components/layout/TopNav.tsx` | Replace hardcoded bell with NotificationCenter |
+| `src/pages/Settings.tsx` | Add Notifications tab |
 | `src/lib/docs/roadmapData.ts` | Mark feature as Completed |
+
+---
+
+## Component Design
+
+### NotificationCenter Component
+
+The main dropdown that replaces the hardcoded bell icon:
+
+```text
++-----------------------------------+
+| 🔔 Notifications           [Mark All Read]
++-----------------------------------+
+| 📋 New Task Assigned              |
+|    Review client documents        |
+|    2 minutes ago              [•] |
++-----------------------------------+
+| 👤 Lead Assigned to You           |
+|    John Smith - Web Form          |
+|    1 hour ago                     |
++-----------------------------------+
+| ⚠️ Task Overdue                   |
+|    Follow up with creditor        |
+|    Yesterday                  [•] |
++-----------------------------------+
+|                                   |
+|     [View All Notifications]      |
++-----------------------------------+
+```
+
+### NotificationSettingsTab Component
+
+Grid of toggles per notification type:
+
+```text
++-----------------------------------------------+
+| Notification Preferences                      |
++-----------------------------------------------+
+|                     | In-App | Email | Sound  |
++---------------------+--------+-------+--------+
+| Task Assignments    |   ✓    |   ○   |   ✓    |
+| Task Reminders      |   ✓    |   ✓   |   ○    |
+| Lead Assignments    |   ✓    |   ○   |   ✓    |
+| Matter Updates      |   ✓    |   ○   |   ○    |
+| System Alerts       |   ✓    |   ✓   |   ✓    |
++-----------------------------------------------+
+```
 
 ---
 
 ## Implementation Details
 
-### 1. Database Migration
+### 1. Notification Hook
 
-Create both views in a single migration:
-
-```sql
--- Lead Source Metrics View
-CREATE OR REPLACE VIEW lead_source_metrics AS
-SELECT
-  source,
-  COUNT(*) as total_leads,
-  COUNT(CASE WHEN contacted_at IS NOT NULL THEN 1 END) as contacted_count,
-  COUNT(CASE WHEN credit_auth_given = true THEN 1 END) as credit_pull_count,
-  COUNT(CASE WHEN qualified_at IS NOT NULL THEN 1 END) as qualified_count,
-  COUNT(CASE WHEN status = 'converted' THEN 1 END) as converted_count,
-  COUNT(CASE WHEN status = 'lost' THEN 1 END) as lost_count,
-  ROUND(COUNT(CASE WHEN contacted_at IS NOT NULL THEN 1 END)::numeric / NULLIF(COUNT(*), 0), 4) as contact_ratio,
-  ROUND(COUNT(CASE WHEN credit_auth_given = true THEN 1 END)::numeric / NULLIF(COUNT(*), 0), 4) as credit_pull_ratio,
-  ROUND(COUNT(CASE WHEN qualified_at IS NOT NULL THEN 1 END)::numeric / NULLIF(COUNT(CASE WHEN contacted_at IS NOT NULL THEN 1 END), 0), 4) as qualification_ratio,
-  ROUND(COUNT(CASE WHEN status = 'converted' THEN 1 END)::numeric / NULLIF(COUNT(*), 0), 4) as conversion_ratio
-FROM leads
-GROUP BY source;
-
--- Lead Rep Metrics View
-CREATE OR REPLACE VIEW lead_rep_metrics AS
-SELECT
-  l.assigned_to as staff_id,
-  s.first_name,
-  s.last_name,
-  s.avatar_url,
-  COUNT(*) as total_assigned,
-  COUNT(CASE WHEN l.contacted_at IS NOT NULL THEN 1 END) as contacted_count,
-  COUNT(CASE WHEN l.credit_auth_given = true THEN 1 END) as credit_pull_count,
-  COUNT(CASE WHEN l.qualified_at IS NOT NULL THEN 1 END) as qualified_count,
-  COUNT(CASE WHEN l.status = 'converted' THEN 1 END) as converted_count,
-  COUNT(CASE WHEN l.status = 'lost' THEN 1 END) as lost_count,
-  ROUND(COUNT(CASE WHEN l.contacted_at IS NOT NULL THEN 1 END)::numeric / NULLIF(COUNT(*), 0), 4) as contact_ratio,
-  ROUND(COUNT(CASE WHEN l.status = 'converted' THEN 1 END)::numeric / NULLIF(COUNT(*), 0), 4) as conversion_ratio,
-  ROUND(AVG(EXTRACT(EPOCH FROM (l.contacted_at - l.created_at)) / 3600)::numeric, 2) as avg_hours_to_contact,
-  ROUND(AVG(EXTRACT(EPOCH FROM (l.converted_at - l.created_at)) / 86400)::numeric, 2) as avg_days_to_convert
-FROM leads l
-LEFT JOIN staff s ON l.assigned_to = s.id
-WHERE l.assigned_to IS NOT NULL
-GROUP BY l.assigned_to, s.first_name, s.last_name, s.avatar_url;
-```
-
-### 2. React Query Hooks
-
-**`src/hooks/useLeadMetrics.ts`**
+**`src/hooks/useNotifications.ts`**
 
 ```typescript
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-export interface LeadSourceMetric {
-  source: string;
-  total_leads: number;
-  contacted_count: number;
-  credit_pull_count: number;
-  qualified_count: number;
-  converted_count: number;
-  lost_count: number;
-  contact_ratio: number;
-  credit_pull_ratio: number;
-  qualification_ratio: number;
-  conversion_ratio: number;
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  message: string | null;
+  link: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
 }
 
-export interface LeadRepMetric {
-  staff_id: string;
-  first_name: string;
-  last_name: string;
-  avatar_url: string | null;
-  total_assigned: number;
-  contacted_count: number;
-  credit_pull_count: number;
-  qualified_count: number;
-  converted_count: number;
-  lost_count: number;
-  contact_ratio: number;
-  conversion_ratio: number;
-  avg_hours_to_contact: number | null;
-  avg_days_to_convert: number | null;
-}
-
-export function useLeadSourceMetrics() {
+export function useNotifications(limit = 20) {
   return useQuery({
-    queryKey: ['lead_source_metrics'],
+    queryKey: ['notifications', limit],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('lead_source_metrics')
-        .select('*');
-      if (error) throw error;
-      return data as LeadSourceMetric[];
-    },
-  });
-}
-
-export function useLeadRepMetrics() {
-  return useQuery({
-    queryKey: ['lead_rep_metrics'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('lead_rep_metrics')
+        .from('notifications')
         .select('*')
-        .order('total_assigned', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(limit);
       if (error) throw error;
-      return data as LeadRepMetric[];
+      return data as Notification[];
+    },
+  });
+}
+
+export function useUnreadCount() {
+  return useQuery({
+    queryKey: ['notifications_unread_count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_read', false);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+}
+
+export function useMarkAsRead() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (notificationId: string) => {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .eq('id', notificationId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications_unread_count'] });
+    },
+  });
+}
+
+export function useMarkAllAsRead() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .eq('is_read', false);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications_unread_count'] });
     },
   });
 }
 ```
 
-### 3. Metrics Dashboard Page
+### 2. Realtime Notifications Hook
 
-**`src/pages/LeadMetrics.tsx`**
+**`src/hooks/useRealtimeNotifications.ts`**
 
-Layout structure:
-- Header with title and description
-- Summary cards row (total leads, avg conversion rate, best source, best rep)
-- Tabs: "By Source" | "By Rep" | "Funnel"
-- By Source tab: Grid of LeadSourceMetricsCard components
-- By Rep tab: LeadRepMetricsTable with sortable columns
-- Funnel tab: LeadFunnelChart visualization
-
-### 4. Source Metrics Card Component
-
-**`src/components/leads/LeadSourceMetricsCard.tsx`**
-
-Visual card for each lead source showing:
-- Source name with icon
-- Total leads count
-- Mini progress bars for each ratio (contact, credit pull, conversion)
-- Trend indicator (if implementing historical comparison)
-
-### 5. Rep Metrics Table
-
-**`src/components/leads/LeadRepMetricsTable.tsx`**
-
-Sortable table with columns:
-- Avatar + Name
-- Total Assigned
-- Contact Rate (as %)
-- Credit Pull Rate (as %)  
-- Conversion Rate (as %)
-- Avg Time to Contact
-- Avg Time to Convert
-
-Color-coded cells (green for high performers, yellow for average, red for low).
-
-### 6. Funnel Chart
-
-**`src/components/leads/LeadFunnelChart.tsx`**
-
-Using Recharts to visualize the conversion funnel:
-- Total Leads
-- Contacted
-- Credit Auth
-- Qualified
-- Converted
-
-Shows drop-off at each stage with percentages.
-
----
-
-## UI Preview
-
-### Source Metrics Cards
-
-```text
-+---------------------------+  +---------------------------+
-|  WEB FORM                 |  |  REFERRAL                 |
-|  Total: 156 leads         |  |  Total: 89 leads          |
-|                           |  |                           |
-|  Contact Rate    ████░ 78%|  |  Contact Rate    █████ 92%|
-|  Credit Pull     ███░░ 62%|  |  Credit Pull     ████░ 81%|
-|  Conversion      ██░░░ 34%|  |  Conversion      ████░ 71%|
-+---------------------------+  +---------------------------+
-```
-
-### Rep Leaderboard
-
-```text
-+--------+----------------+--------+----------+--------+------------+
-| Avatar | Name           | Leads  | Contact  | Conv.  | Avg Days   |
-+--------+----------------+--------+----------+--------+------------+
-|  👤    | Matt Smith     | 42     | 95%      | 68%    | 4.2 days   |
-|  👤    | Joe Johnson    | 38     | 89%      | 52%    | 5.8 days   |
-|  👤    | Sarah Williams | 35     | 91%      | 61%    | 3.9 days   |
-+--------+----------------+--------+----------+--------+------------+
-```
-
----
-
-## Dashboard Integration
-
-### SalesRepDashboard Enhancement
-
-Add a compact "My Performance" card showing the current rep's metrics compared to team average:
+Extends the existing realtime pattern with toast and sound support:
 
 ```typescript
-<Card>
-  <CardHeader>
-    <CardTitle>My Performance</CardTitle>
-  </CardHeader>
-  <CardContent>
-    <div className="grid grid-cols-2 gap-4">
-      <MetricComparison 
-        label="Contact Rate" 
-        myValue={85} 
-        teamAvg={78} 
-      />
-      <MetricComparison 
-        label="Conversion Rate" 
-        myValue={42} 
-        teamAvg={38} 
-      />
-    </div>
-  </CardContent>
-</Card>
-```
+import { useRealtimeSubscription } from './useRealtimeSubscription';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/lib/auth';
 
-### AdminDashboard Enhancement
+export function useRealtimeNotifications() {
+  const { user } = useAuth();
+  const { toast } = useToast();
 
-Add a "Top Sources This Month" widget and "Rep Leaderboard" snippet.
+  useRealtimeSubscription({
+    table: 'notifications',
+    queryKey: ['notifications'],
+    filter: user?.id ? `user_id=eq.${user.id}` : undefined,
+    enabled: !!user?.id,
+    onInsert: (payload) => {
+      const notification = payload.new as any;
+      
+      // Show toast for new notifications
+      toast({
+        title: notification.title,
+        description: notification.message,
+      });
+      
+      // Play sound (check preferences)
+      // playNotificationSound();
+    },
+  });
 
----
-
-## Navigation
-
-Add to `AppSidebar.tsx` under the Leads section:
-
-```typescript
-{
-  title: 'Lead Metrics',
-  href: '/leads/metrics',
-  icon: BarChart3,
+  // Also update unread count
+  useRealtimeSubscription({
+    table: 'notifications',
+    queryKey: ['notifications_unread_count'],
+    filter: user?.id ? `user_id=eq.${user.id}` : undefined,
+    enabled: !!user?.id,
+  });
 }
 ```
+
+### 3. NotificationCenter Component
+
+**`src/components/notifications/NotificationCenter.tsx`**
+
+```typescript
+import { Bell } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useNotifications, useUnreadCount, useMarkAllAsRead } from '@/hooks/useNotifications';
+import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
+import { NotificationItem } from './NotificationItem';
+import { NotificationEmptyState } from './NotificationEmptyState';
+
+export function NotificationCenter() {
+  const { data: notifications, isLoading } = useNotifications(20);
+  const { data: unreadCount } = useUnreadCount();
+  const markAllAsRead = useMarkAllAsRead();
+
+  // Enable realtime updates
+  useRealtimeNotifications();
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative">
+          <Bell className="h-5 w-5" />
+          {unreadCount && unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground flex items-center justify-center">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0" align="end">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h4 className="font-semibold">Notifications</h4>
+          {unreadCount && unreadCount > 0 && (
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => markAllAsRead.mutate()}
+            >
+              Mark all read
+            </Button>
+          )}
+        </div>
+        <ScrollArea className="h-80">
+          {isLoading ? (
+            <div className="p-4">Loading...</div>
+          ) : notifications && notifications.length > 0 ? (
+            <div className="divide-y">
+              {notifications.map((notification) => (
+                <NotificationItem 
+                  key={notification.id} 
+                  notification={notification} 
+                />
+              ))}
+            </div>
+          ) : (
+            <NotificationEmptyState />
+          )}
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
+  );
+}
+```
+
+### 4. TopNav Integration
+
+Replace the hardcoded bell button with the NotificationCenter component:
+
+```typescript
+// Before (lines 71-77)
+<Button variant="ghost" size="icon" className="relative">
+  <Bell className="h-5 w-5" />
+  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground flex items-center justify-center">
+    3
+  </span>
+</Button>
+
+// After
+<NotificationCenter />
+```
+
+### 5. Settings Integration
+
+Add a Notifications tab to the Settings page:
+
+```typescript
+<TabsList className="mb-6">
+  <TabsTrigger value="profile">Profile</TabsTrigger>
+  <TabsTrigger value="notifications">Notifications</TabsTrigger>
+  <TabsTrigger value="appearance">Appearance</TabsTrigger>
+  <TabsTrigger value="company">Company</TabsTrigger>
+</TabsList>
+
+<TabsContent value="notifications">
+  <NotificationSettingsTab />
+</TabsContent>
+```
+
+---
+
+## Notification Type Icons
+
+Map each notification type to an appropriate Lucide icon:
+
+| Type | Icon | Color |
+|------|------|-------|
+| `task_assigned` | CheckSquare | blue |
+| `task_due_soon` | Clock | yellow |
+| `task_overdue` | AlertCircle | red |
+| `lead_assigned` | UserPlus | green |
+| `matter_assigned` | Gavel | purple |
+| `hearing_reminder` | Calendar | orange |
+| `settlement_update` | DollarSign | green |
+| `mention` | AtSign | blue |
+| `system_alert` | AlertTriangle | yellow |
 
 ---
 
 ## Files Summary
 
-### Create (5 files)
+### Create (7 files)
 
 | File | Purpose |
 |------|---------|
-| `src/hooks/useLeadMetrics.ts` | Hooks for source and rep metrics |
-| `src/pages/LeadMetrics.tsx` | Main metrics dashboard |
-| `src/components/leads/LeadSourceMetricsCard.tsx` | Source metric card component |
-| `src/components/leads/LeadRepMetricsTable.tsx` | Rep performance table |
-| `src/components/leads/LeadFunnelChart.tsx` | Conversion funnel chart |
+| `src/components/notifications/NotificationCenter.tsx` | Main dropdown component |
+| `src/components/notifications/NotificationItem.tsx` | Individual notification row |
+| `src/components/notifications/NotificationEmptyState.tsx` | Empty state UI |
+| `src/components/settings/NotificationSettingsTab.tsx` | Preferences panel |
+| `src/hooks/useNotifications.ts` | Notification CRUD hooks |
+| `src/hooks/useNotificationPreferences.ts` | Preferences hooks |
+| `src/hooks/useRealtimeNotifications.ts` | Realtime subscription |
 
-### Modify (4 files)
+### Modify (3 files)
 
 | File | Changes |
 |------|---------|
-| `src/App.tsx` | Add `/leads/metrics` route |
-| `src/components/layout/AppSidebar.tsx` | Add Lead Metrics nav item |
-| `src/components/dashboards/SalesRepDashboard.tsx` | Add personal performance widget |
-| `src/lib/docs/roadmapData.ts` | Mark as Completed |
+| `src/components/layout/TopNav.tsx` | Replace hardcoded bell with NotificationCenter |
+| `src/pages/Settings.tsx` | Add Notifications tab |
+| `src/lib/docs/roadmapData.ts` | Mark feature as Completed |
 
 ### Database Migration (1)
 
-Create `lead_source_metrics` and `lead_rep_metrics` views.
+- Create `notification_type` enum
+- Create `notifications` table with RLS
+- Create `notification_preferences` table with RLS
+- Create `create_notification` function
+- Create `notify_task_assignment` trigger
+- Enable realtime for `notifications` table
+
+---
+
+## User Experience Flow
+
+### Receiving a Notification
+
+1. User A assigns a task to User B
+2. Database trigger fires `notify_task_assignment()`
+3. New row inserted into `notifications` table
+4. Supabase Realtime broadcasts the insert
+5. User B's browser receives the event via `useRealtimeNotifications`
+6. Query cache invalidates, UI updates with new unread count
+7. Toast notification appears (optional sound plays)
+
+### Reading Notifications
+
+1. User clicks bell icon
+2. Popover opens showing notification list
+3. User clicks a notification item
+4. `useMarkAsRead` mutation fires
+5. Notification navigates to linked page (if `link` is set)
+6. Unread count decrements
+
+### Managing Preferences
+
+1. User navigates to Settings > Notifications
+2. Preference grid shows toggles per notification type
+3. User toggles "Email" for "Task Reminders"
+4. `useUpdatePreference` mutation fires
+5. Future notifications respect the new setting
 
 ---
 
@@ -410,9 +615,9 @@ Create `lead_source_metrics` and `lead_rep_metrics` views.
 
 After initial implementation:
 
-1. **Date Range Filtering**: Add date pickers to filter metrics by time period
-2. **First Draft Clear Rate**: Join to transactions table to track payment success
-3. **Retention Tracking**: Track service status at 30/60/90 day marks
-4. **Export to CSV/PDF**: Add export functionality for reports
-5. **Historical Trends**: Store periodic snapshots for trend analysis
-6. **Source ROI**: If marketing spend data is available, calculate cost per conversion
+1. **Email Integration**: Connect to Resend/SendGrid for email notifications
+2. **Push Notifications**: Browser push API for desktop notifications
+3. **Notification History Page**: Full-page view with filters and search
+4. **Digest Mode**: Daily/weekly email summaries instead of individual emails
+5. **Quiet Hours**: Time-based muting of notifications
+6. **Notification Batching**: Group similar notifications (e.g., "5 new tasks assigned")
