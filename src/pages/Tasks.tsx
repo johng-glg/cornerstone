@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useTasks, type Task, type TaskStatus, type TaskPriority } from '@/hooks/useTasks';
+import { useRealtimeTasks } from '@/hooks/useRealtimeTasks';
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog';
 import { TaskDetailSheet } from '@/components/tasks/TaskDetailSheet';
 import { TaskKanban } from '@/components/tasks/TaskKanban';
@@ -63,6 +64,9 @@ export default function TasksPage() {
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
+
+  // Enable realtime updates for tasks
+  useRealtimeTasks({ enabled: true, showToasts: true });
 
   const { data: tasks, isLoading } = useTasks(
     priorityFilter === 'all'

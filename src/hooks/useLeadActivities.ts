@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useRealtimeSubscription } from './useRealtimeSubscription';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 
 export type LeadActivity = Tables<'lead_activities'> & {
@@ -9,9 +10,23 @@ export type LeadActivity = Tables<'lead_activities'> & {
 
 export type LeadActivityInsert = TablesInsert<'lead_activities'>;
 
-export function useLeadActivities(leadId: string | undefined) {
+interface UseLeadActivitiesOptions {
+  realtime?: boolean;
+}
+
+export function useLeadActivities(leadId: string | undefined, options?: UseLeadActivitiesOptions) {
+  const queryKey = ['lead-activities', leadId];
+
+  // Subscribe to realtime updates for this lead's activities
+  useRealtimeSubscription<Tables<'lead_activities'>>({
+    table: 'lead_activities',
+    queryKey,
+    filter: leadId ? `lead_id=eq.${leadId}` : undefined,
+    enabled: (options?.realtime ?? false) && !!leadId,
+  });
+
   return useQuery({
-    queryKey: ['lead-activities', leadId],
+    queryKey,
     queryFn: async () => {
       if (!leadId) return [];
       const { data, error } = await supabase

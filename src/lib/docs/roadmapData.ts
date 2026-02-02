@@ -55,8 +55,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Core',
     priority: 'High',
     description: 'Supabase channels for live data updates across notifications, tasks, and activities.',
-    status: 'Planned',
-    notes: 'Enable realtime on notifications, tasks, lead_activities, client_communications tables.',
+    status: 'Completed',
+    notes: 'Enabled realtime on tasks, leads, lead_activities, client_communications, litigation_activities, and service_status_history tables. Added useRealtimeSubscription hook with query invalidation pattern.',
   },
   
   // Lead Management

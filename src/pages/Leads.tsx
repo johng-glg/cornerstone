@@ -6,6 +6,7 @@ import { LeadFormDialog } from '@/components/leads/LeadFormDialog';
 import { LeadDetailSheet } from '@/components/leads/LeadDetailSheet';
 import { EnrollmentWizard } from '@/components/enrollment/EnrollmentWizard';
 import { LitigationWizard } from '@/components/litigation/LitigationWizard';
+import { useRealtimeLeads } from '@/hooks/useRealtimeLeads';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -60,6 +61,9 @@ export default function LeadsPage() {
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
+
+  // Enable realtime updates for leads
+  useRealtimeLeads({ enabled: true, showToasts: true });
 
   // Reset page when filters change
   useEffect(() => {

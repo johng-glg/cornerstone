@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useRealtimeSubscription } from './useRealtimeSubscription';
 import type { Tables, Enums } from '@/integrations/supabase/types';
 
 export type CommunicationType = Enums<'communication_type'>;
@@ -50,9 +51,23 @@ export const COMMUNICATION_OUTCOMES: Record<CommunicationType, { value: string; 
   ],
 };
 
-export function useClientCommunications(clientId: string | undefined) {
+interface UseClientCommunicationsOptions {
+  realtime?: boolean;
+}
+
+export function useClientCommunications(clientId: string | undefined, options?: UseClientCommunicationsOptions) {
+  const queryKey = ['client_communications', clientId];
+
+  // Subscribe to realtime updates for this client's communications
+  useRealtimeSubscription<Tables<'client_communications'>>({
+    table: 'client_communications',
+    queryKey,
+    filter: clientId ? `client_id=eq.${clientId}` : undefined,
+    enabled: (options?.realtime ?? false) && !!clientId,
+  });
+
   return useQuery({
-    queryKey: ['client_communications', clientId],
+    queryKey,
     queryFn: async () => {
       if (!clientId) return [];
       
