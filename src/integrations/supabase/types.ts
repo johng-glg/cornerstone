@@ -2117,7 +2117,49 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      lead_rep_metrics: {
+        Row: {
+          avatar_url: string | null
+          avg_days_to_convert: number | null
+          avg_hours_to_contact: number | null
+          contact_ratio: number | null
+          contacted_count: number | null
+          conversion_ratio: number | null
+          converted_count: number | null
+          credit_pull_count: number | null
+          first_name: string | null
+          last_name: string | null
+          lost_count: number | null
+          qualified_count: number | null
+          staff_id: string | null
+          total_assigned: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_assigned_to_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_source_metrics: {
+        Row: {
+          contact_ratio: number | null
+          contacted_count: number | null
+          conversion_ratio: number | null
+          converted_count: number | null
+          credit_pull_count: number | null
+          credit_pull_ratio: number | null
+          lost_count: number | null
+          qualification_ratio: number | null
+          qualified_count: number | null
+          source: Database["public"]["Enums"]["lead_source"] | null
+          total_leads: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       can_access_company: {

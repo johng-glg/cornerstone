@@ -23,6 +23,7 @@ import StaffPage from "./pages/Staff";
 import SettingsPage from "./pages/Settings";
 import ReportsPage from "./pages/Reports";
 import OpposingCounselPage from "./pages/OpposingCounsel";
+import LeadMetricsPage from "./pages/LeadMetrics";
 import { DocsLayout } from "./components/docs/DocsLayout";
 import DocsOverview from "./pages/docs/DocsOverview";
 import SchemaPage from "./pages/docs/SchemaPage";
@@ -73,6 +74,7 @@ const App = () => (
             {/* Protected routes with layout */}
             <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
             <Route path="/leads" element={<AppLayout><LeadsPage /></AppLayout>} />
+            <Route path="/leads/metrics" element={<AppLayout><LeadMetricsPage /></AppLayout>} />
             <Route path="/services" element={<AppLayout><ServicesPage /></AppLayout>} />
             <Route path="/clients" element={<AppLayout><ClientsPage /></AppLayout>} />
             <Route path="/clients/:id" element={<AppLayout><ClientDetailPage /></AppLayout>} />

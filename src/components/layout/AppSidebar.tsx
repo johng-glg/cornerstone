@@ -12,7 +12,8 @@ import {
   Scale,
   Landmark,
   BookOpen,
-  Gavel
+  Gavel,
+  TrendingUp
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/lib/auth';
@@ -33,6 +34,7 @@ import {
 const mainNavItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
   { title: 'Leads', url: '/leads', icon: UserPlus },
+  { title: 'Lead Metrics', url: '/leads/metrics', icon: TrendingUp },
   { title: 'Services', url: '/services', icon: Briefcase },
   { title: 'Clients', url: '/clients', icon: Users },
   { title: 'Liabilities', url: '/liabilities', icon: DollarSign },
