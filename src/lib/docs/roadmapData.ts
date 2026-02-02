@@ -262,8 +262,9 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     name: 'Pagination for List Views',
     category: 'UI',
     priority: 'High',
-    description: 'Add pagination to Clients, Leads, Liabilities, Transactions.',
-    status: 'Planned',
+    description: 'Server-side pagination on Clients, Leads, Liabilities, and Payments pages with configurable page sizes.',
+    status: 'Completed',
+    notes: 'Implemented with usePagination hook and PaginationControls component. Uses Supabase .range() for efficient data fetching.',
   },
   {
     id: 'bulk-operations',

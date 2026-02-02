@@ -16,10 +16,28 @@ export type LiabilityUpdate = TablesUpdate<'liabilities'>;
 export type LiabilityStatus = Enums<'liability_status'>;
 export type LiabilityType = Enums<'liability_type'>;
 
-export function useLiabilities(status?: LiabilityStatus, type?: LiabilityType, clientServiceId?: string) {
+export interface UseLiabilitiesOptions {
+  status?: LiabilityStatus;
+  type?: LiabilityType;
+  clientServiceId?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedLiabilitiesResult {
+  data: Liability[];
+  count: number;
+}
+
+export function useLiabilities(options: UseLiabilitiesOptions = {}) {
+  const { status, type, clientServiceId, page = 1, pageSize = 25 } = options;
+  
   return useQuery({
-    queryKey: ['liabilities', status, type, clientServiceId],
-    queryFn: async () => {
+    queryKey: ['liabilities', { status, type, clientServiceId, page, pageSize }],
+    queryFn: async (): Promise<PaginatedLiabilitiesResult> => {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
       let query = supabase
         .from('liabilities')
         .select(`
@@ -32,8 +50,9 @@ export function useLiabilities(status?: LiabilityStatus, type?: LiabilityType, c
             status,
             primary_client:clients!engagements_primary_contact_id_fkey(id, first_name, last_name)
           )
-        `)
-        .order('created_at', { ascending: false });
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (status) {
         query = query.eq('status', status);
@@ -47,9 +66,9 @@ export function useLiabilities(status?: LiabilityStatus, type?: LiabilityType, c
         query = query.eq('client_service_id', clientServiceId);
       }
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
       if (error) throw error;
-      return data as Liability[];
+      return { data: data as Liability[], count: count ?? 0 };
     },
   });
 }

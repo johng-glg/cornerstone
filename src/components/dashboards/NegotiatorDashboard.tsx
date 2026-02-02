@@ -17,9 +17,11 @@ import { format, isPast } from 'date-fns';
 export function NegotiatorDashboard() {
   const { staff } = useAuth();
   const { data: stats, isLoading: statsLoading } = useNegotiatorStats();
-  const { data: liabilities, isLoading: liabilitiesLoading } = useLiabilities();
+  const { data: liabilitiesResult, isLoading: liabilitiesLoading } = useLiabilities();
   const { data: settlements, isLoading: settlementsLoading } = useSettlements();
   const { data: tasks, isLoading: tasksLoading } = useTasks();
+
+  const liabilities = liabilitiesResult?.data;
 
   // Liabilities in negotiation
   const inNegotiationLiabilities = useMemo(() => {

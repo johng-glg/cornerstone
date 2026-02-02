@@ -22,7 +22,7 @@ const PIPELINE_STAGES: { status: LeadStatus; label: string; color: string }[] = 
 ];
 
 export function LeadKanban({ onLeadClick }: LeadKanbanProps) {
-  const { data: leads, isLoading } = useLeads();
+  const { data: leadsResult, isLoading } = useLeads();
   const updateStatus = useUpdateLeadStatus();
 
   const handleDragEnd = (result: DropResult) => {
@@ -35,7 +35,7 @@ export function LeadKanban({ onLeadClick }: LeadKanbanProps) {
   };
 
   const getLeadsByStatus = (status: LeadStatus) => 
-    leads?.filter(lead => lead.status === status) || [];
+    leadsResult?.data?.filter(lead => lead.status === status) || [];
 
   if (isLoading) {
     return (

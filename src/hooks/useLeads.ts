@@ -11,25 +11,46 @@ export type LeadInsert = Omit<TablesInsert<'leads'>, 'lead_number' | 'id' | 'cre
 export type LeadUpdate = TablesUpdate<'leads'>;
 export type LeadStatus = Enums<'lead_status'>;
 
-export function useLeads(status?: LeadStatus) {
+export interface UseLeadsOptions {
+  status?: LeadStatus;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedLeadsResult {
+  data: Lead[];
+  count: number;
+}
+
+export function useLeads(options: UseLeadsOptions = {}) {
+  const { status, page, pageSize } = options;
+  const isPaginated = page !== undefined && pageSize !== undefined;
+  
   return useQuery({
-    queryKey: ['leads', status],
-    queryFn: async () => {
+    queryKey: ['leads', { status, page, pageSize }],
+    queryFn: async (): Promise<PaginatedLeadsResult> => {
       let query = supabase
         .from('leads')
         .select(`
           *,
           assigned_staff:staff!leads_assigned_to_fkey(id, first_name, last_name, avatar_url)
-        `)
+        `, { count: 'exact' })
         .order('created_at', { ascending: false });
 
       if (status) {
         query = query.eq('status', status);
       }
 
-      const { data, error } = await query;
+      // Apply pagination only if page and pageSize are provided
+      if (isPaginated) {
+        const from = (page - 1) * pageSize;
+        const to = from + pageSize - 1;
+        query = query.range(from, to);
+      }
+
+      const { data, error, count } = await query;
       if (error) throw error;
-      return data as Lead[];
+      return { data: data as Lead[], count: count ?? 0 };
     },
   });
 }

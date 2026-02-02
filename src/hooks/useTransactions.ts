@@ -24,10 +24,29 @@ export type TransactionUpdate = TablesUpdate<'transactions'>;
 export type TransactionType = 'draft' | 'processor_fee' | 'settlement_payment' | 'contingency_fee';
 export type TransactionStatus = 'open' | 'pending' | 'cleared' | 'cancelled';
 
-export function useTransactions(status?: string, type?: string, clientServiceId?: string) {
+export interface UseTransactionsOptions {
+  status?: string;
+  type?: string;
+  clientServiceId?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedTransactionsResult {
+  data: Transaction[];
+  count: number;
+}
+
+export function useTransactions(options: UseTransactionsOptions = {}) {
+  const { status, type, clientServiceId, page = 1, pageSize = 50 } = options;
+  
   return useQuery({
-    queryKey: ['transactions', status, type, clientServiceId],
-    queryFn: async () => {
+    queryKey: ['transactions', { status, type, clientServiceId, page, pageSize }],
+    queryFn: async (): Promise<PaginatedTransactionsResult> => {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
       let query = supabase
         .from('transactions')
         .select(`
@@ -38,8 +57,9 @@ export function useTransactions(status?: string, type?: string, clientServiceId?
             service_number,
             primary_client:clients!engagements_primary_contact_id_fkey(id, first_name, last_name)
           )
-        `)
-        .order('created_at', { ascending: false });
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (status) {
         query = query.eq('status', status);
@@ -53,9 +73,9 @@ export function useTransactions(status?: string, type?: string, clientServiceId?
         query = query.eq('client_service_id', clientServiceId);
       }
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
       if (error) throw error;
-      return data as Transaction[];
+      return { data: data as Transaction[], count: count ?? 0 };
     },
   });
 }

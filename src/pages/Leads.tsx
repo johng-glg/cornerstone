@@ -27,9 +27,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { Plus, Search, LayoutGrid, List, Filter } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import type { LeadStatus } from '@/hooks/useLeads';
 
 export default function LeadsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -40,6 +42,8 @@ export default function LeadsPage() {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [convertingLeadId, setConvertingLeadId] = useState<string | null>(null);
   const [convertingLitigationLeadId, setConvertingLitigationLeadId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   // Handle ?action=new query param to auto-open dialog
   // Handle ?open=id query param to auto-open detail sheet
@@ -57,8 +61,28 @@ export default function LeadsPage() {
     }
   }, [searchParams, setSearchParams]);
 
-  const { data: leads, isLoading } = useLeads();
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter]);
+
+  // For list view, use pagination. For Kanban, fetch all (no pagination)
+  const { data: result, isLoading } = useLeads(
+    view === 'list'
+      ? {
+          status: statusFilter === 'all' ? undefined : (statusFilter as LeadStatus),
+          page,
+          pageSize,
+        }
+      : {
+          // Kanban: no pagination, get all leads
+        }
+  );
+
   const { data: selectedLead } = useLead(selectedLeadId ?? undefined);
+
+  const leads = result?.data;
+  const totalCount = result?.count ?? 0;
 
   const handleConvert = (leadId: string) => {
     // Find the lead to determine which wizard to use
@@ -72,6 +96,7 @@ export default function LeadsPage() {
     }
   };
 
+  // Client-side filtering for list view (search is not server-side yet)
   const filteredLeads = leads?.filter((lead) => {
     const matchesSearch =
       searchQuery === '' ||
@@ -79,9 +104,7 @@ export default function LeadsPage() {
       lead.lead_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       lead.email?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   const statusColors = {
@@ -234,6 +257,19 @@ export default function LeadsPage() {
               )}
             </TableBody>
           </Table>
+
+          {/* Pagination - only for list view */}
+          <PaginationControls
+            page={page}
+            pageSize={pageSize}
+            totalCount={totalCount}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+            isLoading={isLoading}
+          />
         </div>
       )}
 

@@ -14,7 +14,7 @@ import { format } from 'date-fns';
 
 export function PaymentProcessorDashboard() {
   const { data: stats, isLoading: statsLoading } = usePaymentProcessorStats();
-  const { data: transactions, isLoading: transactionsLoading } = useTransactions();
+  const { data: transactionsResult, isLoading: transactionsLoading } = useTransactions();
   const { data: scheduledTransactions, isLoading: scheduledLoading } = useScheduledTransactions(undefined);
 
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -29,27 +29,27 @@ export function PaymentProcessorDashboard() {
 
   // Recently cleared
   const recentlyCleared = useMemo(() => {
-    if (!transactions) return [];
-    return transactions
+    if (!transactionsResult?.data) return [];
+    return transactionsResult.data
       .filter(t => t.status === 'cleared')
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
       .slice(0, 5);
-  }, [transactions]);
+  }, [transactionsResult]);
 
   // Failed transactions
   const failedTransactions = useMemo(() => {
-    if (!transactions) return [];
-    return transactions
+    if (!transactionsResult?.data) return [];
+    return transactionsResult.data
       .filter(t => t.status === 'cancelled')
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
       .slice(0, 5);
-  }, [transactions]);
+  }, [transactionsResult]);
 
   // Build recent activity
   const recentActivities = useMemo(() => {
-    if (!transactions) return [];
+    if (!transactionsResult?.data) return [];
     
-    return transactions
+    return transactionsResult.data
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
       .slice(0, 10)
       .map((t): Activity => ({
@@ -60,7 +60,7 @@ export function PaymentProcessorDashboard() {
         entityId: t.id,
         entityType: 'transaction',
       }));
-  }, [transactions]);
+  }, [transactionsResult]);
 
   const isLoading = statsLoading || transactionsLoading || scheduledLoading;
 

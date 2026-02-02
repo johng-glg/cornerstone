@@ -15,31 +15,49 @@ export type PhoneType = Enums<'phone_type'>;
 export type AddressType = Enums<'address_type'>;
 export type { ClientStatus };
 
-export function useClients(search?: string, statusFilter?: ClientStatus) {
+export interface UseClientsOptions {
+  search?: string;
+  status?: ClientStatus;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  count: number;
+}
+
+export function useClients(options: UseClientsOptions = {}) {
+  const { search, status, page = 1, pageSize = 25 } = options;
+  
   return useQuery({
-    queryKey: ['clients', search, statusFilter],
-    queryFn: async () => {
+    queryKey: ['clients', { search, status, page, pageSize }],
+    queryFn: async (): Promise<PaginatedResult<Client>> => {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
       let query = supabase
         .from('clients')
         .select(`
           *,
           phones:client_phones(*),
           addresses:client_addresses(*)
-        `)
+        `, { count: 'exact' })
         .eq('is_active', true)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (search) {
         query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%`);
       }
       
-      if (statusFilter) {
-        query = query.eq('status', statusFilter);
+      if (status) {
+        query = query.eq('status', status);
       }
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
       if (error) throw error;
-      return data as Client[];
+      return { data: data as Client[], count: count ?? 0 };
     },
   });
 }

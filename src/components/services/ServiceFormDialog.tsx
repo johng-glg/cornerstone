@@ -35,7 +35,7 @@ interface ServiceFormDialogProps {
 export function ServiceFormDialog({ open, onOpenChange }: ServiceFormDialogProps) {
   const { staff } = useAuth();
   const createService = useCreateClientService();
-  const { data: clients } = useClients();
+  const { data: clientsResult } = useClients();
 
   const form = useForm<ServiceFormData>({
     resolver: zodResolver(serviceSchema),
@@ -100,7 +100,7 @@ export function ServiceFormDialog({ open, onOpenChange }: ServiceFormDialogProps
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="none">None</SelectItem>
-                        {clients?.map((c) => (
+                        {clientsResult?.data?.map((c) => (
                           <SelectItem key={c.id} value={c.id}>
                             {c.first_name} {c.last_name}
                           </SelectItem>
