@@ -1,91 +1,110 @@
 
-# Implementation Plan: Remaining Phase 1-3 Items
+# Phase 5 Completion: Court Calendar and Role-Based Dashboards
 
 ## Overview
 
-This plan completes three items to finalize Phases 1-3:
-1. **LitigationDocumentsStep** - Add actual file upload capability to the wizard
-2. **Client Documents Tab** - Build out the documents tab for clients
-3. **Settings Page** - Create a functional settings page
+This plan implements the remaining Phase 5 items:
+1. **Court Calendar View** - A global calendar showing all hearings across matters
+2. **Litigation Attorney Dashboard** - Role-specific dashboard for attorneys
+3. **Case Manager Dashboard** - Role-specific dashboard for case managers
 
 ---
 
-## 1. LitigationDocumentsStep File Upload
+## 1. Court Calendar View
 
-### Current State
-The `LitigationDocumentsStep.tsx` uses checkboxes to confirm document receipt and shows a "coming soon" placeholder for file uploads.
+### Description
+A dedicated calendar view showing all litigation hearings across all matters, with filtering by attorney, court, case type, and urgency-based color coding.
 
-### Changes
-Replace the placeholder with the existing `DocumentFileUpload` component to allow actual file uploads during the wizard flow.
+### New Hook: `useAllHearings`
+Create a hook to fetch all hearings with their associated matter and client data:
 
-**Key Considerations:**
-- During the wizard, we don't have a `matter_id` yet (the matter is created at the end)
-- Solution: Use a temporary folder path (e.g., `temp/{leadId}/`) for uploads during the wizard
-- After conversion, documents can be associated with the created matter
-
-**File Changes:**
-- `src/components/litigation/steps/LitigationDocumentsStep.tsx`
-  - Import and use `DocumentFileUpload` component
-  - Create simplified upload components for complaint and summons
-  - Store uploaded URLs in the wizard data for later association
-
----
-
-## 2. Client Documents Tab
-
-### Current State
-The Documents tab in `ClientDetail.tsx` shows a placeholder: "Documents feature coming soon..."
-
-### Database Design
-Create a new `client_documents` table to store client-level documents (contracts, IDs, disclosures, etc.)
-
-**Schema:**
 ```text
-client_documents
-├── id (uuid, PK)
-├── client_id (uuid, FK → clients)
-├── document_type (text) - e.g., 'id_verification', 'contract', 'disclosure', 'correspondence', 'other'
-├── title (text)
-├── file_url (text)
-├── notes (text, nullable)
-├── uploaded_by (uuid, FK → staff, nullable)
-├── created_at (timestamp)
+litigation_hearings
+  + litigation_matter (case_number, court_name, county, state, status, opposing_party)
+    + client_service (service_number)
+      + primary_client (first_name, last_name)
+  + staff assignments (for attorney filtering)
 ```
 
-**New Files:**
-- `src/hooks/useClientDocuments.ts` - CRUD hooks following the same pattern as `useLitigationDocuments`
-- `src/components/clients/detail/ClientDocumentsTab.tsx` - Document list with upload capability
-- `src/components/clients/ClientDocumentFormDialog.tsx` - Form dialog for adding/editing documents
+### New Component: `CourtCalendar.tsx`
+Located at `src/components/litigation/CourtCalendar.tsx`
 
-**RLS Policies:**
-- Staff can view/manage documents for clients in their company hierarchy
+**Features:**
+- Month/Week view toggle using existing `react-day-picker` Calendar component as base
+- Custom day cells showing hearing count badges
+- Click-through to hearing details
+- Color coding by urgency:
+  - Red: Response deadline within 7 days
+  - Orange: Hearing within 14 days  
+  - Blue: Upcoming hearings
+  - Gray: Past hearings with outcome
+  - Yellow: Past hearings needing outcome
+- Filter panel:
+  - Attorney filter (from assignments)
+  - Court filter
+  - Hearing type filter
+  - Date range (7, 14, 30 days or custom)
+- Export to iCal (generate .ics file for download)
+
+### New Page: `CourtCalendarPage.tsx`
+Located at `src/pages/CourtCalendar.tsx`
+
+### Routing
+Add new route at `/litigation/calendar`
 
 ---
 
-## 3. Settings Page
+## 2. Litigation Attorney Dashboard
 
-### Current State
-Inline placeholder in `App.tsx`: `"Settings coming soon..."`
+### Description
+A specialized dashboard for attorneys showing their caseload, upcoming deadlines, and actions needed.
 
-### Proposed Settings Sections
+### New Component: `AttorneyDashboard.tsx`
+Located at `src/components/dashboards/AttorneyDashboard.tsx`
 
-| Section | Description | Data Source |
-|---------|-------------|-------------|
-| **Profile** | User's own name, email, avatar, phone | `staff` table (current user) |
-| **Notifications** | Email/in-app notification preferences | Future `user_preferences` table or local state |
-| **Company** | View company info (read-only for most) | `companies` table |
-| **Appearance** | Theme toggle (light/dark) | Local storage / next-themes |
+**Dashboard Widgets:**
 
-**New Files:**
-- `src/pages/Settings.tsx` - Full settings page with tabs
-- `src/components/settings/ProfileSettingsTab.tsx` - Edit profile info
-- `src/components/settings/AppearanceSettingsTab.tsx` - Theme toggle
-- `src/components/settings/CompanySettingsTab.tsx` - View company info
+| Widget | Data Source |
+|--------|-------------|
+| Active Cases by Status | `litigation_matters` filtered by attorney assignment, grouped by status |
+| Upcoming Court Deadlines (14 days) | `litigation_hearings` + response deadlines from matters |
+| Cases Requiring Action | Matters with pending tasks or missing outcomes |
+| Recent Case Events | `litigation_activities` for assigned matters |
+| My Tasks (7 days) | `tasks` assigned to current staff, linked to litigation entities |
 
-**Implementation Notes:**
-- Use the existing `next-themes` package for dark/light mode toggle
-- Profile updates will use a new `useUpdateCurrentStaff` mutation
-- Keep it simple for Phase 3 - notifications can be enhanced later
+**Filters:**
+- Filter by matter status
+- Quick links to full Litigation page with pre-applied filters
+
+### Integration
+The existing Dashboard page will detect when the logged-in user has the `attorney` role or `attorney` department and show this dashboard content.
+
+---
+
+## 3. Case Manager Dashboard
+
+### Description
+A specialized dashboard for case managers focused on document prep, deadlines, and task completion.
+
+### New Component: `CaseManagerDashboard.tsx`
+Located at `src/components/dashboards/CaseManagerDashboard.tsx`
+
+**Dashboard Widgets:**
+
+| Widget | Data Source |
+|--------|-------------|
+| My Assigned Cases | `assignments` where staff_id = current user, type = case_manager |
+| My Tasks (7 days) | `tasks` assigned to current staff |
+| Upcoming Deadlines | Response deadlines + hearing dates for assigned matters |
+| Document Prep Queue | Documents pending upload for assigned matters |
+| Recent Activity | `litigation_activities` for assigned matters |
+
+**Filters:**
+- Filter by priority
+- Filter by deadline proximity
+
+### Integration
+The existing Dashboard page will detect when the logged-in user has the `case_manager` role or department and show this dashboard content.
 
 ---
 
@@ -95,59 +114,125 @@ Inline placeholder in `App.tsx`: `"Settings coming soon..."`
 
 | File | Purpose |
 |------|---------|
-| `src/hooks/useClientDocuments.ts` | CRUD hooks for client documents |
-| `src/components/clients/detail/ClientDocumentsTab.tsx` | Documents tab UI |
-| `src/components/clients/ClientDocumentFormDialog.tsx` | Add/edit document dialog |
-| `src/pages/Settings.tsx` | Main settings page |
-| `src/components/settings/ProfileSettingsTab.tsx` | Profile editing |
-| `src/components/settings/AppearanceSettingsTab.tsx` | Theme settings |
-| `src/components/settings/CompanySettingsTab.tsx` | Company info display |
+| `src/hooks/useAllHearings.ts` | Fetch all hearings with related data for calendar |
+| `src/hooks/useAssignedMatters.ts` | Fetch matters assigned to current staff |
+| `src/components/litigation/CourtCalendar.tsx` | Calendar component with month/week views |
+| `src/components/litigation/CalendarDayCell.tsx` | Custom day cell showing hearings |
+| `src/components/litigation/HearingListPopover.tsx` | Popover showing hearings for selected day |
+| `src/pages/CourtCalendar.tsx` | Court calendar page |
+| `src/components/dashboards/AttorneyDashboard.tsx` | Attorney-specific dashboard |
+| `src/components/dashboards/CaseManagerDashboard.tsx` | Case manager-specific dashboard |
+| `src/components/dashboards/DashboardMetricCard.tsx` | Reusable metric card component |
+| `src/components/dashboards/DeadlinesList.tsx` | Shared deadlines list component |
+| `src/components/dashboards/RecentActivityFeed.tsx` | Shared activity feed component |
 
 ### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/litigation/steps/LitigationDocumentsStep.tsx` | Add file upload UI |
-| `src/pages/ClientDetail.tsx` | Enable Documents tab, render new component |
-| `src/App.tsx` | Replace inline SettingsPage with proper import |
-| `src/hooks/useStaff.ts` | Add `useUpdateCurrentStaff` mutation |
+| `src/pages/Dashboard.tsx` | Add role detection, render appropriate dashboard |
+| `src/pages/Litigation.tsx` | Add "Calendar View" button in header |
+| `src/App.tsx` | Add `/litigation/calendar` route |
+| `src/components/layout/AppSidebar.tsx` | Add Calendar sub-item under Litigation (optional) |
 
-### Database Migration
-
-Create `client_documents` table with RLS policies for document storage at the client level.
+### No Database Changes Required
+All data already exists in the schema:
+- `litigation_hearings` - has scheduled_date, hearing_type, location, judge, outcome
+- `litigation_matters` - has response_deadline, next_hearing_date, status
+- `assignments` - has staff assignments with assignment_type
+- `tasks` - has entity_type for linking to litigation_matter
 
 ---
 
 ## Implementation Order
 
-1. **Database Migration** - Create `client_documents` table
-2. **LitigationDocumentsStep** - Add upload capability (quick win)
-3. **Client Documents Tab** - Hook, dialog, and tab component
-4. **Settings Page** - Profile, appearance, and company tabs
-5. **App.tsx Update** - Wire up the new Settings page
+1. **Hooks First**
+   - `useAllHearings.ts` - fetch all hearings with nested data
+   - `useAssignedMatters.ts` - fetch matters for current staff
+
+2. **Shared Dashboard Components**
+   - `DashboardMetricCard.tsx`
+   - `DeadlinesList.tsx`
+   - `RecentActivityFeed.tsx`
+
+3. **Court Calendar**
+   - `CourtCalendar.tsx` and supporting components
+   - `CourtCalendarPage.tsx`
+   - Route and navigation updates
+
+4. **Attorney Dashboard**
+   - `AttorneyDashboard.tsx`
+   - Dashboard.tsx integration
+
+5. **Case Manager Dashboard**
+   - `CaseManagerDashboard.tsx`
+   - Dashboard.tsx integration
+
+---
+
+## UI Preview
+
+### Court Calendar Layout
+```text
++--------------------------------------------------+
+| Court Calendar                     [Month] [Week] |
++--------------------------------------------------+
+| Filters: [Attorney v] [Court v] [Type v] [Export] |
++--------------------------------------------------+
+|  Sun   Mon   Tue   Wed   Thu   Fri   Sat        |
+|  --    --    --     1     2     3     4         |
+|                    [2]   [1]                     |
+|   5     6     7     8     9    10    11         |
+|        [3]         [1]  [2*]                     |
+|  ... (red badge = urgent deadline)               |
++--------------------------------------------------+
+| Selected: Feb 6, 2026                            |
+| > Status Conference - Smith v. Capital One 10am  |
+| > Motion Hearing - Jones v. Chase 2pm            |
+| > Trial Prep - Williams v. Amex 4pm              |
++--------------------------------------------------+
+```
+
+### Attorney Dashboard Layout
+```text
++--------------------------------------------------+
+| Attorney Dashboard                                |
++--------------------------------------------------+
+| [24]        [8]          [3]          [12]       |
+| Active     Pre-Response  Deadlines    Tasks      |
+| Cases      Cases         This Week    Pending    |
++--------------------------------------------------+
+| Upcoming Deadlines         | Cases Needing Action|
+| > Response due: Feb 4      | > Outcome pending   |
+| > Hearing: Feb 6 10am      | > Settlement review |
+| > Motion deadline: Feb 8   | > Document request  |
++--------------------------------------------------+
+| Recent Case Activity                              |
+| > Status changed: Smith v. Capital One           |
+| > Hearing scheduled: Jones v. Chase              |
++--------------------------------------------------+
+```
 
 ---
 
 ## Testing Checklist
 
-After implementation:
+1. **Court Calendar**
+   - View calendar and see hearings displayed on correct dates
+   - Filter by attorney and verify only their hearings show
+   - Click a date to see hearing details in popover
+   - Verify color coding matches urgency rules
+   - Test iCal export downloads valid .ics file
 
-1. **Litigation Wizard Documents**
-   - Start a litigation conversion
-   - Reach the Documents step
-   - Upload a complaint document
-   - Verify file appears and can be removed
-   - Complete conversion successfully
+2. **Attorney Dashboard**
+   - Log in as user with attorney role/department
+   - Verify dashboard shows attorney-specific widgets
+   - Verify case counts match actual assigned matters
+   - Verify deadlines are accurate and sorted by date
+   - Click "View All" links navigate correctly
 
-2. **Client Documents Tab**
-   - Open a client's detail page
-   - Go to Documents tab (should now be enabled)
-   - Click "Add Document"
-   - Upload a file (e.g., PDF)
-   - Verify document appears in list with download link
-
-3. **Settings Page**
-   - Navigate to Settings from sidebar or user menu
-   - **Profile Tab**: Update phone number, verify it saves
-   - **Appearance Tab**: Toggle dark/light mode
-   - **Company Tab**: Verify company info displays correctly
+3. **Case Manager Dashboard**
+   - Log in as user with case_manager role/department
+   - Verify dashboard shows case manager widgets
+   - Verify task list shows only assigned tasks
+   - Verify document queue shows matters needing docs
