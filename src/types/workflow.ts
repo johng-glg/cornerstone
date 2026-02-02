@@ -43,7 +43,10 @@ export interface CreateTaskActionConfig {
   title: string;
   description?: string;
   priority?: 'low' | 'medium' | 'high';
+  due_mode?: 'days' | 'field'; // 'days' = relative to now, 'field' = based on record field
   due_days?: number;
+  due_field?: string; // field name like 'response_deadline', 'first_draft_date'
+  due_field_offset?: number; // days to add/subtract from the field value (e.g., -3 for 3 days before)
   assign_to?: 'entity_owner' | 'specific' | string;
 }
 
@@ -128,6 +131,40 @@ export const entityStatusOptions: Record<WorkflowEntityType, string[]> = {
   litigation_matters: ['new', 'pre_response', 'post_response', 'settled', 'dropped', 'judgment', 'declined', 'dismissed'],
   tasks: ['pending', 'in_progress', 'completed', 'cancelled'],
   settlements: ['pending', 'offered', 'accepted', 'rejected', 'completed'],
+};
+
+// Entity-specific date fields for due date configuration
+export const entityDateFields: Record<WorkflowEntityType, { value: string; label: string }[]> = {
+  leads: [
+    { value: 'response_deadline', label: 'Response Deadline' },
+    { value: 'service_date', label: 'Service Date' },
+    { value: 'created_at', label: 'Created Date' },
+  ],
+  client_services: [
+    { value: 'first_draft_date', label: 'First Draft Date' },
+    { value: 'first_payment_date', label: 'First Payment Date' },
+    { value: 'enrolled_date', label: 'Enrolled Date' },
+    { value: 'program_start_date', label: 'Program Start Date' },
+    { value: 'estimated_completion_date', label: 'Estimated Completion Date' },
+    { value: 'created_at', label: 'Created Date' },
+  ],
+  liabilities: [
+    { value: 'created_at', label: 'Created Date' },
+  ],
+  litigation_matters: [
+    { value: 'response_deadline', label: 'Response Deadline' },
+    { value: 'service_date', label: 'Service Date' },
+    { value: 'created_at', label: 'Created Date' },
+  ],
+  tasks: [
+    { value: 'due_date', label: 'Due Date' },
+    { value: 'created_at', label: 'Created Date' },
+  ],
+  settlements: [
+    { value: 'offer_date', label: 'Offer Date' },
+    { value: 'expiration_date', label: 'Expiration Date' },
+    { value: 'created_at', label: 'Created Date' },
+  ],
 };
 
 // Entity labels for UI
