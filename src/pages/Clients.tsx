@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Mail, Phone, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { useClients, type Client } from '@/hooks/useClients';
 import { ClientFormDialog } from '@/components/clients/ClientFormDialog';
 import { format } from 'date-fns';
@@ -18,11 +19,23 @@ export default function ClientsPage() {
   const [statusFilter, setStatusFilter] = useState<ClientStatus | 'all'>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
-  const { data: clients, isLoading } = useClients(
-    search || undefined, 
-    statusFilter === 'all' ? undefined : statusFilter
-  );
+  const { data: result, isLoading } = useClients({
+    search: search || undefined,
+    status: statusFilter === 'all' ? undefined : statusFilter,
+    page,
+    pageSize,
+  });
+
+  const clients = result?.data;
+  const totalCount = result?.count ?? 0;
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
 
   const handleViewClient = (client: Client) => {
     navigate(`/clients/${client.id}`);
@@ -179,6 +192,19 @@ export default function ClientsPage() {
             )}
           </TableBody>
         </Table>
+
+        {/* Pagination */}
+        <PaginationControls
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Form Dialog */}

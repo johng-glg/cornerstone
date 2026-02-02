@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, CreditCard } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { useTransactions, type Transaction } from '@/hooks/useTransactions';
 import { TransactionList } from '@/components/payments/TransactionList';
 import { TransactionDetailSheet } from '@/components/payments/TransactionDetailSheet';
@@ -37,13 +38,25 @@ export default function PaymentsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
 
-  const { data: transactions, isLoading } = useTransactions(
-    statusFilter === 'all' ? undefined : statusFilter,
-    typeFilter === 'all' ? undefined : typeFilter
-  );
+  const { data: result, isLoading } = useTransactions({
+    status: statusFilter === 'all' ? undefined : statusFilter,
+    type: typeFilter === 'all' ? undefined : typeFilter,
+    page,
+    pageSize,
+  });
 
-  // Filter by search (service number or client name)
+  const transactions = result?.data;
+  const totalCount = result?.count ?? 0;
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, typeFilter]);
+
+  // Filter by search (service number or client name) - client-side
   const filteredTransactions = transactions?.filter((t) => {
     if (!search) return true;
     const searchLower = search.toLowerCase();
@@ -117,6 +130,20 @@ export default function PaymentsPage() {
               ? 'No transactions match your filters'
               : 'No transactions yet'
           }
+        />
+
+        {/* Pagination */}
+        <PaginationControls
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          pageSizeOptions={[25, 50, 100, 200]}
+          isLoading={isLoading}
         />
       </div>
 

@@ -34,10 +34,10 @@ const formatCurrency = (amount: number | null) =>
 
 export function CreditorDetailSheet({ creditorId, open, onOpenChange, onEdit }: CreditorDetailSheetProps) {
   const { data: creditor, isLoading } = useCreditor(creditorId || undefined);
-  const { data: allLiabilities } = useLiabilities();
+  const { data: liabilitiesResult } = useLiabilities();
   
   // Filter liabilities where this creditor is original or current
-  const relatedLiabilities = allLiabilities?.filter(
+  const relatedLiabilities = liabilitiesResult?.data?.filter(
     l => l.original_creditor_id === creditorId || l.current_creditor_id === creditorId
   ) || [];
 

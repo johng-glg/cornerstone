@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { useLiabilities, type Liability, type LiabilityStatus, type LiabilityType } from '@/hooks/useLiabilities';
 import { LiabilityFormDialog } from '@/components/liabilities/LiabilityFormDialog';
 import { LiabilityDetailSheet } from '@/components/liabilities/LiabilityDetailSheet';
@@ -54,6 +55,8 @@ export default function LiabilitiesPage() {
   const [showForm, setShowForm] = useState(false);
   const [selectedLiabilityId, setSelectedLiabilityId] = useState<string | null>(null);
   const [editingLiability, setEditingLiability] = useState<Liability | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   // Handle ?open=id query param to auto-open detail sheet
   useEffect(() => {
@@ -65,12 +68,22 @@ export default function LiabilitiesPage() {
     }
   }, [searchParams, setSearchParams]);
 
-  const { data: liabilities, isLoading } = useLiabilities(
-    statusFilter === 'all' ? undefined : statusFilter,
-    typeFilter === 'all' ? undefined : typeFilter
-  );
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, typeFilter]);
 
-  // Filter by search (client name or service number)
+  const { data: result, isLoading } = useLiabilities({
+    status: statusFilter === 'all' ? undefined : statusFilter,
+    type: typeFilter === 'all' ? undefined : typeFilter,
+    page,
+    pageSize,
+  });
+
+  const liabilities = result?.data;
+  const totalCount = result?.count ?? 0;
+
+  // Filter by search (client name or service number) - client-side for now
   const filteredLiabilities = liabilities?.filter((l) => {
     if (!search) return true;
     const searchLower = search.toLowerCase();
@@ -223,6 +236,19 @@ export default function LiabilitiesPage() {
             )}
           </TableBody>
         </Table>
+
+        {/* Pagination */}
+        <PaginationControls
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Form Dialog */}

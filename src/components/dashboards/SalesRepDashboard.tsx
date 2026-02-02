@@ -17,8 +17,10 @@ import { format, isPast, addDays } from 'date-fns';
 export function SalesRepDashboard() {
   const { staff } = useAuth();
   const { data: stats, isLoading: statsLoading } = useSalesRepStats();
-  const { data: leads, isLoading: leadsLoading } = useLeads();
+  const { data: leadsResult, isLoading: leadsLoading } = useLeads();
   const { data: tasks, isLoading: tasksLoading } = useTasks();
+
+  const leads = leadsResult?.data;
 
   // Filter leads assigned to me
   const myLeads = useMemo(() => {
