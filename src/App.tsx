@@ -21,9 +21,7 @@ import NotFound from "./pages/NotFound";
 import CompaniesPage from "./pages/Companies";
 import StaffPage from "./pages/Staff";
 import SettingsPage from "./pages/Settings";
-
-// Placeholder pages - will be implemented in future phases
-const ReportsPage = () => <div className="p-6"><h1 className="text-2xl font-bold">Reports</h1><p className="text-muted-foreground mt-2">Reports coming soon...</p></div>;
+import ReportsPage from "./pages/Reports";
 
 const queryClient = new QueryClient();
 

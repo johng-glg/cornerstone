@@ -1523,6 +1523,63 @@ export type Database = {
         }
         Relationships: []
       }
+      report_templates: {
+        Row: {
+          company_id: string | null
+          config: Json
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_preset: boolean
+          is_public: boolean
+          module: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_preset?: boolean
+          is_public?: boolean
+          module: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_preset?: boolean
+          is_public?: boolean
+          module?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "report_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_status_history: {
         Row: {
           changed_by: string | null
