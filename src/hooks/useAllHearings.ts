@@ -6,6 +6,7 @@ export interface HearingWithMatter {
   matter_id: string;
   hearing_type: string;
   scheduled_date: string;
+  end_date: string | null;
   location: string | null;
   judge_name: string | null;
   outcome: string | null;

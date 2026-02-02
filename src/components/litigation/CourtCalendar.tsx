@@ -16,7 +16,7 @@ import {
   getHours,
   getMinutes
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, Download, Filter, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Filter, ExternalLink, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +27,9 @@ import { useAllHearings, useUniqueCourts, useHearingTypes, type HearingWithMatte
 import { useStaff } from '@/hooks/useStaff';
 import { useLitigationMatter } from '@/hooks/useLitigationMatters';
 import { LitigationMatterDetailSheet } from '@/components/litigation/LitigationMatterDetailSheet';
+import { LitigationHearingFormDialog } from '@/components/litigation/LitigationHearingFormDialog';
 import { cn } from '@/lib/utils';
+import { differenceInMinutes } from 'date-fns';
 
 type ViewMode = 'month' | 'week';
 
@@ -83,7 +85,9 @@ function generateICalEvent(hearing: HearingWithMatter) {
   ].filter(Boolean).join('\\n');
 
   const startDate = new Date(hearing.scheduled_date);
-  const endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // 1 hour duration
+  const endDate = hearing.end_date 
+    ? new Date(hearing.end_date) 
+    : new Date(startDate.getTime() + 60 * 60 * 1000); // Default 1 hour duration
   
   const formatICalDate = (date: Date) => 
     date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
@@ -127,25 +131,39 @@ function WeekViewGrid({
   days, 
   hearingsByDate, 
   currentDate,
-  onOpenMatter
+  onOpenMatter,
+  onEditHearing
 }: { 
   days: Date[]; 
   hearingsByDate: Map<string, HearingWithMatter[]>;
   currentDate: Date;
   onOpenMatter: (matterId: string) => void;
+  onEditHearing: (hearing: HearingWithMatter) => void;
 }) {
-  // Calculate hearing position based on time
+  // Calculate hearing position and height based on time
   const getHearingPosition = (hearing: HearingWithMatter) => {
-    const date = new Date(hearing.scheduled_date);
-    const hour = getHours(date);
-    const minutes = getMinutes(date);
+    const startDate = new Date(hearing.scheduled_date);
+    const hour = getHours(startDate);
+    const minutes = getMinutes(startDate);
     
-    // Calculate top position as percentage of the hour
+    // Calculate top position as percentage
     const hourOffset = hour - HOUR_START;
     const minuteOffset = minutes / 60;
     const topPercent = ((hourOffset + minuteOffset) / (HOUR_END - HOUR_START + 1)) * 100;
     
-    return { top: `${topPercent}%`, height: '48px' }; // Fixed height for 1 hour
+    // Calculate height based on end_date or default to 1 hour
+    let durationMinutes = 60; // default 1 hour
+    if (hearing.end_date) {
+      const endDate = new Date(hearing.end_date);
+      durationMinutes = differenceInMinutes(endDate, startDate);
+      if (durationMinutes < 30) durationMinutes = 30; // minimum 30 min
+      if (durationMinutes > 480) durationMinutes = 480; // max 8 hours
+    }
+    
+    // Each hour = 48px (h-12)
+    const heightPx = (durationMinutes / 60) * 48;
+    
+    return { top: `${topPercent}%`, height: `${heightPx}px` };
   };
 
   return (
@@ -246,6 +264,9 @@ function WeekViewGrid({
                             <p className="font-semibold">{hearing.hearing_type}</p>
                             <p className="text-sm text-muted-foreground">
                               {format(hearingDate, 'EEEE, MMMM d, yyyy')} at {format(hearingDate, 'h:mm a')}
+                              {hearing.end_date && (
+                                <> - {format(new Date(hearing.end_date), 'h:mm a')}</>
+                              )}
                             </p>
                           </div>
                           <Badge variant="outline" className="shrink-0">
@@ -266,16 +287,27 @@ function WeekViewGrid({
                             {hearing.notes}
                           </p>
                         )}
-                        {hearing.litigation_matter?.id && (
+                        <div className="flex gap-2">
                           <Button 
                             size="sm" 
-                            className="w-full"
-                            onClick={() => onOpenMatter(hearing.litigation_matter!.id)}
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => onEditHearing(hearing)}
                           >
-                            <ExternalLink className="h-3 w-3 mr-2" />
-                            View Matter
+                            <Pencil className="h-3 w-3 mr-2" />
+                            Edit
                           </Button>
-                        )}
+                          {hearing.litigation_matter?.id && (
+                            <Button 
+                              size="sm" 
+                              className="flex-1"
+                              onClick={() => onOpenMatter(hearing.litigation_matter!.id)}
+                            >
+                              <ExternalLink className="h-3 w-3 mr-2" />
+                              View Matter
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </PopoverContent>
                   </Popover>
@@ -297,9 +329,14 @@ export function CourtCalendar() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [attorneyFilter, setAttorneyFilter] = useState<string>('all');
   const [selectedMatterId, setSelectedMatterId] = useState<string | null>(null);
+  const [editingHearing, setEditingHearing] = useState<HearingWithMatter | null>(null);
 
   const handleOpenMatter = (matterId: string) => {
     setSelectedMatterId(matterId);
+  };
+
+  const handleEditHearing = (hearing: HearingWithMatter) => {
+    setEditingHearing(hearing);
   };
 
   const { data: hearings, isLoading } = useAllHearings();
@@ -484,6 +521,7 @@ export function CourtCalendar() {
               hearingsByDate={hearingsByDate}
               currentDate={currentDate}
               onOpenMatter={handleOpenMatter}
+              onEditHearing={handleEditHearing}
             />
           ) : (
             <>
@@ -600,10 +638,18 @@ export function CourtCalendar() {
                                           {hearing.location && ` • ${hearing.location}`}
                                         </p>
                                       </div>
-                                      <div className="flex flex-col items-end gap-1">
+                                      <div className="flex items-center gap-1">
                                         <Badge variant="outline" className="text-xs shrink-0">
                                           {hearing.litigation_matter?.case_number || 'No Case #'}
                                         </Badge>
+                                        <Button 
+                                          size="sm" 
+                                          variant="ghost"
+                                          className="h-6 w-6 p-0"
+                                          onClick={() => handleEditHearing(hearing)}
+                                        >
+                                          <Pencil className="h-3 w-3" />
+                                        </Button>
                                         {hearing.litigation_matter?.id && (
                                           <Button 
                                             size="sm" 
@@ -663,6 +709,28 @@ export function CourtCalendar() {
         open={!!selectedMatterId}
         onOpenChange={(open) => !open && setSelectedMatterId(null)}
       />
+
+      {/* Hearing Edit Dialog */}
+      {editingHearing && (
+        <LitigationHearingFormDialog
+          matterId={editingHearing.matter_id}
+          hearing={{
+            id: editingHearing.id,
+            matter_id: editingHearing.matter_id,
+            hearing_type: editingHearing.hearing_type,
+            scheduled_date: editingHearing.scheduled_date,
+            end_date: editingHearing.end_date,
+            location: editingHearing.location,
+            judge_name: editingHearing.judge_name,
+            outcome: editingHearing.outcome,
+            notes: editingHearing.notes,
+            created_at: editingHearing.created_at,
+            updated_at: editingHearing.updated_at,
+          }}
+          open={!!editingHearing}
+          onOpenChange={(open) => !open && setEditingHearing(null)}
+        />
+      )}
     </div>
   );
 }
