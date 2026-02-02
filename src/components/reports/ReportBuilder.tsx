@@ -191,11 +191,11 @@ export function ReportBuilder({
                   <div className="grid gap-2">
                     <Label>Date Field</Label>
                     <Select
-                      value={config.dateRange?.field || ''}
+                      value={config.dateRange?.field || '__none__'}
                       onValueChange={(field) =>
                         setConfig((prev) => ({
                           ...prev,
-                          dateRange: field
+                          dateRange: field !== '__none__'
                             ? { field, start: prev.dateRange?.start || '', end: prev.dateRange?.end || '' }
                             : undefined,
                         }))
@@ -205,7 +205,7 @@ export function ReportBuilder({
                         <SelectValue placeholder="Select date field" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="__none__">None</SelectItem>
                         {moduleConfig.dateFields.map((field) => {
                           const col = moduleConfig.columns.find((c) => c.key === field);
                           return (
@@ -307,11 +307,11 @@ export function ReportBuilder({
                 <div className="grid gap-2">
                   <Label>Chart Type (Optional)</Label>
                   <Select
-                    value={config.chartType || ''}
+                    value={config.chartType || '__none__'}
                     onValueChange={(chartType) =>
                       setConfig((prev) => ({
                         ...prev,
-                        chartType: (chartType || undefined) as ReportConfig['chartType'],
+                        chartType: chartType !== '__none__' ? (chartType as ReportConfig['chartType']) : undefined,
                       }))
                     }
                   >
@@ -319,7 +319,7 @@ export function ReportBuilder({
                       <SelectValue placeholder="No chart" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No Chart</SelectItem>
+                      <SelectItem value="__none__">No Chart</SelectItem>
                       {getChartTypes().map((type) => (
                         <SelectItem key={type.value} value={type.value}>
                           {type.label}
