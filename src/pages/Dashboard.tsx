@@ -21,6 +21,12 @@ import {
 import { Link } from 'react-router-dom';
 import { AttorneyDashboard } from '@/components/dashboards/AttorneyDashboard';
 import { CaseManagerDashboard } from '@/components/dashboards/CaseManagerDashboard';
+import { AdminDashboard } from '@/components/dashboards/AdminDashboard';
+import { SalesRepDashboard } from '@/components/dashboards/SalesRepDashboard';
+import { NegotiatorDashboard } from '@/components/dashboards/NegotiatorDashboard';
+import { PaymentProcessorDashboard } from '@/components/dashboards/PaymentProcessorDashboard';
+import { CorrespondenceDashboard } from '@/components/dashboards/CorrespondenceDashboard';
+import { ClientServicesRepDashboard } from '@/components/dashboards/ClientServicesRepDashboard';
 import { TaskDetailSheet } from '@/components/tasks/TaskDetailSheet';
 import { useUserUrgentTasks, useUserRecentActivity, useUserDashboardStats } from '@/hooks/useUserDashboard';
 import { format, formatDistanceToNow, isToday, isTomorrow } from 'date-fns';
@@ -87,10 +93,20 @@ export default function Dashboard() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   // Determine which dashboard to show based on department/role
+  const isAdmin = staff?.department === 'admin' || hasRole('admin');
   const isAttorney = staff?.department === 'attorney' || hasRole('attorney');
-  const isCaseManager = staff?.department === 'client_services' || hasRole('case_manager');
+  const isCaseManager = hasRole('case_manager');
+  const isSalesRep = staff?.department === 'sales_intake' || hasRole('sales_rep');
+  const isNegotiator = staff?.department === 'negotiations' || hasRole('negotiator');
+  const isPaymentProcessor = staff?.department === 'payment_processing' || hasRole('payment_processor');
+  const isCorrespondence = staff?.department === 'correspondence' || hasRole('correspondence');
+  const isClientServicesRep = staff?.department === 'client_services' && !isCaseManager;
 
-  // Show role-specific dashboards
+  // Show role-specific dashboards (order matters - most specific first)
+  if (isAdmin) {
+    return <AdminDashboard />;
+  }
+
   if (isAttorney) {
     return <AttorneyDashboard />;
   }
@@ -99,7 +115,27 @@ export default function Dashboard() {
     return <CaseManagerDashboard />;
   }
 
-  // Default dashboard for other roles
+  if (isSalesRep) {
+    return <SalesRepDashboard />;
+  }
+
+  if (isNegotiator) {
+    return <NegotiatorDashboard />;
+  }
+
+  if (isPaymentProcessor) {
+    return <PaymentProcessorDashboard />;
+  }
+
+  if (isCorrespondence) {
+    return <CorrespondenceDashboard />;
+  }
+
+  if (isClientServicesRep) {
+    return <ClientServicesRepDashboard />;
+  }
+
+  // Default dashboard for other roles (viewer, etc.)
 
   return (
     <div className="space-y-6">
