@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useMemo } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -18,6 +18,10 @@ const liabilitySchema = z.object({
   status: z.enum(['enrolled', 'in_negotiation', 'settled', 'in_litigation', 'dismissed', 'cancelled']),
   original_creditor_id: z.string().optional().nullable(),
   current_creditor_id: z.string().optional().nullable(),
+  debt_buyer_id: z.string().optional().nullable(),
+  debt_buyer_other: z.string().max(255).optional().nullable(),
+  law_firm_id: z.string().optional().nullable(),
+  law_firm_other: z.string().max(255).optional().nullable(),
   account_number: z.string().max(50).optional().nullable(),
   original_balance: z.number().min(0).optional().nullable(),
   enrolled_balance: z.number().min(0).optional().nullable(),
@@ -61,6 +65,17 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
   const { data: creditors } = useCreditors();
   const isEditing = !!liability;
 
+  // Filter creditors by type
+  const debtBuyers = useMemo(() => 
+    creditors?.filter(c => c.creditor_type === 'debt_buyer') || [],
+    [creditors]
+  );
+  
+  const lawFirms = useMemo(() => 
+    creditors?.filter(c => c.creditor_type === 'law_firm') || [],
+    [creditors]
+  );
+
   const form = useForm<LiabilityFormData>({
     resolver: zodResolver(liabilitySchema),
     defaultValues: {
@@ -69,6 +84,10 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
       status: 'enrolled',
       original_creditor_id: null,
       current_creditor_id: null,
+      debt_buyer_id: null,
+      debt_buyer_other: null,
+      law_firm_id: null,
+      law_firm_other: null,
       account_number: '',
       original_balance: null,
       enrolled_balance: null,
@@ -78,6 +97,12 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
     },
   });
 
+  // Watch for "other" selections to show text fields
+  const debtBuyerId = useWatch({ control: form.control, name: 'debt_buyer_id' });
+  const lawFirmId = useWatch({ control: form.control, name: 'law_firm_id' });
+  const showDebtBuyerOther = debtBuyerId === 'other';
+  const showLawFirmOther = lawFirmId === 'other';
+
   useEffect(() => {
     if (liability) {
       form.reset({
@@ -86,6 +111,10 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
         status: liability.status,
         original_creditor_id: liability.original_creditor_id || null,
         current_creditor_id: liability.current_creditor_id || null,
+        debt_buyer_id: (liability as any).debt_buyer_other ? 'other' : ((liability as any).debt_buyer_id || null),
+        debt_buyer_other: (liability as any).debt_buyer_other || null,
+        law_firm_id: (liability as any).law_firm_other ? 'other' : ((liability as any).law_firm_id || null),
+        law_firm_other: (liability as any).law_firm_other || null,
         account_number: liability.account_number || '',
         original_balance: liability.original_balance,
         enrolled_balance: liability.enrolled_balance,
@@ -100,6 +129,10 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
         status: 'enrolled',
         original_creditor_id: null,
         current_creditor_id: null,
+        debt_buyer_id: null,
+        debt_buyer_other: null,
+        law_firm_id: null,
+        law_firm_other: null,
         account_number: '',
         original_balance: null,
         enrolled_balance: null,
@@ -117,6 +150,10 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
       status: data.status,
       original_creditor_id: data.original_creditor_id || null,
       current_creditor_id: data.current_creditor_id || null,
+      debt_buyer_id: data.debt_buyer_id === 'other' ? null : (data.debt_buyer_id || null),
+      debt_buyer_other: data.debt_buyer_id === 'other' ? (data.debt_buyer_other || null) : null,
+      law_firm_id: data.law_firm_id === 'other' ? null : (data.law_firm_id || null),
+      law_firm_other: data.law_firm_id === 'other' ? (data.law_firm_other || null) : null,
       account_number: data.account_number || null,
       original_balance: data.original_balance,
       enrolled_balance: data.enrolled_balance,
@@ -154,7 +191,7 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
                         <SelectValue placeholder="Select service" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent className="bg-background border shadow-lg z-50">
                       {clientServices?.map((svc) => (
                         <SelectItem key={svc.id} value={svc.id}>
                           {svc.service_number} - {svc.primary_client?.first_name} {svc.primary_client?.last_name}
@@ -180,7 +217,7 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="bg-background border shadow-lg z-50">
                         {Object.entries(liabilityTypeLabels).map(([value, label]) => (
                           <SelectItem key={value} value={value}>{label}</SelectItem>
                         ))}
@@ -203,7 +240,7 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="bg-background border shadow-lg z-50">
                         {Object.entries(liabilityStatusLabels).map(([value, label]) => (
                           <SelectItem key={value} value={value}>{label}</SelectItem>
                         ))}
@@ -231,7 +268,7 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
                           <SelectValue placeholder="Select creditor" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="bg-background border shadow-lg z-50">
                         <SelectItem value="none">None</SelectItem>
                         {creditors?.map((c) => (
                           <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
@@ -258,7 +295,7 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
                           <SelectValue placeholder="Select creditor" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="bg-background border shadow-lg z-50">
                         <SelectItem value="none">None</SelectItem>
                         {creditors?.map((c) => (
                           <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
@@ -269,6 +306,124 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
                   </FormItem>
                 )}
               />
+            </div>
+
+            {/* Debt Buyer Section */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="debt_buyer_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Debt Buyer</FormLabel>
+                    <Select 
+                      onValueChange={(v) => {
+                        field.onChange(v === 'none' ? null : v);
+                        // Clear the other field if not "other"
+                        if (v !== 'other') {
+                          form.setValue('debt_buyer_other', null);
+                        }
+                      }} 
+                      value={field.value || 'none'}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select debt buyer" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="bg-background border shadow-lg z-50">
+                        <SelectItem value="none">None</SelectItem>
+                        {debtBuyers.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                        <SelectItem value="other" className="text-muted-foreground italic">
+                          Other (specify)
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {showDebtBuyerOther && (
+                <FormField
+                  control={form.control}
+                  name="debt_buyer_other"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Debt Buyer Name</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          value={field.value || ''} 
+                          placeholder="Enter debt buyer name"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+            </div>
+
+            {/* Law Firm Section */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="law_firm_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Law Firm</FormLabel>
+                    <Select 
+                      onValueChange={(v) => {
+                        field.onChange(v === 'none' ? null : v);
+                        // Clear the other field if not "other"
+                        if (v !== 'other') {
+                          form.setValue('law_firm_other', null);
+                        }
+                      }} 
+                      value={field.value || 'none'}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select law firm" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="bg-background border shadow-lg z-50">
+                        <SelectItem value="none">None</SelectItem>
+                        {lawFirms.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                        <SelectItem value="other" className="text-muted-foreground italic">
+                          Other (specify)
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {showLawFirmOther && (
+                <FormField
+                  control={form.control}
+                  name="law_firm_other"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Law Firm Name</FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          value={field.value || ''} 
+                          placeholder="Enter law firm name"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
 
             <FormField
