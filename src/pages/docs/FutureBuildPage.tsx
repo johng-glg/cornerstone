@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Search, Rocket, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Search, Rocket, Clock, CheckCircle, AlertCircle, Zap, TrendingUp } from 'lucide-react';
 import { FUTURE_BUILDS, getRoadmapCategories, type RoadmapItem } from '@/lib/docs/roadmapData';
 
 const priorityColors = {
@@ -26,8 +26,26 @@ const statusColors = {
   Completed: 'bg-success text-success-foreground px-2 py-0.5 rounded-full font-medium',
 };
 
+function RatingDots({ value, max = 5, color }: { value: number; max?: number; color: 'difficulty' | 'benefit' }) {
+  const colorClasses = color === 'difficulty' 
+    ? 'bg-orange-500' 
+    : 'bg-emerald-500';
+  
+  return (
+    <div className="flex gap-0.5">
+      {Array.from({ length: max }).map((_, i) => (
+        <div
+          key={i}
+          className={`h-1.5 w-1.5 rounded-full ${i < value ? colorClasses : 'bg-muted'}`}
+        />
+      ))}
+    </div>
+  );
+}
+
 function FeatureCard({ item }: { item: RoadmapItem }) {
   const StatusIcon = statusIcons[item.status];
+  const showRatings = item.status !== 'Completed' && (item.difficulty || item.benefit);
   
   return (
     <Card className="hover:bg-muted/30 transition-colors">
@@ -49,6 +67,24 @@ function FeatureCard({ item }: { item: RoadmapItem }) {
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground mb-2">{item.description}</p>
+        {showRatings && (
+          <div className="flex items-center gap-4 mb-2 text-xs">
+            {item.difficulty && (
+              <div className="flex items-center gap-1.5">
+                <Zap className="h-3 w-3 text-orange-500" />
+                <span className="text-muted-foreground">Difficulty:</span>
+                <RatingDots value={item.difficulty} color="difficulty" />
+              </div>
+            )}
+            {item.benefit && (
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="h-3 w-3 text-emerald-500" />
+                <span className="text-muted-foreground">Benefit:</span>
+                <RatingDots value={item.benefit} color="benefit" />
+              </div>
+            )}
+          </div>
+        )}
         {item.notes && (
           <p className="text-xs text-muted-foreground italic border-l-2 border-muted pl-2">
             {item.notes}
