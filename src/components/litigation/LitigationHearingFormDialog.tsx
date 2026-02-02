@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { addMinutes, differenceInMinutes } from 'date-fns';
+import { addMinutes, differenceInMinutes, format } from 'date-fns';
 import {
   Dialog,
   DialogContent,
@@ -109,7 +109,7 @@ export function LitigationHearingFormDialog({
     defaultValues: {
       hearing_type: hearing?.hearing_type || '',
       scheduled_date: hearing?.scheduled_date 
-        ? new Date(hearing.scheduled_date).toISOString().slice(0, 16) 
+        ? format(new Date(hearing.scheduled_date), "yyyy-MM-dd'T'HH:mm")
         : '',
       duration: hearing?.scheduled_date 
         ? calculateDurationFromDates(hearing.scheduled_date, hearing.end_date)
