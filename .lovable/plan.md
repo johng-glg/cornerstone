@@ -1,58 +1,43 @@
 
 
-# Add Proprietary eSign System to Future Builds
+# Add DocuSeal Hybrid eSign Integration to Future Builds
 
 ## Overview
 
-This update replaces the existing "eSign Integration" research item (which considered DocuSign/HelloSign) with a comprehensive **proprietary eSign system** built directly into the CRM. This is a major feature that will handle document signing ceremonies, notifications, audit trails, and artifact storage.
+This update adds a **second eSign option** to the roadmap - a hybrid approach that integrates with **DocuSeal** (open-source eSign engine) while the CRM handles notifications, short links, and record management. This provides a faster-to-implement alternative to the fully proprietary system.
 
 ---
 
-## Changes Required
+## New Roadmap Entry
 
-### 1. Update `src/lib/docs/roadmapData.ts`
-
-**Replace the existing `esign-integration` entry:**
-
-```typescript
-// Current entry to replace:
-{
-  id: 'esign-integration',
-  name: 'eSign Integration',
-  category: 'Communications',
-  priority: 'Medium',
-  description: 'Electronic signature capability - evaluate DocuSign, HelloSign, or custom build.',
-  status: 'Research',
-  difficulty: 4,
-  benefit: 4,
-}
-```
-
-**With the new comprehensive entry:**
+Add the following entry to `FUTURE_BUILDS` in the Documents category, positioned after the proprietary eSign system:
 
 ```typescript
 {
-  id: 'esign-system',
-  name: 'Proprietary eSign System',
+  id: 'esign-docuseal',
+  name: 'DocuSeal eSign Integration',
   category: 'Documents',
   priority: 'High',
-  description: 'First-class electronic signature system with signing ceremonies, SMS/email notifications, audit trails, and executed PDF storage.',
+  description: 'Hybrid eSign system using self-hosted DocuSeal for signing ceremonies with CRM-owned notifications, short links, and artifact storage.',
   status: 'Planned',
-  difficulty: 5,
+  difficulty: 4,
   benefit: 5,
-  notes: `Full-featured eSign built into CRM:
-• Signature Requests panel on Lead/Client records
-• Send for Signature wizard with template selection and merge fields
-• Multi-signer support with role assignment (Client, Spouse, Attorney)
-• Email + SMS delivery via Twilio/Resend
-• Public mobile-first signing ceremony with guided field completion
-• Field types: Signature, Initial, Date, Text, Checkbox
-• Append-only audit log with IP, user agent, timestamps
-• SHA-256 document hashing and evidence bundle
-• Executed PDF and Completion Certificate generation
-• Workflow action node for automated sending
-• Secure tokenized signing links (JWT/OTP)
-• Timeline entries for Sent, Viewed, Completed events`,
+  notes: `CRM + DocuSeal hybrid architecture:
+• CRM is system of record; DocuSeal handles signing ceremony + PDF generation
+• Signature Requests panel on Lead/Client records with multi-signer support (Client + Co-Client)
+• Send for Signature wizard with template selection and signer configuration
+• Signing modes: Parallel (default) or Sequential
+• Delivery: Email + SMS (Twilio), Email only, or SMS only
+• CRM-owned short links (/s/{token}) that redirect to DocuSeal signing URLs
+• Inline DocuSeal field tags in DOCX/HTML templates for proper text reflow
+• Webhook receiver for DocuSeal events (viewed, signed, completed, declined)
+• Automatic artifact retrieval: Executed PDF, Completion Certificate, Evidence JSON
+• Workflow action node: "Send Template for Signature (DocuSeal)"
+• Language support: English/Spanish
+• Expiration dates and reminder scheduling
+• Status tracking: Draft, Queued, Sent, Viewed, Partially Signed, Completed, Declined, Expired, Canceled, Error
+• Timeline entries for all signature events
+• Idempotent job processing: create-send, reminders, expiration, completion`,
 },
 ```
 
@@ -62,39 +47,113 @@ This update replaces the existing "eSign Integration" research item (which consi
 
 | Rating | Value | Reasoning |
 |--------|-------|-----------|
-| **Difficulty** | 5 (Very Hard) | Complex system requiring: PDF rendering, public signing web app, notification orchestration, async job processing, cryptographic hashing, artifact generation, Twilio/email integrations |
-| **Benefit** | 5 (High) | Core business need - eliminates external eSign costs, keeps data in-house, integrates with existing templates/workflows, enables automation |
+| **Difficulty** | 4 (Hard) | Less complex than proprietary (no signing ceremony UI to build), but requires: DocuSeal API integration, webhook processing, short link system, Twilio SMS, artifact retrieval, job queues |
+| **Benefit** | 5 (High) | Same business value as proprietary system - keeps data in CRM, enables automation, supports multi-signer flows |
 
 ---
 
-## Data Model Summary (For Notes)
+## Comparison: Proprietary vs DocuSeal Hybrid
 
-The following new tables will be created:
+| Aspect | Proprietary (`esign-system`) | DocuSeal Hybrid (`esign-docuseal`) |
+|--------|------------------------------|-------------------------------------|
+| **Difficulty** | 5 (Very Hard) | 4 (Hard) |
+| **Signing Ceremony** | Build from scratch | DocuSeal provides |
+| **PDF Rendering** | Build from scratch | DocuSeal provides |
+| **Audit Trail** | Build hash chain | DocuSeal provides |
+| **Hosting** | Fully internal | Self-hosted DocuSeal instance |
+| **Cost** | Zero external | DocuSeal hosting costs |
+| **Time to Implement** | Longer | Shorter |
+| **Customization** | Full control | Limited to DocuSeal capabilities |
+
+---
+
+## Data Model Summary
+
+New tables (same structure for both approaches):
 
 | Table | Purpose |
 |-------|---------|
-| `signature_packages` | Main container linking to Lead/Client, template, status, PDFs |
-| `signature_signers` | Signer details per package (name, email, phone, role, status) |
-| `signature_fields` | Field definitions (type, page, coordinates, merge_key) |
-| `signature_events` | Append-only audit log with hash chain |
+| `signature_packages` | Container with CRM record link, template, status, DocuSeal submission ID, artifact URLs |
+| `signature_signers` | Per-signer details: role (Client/CoClient), contact info, CRM short token, DocuSeal recipient ID |
+| `signature_events` | Append-only audit log from CRM and DocuSeal webhook events |
 
 ---
 
-## Priority Upgrade Reasoning
+## Integration Points
 
-Upgrading from **Medium** to **High** priority because:
+### DocuSeal Configuration (Secrets)
+- `DOCUSEAL_BASE_URL` - Self-hosted instance URL
+- `DOCUSEAL_API_KEY` - API authentication
+- `DOCUSEAL_WEBHOOK_SECRET` - Webhook signature verification
 
-1. **Cost Savings**: Eliminates recurring DocuSign/HelloSign subscription fees
-2. **Data Control**: All signature data stays within CRM database
-3. **Integration Depth**: Direct integration with CRM templates, workflows, and timeline
-4. **Compliance**: Full control over audit trail and evidence preservation
-5. **Scale**: Designed for ~3,000 packages/month production volume
+### Twilio Configuration (Existing)
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_FROM_NUMBER`
 
 ---
 
-## Category Change
+## Components to Build
 
-Moving from **Communications** category to new **Documents** category, as this is primarily a document management feature rather than a communication feature.
+### CRM UI
+- `SignatureRequestsPanel` - Lead/Client record sidebar
+- `SendForSignatureWizard` - Template + signer configuration modal
+- `SignaturePackageDetail` - Timeline, status, artifact downloads
+- `DocuSealSettingsTab` - Connection test and configuration
+
+### Backend (Edge Functions)
+- `create-signature-package` - Create DocuSeal submission, generate short links
+- `docuseal-webhook` - Receive and process DocuSeal events
+- `send-signature-notifications` - Email/SMS via CRM providers
+- `process-signature-reminders` - Scheduled reminder dispatch
+- `process-signature-completion` - Fetch and store artifacts
+
+### Short Link System
+- Public route `/s/{token}` that validates token and redirects to DocuSeal signing URL
+- Logs "link opened" event before redirect
+
+---
+
+## Workflow Integration
+
+New action type for workflow engine:
+
+```typescript
+{
+  type: 'send_for_signature_docuseal',
+  config: {
+    template_id: 'uuid',
+    signer_mapping: {
+      client: { name_field: 'first_name + last_name', email_field: 'email', phone_field: 'phone' },
+      co_client: { name_field: 'co_client_name', email_field: 'co_client_email', phone_field: 'co_client_phone' }
+    },
+    signing_mode: 'parallel' | 'sequential',
+    delivery_policy: 'email_sms' | 'email_only' | 'sms_only',
+    expiration_days: 30,
+    reminder_schedule: [7, 3, 1]
+  }
+}
+```
+
+Execution must be idempotent - same record + template + workflow stage should not create duplicates.
+
+---
+
+## Also Add: DocuSeal Integration Entry
+
+Add to `INTEGRATIONS` array:
+
+```typescript
+{
+  id: 'docuseal',
+  name: 'DocuSeal',
+  purpose: 'Electronic signature ceremonies and PDF execution',
+  priority: 'High',
+  status: 'Research',
+  notes: 'Open-source eSign engine. Self-hosted for data control. API for submission creation, webhook for status updates, artifact retrieval.',
+  apiDocs: 'https://www.docuseal.co/docs/api',
+},
+```
 
 ---
 
@@ -102,31 +161,20 @@ Moving from **Communications** category to new **Documents** category, as this i
 
 | File | Changes |
 |------|---------|
-| `src/lib/docs/roadmapData.ts` | Replace `esign-integration` with `esign-system` entry |
+| `src/lib/docs/roadmapData.ts` | Add `esign-docuseal` to FUTURE_BUILDS, add `docuseal` to INTEGRATIONS |
 
 ---
 
-## Implementation Preview
+## Implementation Sequence Recommendation
 
-When this feature is eventually built, it will involve:
+If choosing this hybrid approach:
 
-### Database Schema
-- 4 new tables with RLS policies
-- Enums for status, field types, delivery methods
-
-### Edge Functions
-- `create-signature-package` - Package creation and PDF rendering
-- `send-signature-notifications` - Email/SMS dispatch
-- `process-signature-submission` - Field validation and completion
-- `generate-signature-artifacts` - Executed PDF and certificate generation
-
-### Frontend Components
-- `SignatureRequestsPanel` - Lead/Client record sidebar
-- `SendForSignatureWizard` - Template selection and signer configuration
-- `SigningCeremony` - Public signing web app (separate route)
-- `SignatureTimeline` - Activity entries
-
-### Workflow Integration
-- New action type: `send_for_signature`
-- Idempotent execution to prevent duplicates
+1. **Phase 1**: Database schema (signature_packages, signature_signers, signature_events)
+2. **Phase 2**: DocuSeal API integration (create submission, retrieve artifacts)
+3. **Phase 3**: CRM short link system
+4. **Phase 4**: Notification dispatch (Email + Twilio SMS)
+5. **Phase 5**: Webhook receiver and status updates
+6. **Phase 6**: UI components (panel, wizard, detail page)
+7. **Phase 7**: Workflow action node
+8. **Phase 8**: Admin settings and connection testing
 
