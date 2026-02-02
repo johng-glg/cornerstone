@@ -632,37 +632,39 @@ export function CourtCalendar() {
                                   >
                                     <div className="flex items-start justify-between gap-2">
                                       <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm">{hearing.hearing_type}</p>
+                                        <div className="flex items-center justify-between">
+                                          <p className="font-medium text-sm">
+                                            {hearing.hearing_type} • {format(new Date(hearing.scheduled_date), 'h:mm a')}
+                                          </p>
+                                          <div className="flex items-center gap-1 shrink-0">
+                                            <Button 
+                                              size="sm" 
+                                              variant="ghost"
+                                              className="h-6 w-6 p-0"
+                                              onClick={() => handleEditHearing(hearing)}
+                                            >
+                                              <Pencil className="h-3 w-3" />
+                                            </Button>
+                                            {hearing.litigation_matter?.id && (
+                                              <Button 
+                                                size="sm" 
+                                                variant="ghost"
+                                                className="h-6 px-2 text-xs"
+                                                onClick={() => handleOpenMatter(hearing.litigation_matter!.id)}
+                                              >
+                                                <ExternalLink className="h-3 w-3 mr-1" />
+                                                View
+                                              </Button>
+                                            )}
+                                          </div>
+                                        </div>
                                         <p className="text-xs text-muted-foreground">
                                           {clientName} vs {hearing.litigation_matter?.opposing_party || 'Unknown'}
                                         </p>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                          {format(new Date(hearing.scheduled_date), 'h:mm a')}
-                                          {hearing.location && ` • ${hearing.location}`}
-                                        </p>
-                                      </div>
-                                      <div className="flex items-center gap-1">
-                                        <Badge variant="outline" className="text-xs shrink-0">
-                                          {hearing.litigation_matter?.case_number || 'No Case #'}
-                                        </Badge>
-                                        <Button 
-                                          size="sm" 
-                                          variant="ghost"
-                                          className="h-6 w-6 p-0"
-                                          onClick={() => handleEditHearing(hearing)}
-                                        >
-                                          <Pencil className="h-3 w-3" />
-                                        </Button>
-                                        {hearing.litigation_matter?.id && (
-                                          <Button 
-                                            size="sm" 
-                                            variant="ghost"
-                                            className="h-6 px-2 text-xs"
-                                            onClick={() => handleOpenMatter(hearing.litigation_matter!.id)}
-                                          >
-                                            <ExternalLink className="h-3 w-3 mr-1" />
-                                            View
-                                          </Button>
+                                        {hearing.location && (
+                                          <p className="text-xs text-muted-foreground">
+                                            {hearing.location}
+                                          </p>
                                         )}
                                       </div>
                                     </div>
