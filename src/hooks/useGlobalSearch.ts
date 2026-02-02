@@ -50,43 +50,6 @@ async function searchClients(query: string): Promise<SearchResult[]> {
   }));
 }
 
-async function searchServices(query: string): Promise<SearchResult[]> {
-  const { data, error } = await supabase
-    .from('client_services')
-    .select(`
-      id,
-      service_number,
-      status,
-      total_enrolled_debt,
-      primary_client:clients!engagements_primary_contact_id_fkey(first_name, last_name)
-    `)
-    .or(`service_number.ilike.%${query}%,notes.ilike.%${query}%`)
-    .limit(10);
-
-  if (error) {
-    console.error('Search services error:', error);
-    return [];
-  }
-
-  return (data || []).map((service) => {
-    const clientName = service.primary_client
-      ? `${service.primary_client.first_name} ${service.primary_client.last_name}`
-      : 'No client';
-    const debt = service.total_enrolled_debt
-      ? `$${Number(service.total_enrolled_debt).toLocaleString()}`
-      : '';
-
-    return {
-      id: service.id,
-      type: 'service' as const,
-      title: `${service.service_number} - ${clientName}`,
-      subtitle: debt || service.status,
-      badge: service.status,
-      badgeVariant: service.status === 'active' ? 'default' : 'secondary',
-      route: `/services?open=${service.id}`,
-    };
-  });
-}
 
 async function searchLiabilities(query: string): Promise<SearchResult[]> {
   const { data, error } = await supabase
@@ -175,7 +138,7 @@ function groupResults(results: SearchResult[]): GroupedSearchResults {
   return {
     leads: results.filter((r) => r.type === 'lead'),
     clients: results.filter((r) => r.type === 'client'),
-    services: results.filter((r) => r.type === 'service'),
+    services: [],
     liabilities: results.filter((r) => r.type === 'liability'),
     litigation: results.filter((r) => r.type === 'litigation'),
   };
@@ -191,15 +154,14 @@ export function useGlobalSearch(query: string) {
         return { results: [], grouped: groupResults([]) };
       }
 
-      const [leads, clients, services, liabilities, matters] = await Promise.all([
+      const [leads, clients, liabilities, matters] = await Promise.all([
         searchLeads(debouncedQuery),
         searchClients(debouncedQuery),
-        searchServices(debouncedQuery),
         searchLiabilities(debouncedQuery),
         searchLitigationMatters(debouncedQuery),
       ]);
 
-      const results = [...leads, ...clients, ...services, ...liabilities, ...matters];
+      const results = [...leads, ...clients, ...liabilities, ...matters];
       return { results, grouped: groupResults(results) };
     },
     enabled: debouncedQuery.length >= 2,

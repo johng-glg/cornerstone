@@ -9,14 +9,14 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, UserPlus, User, Briefcase, CreditCard, Scale } from 'lucide-react';
+import { Loader2, UserPlus, User, CreditCard, Scale } from 'lucide-react';
 import { useGlobalSearch } from '@/hooks/useGlobalSearch';
 import type { SearchResult, SearchResultType } from '@/types/search';
 
 const typeIcons: Record<SearchResultType, React.ElementType> = {
   lead: UserPlus,
   client: User,
-  service: Briefcase,
+  service: User, // Keep for type safety but won't be used
   liability: CreditCard,
   litigation: Scale,
 };
@@ -24,7 +24,7 @@ const typeIcons: Record<SearchResultType, React.ElementType> = {
 const typeLabels: Record<SearchResultType, string> = {
   lead: 'Leads',
   client: 'Clients',
-  service: 'Services',
+  service: 'Services', // Keep for type safety but won't be rendered
   liability: 'Liabilities',
   litigation: 'Litigation',
 };
@@ -117,7 +117,6 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
           <>
             {renderGroup('lead', data.grouped.leads)}
             {renderGroup('client', data.grouped.clients)}
-            {renderGroup('service', data.grouped.services)}
             {renderGroup('liability', data.grouped.liabilities)}
             {renderGroup('litigation', data.grouped.litigation)}
           </>
