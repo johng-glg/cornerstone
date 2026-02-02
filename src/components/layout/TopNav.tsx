@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,11 +13,25 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Search, Bell, LogOut, User, Settings } from 'lucide-react';
+import { GlobalSearch } from '@/components/search/GlobalSearch';
 
 export function TopNav() {
   const { user, staff, signOut } = useAuth();
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Global keyboard shortcut for search
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setSearchOpen((open) => !open);
+      }
+    };
+
+    document.addEventListener('keydown', down);
+    return () => document.removeEventListener('keydown', down);
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -32,30 +45,26 @@ export function TopNav() {
     return user?.email?.[0]?.toUpperCase() || 'U';
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    // TODO: Implement global search
-    console.log('Search:', searchQuery);
-  };
-
   return (
     <header className="h-16 border-b bg-card flex items-center justify-between px-4 gap-4">
       <div className="flex items-center gap-4">
         <SidebarTrigger className="h-8 w-8" />
         
-        {/* Global Search */}
-        <form onSubmit={handleSearch} className="hidden md:flex items-center">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search... (Ctrl+K)"
-              className="w-64 pl-10 bg-muted/50"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </form>
+        {/* Global Search Trigger */}
+        <Button
+          variant="outline"
+          className="hidden md:flex items-center w-64 justify-start text-muted-foreground hover:text-foreground"
+          onClick={() => setSearchOpen(true)}
+        >
+          <Search className="mr-2 h-4 w-4" />
+          <span className="flex-1 text-left">Search...</span>
+          <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+            <span className="text-xs">⌘</span>K
+          </kbd>
+        </Button>
+
+        {/* Global Search Dialog */}
+        <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       </div>
 
       <div className="flex items-center gap-2">

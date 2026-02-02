@@ -42,10 +42,17 @@ export default function LeadsPage() {
   const [convertingLitigationLeadId, setConvertingLitigationLeadId] = useState<string | null>(null);
 
   // Handle ?action=new query param to auto-open dialog
+  // Handle ?open=id query param to auto-open detail sheet
   useEffect(() => {
     if (searchParams.get('action') === 'new') {
       setShowCreateDialog(true);
       searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+    const openId = searchParams.get('open');
+    if (openId) {
+      setSelectedLeadId(openId);
+      searchParams.delete('open');
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);

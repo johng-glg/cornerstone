@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Search, DollarSign, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,12 +47,23 @@ const maskAccountNumber = (num: string | null) =>
   num ? `****${num.slice(-4)}` : 'N/A';
 
 export default function LiabilitiesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<LiabilityStatus | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<LiabilityType | 'all'>('all');
   const [showForm, setShowForm] = useState(false);
   const [selectedLiabilityId, setSelectedLiabilityId] = useState<string | null>(null);
   const [editingLiability, setEditingLiability] = useState<Liability | null>(null);
+
+  // Handle ?open=id query param to auto-open detail sheet
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    if (openId) {
+      setSelectedLiabilityId(openId);
+      searchParams.delete('open');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data: liabilities, isLoading } = useLiabilities(
     statusFilter === 'all' ? undefined : statusFilter,

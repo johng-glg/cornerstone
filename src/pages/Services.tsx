@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, FileText, User, DollarSign, AlertTriangle, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -15,9 +16,20 @@ const formatCurrency = (amount: number | null) =>
   amount ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount) : '—';
 
 export default function ServicesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<ServiceFilters>({});
   const [showForm, setShowForm] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+
+  // Handle ?open=id query param to auto-open detail sheet
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    if (openId) {
+      setSelectedServiceId(openId);
+      searchParams.delete('open');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data: services, isLoading } = useClientServices(
     Object.keys(filters).length > 0 ? filters : undefined
