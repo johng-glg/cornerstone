@@ -1,411 +1,464 @@
 
-# Duplicate Lead Detection Implementation Plan
+# Opposing Counsel Directory Implementation Plan
 
 ## Overview
 
-This plan implements duplicate detection that identifies potential matches when creating or converting leads. The system will check for duplicates against both existing leads AND existing clients, displaying warnings with options to merge, proceed anyway, or cancel.
+This plan implements a two-tier directory system for managing opposing law firms and their individual attorney contacts. The directory will be accessible from the Administration menu and will integrate with litigation matters, replacing the current free-text `opposing_counsel` field with structured relationships.
 
 ---
 
-## Architecture Decision
+## Architecture
 
-### Detection Points
+### Data Model
 
-Duplicate detection will occur at three key points:
-
-1. **Lead Creation** - Check for duplicate leads when creating a new lead
-2. **Lead Edit** - Re-check if email/phone changes during edit
-3. **Lead Conversion** - Block or warn if email/phone already exists in clients
-
-### Matching Strategy
-
-Match on multiple fields with weighted scoring:
-
-| Field | Weight | Match Type |
-|-------|--------|------------|
-| Email | High (exact) | Case-insensitive exact match |
-| Phone | High (exact) | Normalized digits only (strip formatting) |
-| SSN Last 4 | High (exact) | Exact match when present |
-| Name | Medium (fuzzy) | First + Last name case-insensitive match |
+```text
++------------------+       +------------------------+
+|    law_firms     |       |   law_firm_contacts    |
++------------------+       +------------------------+
+| id (PK)          |<------| law_firm_id (FK)       |
+| name             |       | id (PK)                |
+| phone            |       | first_name             |
+| fax              |       | last_name              |
+| email            |       | title                  |
+| address_line1    |       | email                  |
+| address_line2    |       | phone                  |
+| city             |       | is_active              |
+| state            |       | notes                  |
+| zip_code         |       | created_at             |
+| notes            |       | updated_at             |
+| is_active        |       +------------------------+
+| created_at       |
+| updated_at       |
++------------------+
+          |
+          |  (linked to)
+          v
++------------------------+
+|   litigation_matters   |
++------------------------+
+| ...                    |
+| opposing_law_firm_id   |  <-- NEW FK to law_firms
+| opposing_counsel_id    |  <-- NEW FK to law_firm_contacts
+| opposing_counsel       |  <-- Keep for backwards compat / free text
++------------------------+
+```
 
 ---
 
-## Components to Create
+## Database Changes
+
+### New Tables
+
+**`law_firms`** - Parent directory of opposing law firms
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| id | uuid | No | gen_random_uuid() | Primary key |
+| name | text | No | - | Firm name (required) |
+| phone | text | Yes | - | Main phone |
+| fax | text | Yes | - | Fax number |
+| email | text | Yes | - | General contact email |
+| address_line1 | text | Yes | - | Street address |
+| address_line2 | text | Yes | - | Suite/Unit |
+| city | text | Yes | - | City |
+| state | text | Yes | - | State (2-letter) |
+| zip_code | text | Yes | - | ZIP code |
+| notes | text | Yes | - | General notes |
+| is_active | boolean | No | true | Soft delete flag |
+| created_at | timestamptz | No | now() | |
+| updated_at | timestamptz | No | now() | |
+
+**`law_firm_contacts`** - Individual attorneys/contacts at firms
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| id | uuid | No | gen_random_uuid() | Primary key |
+| law_firm_id | uuid | No | - | FK to law_firms |
+| first_name | text | No | - | First name (required) |
+| last_name | text | No | - | Last name (required) |
+| title | text | Yes | - | e.g., "Partner", "Associate" |
+| email | text | Yes | - | Direct email |
+| phone | text | Yes | - | Direct phone |
+| is_active | boolean | No | true | Soft delete flag |
+| notes | text | Yes | - | Contact-specific notes |
+| created_at | timestamptz | No | now() | |
+| updated_at | timestamptz | No | now() | |
+
+### Table Modifications
+
+**`litigation_matters`** - Add two new columns
+
+| Column | Type | Nullable | Notes |
+|--------|------|----------|-------|
+| opposing_law_firm_id | uuid | Yes | FK to law_firms.id |
+| opposing_counsel_id | uuid | Yes | FK to law_firm_contacts.id |
+
+The existing `opposing_counsel` text field is retained for:
+- Backwards compatibility with existing data
+- Cases where the firm/contact isn't in the directory yet
+- Free-form notes about opposing counsel
+
+### RLS Policies
+
+Both tables will use policies similar to the `creditors` table:
+- All authenticated staff can SELECT (view)
+- Only admins can INSERT, UPDATE, DELETE
+
+### Triggers
+
+- `update_updated_at_column` trigger on both tables to auto-update `updated_at`
+
+---
+
+## Files to Create
+
+### Hooks
 
 | File | Purpose |
 |------|---------|
-| `src/hooks/useDuplicateDetection.ts` | Hook to check for duplicates against leads and clients |
-| `src/components/leads/DuplicateWarningDialog.tsx` | Warning dialog showing potential matches with actions |
+| `src/hooks/useLawFirms.ts` | CRUD operations for law_firms table |
+| `src/hooks/useLawFirmContacts.ts` | CRUD operations for law_firm_contacts table |
+
+### Components
+
+| File | Purpose |
+|------|---------|
+| `src/components/opposing-counsel/LawFirmFormDialog.tsx` | Create/edit law firm |
+| `src/components/opposing-counsel/LawFirmDetailSheet.tsx` | View firm details + contacts |
+| `src/components/opposing-counsel/LawFirmContactFormDialog.tsx` | Create/edit contact at a firm |
+| `src/components/opposing-counsel/OpposingCounselSelect.tsx` | Two-tier selector for litigation forms |
+
+### Pages
+
+| File | Purpose |
+|------|---------|
+| `src/pages/OpposingCounsel.tsx` | Main directory page (list of firms) |
 
 ---
 
-## Components to Modify
+## Files to Modify
+
+### Navigation & Routing
 
 | File | Changes |
 |------|---------|
-| `src/components/leads/LeadFormDialog.tsx` | Add duplicate check before submission |
-| `src/components/enrollment/EnrollmentWizard.tsx` | Block conversion if client email duplicate exists |
-| `src/lib/docs/roadmapData.ts` | Update status to Completed after implementation |
+| `src/App.tsx` | Add route `/opposing-counsel` |
+| `src/components/layout/AppSidebar.tsx` | Add "Opposing Counsel" to admin nav items |
+
+### Litigation Components
+
+| File | Changes |
+|------|---------|
+| `src/components/litigation/LitigationMatterFormDialog.tsx` | Replace free-text opposing counsel input with OpposingCounselSelect |
+| `src/components/litigation/LitigationMatterDetailSheet.tsx` | Display linked firm/contact with click-to-view |
+| `src/hooks/useLitigationMatters.ts` | Update queries to join law_firms and law_firm_contacts |
+
+### Documentation
+
+| File | Changes |
+|------|---------|
+| `src/lib/docs/roadmapData.ts` | Update status to Completed |
+| `src/lib/docs/schemaData.ts` | Add law_firms and law_firm_contacts table documentation |
+| `src/pages/docs/ERDPage.tsx` | Add law_firms to ERD diagram |
 
 ---
 
-## Technical Details
+## Component Details
 
-### 1. Duplicate Detection Hook (`src/hooks/useDuplicateDetection.ts`)
+### OpposingCounselSelect
 
-This hook performs parallel queries to find potential duplicates.
+A two-tier dropdown component for selecting opposing counsel:
 
-```typescript
-interface DuplicateMatch {
-  id: string;
-  type: 'lead' | 'client';
-  matchType: 'email' | 'phone' | 'name' | 'ssn';
-  name: string;
-  email?: string;
-  phone?: string;
-  status?: string;
-  created_at: string;
-  confidence: 'high' | 'medium';
-}
+```text
++-----------------------------------------------+
+| [Select Law Firm ▾]                            |
+|-----------------------------------------------|
+| Search firms...                               |
+|-----------------------------------------------|
+| + Add New Firm                                |
+|-----------------------------------------------|
+| Smith & Associates                            |
+| Johnson Law Group                             |
+| ...                                           |
++-----------------------------------------------+
 
-interface UseDuplicateDetectionOptions {
-  email?: string;
-  phone?: string;
-  firstName?: string;
-  lastName?: string;
-  ssnLast4?: string;
-  excludeLeadId?: string;  // Exclude current lead when editing
-}
+(After selecting a firm, a second dropdown appears)
 
-function useDuplicateDetection(options: UseDuplicateDetectionOptions)
++-----------------------------------------------+
+| [Select Contact ▾]                            |
+|-----------------------------------------------|
+| + Add New Contact                             |
+|-----------------------------------------------|
+| John Smith (Partner) - jsmith@firm.com        |
+| Jane Doe (Associate)                          |
+| ...                                           |
++-----------------------------------------------+
 ```
-
-**Query Logic:**
-
-```typescript
-// Check leads table
-async function checkLeadDuplicates(options) {
-  const { email, phone, firstName, lastName, excludeLeadId } = options;
-  const matches: DuplicateMatch[] = [];
-  
-  // Email match (high confidence)
-  if (email) {
-    const { data } = await supabase
-      .from('leads')
-      .select('id, first_name, last_name, email, phone, status, created_at')
-      .ilike('email', email)
-      .neq('id', excludeLeadId || '')
-      .limit(5);
-    // Add to matches with confidence: 'high', matchType: 'email'
-  }
-  
-  // Phone match (high confidence) - normalize phone first
-  if (phone) {
-    const normalizedPhone = phone.replace(/\D/g, '');
-    const { data } = await supabase
-      .from('leads')
-      .select('id, first_name, last_name, email, phone, status, created_at')
-      .ilike('phone', `%${normalizedPhone.slice(-10)}%`)
-      .neq('id', excludeLeadId || '')
-      .limit(5);
-    // Add to matches with confidence: 'high', matchType: 'phone'
-  }
-  
-  // Name match (medium confidence)
-  if (firstName && lastName) {
-    const { data } = await supabase
-      .from('leads')
-      .select('id, first_name, last_name, email, phone, status, created_at')
-      .ilike('first_name', firstName)
-      .ilike('last_name', lastName)
-      .neq('id', excludeLeadId || '')
-      .limit(5);
-    // Add to matches with confidence: 'medium', matchType: 'name'
-  }
-  
-  return deduplicateMatches(matches);
-}
-
-// Similar function for clients, including phone join
-async function checkClientDuplicates(options) {
-  // Query clients table with client_phones join
-  // Match on email, phone (via join), and name
-}
-```
-
-### 2. Duplicate Warning Dialog (`src/components/leads/DuplicateWarningDialog.tsx`)
-
-A modal that displays potential duplicates and offers actions.
 
 **Features:**
-- Shows list of potential matches with confidence indicators
-- Groups by match type (email, phone, name)
-- Shows relevant details: name, email, phone, status, created date
-- Action buttons: "View Existing", "Proceed Anyway", "Cancel"
-- For client matches during conversion: stricter blocking
+- Search/filter within dropdowns
+- Quick-add buttons to create new firms/contacts inline
+- Shows "(No specific contact)" option
+- Displays firm + contact summary once selected
 
-**UI Structure:**
+### LawFirmFormDialog
 
-```text
-+--------------------------------------------------+
-|  ⚠️  Potential Duplicates Found                   |
-+--------------------------------------------------+
-|  We found existing records that may match this   |
-|  lead. Please review before proceeding.          |
-|                                                  |
-|  ┌──────────────────────────────────────────┐   |
-|  │ 🔴 HIGH: Email Match                      │   |
-|  │ ┌────────────────────────────────────┐   │   |
-|  │ │ John Smith (Lead #L-000123)        │   │   |
-|  │ │ john@example.com | (555) 123-4567  │   │   |
-|  │ │ Status: Contacted | Created 2d ago │   │   |
-|  │ │                        [View Lead] │   │   |
-|  │ └────────────────────────────────────┘   │   |
-|  └──────────────────────────────────────────┘   |
-|                                                  |
-|  ┌──────────────────────────────────────────┐   |
-|  │ 🟡 MEDIUM: Name Match                     │   |
-|  │ ┌────────────────────────────────────┐   │   |
-|  │ │ John Smith (Client)                 │   │   |
-|  │ │ Active Service: SVC-000456          │   │   |
-|  │ │                       [View Client] │   │   |
-|  │ └────────────────────────────────────┘   │   |
-|  └──────────────────────────────────────────┘   |
-|                                                  |
-|  [Cancel]              [Proceed Anyway] [Merge*] |
-+--------------------------------------------------+
-* Merge option for lead-to-lead duplicates only
+Form fields:
+- Name (required)
+- Phone, Fax, Email
+- Address (line1, line2, city, state, zip)
+- Notes
+
+### LawFirmContactFormDialog
+
+Form fields:
+- Law Firm (pre-selected if creating from firm detail)
+- First Name, Last Name (required)
+- Title (e.g., "Partner", "Associate", "Paralegal")
+- Email, Phone
+- Notes
+
+### LawFirmDetailSheet
+
+A sheet that shows:
+- Firm details (name, contact info, address)
+- List of contacts at the firm
+- Actions: Edit Firm, Add Contact, Edit Contact
+- Link to matters involving this firm (future enhancement)
+
+### OpposingCounsel Page
+
+Layout following the Creditors page pattern:
+- Search bar
+- Table with columns: Firm Name, Phone, Email, Location, # Contacts, Added
+- Click row to open detail sheet
+- "Add Firm" button in header
+
+---
+
+## Integration with Litigation Matters
+
+### Form Changes
+
+In `LitigationMatterFormDialog.tsx`, the current opposing counsel field:
+
+```tsx
+<FormField
+  name="opposing_counsel"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Opposing Counsel</FormLabel>
+      <FormControl>
+        <Input placeholder="Attorney/Law firm name" {...field} />
+      </FormControl>
+    </FormItem>
+  )}
+/>
 ```
 
-**Props:**
+Will be replaced with:
 
-```typescript
-interface DuplicateWarningDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  matches: DuplicateMatch[];
-  mode: 'create' | 'convert';
-  onProceed: () => void;
-  onViewMatch: (match: DuplicateMatch) => void;
-  onMerge?: (targetLeadId: string) => void;  // Future: merge functionality
-}
+```tsx
+<FormField
+  name="opposing_law_firm_id"
+  render={({ field }) => (
+    <OpposingCounselSelect
+      lawFirmId={field.value}
+      contactId={form.watch('opposing_counsel_id')}
+      onLawFirmChange={(id) => field.onChange(id)}
+      onContactChange={(id) => form.setValue('opposing_counsel_id', id)}
+      legacyText={form.watch('opposing_counsel')}
+      onLegacyTextChange={(text) => form.setValue('opposing_counsel', text)}
+    />
+  )}
+/>
 ```
 
-### 3. LeadFormDialog Integration
+The component allows:
+1. Selecting from directory (sets firm_id and optionally counsel_id)
+2. Typing free-text if firm not in directory (sets opposing_counsel text)
 
-**Changes to `src/components/leads/LeadFormDialog.tsx`:**
+### Detail Sheet Changes
 
-```typescript
-// Add state for duplicate checking
-const [duplicateMatches, setDuplicateMatches] = useState<DuplicateMatch[]>([]);
-const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
-const [pendingSubmit, setPendingSubmit] = useState<LeadFormData | null>(null);
+In `LitigationMatterDetailSheet.tsx`, the opposing counsel display:
 
-// Modify onSubmit to check for duplicates first
-const onSubmit = async (data: LeadFormData) => {
-  // Check for duplicates before creating/updating
-  const matches = await checkForDuplicates({
-    email: data.email,
-    phone: data.phone,
-    firstName: data.first_name,
-    lastName: data.last_name,
-    excludeLeadId: lead?.id,
-  });
-  
-  if (matches.length > 0) {
-    setDuplicateMatches(matches);
-    setPendingSubmit(data);
-    setShowDuplicateWarning(true);
-    return;
-  }
-  
-  // No duplicates, proceed with submission
-  await performSubmit(data);
-};
-
-const handleProceedAnyway = async () => {
-  if (pendingSubmit) {
-    await performSubmit(pendingSubmit);
-    setShowDuplicateWarning(false);
-    setPendingSubmit(null);
-  }
-};
+```tsx
+<div>
+  <p className="text-muted-foreground">Opposing Counsel</p>
+  <p className="font-medium">{matter.opposing_counsel || '—'}</p>
+</div>
 ```
 
-### 4. EnrollmentWizard Integration
+Will be enhanced to show structured data when available:
 
-**Changes to `src/components/enrollment/EnrollmentWizard.tsx`:**
+```tsx
+<div>
+  <p className="text-muted-foreground">Opposing Counsel</p>
+  {matter.opposing_law_firm ? (
+    <button onClick={() => openFirmDetail(matter.opposing_law_firm.id)}>
+      <p className="font-medium text-primary hover:underline">
+        {matter.opposing_law_firm.name}
+      </p>
+      {matter.opposing_counsel_contact && (
+        <p className="text-sm">
+          {matter.opposing_counsel_contact.first_name} {matter.opposing_counsel_contact.last_name}
+          {matter.opposing_counsel_contact.title && ` (${matter.opposing_counsel_contact.title})`}
+        </p>
+      )}
+    </button>
+  ) : (
+    <p className="font-medium">{matter.opposing_counsel || '—'}</p>
+  )}
+</div>
+```
 
-Add duplicate check at the start of the wizard (eligibility step) or before final submission.
+### Query Changes
+
+The `useLitigationMatters` hook queries will be updated to join the new tables:
 
 ```typescript
-// In ClientInfoStep or before handleComplete
-const checkClientDuplicate = async () => {
-  if (!data.email) return null;
-  
-  const { data: existingClients } = await supabase
-    .from('clients')
-    .select('id, first_name, last_name, email')
-    .ilike('email', data.email)
-    .eq('is_active', true)
-    .limit(1);
-  
-  if (existingClients?.length) {
-    return existingClients[0];
-  }
-  return null;
-};
-
-// Show blocking dialog if client email exists
-// "This email is already associated with an existing client. 
-//  Please update the lead's email or contact the existing client."
+.select(`
+  *,
+  liability:liabilities(...),
+  client_service:client_services(...),
+  opposing_law_firm:law_firms(id, name, phone, email),
+  opposing_counsel_contact:law_firm_contacts(id, first_name, last_name, title, email, phone)
+`)
 ```
 
 ---
 
-## Matching Logic Details
-
-### Phone Normalization
-
-```typescript
-function normalizePhone(phone: string): string {
-  // Remove all non-digits
-  const digits = phone.replace(/\D/g, '');
-  // Return last 10 digits (US phone number)
-  return digits.slice(-10);
-}
-
-function phonesMatch(phone1: string, phone2: string): boolean {
-  return normalizePhone(phone1) === normalizePhone(phone2);
-}
-```
-
-### Email Normalization
-
-```typescript
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-```
-
-### Deduplication
-
-When the same record matches on multiple criteria (e.g., same lead matches on both email AND phone), deduplicate the results:
-
-```typescript
-function deduplicateMatches(matches: DuplicateMatch[]): DuplicateMatch[] {
-  const seen = new Map<string, DuplicateMatch>();
-  
-  for (const match of matches) {
-    const key = `${match.type}-${match.id}`;
-    const existing = seen.get(key);
-    
-    if (!existing || match.confidence === 'high') {
-      // Keep highest confidence match or combine match types
-      seen.set(key, {
-        ...match,
-        matchType: existing 
-          ? `${existing.matchType}, ${match.matchType}` 
-          : match.matchType,
-      });
-    }
-  }
-  
-  return Array.from(seen.values());
-}
-```
-
----
-
-## User Experience Flow
-
-### Creating a New Lead
-
-```text
-User fills out lead form
-         ↓
-User clicks "Create Lead"
-         ↓
-System checks for duplicates (leads + clients)
-         ↓
-    ┌────┴────┐
-    ↓         ↓
-No matches  Matches found
-    ↓              ↓
-Lead created  Show warning dialog
-                   ↓
-         ┌────────┴────────┐
-         ↓                 ↓
-   "Proceed Anyway"   "Cancel"/"View"
-         ↓                 ↓
-   Lead created       Dialog closes
-```
-
-### Converting a Lead
-
-```text
-User clicks "Convert" on lead
-         ↓
-Enrollment Wizard opens
-         ↓
-System checks if lead email exists in clients
-         ↓
-    ┌────┴────┐
-    ↓         ↓
-No match   Email exists in clients
-    ↓              ↓
-Continue    Show BLOCKING dialog
-wizard      (cannot proceed - must update email
-            or work with existing client)
-```
-
----
-
-## Database Considerations
-
-### Future Enhancement: Unique Constraint
-
-Per the roadmap notes, a unique constraint on `clients.email` could be added. However, this should be approached carefully:
-
-1. **Current State**: No constraint, allows duplicate emails
-2. **Recommended Approach**: Implement soft duplicate checking first (this plan)
-3. **Future**: After data cleanup, add unique constraint:
+## Migration SQL
 
 ```sql
--- Only add after ensuring no duplicate emails exist
-CREATE UNIQUE INDEX clients_email_unique 
-ON clients (LOWER(email)) 
-WHERE email IS NOT NULL AND is_active = true;
-```
+-- Create law_firms table
+CREATE TABLE public.law_firms (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  phone text,
+  fax text,
+  email text,
+  address_line1 text,
+  address_line2 text,
+  city text,
+  state text,
+  zip_code text,
+  notes text,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
 
-This plan focuses on warning-based detection first, which is less disruptive.
+-- Create law_firm_contacts table
+CREATE TABLE public.law_firm_contacts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  law_firm_id uuid NOT NULL REFERENCES public.law_firms(id) ON DELETE CASCADE,
+  first_name text NOT NULL,
+  last_name text NOT NULL,
+  title text,
+  email text,
+  phone text,
+  is_active boolean NOT NULL DEFAULT true,
+  notes text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Add columns to litigation_matters
+ALTER TABLE public.litigation_matters
+  ADD COLUMN opposing_law_firm_id uuid REFERENCES public.law_firms(id),
+  ADD COLUMN opposing_counsel_id uuid REFERENCES public.law_firm_contacts(id);
+
+-- Create indexes
+CREATE INDEX law_firms_name_idx ON public.law_firms(name);
+CREATE INDEX law_firm_contacts_law_firm_id_idx ON public.law_firm_contacts(law_firm_id);
+CREATE INDEX litigation_matters_opposing_law_firm_id_idx ON public.litigation_matters(opposing_law_firm_id);
+
+-- Enable RLS
+ALTER TABLE public.law_firms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.law_firm_contacts ENABLE ROW LEVEL SECURITY;
+
+-- RLS policies for law_firms
+CREATE POLICY "All staff can view law firms"
+  ON public.law_firms FOR SELECT
+  USING (true);
+
+CREATE POLICY "Admins can manage law firms"
+  ON public.law_firms FOR ALL
+  USING (has_role(auth.uid(), 'admin'));
+
+-- RLS policies for law_firm_contacts
+CREATE POLICY "All staff can view law firm contacts"
+  ON public.law_firm_contacts FOR SELECT
+  USING (true);
+
+CREATE POLICY "Admins can manage law firm contacts"
+  ON public.law_firm_contacts FOR ALL
+  USING (has_role(auth.uid(), 'admin'));
+
+-- Add updated_at triggers
+CREATE TRIGGER update_law_firms_updated_at
+  BEFORE UPDATE ON public.law_firms
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_updated_at_column();
+
+CREATE TRIGGER update_law_firm_contacts_updated_at
+  BEFORE UPDATE ON public.law_firm_contacts
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_updated_at_column();
+```
 
 ---
 
 ## Files Summary
 
-### Create (2 files)
+### Create (7 files)
 
 | File | Purpose |
 |------|---------|
-| `src/hooks/useDuplicateDetection.ts` | Hook with duplicate checking logic |
-| `src/components/leads/DuplicateWarningDialog.tsx` | Warning dialog component |
+| `src/hooks/useLawFirms.ts` | Law firms CRUD hook |
+| `src/hooks/useLawFirmContacts.ts` | Law firm contacts CRUD hook |
+| `src/pages/OpposingCounsel.tsx` | Directory page |
+| `src/components/opposing-counsel/LawFirmFormDialog.tsx` | Firm form |
+| `src/components/opposing-counsel/LawFirmDetailSheet.tsx` | Firm detail view |
+| `src/components/opposing-counsel/LawFirmContactFormDialog.tsx` | Contact form |
+| `src/components/opposing-counsel/OpposingCounselSelect.tsx` | Two-tier selector |
 
-### Modify (3 files)
+### Modify (8 files)
 
 | File | Changes |
 |------|---------|
-| `src/components/leads/LeadFormDialog.tsx` | Add duplicate check before submission |
-| `src/components/enrollment/EnrollmentWizard.tsx` | Add client email check before conversion |
-| `src/lib/docs/roadmapData.ts` | Update status to Completed |
+| `src/App.tsx` | Add route |
+| `src/components/layout/AppSidebar.tsx` | Add nav item |
+| `src/components/litigation/LitigationMatterFormDialog.tsx` | Use new selector |
+| `src/components/litigation/LitigationMatterDetailSheet.tsx` | Display linked firm/contact |
+| `src/hooks/useLitigationMatters.ts` | Join new tables in queries |
+| `src/lib/docs/roadmapData.ts` | Mark as Completed |
+| `src/lib/docs/schemaData.ts` | Add table documentation |
+| `src/pages/docs/ERDPage.tsx` | Update ERD |
 
 ---
 
-## Edge Cases
+## User Experience
 
-1. **Empty email/phone**: Skip matching for empty fields
-2. **Self-match when editing**: Exclude current lead from results
-3. **Converted leads**: Show that a lead was already converted (link to client)
-4. **Inactive clients**: Optionally include/exclude inactive clients
-5. **Multiple matches**: Sort by confidence, then by recency
-6. **Network errors**: Show toast error, allow retry
+### Accessing the Directory
+
+1. Navigate to Administration > Opposing Counsel in sidebar
+2. View list of all law firms
+3. Click firm to see details and contacts
+4. Add/edit firms and contacts as needed
+
+### Assigning to Litigation Matter
+
+1. Open litigation matter form (create or edit)
+2. In "Opposing Counsel" section:
+   - Select firm from dropdown (searchable)
+   - Optionally select specific contact at that firm
+   - Or type free-text if firm not in directory
+3. Save matter
+
+### Viewing on Litigation Matter
+
+1. Open matter detail sheet
+2. See clickable firm name in Case Information card
+3. Click to view firm detail sheet with full contact info
