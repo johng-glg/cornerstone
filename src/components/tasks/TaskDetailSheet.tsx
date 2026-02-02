@@ -12,7 +12,7 @@ interface TaskDetailSheetProps {
   taskId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onEdit: () => void;
+  onEdit?: () => void;
 }
 
 const priorityConfig: Record<string, { label: string; className: string }> = {
@@ -75,9 +75,11 @@ export function TaskDetailSheet({ taskId, open, onOpenChange, onEdit }: TaskDeta
                     </Badge>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" onClick={onEdit}>
-                  Edit
-                </Button>
+                {onEdit && (
+                  <Button variant="outline" size="sm" onClick={onEdit}>
+                    Edit
+                  </Button>
+                )}
               </div>
 
               <div className="flex items-center gap-4">

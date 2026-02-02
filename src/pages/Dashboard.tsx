@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ import {
 import { Link } from 'react-router-dom';
 import { AttorneyDashboard } from '@/components/dashboards/AttorneyDashboard';
 import { CaseManagerDashboard } from '@/components/dashboards/CaseManagerDashboard';
+import { TaskDetailSheet } from '@/components/tasks/TaskDetailSheet';
 import { useUserUrgentTasks, useUserRecentActivity, useUserDashboardStats } from '@/hooks/useUserDashboard';
 import { format, formatDistanceToNow, isToday, isTomorrow } from 'date-fns';
 
@@ -82,6 +84,7 @@ export default function Dashboard() {
   const { data: urgentTasks, isLoading: tasksLoading } = useUserUrgentTasks();
   const { data: recentActivities, isLoading: activitiesLoading } = useUserRecentActivity();
   const { data: stats } = useUserDashboardStats();
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   // Determine which dashboard to show based on department/role
   const isAttorney = staff?.department === 'attorney' || hasRole('attorney');
@@ -205,9 +208,10 @@ export default function Dashboard() {
             ) : urgentTasks && urgentTasks.length > 0 ? (
               <div className="space-y-4">
                 {urgentTasks.slice(0, 5).map((task) => (
-                  <div 
+                  <button 
                     key={task.id} 
-                    className="flex items-start justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                    onClick={() => setSelectedTaskId(task.id)}
+                    className="w-full flex items-start justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-left cursor-pointer"
                   >
                     <div className="space-y-1">
                       <p className="font-medium text-sm">{task.title}</p>
@@ -222,7 +226,7 @@ export default function Dashboard() {
                     >
                       {task.priority}
                     </Badge>
-                  </div>
+                  </button>
                 ))}
               </div>
             ) : (
@@ -276,6 +280,13 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Task Detail Sheet */}
+      <TaskDetailSheet
+        taskId={selectedTaskId}
+        open={!!selectedTaskId}
+        onOpenChange={(open) => !open && setSelectedTaskId(null)}
+      />
     </div>
   );
 }
