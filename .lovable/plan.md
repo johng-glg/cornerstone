@@ -1,394 +1,407 @@
 
 
-# Template System Implementation Plan
+# Recurring Payment Scheduling Implementation Plan
 
 ## Overview
 
-Build a comprehensive template system for email, SMS, and document templates with merge fields and conditional clauses. This system will serve as the foundation for the eSign features, workflow automation, and manual communications.
+Build an automated payment scheduling system that generates draft transactions (client payments) with processor fees for the full program term. This system will use the existing `transactions` table and integrate with the service enrollment flow and service management UI.
 
 ---
 
-## Architecture Summary
+## Business Rules (From Context)
+
+| Rule | Value |
+|------|-------|
+| **Draft Calculation** | `(Total Enrolled Debt * 0.82) / Term Months` |
+| **Minimum Draft** | $350 (system-enforced) |
+| **Processor Fee** | $10 per draft, scheduled 1 day after draft |
+| **Term Range** | 18-48 months standard, up to 54 for GLG Exception |
+| **Payment Frequencies** | Monthly, Semi-Monthly (2x/month), Bi-Weekly |
+| **Contingency Fee** | 27% on settled amount (collected at settlement time) |
+
+---
+
+## Architecture
 
 ```text
 +---------------------------+
-|     Template Editor       |  (Rich editor with merge field insertion)
+|    Service Activation     |  (Enrollment wizard or status change to 'active')
 +---------------------------+
             |
             v
 +---------------------------+
-|    Template Storage       |  (templates table with JSONB content)
+|   Schedule Generator      |  (Creates draft + fee transactions for full term)
 +---------------------------+
             |
             v
 +---------------------------+
-|    Merge Engine           |  (Server-side rendering with validation)
+|   Transactions Table      |  (Stores all scheduled, pending, cleared, cancelled)
 +---------------------------+
             |
             v
 +---------------------------+
-|    Output Channels        |  (Email/SMS/Document generation)
+|   Payment Schedule UI     |  (View/modify upcoming payments)
 +---------------------------+
 ```
 
 ---
 
-## Database Schema
+## Database Changes
 
-### New Tables
+### New Table: `payment_schedules`
 
-| Table | Purpose |
-|-------|---------|
-| `templates` | Master template storage with versioning |
-| `template_categories` | Organize templates by use case |
-| `template_versions` | Version history for audit compliance |
-| `template_usages` | Track where/when templates are used |
-
-### Templates Table Structure
+Master record tracking the payment schedule configuration for each service. Separates schedule metadata from individual transactions.
 
 ```text
-templates
-+----------------------+---------------+------------------------------------------+
-| Column               | Type          | Description                              |
-+----------------------+---------------+------------------------------------------+
-| id                   | uuid (PK)     | Primary key                              |
-| company_id           | uuid (FK)     | Company ownership                        |
-| name                 | text          | Template display name                    |
-| description          | text          | Usage description                        |
-| category_id          | uuid (FK)     | Category reference                       |
-| template_type        | enum          | email, sms, document                     |
-| subject              | text          | Email subject (nullable for SMS/doc)     |
-| content              | text          | Template body with merge tags            |
-| content_html         | text          | Rich HTML content (email/document)       |
-| merge_fields         | jsonb         | Available merge field definitions        |
-| conditional_clauses  | jsonb         | Conditional logic definitions            |
-| is_active            | boolean       | Enable/disable template                  |
-| is_system            | boolean       | System template (non-deletable)          |
-| language             | enum          | en, es (English, Spanish)                |
-| created_by           | uuid (FK)     | Creator staff reference                  |
-| created_at           | timestamptz   | Creation timestamp                       |
-| updated_at           | timestamptz   | Last modification                        |
-| current_version      | integer       | Current version number                   |
-+----------------------+---------------+------------------------------------------+
+payment_schedules
++-------------------------+---------------+-------------------------------------------+
+| Column                  | Type          | Description                               |
++-------------------------+---------------+-------------------------------------------+
+| id                      | uuid (PK)     | Primary key                               |
+| client_service_id       | uuid (FK)     | Links to client_services                  |
+| frequency               | enum          | monthly, semi_monthly, bi_weekly          |
+| draft_amount            | numeric       | Amount per draft                          |
+| processor_fee_amount    | numeric       | Fee per draft (default $10)               |
+| first_draft_date        | date          | First scheduled draft date                |
+| total_drafts            | integer       | Total number of drafts in schedule        |
+| drafts_generated        | integer       | Number of transactions created            |
+| last_generated_date     | date          | Last draft date generated                 |
+| status                  | enum          | active, paused, completed, cancelled      |
+| created_at              | timestamptz   | Creation timestamp                        |
+| updated_at              | timestamptz   | Last modification                         |
++-------------------------+---------------+-------------------------------------------+
 ```
 
-### Template Categories Table
+### New Enum: `payment_frequency_enum`
 
-```text
-template_categories
-+----------------------+---------------+------------------------------------------+
-| Column               | Type          | Description                              |
-+----------------------+---------------+------------------------------------------+
-| id                   | uuid (PK)     | Primary key                              |
-| company_id           | uuid (FK)     | Company ownership                        |
-| name                 | text          | Category name                            |
-| description          | text          | Category description                     |
-| template_type        | enum          | Filter by type (email, sms, document)    |
-| sort_order           | integer       | Display ordering                         |
-+----------------------+---------------+------------------------------------------+
+```sql
+CREATE TYPE payment_frequency_enum AS ENUM ('monthly', 'semi_monthly', 'bi_weekly');
 ```
 
-### Template Versions Table
+### New Enum: `schedule_status_enum`
 
-```text
-template_versions
-+----------------------+---------------+------------------------------------------+
-| Column               | Type          | Description                              |
-+----------------------+---------------+------------------------------------------+
-| id                   | uuid (PK)     | Primary key                              |
-| template_id          | uuid (FK)     | Parent template                          |
-| version_number       | integer       | Sequential version                       |
-| content              | text          | Snapshot of content                      |
-| content_html         | text          | Snapshot of HTML content                 |
-| subject              | text          | Snapshot of subject                      |
-| created_by           | uuid (FK)     | Who made the change                      |
-| created_at           | timestamptz   | Version creation time                    |
-| change_notes         | text          | Description of changes                   |
-+----------------------+---------------+------------------------------------------+
+```sql
+CREATE TYPE schedule_status_enum AS ENUM ('active', 'paused', 'completed', 'cancelled');
 ```
+
+### Transactions Table Updates
+
+The existing `transactions` table already has the necessary fields. No schema changes needed:
+- `scheduled_date` - When the transaction should process
+- `sequence_number` - Draft number (1, 2, 3, ...)
+- `description` - Human-readable description
+- `parent_transaction_id` - Links processor fees to their draft
 
 ---
 
-## Merge Field System
+## Payment Schedule Generation Logic
 
-### Standard Merge Fields by Entity
+### Frequency Calculations
 
-| Entity | Available Fields |
-|--------|-----------------|
-| **Lead** | `{lead.first_name}`, `{lead.last_name}`, `{lead.full_name}`, `{lead.email}`, `{lead.phone}`, `{lead.lead_number}`, `{lead.estimated_debt}`, `{lead.status}` |
-| **Client** | `{client.first_name}`, `{client.last_name}`, `{client.full_name}`, `{client.email}`, `{client.date_of_birth}`, `{client.primary_phone}`, `{client.primary_address}` |
-| **Service** | `{service.service_number}`, `{service.status}`, `{service.plan_type}`, `{service.enrolled_date}`, `{service.monthly_payment}`, `{service.escrow_balance}`, `{service.total_enrolled_debt}` |
-| **Liability** | `{liability.creditor_name}`, `{liability.account_number}`, `{liability.current_balance}`, `{liability.enrolled_balance}`, `{liability.status}` |
-| **Settlement** | `{settlement.offer_amount}`, `{settlement.savings_amount}`, `{settlement.savings_percentage}`, `{settlement.payment_schedule}` |
-| **Company** | `{company.name}`, `{company.phone}`, `{company.email}`, `{company.address}`, `{company.website}` |
-| **Staff** | `{staff.first_name}`, `{staff.last_name}`, `{staff.full_name}`, `{staff.email}`, `{staff.title}` |
-| **System** | `{today}`, `{current_date}`, `{current_time}`, `{current_year}` |
+| Frequency | Interval | Drafts per Year | Total Drafts Formula |
+|-----------|----------|-----------------|----------------------|
+| Monthly | 1 month | 12 | `term_months` |
+| Semi-Monthly | ~15 days | 24 | `term_months * 2` |
+| Bi-Weekly | 14 days | 26 | `Math.ceil(term_months * 26 / 12)` |
 
-### Conditional Clause Syntax
+### Generator Algorithm
 
-Support for conditional content blocks:
-
-```text
-{{#if service.status == 'active'}}
-Your program is currently active with a monthly payment of {service.monthly_payment}.
-{{else}}
-Please contact us to discuss your program status.
-{{/if}}
-
-{{#if liability.status == 'settled'}}
-Congratulations! This account has been settled.
-{{/if}}
-
-{{#each liabilities}}
-- {creditor_name}: {current_balance}
-{{/each}}
+```typescript
+function generateSchedule(params: {
+  clientServiceId: string;
+  firstDraftDate: Date;
+  frequency: PaymentFrequency;
+  termMonths: number;
+  draftAmount: number;
+  processorFeeAmount: number;
+}): Transaction[] {
+  const transactions: Transaction[] = [];
+  const totalDrafts = calculateTotalDrafts(frequency, termMonths);
+  
+  for (let i = 0; i < totalDrafts; i++) {
+    const draftDate = calculateDraftDate(firstDraftDate, frequency, i);
+    
+    // Create draft transaction
+    transactions.push({
+      client_service_id: clientServiceId,
+      transaction_type: 'draft',
+      amount: draftAmount,
+      scheduled_date: draftDate,
+      status: 'open',
+      sequence_number: i + 1,
+      description: `Draft ${i + 1} of ${totalDrafts}`,
+    });
+    
+    // Create processor fee (1 day after draft)
+    transactions.push({
+      client_service_id: clientServiceId,
+      transaction_type: 'processor_fee',
+      amount: processorFeeAmount,
+      scheduled_date: addDays(draftDate, 1),
+      status: 'open',
+      sequence_number: i + 1,
+      description: `Processor fee for draft ${i + 1}`,
+      parent_transaction_id: draftId, // Set after draft creation
+    });
+  }
+  
+  return transactions;
+}
 ```
 
 ---
 
 ## UI Components
 
-### 1. Template List Page
+### 1. Payment Schedule Panel
 
-**Location**: Settings → Templates (new tab)
-
-**Features**:
-- Grid/list view of all templates
-- Filter by type (Email, SMS, Document)
-- Filter by category
-- Search by name/content
-- Create, Edit, Duplicate, Archive actions
-- Preview functionality
-
-### 2. Template Editor Dialog
+**Location**: Service Detail Sheet → Payments section (new or enhanced)
 
 **Features**:
-- Template name and description fields
-- Type selector (Email, SMS, Document)
-- Category dropdown
-- Subject line input (for email)
-- Rich text editor (for email/document) OR plain text (for SMS)
-- Merge field palette with click-to-insert
-- Conditional clause builder
-- Preview with sample data
-- Version history sidebar
-- Save as draft / Publish
+- Schedule summary card showing frequency, draft amount, progress
+- List of upcoming drafts (next 6-12)
+- Full schedule modal/sheet with all transactions
+- Status indicators (on-time, upcoming, past due, cleared)
 
-### 3. Merge Field Palette
+### 2. Generate Schedule Button/Action
+
+**Trigger Points**:
+- Enrollment Wizard completion (auto-generate)
+- Service activation (when status changes to 'active')
+- Manual "Generate Schedule" button for pending services
+
+### 3. Schedule Modification Dialog
 
 **Features**:
-- Collapsible sections by entity
-- Search/filter fields
-- Click to insert at cursor
-- Tooltip showing field description
-- Preview of sample value
+- Change frequency (recalculates future drafts)
+- Change draft amount
+- Skip individual drafts (mark as cancelled)
+- Reschedule individual drafts
+- Pause/resume schedule
 
-### 4. Template Selector Component
+### 4. Payment Schedule Calendar View
 
-**Reusable component for other features**:
-- Dropdown/modal for selecting templates
-- Filter by type/category
-- Quick preview
-- Recently used section
+**Location**: Client detail → Payments tab enhancement
+
+**Features**:
+- Monthly calendar view showing draft dates
+- Color coding by status
+- Click to view/edit individual transaction
 
 ---
 
-## Workflow Integration
+## Hooks
 
-### New Workflow Action Types
+### `usePaymentSchedule`
 
-Add to existing workflow action types:
+```typescript
+// Fetch the payment schedule for a service
+function usePaymentSchedule(clientServiceId: string | undefined);
 
-```text
-send_email_template
-+------------------+----------------------------------------------+
-| Config Field     | Description                                  |
-+------------------+----------------------------------------------+
-| template_id      | Selected email template                      |
-| to               | Recipient: client_email, staff_email, custom |
-| cc               | Optional CC recipients                       |
-| bcc              | Optional BCC recipients                      |
-+------------------+----------------------------------------------+
+// Create a new payment schedule and generate transactions
+function useCreatePaymentSchedule();
 
-send_sms_template
-+------------------+----------------------------------------------+
-| Config Field     | Description                                  |
-+------------------+----------------------------------------------+
-| template_id      | Selected SMS template                        |
-| to               | Recipient: client_phone, custom              |
-+------------------+----------------------------------------------+
+// Update schedule configuration
+function useUpdatePaymentSchedule();
+
+// Pause/resume schedule
+function usePausePaymentSchedule();
+
+// Cancel remaining schedule
+function useCancelPaymentSchedule();
 ```
+
+### `useScheduleGenerator`
+
+```typescript
+// Generate transactions from schedule configuration
+function useScheduleGenerator();
+
+// Regenerate future transactions (after configuration change)
+function useRegenerateSchedule();
+```
+
+---
+
+## Integration Points
+
+### 1. Enrollment Wizard
+
+After service creation (step 7 in current flow), automatically:
+1. Create `payment_schedule` record
+2. Generate all draft + processor fee transactions
+3. Update service with first_draft_date confirmed
+
+### 2. Service Status Change
+
+When service transitions to `active`:
+- If no payment schedule exists, prompt to create one
+- If schedule exists but no transactions, generate them
+
+### 3. Escrow Projection
+
+The existing `useEscrowProjection` hook already consumes scheduled transactions. No changes needed - it will automatically include the generated drafts.
+
+### 4. Payment Status
+
+When transactions are processed:
+- Update service `payment_status` based on cleared/failed drafts
+- Track consecutive cleared drafts for "current" status
+- Flag missed drafts for "delinquent" status
 
 ---
 
 ## Edge Functions
 
-### 1. `render-template`
+### `generate-payment-schedule` (Optional)
 
-**Purpose**: Server-side template rendering with merge field substitution
+Server-side schedule generation for:
+- Batch processing during enrollment
+- Schedule regeneration after modifications
+- Ensuring consistent transaction creation
 
-**Input**:
-- `template_id` or inline template content
-- `entity_type` (lead, client, service, etc.)
-- `entity_id`
-- `additional_data` (optional custom fields)
-
-**Output**:
-- Rendered content (text and HTML)
-- Rendered subject (for email)
-- List of missing/invalid merge fields
-
-### 2. `send-templated-email`
-
-**Purpose**: Render and send email via Resend
-
-**Flow**:
-1. Fetch template
-2. Fetch entity data
-3. Render template
-4. Send via Resend API
-5. Log to client_communications
-6. Track in template_usages
-
-### 3. `send-templated-sms`
-
-**Purpose**: Render and send SMS via Twilio
-
-**Flow**:
-1. Fetch template
-2. Fetch entity data
-3. Render template (plain text, character limit validation)
-4. Send via Twilio API
-5. Log to client_communications
-6. Track in template_usages
+**Note**: Initial implementation can be client-side with `useCreateTransactionsBatch`. Edge function adds reliability for large schedules.
 
 ---
 
 ## Files to Create
 
 ### Database Migration
-- Creates `templates`, `template_categories`, `template_versions`, `template_usages` tables
-- Adds `template_type` enum (email, sms, document)
-- Creates RLS policies for company-scoped access
-- Seeds default categories
+- Create `payment_schedules` table
+- Create `payment_frequency_enum` and `schedule_status_enum`
+- Add RLS policies (company-scoped via client_services)
+- Add trigger to update `updated_at`
 
 ### Types
-- `src/types/templates.ts` - TypeScript type definitions
+- `src/types/paymentSchedule.ts` - TypeScript type definitions
 
 ### Hooks
-- `src/hooks/useTemplates.ts` - CRUD operations for templates
-- `src/hooks/useTemplateCategories.ts` - Category management
-- `src/hooks/useTemplateVersions.ts` - Version history queries
-- `src/hooks/useRenderTemplate.ts` - Template preview rendering
+- `src/hooks/usePaymentSchedule.ts` - CRUD + generator logic
 
 ### Components
-- `src/components/templates/TemplateList.tsx` - Main list view
-- `src/components/templates/TemplateFormDialog.tsx` - Create/edit dialog
-- `src/components/templates/TemplateEditor.tsx` - Rich editor component
-- `src/components/templates/MergeFieldPalette.tsx` - Field insertion palette
-- `src/components/templates/ConditionalBuilder.tsx` - Conditional clause UI
-- `src/components/templates/TemplatePreview.tsx` - Preview with sample data
-- `src/components/templates/TemplateSelector.tsx` - Reusable selector
-- `src/components/templates/VersionHistoryPanel.tsx` - Version sidebar
+- `src/components/payments/PaymentSchedulePanel.tsx` - Summary display
+- `src/components/payments/PaymentScheduleDialog.tsx` - Create/edit schedule
+- `src/components/payments/UpcomingDraftsList.tsx` - Next N drafts list
+- `src/components/payments/ScheduleModificationDialog.tsx` - Modify schedule
+- `src/components/payments/DraftCalendarView.tsx` - Calendar visualization (optional)
 
-### Settings Integration
-- `src/components/settings/TemplatesTab.tsx` - Settings page tab
-
-### Edge Functions
-- `supabase/functions/render-template/index.ts`
-- `supabase/functions/send-templated-email/index.ts`
-- `supabase/functions/send-templated-sms/index.ts`
-
-### Documentation
-- Update `src/lib/docs/schemaData.ts` with new tables
-- Update `src/lib/docs/roadmapData.ts` to mark as In Progress/Completed
+### Updates to Existing Files
+- `src/components/enrollment/EnrollmentWizard.tsx` - Generate schedule on completion
+- `src/components/services/ServiceDetailSheet.tsx` - Add schedule panel
+- `src/components/clients/detail/ClientPaymentsTab.tsx` - Integrate schedule view
 
 ---
 
 ## Implementation Phases
 
 ### Phase 1: Foundation (Database + Types)
-1. Create database tables and enums
+1. Create `payment_schedules` table and enums
 2. Add RLS policies
 3. Create TypeScript types
-4. Seed default categories
+4. Create schedule generation utility functions
 
-### Phase 2: Core UI (Template Management)
-1. Build TemplateList component
-2. Build TemplateFormDialog with basic fields
-3. Build TemplateEditor (plain text first)
-4. Implement useTemplates hook
+### Phase 2: Generator Logic
+1. Implement schedule calculation functions
+2. Create `usePaymentSchedule` hook with CRUD
+3. Create `useScheduleGenerator` hook
+4. Test transaction batch creation
 
-### Phase 3: Merge Fields
-1. Define merge field registry in code
-2. Build MergeFieldPalette component
-3. Implement field insertion logic
-4. Add render-template edge function
+### Phase 3: Enrollment Integration
+1. Update EnrollmentWizard to generate schedule on completion
+2. Add schedule summary to ReviewSubmitStep
+3. Verify escrow projection includes generated drafts
 
-### Phase 4: Rich Editing
-1. Add HTML editor for email/document templates
-2. Build conditional clause builder
-3. Add template preview functionality
-4. Implement version history
+### Phase 4: Service Detail UI
+1. Build PaymentSchedulePanel component
+2. Build UpcomingDraftsList component
+3. Integrate into ServiceDetailSheet
+4. Add generation button for services without schedules
 
-### Phase 5: Integration
-1. Add workflow action types (send_email_template, send_sms_template)
-2. Update ActionConfig component
-3. Build send-templated-email edge function
-4. Build send-templated-sms edge function
-5. Add template selector to relevant dialogs
+### Phase 5: Modification Features
+1. Build ScheduleModificationDialog
+2. Implement frequency change with regeneration
+3. Implement skip/reschedule individual drafts
+4. Add pause/resume functionality
 
 ### Phase 6: Polish
-1. Add duplicate template functionality
-2. Add import/export capability
-3. Add template usage analytics
-4. Update documentation
+1. Add calendar view (optional)
+2. Add bulk operations (skip multiple drafts)
+3. Update documentation/roadmap
+4. Testing and edge cases
 
 ---
 
-## Dependencies
+## Frequency Date Calculations
 
-**Required Integrations** (from roadmap):
-- `resend` - For email delivery (Planned status)
-- `twilio` - For SMS delivery (Planned status)
+### Monthly
+```typescript
+addMonths(firstDraftDate, draftIndex)
+```
 
-**Note**: Phase 5 email/SMS sending requires these integrations to be implemented first. Template management (Phases 1-4) can proceed independently.
+### Semi-Monthly (1st and 15th style)
+```typescript
+// Draft on same day each half-month
+const baseMonth = addMonths(firstDraftDate, Math.floor(draftIndex / 2));
+if (draftIndex % 2 === 0) {
+  return startOfMonth(baseMonth).setDate(firstDraftDate.getDate());
+} else {
+  return startOfMonth(baseMonth).setDate(15 + (firstDraftDate.getDate() - 1));
+}
+```
+
+### Bi-Weekly
+```typescript
+addWeeks(firstDraftDate, draftIndex * 2)
+```
 
 ---
 
-## Character Limits and Validation
+## Schedule Status Logic
 
-| Template Type | Limits |
-|---------------|--------|
-| SMS | 1600 characters max (10 message segments) |
-| Email Subject | 150 characters recommended |
-| Email Body | No hard limit |
-| Document | No hard limit |
+| Status | Description | Triggers |
+|--------|-------------|----------|
+| `active` | Normal operation | Default on creation |
+| `paused` | Temporarily stopped | Manual action, payment issues |
+| `completed` | All drafts processed | Last draft cleared |
+| `cancelled` | Terminated early | Service dropped, manual action |
 
 ---
 
-## Default Template Categories
+## Validation Rules
 
-| Category | Type | Description |
-|----------|------|-------------|
-| Welcome | Email | New client onboarding |
-| Reminders | Email, SMS | Payment and appointment reminders |
-| Status Updates | Email, SMS | Service/liability status changes |
-| Settlement | Email, Document | Settlement notifications and letters |
-| Legal | Document | Legal documents and disclosures |
-| Retention | Email, SMS | Client retention outreach |
-| Collections | Email, SMS | Payment collection notices |
-| General | All | Uncategorized templates |
+1. **First draft date**: Must be in the future, within 30 days of enrollment
+2. **Draft amount**: Must be >= $350 (minimum)
+3. **Term months**: 18-48 standard, up to 54 for GLG Exception plans
+4. **No duplicate schedules**: One active schedule per service
+
+---
+
+## Sample Generated Schedule
+
+For a 24-month program starting March 15, 2026 with monthly frequency:
+
+| Seq | Type | Amount | Scheduled Date | Description |
+|-----|------|--------|----------------|-------------|
+| 1 | draft | $450.00 | 2026-03-15 | Draft 1 of 24 |
+| 1 | processor_fee | $10.00 | 2026-03-16 | Processor fee for draft 1 |
+| 2 | draft | $450.00 | 2026-04-15 | Draft 2 of 24 |
+| 2 | processor_fee | $10.00 | 2026-04-16 | Processor fee for draft 2 |
+| ... | ... | ... | ... | ... |
+| 24 | draft | $450.00 | 2028-02-15 | Draft 24 of 24 |
+| 24 | processor_fee | $10.00 | 2028-02-16 | Processor fee for draft 24 |
+
+**Total transactions created**: 48 (24 drafts + 24 fees)
 
 ---
 
 ## Success Criteria
 
-1. Staff can create email, SMS, and document templates with merge fields
-2. Templates support conditional content based on entity data
-3. Templates are versioned with full history
-4. Templates can be previewed with sample or real data
-5. Workflow automation can trigger templated communications
-6. Usage is tracked for analytics and compliance
-7. Templates are organized by type and category
+1. Services can have automatically generated payment schedules
+2. All draft + processor fee transactions are created for the full term
+3. Schedules support monthly, semi-monthly, and bi-weekly frequencies
+4. Users can view upcoming drafts in service detail
+5. Schedules integrate with existing escrow projection
+6. Individual drafts can be skipped or rescheduled
+7. Schedule can be paused/resumed
+8. Enrollment wizard auto-generates schedule on completion
 
