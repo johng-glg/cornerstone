@@ -13,6 +13,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { AttorneyDashboard } from '@/components/dashboards/AttorneyDashboard';
+import { CaseManagerDashboard } from '@/components/dashboards/CaseManagerDashboard';
 
 // Stats cards data - will be replaced with real data
 const statsCards = [
@@ -67,27 +69,22 @@ const urgentTasks = [
 ];
 
 export default function Dashboard() {
-  const { staff, roles } = useAuth();
+  const { staff, roles, hasRole } = useAuth();
 
-  const getDepartmentGreeting = () => {
-    if (!staff) return 'Welcome';
-    
-    const department = staff.department;
-    switch (department) {
-      case 'sales_intake':
-        return 'Sales Dashboard';
-      case 'negotiations':
-        return 'Negotiator Dashboard';
-      case 'attorney':
-        return 'Attorney Dashboard';
-      case 'client_services':
-        return 'Client Services Dashboard';
-      case 'admin':
-        return 'Admin Dashboard';
-      default:
-        return 'Dashboard';
-    }
-  };
+  // Determine which dashboard to show based on department/role
+  const isAttorney = staff?.department === 'attorney' || hasRole('attorney');
+  const isCaseManager = staff?.department === 'client_services' || hasRole('case_manager');
+
+  // Show role-specific dashboards
+  if (isAttorney) {
+    return <AttorneyDashboard />;
+  }
+
+  if (isCaseManager) {
+    return <CaseManagerDashboard />;
+  }
+
+  // Default dashboard for other roles
 
   return (
     <div className="space-y-6">
