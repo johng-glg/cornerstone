@@ -916,6 +916,205 @@ export const FEATURE_GUIDES: FeatureGuide[] = [
       },
     ],
   },
+  {
+    id: 'lead-assignment',
+    title: 'Lead Assignment Engine',
+    category: 'admin',
+    description: 'Automated lead assignment based on configurable rules, pools, and distribution methods.',
+    sections: [
+      {
+        title: 'Overview',
+        content: 'The Lead Assignment Engine automatically distributes incoming leads to sales representatives based on configurable rules. Supports multiple assignment methods and tracks assignment history for analytics.',
+      },
+      {
+        title: 'Assignment Methods',
+        content: 'Choose from four distribution methods:',
+        steps: [
+          'Round Robin - Distributes leads evenly in rotation order',
+          'Weighted - Assigns based on rep skill weights (higher weight = more leads)',
+          'Load Balanced - Prioritizes reps with fewer active leads',
+          'Skillset Match - Matches leads to reps based on skills (debt type, source, etc.)',
+        ],
+        tips: [
+          'Round Robin is simplest and ensures even distribution',
+          'Use Weighted for senior reps who can handle more volume',
+          'Load Balanced prevents any rep from being overwhelmed',
+          'Skillset Match is ideal for specialized teams',
+        ],
+      },
+      {
+        title: 'Creating Assignment Rules',
+        content: 'Configure rules in Settings > Assignment.',
+        steps: [
+          'Navigate to Settings > Assignment',
+          'Click "New Assignment Rule"',
+          'Enter a rule name and description',
+          'Select the assignment method',
+          'Optionally filter by lead source or interest type',
+          'Optionally set debt amount thresholds',
+          'Set rule priority (higher runs first)',
+          'Save the rule',
+        ],
+      },
+      {
+        title: 'Managing the Assignment Pool',
+        content: 'Add staff members to each rule\'s assignment pool.',
+        steps: [
+          'Open an assignment rule',
+          'Click "Manage Pool" or expand the pool section',
+          'Add staff members to the pool',
+          'Set weight (for weighted distribution)',
+          'Set max active leads (optional capacity limit)',
+          'Configure skills for skillset matching',
+          'Toggle availability on/off as needed',
+        ],
+        warnings: [
+          'Staff must be in the pool to receive leads',
+          'Unavailable reps are skipped during assignment',
+          'Max leads setting prevents overload',
+        ],
+      },
+      {
+        title: 'Availability Toggle',
+        content: 'Sales reps can control their availability from their dashboard.',
+        steps: [
+          'Reps see availability toggle on their dashboard',
+          'Toggle off when unavailable (lunch, meetings, etc.)',
+          'System skips unavailable reps during assignment',
+          'Toggle back on to resume receiving leads',
+        ],
+      },
+      {
+        title: 'Assignment Queue',
+        content: 'The queue handles leads when no reps are available.',
+        steps: [
+          'Leads enter queue when all pool members are unavailable or at capacity',
+          'Queue shows pending leads with timestamps',
+          'Process queue manually or wait for automatic processing',
+          'Leads are assigned as reps become available',
+        ],
+      },
+      {
+        title: 'Assignment History',
+        content: 'Track all assignment actions for auditing.',
+        steps: [
+          'View assignment log from lead detail sheet',
+          'See who assigned, method used, and timestamp',
+          'Track reassignments and reasons',
+          'Use for performance analytics',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'workflows',
+    title: 'Workflow Automation',
+    category: 'admin',
+    description: 'Create automated workflows with triggers, conditions, and actions. Control status transitions with blocking rules.',
+    sections: [
+      {
+        title: 'Overview',
+        content: 'The Workflow Automation Builder allows administrators to create rules that automatically execute actions when specific events occur. A key feature is the ability to block status transitions until conditions are met.',
+      },
+      {
+        title: 'Workflow Components',
+        content: 'Each workflow has three main parts:',
+        steps: [
+          'Trigger (WHEN) - The event that initiates the workflow',
+          'Conditions (IF) - Criteria that must be met for actions to execute',
+          'Actions (THEN) - What happens when conditions pass',
+        ],
+      },
+      {
+        title: 'Trigger Types',
+        content: 'Choose what event triggers the workflow:',
+        steps: [
+          'Status Changed - When entity status changes (e.g., service goes to Active)',
+          'Field Updated - When a specific field is modified',
+          'Record Created - When a new record is inserted',
+          'Time Based - Scheduled or relative to dates (future enhancement)',
+          'Manual - Triggered by user action (future enhancement)',
+        ],
+        tips: [
+          'Status Changed is most common for transition gates',
+          'Narrow triggers with From/To status filters',
+        ],
+      },
+      {
+        title: 'Condition Builder',
+        content: 'Define when the workflow should execute.',
+        steps: [
+          'Add condition groups (OR logic between groups)',
+          'Add conditions within groups (AND logic within)',
+          'Choose field to evaluate (status, balance, etc.)',
+          'Select operator (equals, greater than, contains, etc.)',
+          'Enter comparison value',
+          'Use Related Records for cross-entity checks',
+        ],
+        tips: [
+          'Empty conditions = always execute on trigger',
+          'Use "All Match" for related records to check all meet criteria',
+          'Common use: Check if all liabilities are settled before graduation',
+        ],
+      },
+      {
+        title: 'Action Types',
+        content: 'Configure what happens when conditions are met:',
+        steps: [
+          'Create Task - Auto-generate a task with custom title, priority, due date',
+          'Send Notification - Alert the entity owner or specific user',
+          'Update Field - Modify a field value on the entity',
+          'Block Transition - Prevent the status change (for blocking rules)',
+          'Trigger Webhook - Call an external URL (for integrations)',
+        ],
+      },
+      {
+        title: 'Blocking Rules',
+        content: 'Prevent status changes until conditions are met.',
+        steps: [
+          'Enable "Blocking Rule" in workflow settings',
+          'Set trigger to Status Changed',
+          'Define conditions that must be TRUE to block',
+          'Add Block Transition action with user-facing message',
+          'When conditions match, the status change is prevented',
+          'User sees the block message explaining why',
+        ],
+        warnings: [
+          'Blocking rules must have conditions - empty conditions block all transitions',
+          'Test blocking rules carefully before activating',
+          'Users cannot override blocked transitions',
+        ],
+      },
+      {
+        title: 'Common Workflow Examples',
+        content: 'Typical workflow patterns:',
+        steps: [
+          'Service Graduation Gate - Block graduation unless all liabilities are settled/dismissed',
+          'Lead Follow-up Task - Create task 24 hours after new lead is created',
+          'Litigation Response Alert - Notify when response deadline is within 7 days',
+          'NSF Retention Alert - Notify retention team when payment status goes to NSF',
+          'Settlement Approval - Require manager approval for settlements over $10k',
+        ],
+      },
+      {
+        title: 'Managing Workflows',
+        content: 'Administer workflow rules from Settings.',
+        steps: [
+          'Navigate to Settings > Workflows',
+          'View all active and inactive rules',
+          'Toggle rules on/off without deleting',
+          'Edit rules to adjust triggers, conditions, or actions',
+          'Set priority to control execution order',
+          'Delete rules that are no longer needed',
+        ],
+        tips: [
+          'Higher priority rules run first',
+          'If a blocking rule blocks, subsequent rules don\'t run',
+          'Execution history is logged for debugging',
+        ],
+      },
+    ],
+  },
 ];
 
 export function getGuideById(id: string): FeatureGuide | undefined {

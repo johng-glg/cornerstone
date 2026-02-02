@@ -421,6 +421,154 @@ export const DATABASE_SCHEMAS: TableSchema[] = [
       'company_id -> companies.id',
     ],
   },
+  {
+    name: 'lead_assignment_rules',
+    description: 'Configurable rules for automatic lead distribution. Supports multiple assignment methods and filtering criteria.',
+    columns: [
+      { name: 'id', type: 'uuid', nullable: false, default: 'gen_random_uuid()', description: 'Primary key' },
+      { name: 'company_id', type: 'uuid', nullable: false, description: 'Company that owns this rule' },
+      { name: 'name', type: 'text', nullable: false, description: 'Rule name' },
+      { name: 'description', type: 'text', nullable: true, description: 'Rule description' },
+      { name: 'method', type: 'assignment_method', nullable: false, default: 'round_robin', description: 'Distribution method: round_robin, weighted, load_balanced, skillset_match' },
+      { name: 'source', type: 'lead_source', nullable: true, description: 'Only apply to specific lead source' },
+      { name: 'interest_type', type: 'lead_interest', nullable: true, description: 'Only apply to specific interest type' },
+      { name: 'min_debt_amount', type: 'numeric', nullable: true, description: 'Minimum debt threshold' },
+      { name: 'max_debt_amount', type: 'numeric', nullable: true, description: 'Maximum debt threshold' },
+      { name: 'priority', type: 'integer', nullable: false, default: '0', description: 'Rule priority (higher runs first)' },
+      { name: 'is_default', type: 'boolean', nullable: false, default: 'false', description: 'Default rule for company' },
+      { name: 'is_active', type: 'boolean', nullable: false, default: 'true', description: 'Rule is active' },
+      { name: 'config', type: 'jsonb', nullable: false, default: '{}', description: 'Additional configuration options' },
+    ],
+    rlsPolicies: [
+      'Users can view company assignment rules - SELECT using company_id = get_user_company_id(auth.uid())',
+      'Users can manage company assignment rules - ALL using company_id = get_user_company_id(auth.uid())',
+    ],
+    relationships: [
+      'company_id -> companies.id',
+    ],
+  },
+  {
+    name: 'lead_assignment_pool',
+    description: 'Staff members available for lead assignment under specific rules. Tracks capacity and availability.',
+    columns: [
+      { name: 'id', type: 'uuid', nullable: false, default: 'gen_random_uuid()', description: 'Primary key' },
+      { name: 'rule_id', type: 'uuid', nullable: false, description: 'Parent assignment rule' },
+      { name: 'staff_id', type: 'uuid', nullable: false, description: 'Staff member in pool' },
+      { name: 'weight', type: 'integer', nullable: false, default: '1', description: 'Weight for weighted distribution' },
+      { name: 'max_active_leads', type: 'integer', nullable: true, description: 'Maximum concurrent leads (null = unlimited)' },
+      { name: 'is_available', type: 'boolean', nullable: false, default: 'true', description: 'Currently available for assignments' },
+      { name: 'skills', type: 'jsonb', nullable: true, description: 'Skills for skillset matching' },
+      { name: 'assignment_count', type: 'integer', nullable: false, default: '0', description: 'Total assignments received' },
+      { name: 'last_assigned_at', type: 'timestamptz', nullable: true, description: 'Last assignment timestamp' },
+    ],
+    rlsPolicies: [
+      'Users can access assignment pool - ALL using EXISTS (SELECT 1 FROM lead_assignment_rules r WHERE r.id = rule_id AND r.company_id = get_user_company_id(auth.uid()))',
+    ],
+    relationships: [
+      'rule_id -> lead_assignment_rules.id',
+      'staff_id -> staff.id',
+    ],
+  },
+  {
+    name: 'lead_assignment_queue',
+    description: 'Queue for leads awaiting assignment when no pool members are available.',
+    columns: [
+      { name: 'id', type: 'uuid', nullable: false, default: 'gen_random_uuid()', description: 'Primary key' },
+      { name: 'lead_id', type: 'uuid', nullable: false, description: 'Lead awaiting assignment' },
+      { name: 'rule_id', type: 'uuid', nullable: true, description: 'Matched assignment rule' },
+      { name: 'priority', type: 'integer', nullable: false, default: '0', description: 'Queue priority' },
+      { name: 'status', type: 'queue_status', nullable: false, default: 'pending', description: 'Queue item status' },
+      { name: 'queued_at', type: 'timestamptz', nullable: false, default: 'now()', description: 'When added to queue' },
+      { name: 'assigned_at', type: 'timestamptz', nullable: true, description: 'When assigned' },
+      { name: 'assigned_to', type: 'uuid', nullable: true, description: 'Assigned staff member' },
+      { name: 'attempt_count', type: 'integer', nullable: false, default: '0', description: 'Assignment attempts' },
+    ],
+    rlsPolicies: [
+      'Users can view assignment queue - SELECT using EXISTS (SELECT 1 FROM leads l WHERE l.id = lead_id AND l.company_id = get_user_company_id(auth.uid()))',
+    ],
+    relationships: [
+      'lead_id -> leads.id',
+      'rule_id -> lead_assignment_rules.id',
+      'assigned_to -> staff.id',
+    ],
+  },
+  {
+    name: 'lead_assignment_log',
+    description: 'Audit log of all lead assignment actions for tracking and analytics.',
+    columns: [
+      { name: 'id', type: 'uuid', nullable: false, default: 'gen_random_uuid()', description: 'Primary key' },
+      { name: 'lead_id', type: 'uuid', nullable: false, description: 'Lead that was assigned' },
+      { name: 'action', type: 'assignment_action', nullable: false, description: 'Action type: assigned, reassigned, unassigned' },
+      { name: 'from_staff_id', type: 'uuid', nullable: true, description: 'Previous assignee (for reassignment)' },
+      { name: 'to_staff_id', type: 'uuid', nullable: true, description: 'New assignee' },
+      { name: 'method', type: 'assignment_method', nullable: true, description: 'Assignment method used' },
+      { name: 'rule_id', type: 'uuid', nullable: true, description: 'Rule that triggered assignment' },
+      { name: 'reason', type: 'text', nullable: true, description: 'Reason for assignment/reassignment' },
+      { name: 'performed_by', type: 'uuid', nullable: true, description: 'Staff who performed action' },
+      { name: 'created_at', type: 'timestamptz', nullable: false, default: 'now()', description: 'Action timestamp' },
+    ],
+    rlsPolicies: [
+      'Users can view assignment log - SELECT using EXISTS (SELECT 1 FROM leads l WHERE l.id = lead_id AND l.company_id = get_user_company_id(auth.uid()))',
+    ],
+    relationships: [
+      'lead_id -> leads.id',
+      'from_staff_id -> staff.id',
+      'to_staff_id -> staff.id',
+      'rule_id -> lead_assignment_rules.id',
+      'performed_by -> staff.id',
+    ],
+  },
+  {
+    name: 'workflow_rules',
+    description: 'Configurable workflow automation rules with triggers, conditions, and actions. Supports blocking rules for status transitions.',
+    columns: [
+      { name: 'id', type: 'uuid', nullable: false, default: 'gen_random_uuid()', description: 'Primary key' },
+      { name: 'company_id', type: 'uuid', nullable: false, description: 'Company that owns this rule' },
+      { name: 'name', type: 'text', nullable: false, description: 'Workflow rule name' },
+      { name: 'description', type: 'text', nullable: true, description: 'Rule description' },
+      { name: 'entity_type', type: 'workflow_entity_type', nullable: false, description: 'Entity this rule applies to' },
+      { name: 'trigger_type', type: 'workflow_trigger_type', nullable: false, description: 'Event that triggers the rule' },
+      { name: 'trigger_config', type: 'jsonb', nullable: false, default: '{}', description: 'Trigger configuration (from/to statuses, field name, etc.)' },
+      { name: 'conditions', type: 'jsonb', nullable: false, default: '[]', description: 'Condition groups with AND/OR logic' },
+      { name: 'actions', type: 'jsonb', nullable: false, default: '[]', description: 'Actions to execute when conditions pass' },
+      { name: 'is_active', type: 'boolean', nullable: false, default: 'true', description: 'Rule is active' },
+      { name: 'is_blocking', type: 'boolean', nullable: false, default: 'false', description: 'Rule can block status transitions' },
+      { name: 'priority', type: 'integer', nullable: false, default: '0', description: 'Execution priority (higher runs first)' },
+      { name: 'created_by', type: 'uuid', nullable: true, description: 'Staff who created the rule' },
+    ],
+    rlsPolicies: [
+      'Users can view company workflow rules - SELECT using company_id = get_user_company_id(auth.uid())',
+      'Users can manage company workflow rules - ALL using company_id = get_user_company_id(auth.uid())',
+    ],
+    relationships: [
+      'company_id -> companies.id',
+      'created_by -> staff.id',
+    ],
+  },
+  {
+    name: 'workflow_executions',
+    description: 'Audit log of workflow rule executions. Tracks trigger data, condition results, and action outcomes.',
+    columns: [
+      { name: 'id', type: 'uuid', nullable: false, default: 'gen_random_uuid()', description: 'Primary key' },
+      { name: 'rule_id', type: 'uuid', nullable: false, description: 'Workflow rule that executed' },
+      { name: 'entity_type', type: 'workflow_entity_type', nullable: false, description: 'Entity type that triggered execution' },
+      { name: 'entity_id', type: 'uuid', nullable: false, description: 'Entity that triggered execution' },
+      { name: 'status', type: 'workflow_execution_status', nullable: false, description: 'Execution result: success, blocked, failed, skipped' },
+      { name: 'trigger_data', type: 'jsonb', nullable: true, description: 'Data that triggered the workflow' },
+      { name: 'condition_results', type: 'jsonb', nullable: true, description: 'Which conditions passed/failed' },
+      { name: 'actions_executed', type: 'jsonb', nullable: true, description: 'Results of executed actions' },
+      { name: 'error_message', type: 'text', nullable: true, description: 'Error message if failed' },
+      { name: 'block_message', type: 'text', nullable: true, description: 'User-facing message if blocked' },
+      { name: 'duration_ms', type: 'integer', nullable: true, description: 'Execution time in milliseconds' },
+      { name: 'executed_at', type: 'timestamptz', nullable: false, default: 'now()', description: 'Execution timestamp' },
+    ],
+    rlsPolicies: [
+      'Staff can view workflow executions - SELECT using EXISTS (SELECT 1 FROM workflow_rules r WHERE r.id = rule_id AND r.company_id = get_user_company_id(auth.uid()))',
+    ],
+    relationships: [
+      'rule_id -> workflow_rules.id',
+    ],
+  },
 ];
 
 export const ENUM_DEFINITIONS = [
@@ -489,6 +637,41 @@ export const ENUM_DEFINITIONS = [
     values: ['task_assigned', 'task_due_soon', 'task_overdue', 'lead_assigned', 'matter_assigned', 'hearing_reminder', 'settlement_update', 'mention', 'system_alert'],
     description: 'Types of system notifications',
   },
+  {
+    name: 'assignment_method',
+    values: ['round_robin', 'weighted', 'load_balanced', 'skillset_match'],
+    description: 'Methods for distributing leads to staff',
+  },
+  {
+    name: 'assignment_action',
+    values: ['assigned', 'reassigned', 'unassigned'],
+    description: 'Types of assignment log actions',
+  },
+  {
+    name: 'queue_status',
+    values: ['pending', 'processing', 'assigned', 'failed', 'expired'],
+    description: 'Assignment queue item states',
+  },
+  {
+    name: 'workflow_trigger_type',
+    values: ['status_changed', 'field_updated', 'record_created', 'time_based', 'manual'],
+    description: 'Events that can trigger workflow rules',
+  },
+  {
+    name: 'workflow_entity_type',
+    values: ['leads', 'client_services', 'liabilities', 'litigation_matters', 'tasks', 'settlements'],
+    description: 'Entities that workflow rules can apply to',
+  },
+  {
+    name: 'workflow_action_type',
+    values: ['create_task', 'send_notification', 'update_field', 'block_transition', 'trigger_webhook'],
+    description: 'Actions that workflows can execute',
+  },
+  {
+    name: 'workflow_execution_status',
+    values: ['success', 'blocked', 'failed', 'skipped'],
+    description: 'Outcomes of workflow rule execution',
+  },
 ];
 
 export const DATABASE_FUNCTIONS = [
@@ -556,6 +739,30 @@ export const DATABASE_FUNCTIONS = [
     name: 'trigger_calculate_lead_score',
     signature: 'trigger_calculate_lead_score() RETURNS trigger',
     description: 'Trigger function that auto-calculates lead score on insert or update of scoring-relevant fields.',
+    securityDefiner: true,
+  },
+  {
+    name: 'assign_lead',
+    signature: 'assign_lead(_lead_id uuid, _rule_id uuid) RETURNS TABLE(assigned_to uuid, assignment_method text, reason text)',
+    description: 'Assigns a lead to a staff member based on assignment rule configuration. Supports round_robin, weighted, load_balanced, and skillset_match methods.',
+    securityDefiner: true,
+  },
+  {
+    name: 'process_assignment_queue',
+    signature: 'process_assignment_queue() RETURNS TABLE(lead_id uuid, assigned_to uuid, status text)',
+    description: 'Processes pending leads in the assignment queue. Called periodically to assign queued leads.',
+    securityDefiner: true,
+  },
+  {
+    name: 'validate_status_transition',
+    signature: 'validate_status_transition(_entity_type workflow_entity_type, _entity_id uuid, _from_status text, _to_status text) RETURNS TABLE(allowed boolean, block_message text, rule_name text)',
+    description: 'Validates whether a status transition is allowed based on workflow rules. Returns blocking message if transition is prevented.',
+    securityDefiner: true,
+  },
+  {
+    name: 'evaluate_workflow_conditions',
+    signature: 'evaluate_workflow_conditions(_conditions jsonb, _entity_type workflow_entity_type, _entity_id uuid) RETURNS boolean',
+    description: 'Evaluates workflow conditions against an entity. Supports field comparisons and related entity checks.',
     securityDefiner: true,
   },
 ];
