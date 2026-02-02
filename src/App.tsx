@@ -33,6 +33,9 @@ import RoleGuidePage from "./pages/docs/RoleGuidePage";
 import FeatureGuidePage from "./pages/docs/FeatureGuidePage";
 import RLSPoliciesPage from "./pages/docs/RLSPoliciesPage";
 import PermissionsPage from "./pages/docs/PermissionsPage";
+import FutureBuildPage from "./pages/docs/FutureBuildPage";
+import IntegrationsPage from "./pages/docs/IntegrationsPage";
+import SecurityPage from "./pages/docs/SecurityPage";
 
 const queryClient = new QueryClient();
 
@@ -59,6 +62,9 @@ const App = () => (
               <Route path="features/:feature" element={<FeatureGuidePage />} />
               <Route path="rls-policies" element={<RLSPoliciesPage />} />
               <Route path="permissions" element={<PermissionsPage />} />
+              <Route path="future-builds" element={<FutureBuildPage />} />
+              <Route path="integrations" element={<IntegrationsPage />} />
+              <Route path="security-concerns" element={<SecurityPage />} />
             </Route>
             
             {/* Protected routes with layout */}

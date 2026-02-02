@@ -8,7 +8,10 @@ import {
   FileText,
   Settings,
   ChevronRight,
-  Home
+  Home,
+  Rocket,
+  Plug,
+  AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -137,6 +140,28 @@ export function DocsSidebar({ className }: DocsSidebarProps) {
               <NavLink to="/docs/permissions" className={linkClass('/docs/permissions')}>
                 <ChevronRight className="h-3 w-3" />
                 Permissions Matrix
+              </NavLink>
+            </nav>
+          </div>
+
+          {/* Roadmap */}
+          <div className={sectionClass}>
+            <div className={sectionTitleClass}>
+              <Rocket className="h-4 w-4" />
+              Roadmap
+            </div>
+            <nav className="space-y-1 mt-2">
+              <NavLink to="/docs/future-builds" className={linkClass('/docs/future-builds')}>
+                <ChevronRight className="h-3 w-3" />
+                Future Builds
+              </NavLink>
+              <NavLink to="/docs/integrations" className={linkClass('/docs/integrations')}>
+                <Plug className="h-3 w-3" />
+                Integrations
+              </NavLink>
+              <NavLink to="/docs/security-concerns" className={linkClass('/docs/security-concerns')}>
+                <AlertTriangle className="h-3 w-3" />
+                Security Concerns
               </NavLink>
             </nav>
           </div>
