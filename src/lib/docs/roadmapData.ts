@@ -115,10 +115,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Litigation',
     priority: 'High',
     description: 'Automated reminders for response deadlines and hearings with configurable timing.',
-    difficulty: 3,
-    benefit: 5,
-    status: 'Planned',
-    notes: 'Create deadline_reminders table. Build cron Edge Function to process and send reminders.',
+    status: 'Completed',
+    notes: 'Implemented with deadline_reminders and reminder_settings tables. Edge Function process-deadline-reminders runs hourly via pg_cron. Configurable reminder intervals (7, 3, 1 day) for response deadlines and hearings. Settings UI available at Settings → Reminders.',
   },
   
   // Payments

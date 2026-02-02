@@ -784,6 +784,14 @@ export const EDGE_FUNCTIONS = [
     ],
     outputs: 'Created user and staff record',
   },
+  {
+    name: 'process-deadline-reminders',
+    path: 'supabase/functions/process-deadline-reminders',
+    description: 'Processes pending deadline reminders and creates notifications. Runs hourly via pg_cron.',
+    authentication: 'Service role (scheduled execution)',
+    inputs: [],
+    outputs: 'JSON with processed count, sent, failed stats',
+  },
 ];
 
 export const STORAGE_BUCKETS = [

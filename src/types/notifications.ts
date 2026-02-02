@@ -5,6 +5,7 @@ export type NotificationType =
   | 'lead_assigned'
   | 'matter_assigned'
   | 'hearing_reminder'
+  | 'response_deadline_reminder'
   | 'settlement_update'
   | 'mention'
   | 'system_alert';
@@ -41,6 +42,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   lead_assigned: 'Lead Assignments',
   matter_assigned: 'Matter Assignments',
   hearing_reminder: 'Hearing Reminders',
+  response_deadline_reminder: 'Response Deadline Reminders',
   settlement_update: 'Settlement Updates',
   mention: 'Mentions',
   system_alert: 'System Alerts',
@@ -53,6 +55,7 @@ export const ALL_NOTIFICATION_TYPES: NotificationType[] = [
   'lead_assigned',
   'matter_assigned',
   'hearing_reminder',
+  'response_deadline_reminder',
   'settlement_update',
   'mention',
   'system_alert',
