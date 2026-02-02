@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.reset-staff-password]
 verify_jwt = false
+
+[functions.process-deadline-reminders]
+verify_jwt = false
+
+[functions.render-template]
+verify_jwt = false
