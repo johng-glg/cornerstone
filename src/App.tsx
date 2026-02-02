@@ -22,6 +22,17 @@ import CompaniesPage from "./pages/Companies";
 import StaffPage from "./pages/Staff";
 import SettingsPage from "./pages/Settings";
 import ReportsPage from "./pages/Reports";
+import { DocsLayout } from "./components/docs/DocsLayout";
+import DocsOverview from "./pages/docs/DocsOverview";
+import SchemaPage from "./pages/docs/SchemaPage";
+import EnumsPage from "./pages/docs/EnumsPage";
+import FunctionsPage from "./pages/docs/FunctionsPage";
+import EdgeFunctionsPage from "./pages/docs/EdgeFunctionsPage";
+import StoragePage from "./pages/docs/StoragePage";
+import RoleGuidePage from "./pages/docs/RoleGuidePage";
+import FeatureGuidePage from "./pages/docs/FeatureGuidePage";
+import RLSPoliciesPage from "./pages/docs/RLSPoliciesPage";
+import PermissionsPage from "./pages/docs/PermissionsPage";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +46,20 @@ const App = () => (
           <Routes>
             {/* Public routes */}
             <Route path="/auth" element={<Auth />} />
+            
+            {/* Documentation routes */}
+            <Route path="/docs" element={<DocsLayout />}>
+              <Route index element={<DocsOverview />} />
+              <Route path="schema" element={<SchemaPage />} />
+              <Route path="enums" element={<EnumsPage />} />
+              <Route path="functions" element={<FunctionsPage />} />
+              <Route path="edge-functions" element={<EdgeFunctionsPage />} />
+              <Route path="storage" element={<StoragePage />} />
+              <Route path="roles/:role" element={<RoleGuidePage />} />
+              <Route path="features/:feature" element={<FeatureGuidePage />} />
+              <Route path="rls-policies" element={<RLSPoliciesPage />} />
+              <Route path="permissions" element={<PermissionsPage />} />
+            </Route>
             
             {/* Protected routes with layout */}
             <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />

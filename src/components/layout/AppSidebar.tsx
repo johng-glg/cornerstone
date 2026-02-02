@@ -10,7 +10,8 @@ import {
   Settings,
   CreditCard,
   Scale,
-  Landmark
+  Landmark,
+  BookOpen
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/lib/auth';
@@ -45,6 +46,7 @@ const adminNavItems = [
   { title: 'Staff', url: '/staff', icon: Users },
   { title: 'Payments', url: '/payments', icon: CreditCard },
   { title: 'Settings', url: '/settings', icon: Settings },
+  { title: 'Documentation', url: '/docs', icon: BookOpen },
 ];
 
 export function AppSidebar() {
