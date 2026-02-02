@@ -2,6 +2,7 @@ import { useAuth } from '@/lib/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   UserPlus, 
   Briefcase, 
@@ -10,11 +11,17 @@ import {
   TrendingUp,
   Clock,
   AlertCircle,
-  ArrowRight
+  ArrowRight,
+  FileText,
+  Calendar,
+  MessageSquare,
+  Gavel
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AttorneyDashboard } from '@/components/dashboards/AttorneyDashboard';
 import { CaseManagerDashboard } from '@/components/dashboards/CaseManagerDashboard';
+import { useUserUrgentTasks, useUserRecentActivity, useUserDashboardStats } from '@/hooks/useUserDashboard';
+import { format, formatDistanceToNow, isToday, isTomorrow } from 'date-fns';
 
 // Stats cards data - will be replaced with real data
 const statsCards = [
@@ -42,34 +49,39 @@ const statsCards = [
     icon: DollarSign,
     href: '/liabilities',
   },
-  {
-    title: 'Tasks Due Today',
-    value: '7',
-    change: '3 urgent',
-    changeType: 'warning' as const,
-    icon: CheckSquare,
-    href: '/tasks',
-  },
 ];
 
-// Recent activities - mock data
-const recentActivities = [
-  { id: 1, type: 'lead', message: 'New lead assigned: John Smith', time: '5 min ago' },
-  { id: 2, type: 'settlement', message: 'Settlement approved for ENG-2026-0042', time: '15 min ago' },
-  { id: 3, type: 'task', message: 'Task completed: Follow up with client', time: '1 hour ago' },
-  { id: 4, type: 'engagement', message: 'New engagement created: ENG-2026-0156', time: '2 hours ago' },
-  { id: 5, type: 'liability', message: 'Balance updated for Capital One account', time: '3 hours ago' },
-];
+const activityIcons: Record<string, React.ReactNode> = {
+  task: <CheckSquare className="h-3 w-3" />,
+  lead_activity: <MessageSquare className="h-3 w-3" />,
+  status_change: <TrendingUp className="h-3 w-3" />,
+  document: <FileText className="h-3 w-3" />,
+};
 
-// Urgent tasks - mock data
-const urgentTasks = [
-  { id: 1, title: 'Call client about settlement offer', dueDate: 'Today 2:00 PM', priority: 'urgent' },
-  { id: 2, title: 'Submit court response for Case #2024-CV-1234', dueDate: 'Today 5:00 PM', priority: 'urgent' },
-  { id: 3, title: 'Review settlement documents', dueDate: 'Tomorrow', priority: 'high' },
-];
+const activityColors: Record<string, string> = {
+  task: 'bg-blue-500',
+  lead_activity: 'bg-yellow-500',
+  status_change: 'bg-green-500',
+  document: 'bg-purple-500',
+};
+
+function formatDueDate(dueDate: string | null) {
+  if (!dueDate) return 'No due date';
+  const date = new Date(dueDate);
+  if (isToday(date)) {
+    return `Today ${format(date, 'h:mm a')}`;
+  }
+  if (isTomorrow(date)) {
+    return `Tomorrow ${format(date, 'h:mm a')}`;
+  }
+  return format(date, 'MMM d, h:mm a');
+}
 
 export default function Dashboard() {
   const { staff, roles, hasRole } = useAuth();
+  const { data: urgentTasks, isLoading: tasksLoading } = useUserUrgentTasks();
+  const { data: recentActivities, isLoading: activitiesLoading } = useUserRecentActivity();
+  const { data: stats } = useUserDashboardStats();
 
   // Determine which dashboard to show based on department/role
   const isAttorney = staff?.department === 'attorney' || hasRole('attorney');
@@ -124,8 +136,7 @@ export default function Dashboard() {
                 <div className="text-2xl font-bold">{stat.value}</div>
                 <Badge 
                   variant={
-                    stat.changeType === 'positive' ? 'default' : 
-                    stat.changeType === 'warning' ? 'destructive' : 'secondary'
+                    stat.changeType === 'positive' ? 'default' : 'secondary'
                   }
                   className="text-xs"
                 >
@@ -141,72 +152,127 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         ))}
+        
+        {/* Tasks Due Today - Dynamic */}
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Tasks Due Today
+            </CardTitle>
+            <CheckSquare className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline justify-between">
+              <div className="text-2xl font-bold">{stats?.tasksDueToday ?? '-'}</div>
+              {stats?.urgentTasks && stats.urgentTasks > 0 ? (
+                <Badge variant="destructive" className="text-xs">
+                  {stats.urgentTasks} urgent
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="text-xs">
+                  {stats?.totalPendingTasks ?? 0} pending
+                </Badge>
+              )}
+            </div>
+            <Link 
+              to="/tasks" 
+              className="text-xs text-primary hover:underline mt-2 inline-flex items-center gap-1"
+            >
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Urgent Tasks */}
+        {/* Urgent Tasks - User Specific */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-destructive" />
-              Urgent Tasks
+              My Urgent Tasks
             </CardTitle>
-            <CardDescription>Tasks requiring immediate attention</CardDescription>
+            <CardDescription>Your tasks requiring immediate attention</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {urgentTasks.map((task) => (
-                <div 
-                  key={task.id} 
-                  className="flex items-start justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                >
-                  <div className="space-y-1">
-                    <p className="font-medium text-sm">{task.title}</p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {task.dueDate}
-                    </div>
-                  </div>
-                  <Badge 
-                    variant={task.priority === 'urgent' ? 'destructive' : 'secondary'}
-                    className="capitalize"
+            {tasksLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map(i => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            ) : urgentTasks && urgentTasks.length > 0 ? (
+              <div className="space-y-4">
+                {urgentTasks.slice(0, 5).map((task) => (
+                  <div 
+                    key={task.id} 
+                    className="flex items-start justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
                   >
-                    {task.priority}
-                  </Badge>
-                </div>
-              ))}
-            </div>
+                    <div className="space-y-1">
+                      <p className="font-medium text-sm">{task.title}</p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {formatDueDate(task.due_date)}
+                      </div>
+                    </div>
+                    <Badge 
+                      variant={task.priority === 'urgent' ? 'destructive' : 'secondary'}
+                      className="capitalize"
+                    >
+                      {task.priority}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No urgent tasks - great job! 🎉
+              </p>
+            )}
             <Button variant="outline" className="w-full mt-4" asChild>
               <Link to="/tasks">View All Tasks</Link>
             </Button>
           </CardContent>
         </Card>
 
-        {/* Recent Activity */}
+        {/* Recent Activity - User Specific */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
-              Recent Activity
+              My Recent Activity
             </CardTitle>
-            <CardDescription>Latest updates across the system</CardDescription>
+            <CardDescription>Your latest actions and updates</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentActivities.map((activity) => (
-                <div 
-                  key={activity.id} 
-                  className="flex items-start gap-3 text-sm"
-                >
-                  <div className="h-2 w-2 mt-2 rounded-full bg-primary flex-shrink-0" />
-                  <div className="flex-1 space-y-1">
-                    <p className="text-foreground">{activity.message}</p>
-                    <p className="text-xs text-muted-foreground">{activity.time}</p>
+            {activitiesLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : recentActivities && recentActivities.length > 0 ? (
+              <div className="space-y-4">
+                {recentActivities.slice(0, 5).map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-3">
+                    <div className={`h-6 w-6 rounded-full ${activityColors[activity.type] || 'bg-primary'} flex items-center justify-center text-white flex-shrink-0 mt-0.5`}>
+                      {activityIcons[activity.type] || <Gavel className="h-3 w-3" />}
+                    </div>
+                    <div className="flex-1 space-y-1 min-w-0">
+                      <p className="text-sm text-foreground line-clamp-2">{activity.message}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No recent activity yet
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
