@@ -4,6 +4,7 @@ import { AppearanceSettingsTab } from '@/components/settings/AppearanceSettingsT
 import { CompanySettingsTab } from '@/components/settings/CompanySettingsTab';
 import { NotificationSettingsTab } from '@/components/settings/NotificationSettingsTab';
 import { ScoringProfilesTab } from '@/components/settings/ScoringProfilesTab';
+import { AssignmentRulesTab } from '@/components/settings/AssignmentRulesTab';
 
 export default function SettingsPage() {
   return (
@@ -19,6 +20,7 @@ export default function SettingsPage() {
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="scoring">Scoring</TabsTrigger>
+            <TabsTrigger value="assignment">Assignment</TabsTrigger>
             <TabsTrigger value="appearance">Appearance</TabsTrigger>
             <TabsTrigger value="company">Company</TabsTrigger>
           </TabsList>
@@ -33,6 +35,10 @@ export default function SettingsPage() {
 
           <TabsContent value="scoring">
             <ScoringProfilesTab />
+          </TabsContent>
+
+          <TabsContent value="assignment">
+            <AssignmentRulesTab />
           </TabsContent>
 
           <TabsContent value="appearance">

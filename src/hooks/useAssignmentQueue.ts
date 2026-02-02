@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type { AssignmentQueueItem } from '@/types/assignment';
+import type { AssignmentQueueItem, AssignmentLogEntry, AssignmentMethod, AssignmentAction } from '@/types/assignment';
 
 export function useAssignmentQueue(status?: 'pending' | 'assigned' | 'expired' | 'manual') {
   return useQuery({
@@ -31,7 +31,42 @@ export function useAssignmentQueue(status?: 'pending' | 'assigned' | 'expired' |
       const { data, error } = await query.limit(100);
       
       if (error) throw error;
-      return (data || []) as AssignmentQueueItem[];
+      return (data || []).map(item => ({
+        ...item,
+        assignment_method: item.assignment_method as AssignmentMethod | null,
+      })) as AssignmentQueueItem[];
+    },
+  });
+}
+
+export function usePendingQueue() {
+  return useQuery({
+    queryKey: ['assignment_queue', 'pending'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('lead_assignment_queue')
+        .select(`
+          *,
+          lead:lead_id (
+            id,
+            first_name,
+            last_name,
+            lead_number,
+            source,
+            interest_type,
+            lead_score
+          )
+        `)
+        .eq('status', 'pending')
+        .order('priority', { ascending: false })
+        .order('queued_at', { ascending: true })
+        .limit(50);
+      
+      if (error) throw error;
+      return (data || []).map(item => ({
+        ...item,
+        assignment_method: item.assignment_method as AssignmentMethod | null,
+      })) as AssignmentQueueItem[];
     },
   });
 }
@@ -48,6 +83,33 @@ export function usePendingQueueCount() {
       if (error) throw error;
       return count || 0;
     },
+  });
+}
+
+export function useAssignmentLog(leadId: string | undefined) {
+  return useQuery({
+    queryKey: ['assignment_log', leadId],
+    queryFn: async () => {
+      if (!leadId) return [];
+      
+      const { data, error } = await supabase
+        .from('lead_assignment_log')
+        .select('*')
+        .eq('lead_id', leadId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      return (data || []).map(log => ({
+        ...log,
+        action: log.action as AssignmentAction,
+        method: log.method as AssignmentMethod | null,
+        from_staff: undefined,
+        to_staff: undefined,
+        performed_by_staff: undefined,
+      })) as AssignmentLogEntry[];
+    },
+    enabled: !!leadId,
   });
 }
 
