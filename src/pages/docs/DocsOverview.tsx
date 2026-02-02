@@ -4,7 +4,7 @@ import { Database, Users, FileText, Shield, Code, BookOpen, GitBranch, Rocket } 
 
 const sections = [
   {
-    title: 'Entity Relationship Diagram',
+    title: 'ERD',
     description: 'Visual diagram of all database tables and their relationships.',
     icon: GitBranch,
     href: '/docs/erd',
