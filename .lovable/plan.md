@@ -1,9 +1,9 @@
 
-# Lead Assignment Engine Implementation Plan
+# Workflow Automation Builder Implementation Plan
 
 ## Overview
 
-This feature implements an automated lead assignment system that distributes incoming leads to sales representatives based on configurable rules. The engine supports multiple assignment methods (round robin, weighted, backlog-based, skillset-based) and includes queue management, availability settings, and assignment audit logging.
+This feature implements a visual workflow automation system that allows admins to define triggers, conditions, and actions for automating business processes. A key capability is **status transition restrictions** - preventing status changes unless specific conditions are met (e.g., can't mark a service as "graduated" unless all liabilities are settled).
 
 ---
 
@@ -11,95 +11,198 @@ This feature implements an automated lead assignment system that distributes inc
 
 | Feature | Description |
 |---------|-------------|
-| **Multiple Assignment Methods** | Round robin, weighted distribution, backlog-based, and skillset matching |
-| **Assignment Rules** | Company-configurable rules for different lead sources/types |
-| **Rep Availability** | Online/offline status with capacity limits per rep |
-| **Assignment Queue** | Queue for leads awaiting assignment during off-hours |
-| **Audit Trail** | Log of all assignment decisions with reasoning |
-| **Manual Override** | Admin ability to reassign with reason tracking |
-| **Real-time Updates** | Instant notification when leads are assigned |
+| **Workflow Rules** | Configurable rules with triggers, conditions, and actions |
+| **Transition Gates** | Block status changes unless conditions are satisfied |
+| **Multiple Entity Support** | Works with leads, services, liabilities, litigation, tasks |
+| **Automated Actions** | Auto-create tasks, send notifications, update fields |
+| **Condition Builder** | Visual interface for building conditional logic |
+| **Execution Logging** | Audit trail of all workflow executions |
+| **Priority Ordering** | Control execution order when multiple rules match |
 
 ---
 
-## Assignment Methods
+## Workflow Components
 
-### 1. Round Robin
-Assigns leads sequentially to available reps, cycling through the pool.
+### 1. Triggers (When)
+Events that initiate workflow evaluation:
 
-### 2. Weighted Distribution
-Assigns based on configured weight per rep (e.g., senior reps get 40%, juniors get 20%).
+| Trigger Type | Description | Example |
+|--------------|-------------|---------|
+| `status_changed` | Entity status changes | Lead moves to "contacted" |
+| `field_updated` | Specific field modified | Escrow balance updated |
+| `record_created` | New record inserted | New liability created |
+| `time_based` | Scheduled/deadline | 7 days after creation |
+| `manual` | User-initiated | Button click |
 
-### 3. Backlog-Based (Load Balancing)
-Assigns to the rep with the fewest active leads, balancing workload.
+### 2. Conditions (If)
+Criteria that must be met for actions to execute:
 
-### 4. Skillset Matching
-Matches lead characteristics (interest_type, estimated_debt_amount, has_active_lawsuit) to rep skills.
+| Condition Type | Description | Example |
+|----------------|-------------|---------|
+| `field_equals` | Field has specific value | `status = 'active'` |
+| `field_greater` | Numeric comparison | `escrow_balance > 5000` |
+| `field_contains` | Text contains string | `notes contains 'urgent'` |
+| `related_count` | Count of related records | `liabilities.count >= 3` |
+| `related_all` | All related match condition | `liabilities.all(status = 'settled')` |
+| `date_diff` | Days between dates | `created_at > 30 days ago` |
+
+### 3. Actions (Then)
+What happens when conditions are met:
+
+| Action Type | Description | Example |
+|-------------|-------------|---------|
+| `create_task` | Generate a new task | Create follow-up task |
+| `send_notification` | Notify users | Alert assigned rep |
+| `update_field` | Modify entity field | Set `priority = 'high'` |
+| `block_transition` | Prevent status change | Block if conditions fail |
+| `trigger_webhook` | External integration | Call API endpoint |
+
+---
+
+## Transition Gate Example
+
+**Scenario**: Prevent graduating a service until all liabilities are settled
+
+```text
+Workflow: "Service Graduation Gate"
++-----------------------------------------+
+| TRIGGER: status_changed                 |
+| Entity: client_services                 |
+| To Status: graduated                    |
++-----------------------------------------+
+           |
+           v
++-----------------------------------------+
+| CONDITION: NOT                          |
+|   related_all(                          |
+|     liabilities.status IN               |
+|     ['settled', 'dismissed']            |
+|   )                                     |
++-----------------------------------------+
+           |
+           v
++-----------------------------------------+
+| ACTION: block_transition                |
+| Message: "Cannot graduate - X           |
+|   liabilities remain unresolved"        |
++-----------------------------------------+
+```
 
 ---
 
 ## Database Schema
 
-### Table 1: `lead_assignment_rules`
+### Table 1: `workflow_rules`
 
-Stores company-specific assignment configuration.
+Stores workflow definitions:
 
 ```sql
-CREATE TYPE assignment_method AS ENUM (
-  'round_robin',
-  'weighted',
-  'backlog_based',
-  'skillset_match'
+CREATE TYPE workflow_trigger_type AS ENUM (
+  'status_changed',
+  'field_updated',
+  'record_created',
+  'time_based',
+  'manual'
 );
 
-CREATE TABLE lead_assignment_rules (
+CREATE TYPE workflow_entity_type AS ENUM (
+  'leads',
+  'client_services',
+  'liabilities',
+  'litigation_matters',
+  'tasks',
+  'settlements'
+);
+
+CREATE TYPE workflow_action_type AS ENUM (
+  'create_task',
+  'send_notification',
+  'update_field',
+  'block_transition',
+  'trigger_webhook'
+);
+
+CREATE TABLE workflow_rules (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   description TEXT,
-  method assignment_method NOT NULL DEFAULT 'round_robin',
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  is_default BOOLEAN NOT NULL DEFAULT false,
   
-  -- Filters: which leads this rule applies to
-  source lead_source,                    -- NULL = all sources
-  interest_type lead_interest,           -- NULL = all types
-  min_debt_amount NUMERIC,               -- NULL = no minimum
-  max_debt_amount NUMERIC,               -- NULL = no maximum
-  
-  -- Configuration
-  config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  -- Trigger configuration
+  entity_type workflow_entity_type NOT NULL,
+  trigger_type workflow_trigger_type NOT NULL,
+  trigger_config JSONB NOT NULL DEFAULT '{}'::jsonb,
   /*
-    Config structure:
-    {
-      "pool_staff_ids": ["uuid1", "uuid2"],     -- Staff IDs in this pool
-      "weights": { "uuid1": 40, "uuid2": 30 },  -- For weighted method
-      "max_active_leads": 25,                   -- Per-rep cap (backlog)
-      "fallback_method": "round_robin",         -- If primary fails
-      "auto_assign": true,                      -- Auto-assign on create
-      "work_hours_only": false,                 -- Only assign during work hours
-      "work_hours": { "start": "09:00", "end": "17:00", "timezone": "America/New_York" }
-    }
+    trigger_config examples:
+    status_changed: { "from": ["pending"], "to": ["active"] }
+    field_updated: { "field": "escrow_balance" }
+    time_based: { "schedule": "0 9 * * 1", "relative_to": "created_at", "days": 7 }
   */
   
-  priority INTEGER NOT NULL DEFAULT 0,   -- Higher = checked first
+  -- Conditions (array of condition groups - OR between groups, AND within)
+  conditions JSONB NOT NULL DEFAULT '[]'::jsonb,
+  /*
+    [
+      {
+        "group_id": "g1",
+        "operator": "AND",
+        "rules": [
+          { "field": "status", "operator": "equals", "value": "active" },
+          { "field": "escrow_balance", "operator": "greater_than", "value": 5000 }
+        ]
+      }
+    ]
+  */
+  
+  -- Actions to execute
+  actions JSONB NOT NULL DEFAULT '[]'::jsonb,
+  /*
+    [
+      {
+        "type": "create_task",
+        "config": {
+          "title": "Follow up with {client_name}",
+          "description": "Auto-generated from workflow",
+          "priority": "high",
+          "due_days": 3,
+          "assign_to": "entity_owner"
+        }
+      },
+      {
+        "type": "send_notification",
+        "config": {
+          "to": "entity_owner",
+          "title": "Status Changed",
+          "message": "Service {service_number} is now active"
+        }
+      }
+    ]
+  */
+  
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  is_blocking BOOLEAN NOT NULL DEFAULT false,  -- If true, can block status transitions
+  priority INTEGER NOT NULL DEFAULT 0,         -- Higher = runs first
+  
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by UUID REFERENCES staff(id)
 );
 
--- Index for rule matching
-CREATE INDEX idx_assignment_rules_lookup 
-  ON lead_assignment_rules(company_id, is_active, priority DESC);
+-- Index for rule lookup
+CREATE INDEX idx_workflow_rules_lookup 
+  ON workflow_rules(company_id, entity_type, trigger_type, is_active)
+  WHERE is_active = true;
 
 -- RLS
-ALTER TABLE lead_assignment_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE workflow_rules ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view company rules"
-  ON lead_assignment_rules FOR SELECT
+  ON workflow_rules FOR SELECT
   TO authenticated
   USING (company_id = get_user_company_id(auth.uid()));
 
 CREATE POLICY "Admins can manage rules"
-  ON lead_assignment_rules FOR ALL
+  ON workflow_rules FOR ALL
   TO authenticated
   USING (
     company_id = get_user_company_id(auth.uid()) 
@@ -107,410 +210,238 @@ CREATE POLICY "Admins can manage rules"
   );
 ```
 
-### Table 2: `lead_assignment_pool`
+### Table 2: `workflow_executions`
 
-Tracks which staff members are in which assignment pools with their settings.
+Audit log of workflow runs:
 
 ```sql
-CREATE TABLE lead_assignment_pool (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  rule_id UUID NOT NULL REFERENCES lead_assignment_rules(id) ON DELETE CASCADE,
-  staff_id UUID NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
-  
-  -- Rep settings
-  weight INTEGER NOT NULL DEFAULT 10,          -- For weighted distribution
-  max_active_leads INTEGER DEFAULT 25,         -- Override global cap
-  is_available BOOLEAN NOT NULL DEFAULT true,  -- Can receive assignments
-  
-  -- Skills (for skillset matching)
-  skills JSONB DEFAULT '[]'::jsonb,
-  /*
-    Skills structure:
-    [
-      { "type": "interest_type", "value": "litigation", "proficiency": 5 },
-      { "type": "debt_range", "min": 50000, "max": null, "proficiency": 4 },
-      { "type": "has_lawsuit", "value": true, "proficiency": 5 }
-    ]
-  */
-  
-  -- Round robin tracking
-  last_assigned_at TIMESTAMPTZ,
-  assignment_count INTEGER NOT NULL DEFAULT 0,
-  
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  
-  UNIQUE(rule_id, staff_id)
+CREATE TYPE workflow_execution_status AS ENUM (
+  'success',
+  'blocked',
+  'failed',
+  'skipped'
 );
 
--- Index for availability lookup
-CREATE INDEX idx_pool_available 
-  ON lead_assignment_pool(rule_id, is_available) 
-  WHERE is_available = true;
+CREATE TABLE workflow_executions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  rule_id UUID NOT NULL REFERENCES workflow_rules(id) ON DELETE CASCADE,
+  entity_type workflow_entity_type NOT NULL,
+  entity_id UUID NOT NULL,
+  
+  status workflow_execution_status NOT NULL,
+  trigger_data JSONB,                  -- Data that triggered the workflow
+  condition_results JSONB,             -- Which conditions passed/failed
+  actions_executed JSONB,              -- Results of each action
+  error_message TEXT,                  -- If failed, why
+  block_message TEXT,                  -- If blocking, user-facing message
+  
+  executed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  duration_ms INTEGER                  -- Execution time
+);
+
+-- Index for entity history
+CREATE INDEX idx_workflow_executions_entity 
+  ON workflow_executions(entity_type, entity_id, executed_at DESC);
 
 -- RLS
-ALTER TABLE lead_assignment_pool ENABLE ROW LEVEL SECURITY;
+ALTER TABLE workflow_executions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Staff can view pools"
-  ON lead_assignment_pool FOR SELECT
+CREATE POLICY "Staff can view executions"
+  ON workflow_executions FOR SELECT
   TO authenticated
   USING (EXISTS (
-    SELECT 1 FROM lead_assignment_rules r 
+    SELECT 1 FROM workflow_rules r 
     WHERE r.id = rule_id 
     AND r.company_id = get_user_company_id(auth.uid())
-  ));
-
-CREATE POLICY "Admins can manage pools"
-  ON lead_assignment_pool FOR ALL
-  TO authenticated
-  USING (EXISTS (
-    SELECT 1 FROM lead_assignment_rules r 
-    WHERE r.id = rule_id 
-    AND r.company_id = get_user_company_id(auth.uid())
-    AND has_role(auth.uid(), 'admin')
-  ));
-```
-
-### Table 3: `lead_assignment_queue`
-
-Queue for leads awaiting assignment.
-
-```sql
-CREATE TYPE queue_status AS ENUM ('pending', 'assigned', 'expired', 'manual');
-
-CREATE TABLE lead_assignment_queue (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  lead_id UUID NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
-  rule_id UUID REFERENCES lead_assignment_rules(id) ON DELETE SET NULL,
-  
-  status queue_status NOT NULL DEFAULT 'pending',
-  priority INTEGER NOT NULL DEFAULT 0,       -- Higher = assign first
-  queued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  assigned_at TIMESTAMPTZ,
-  assigned_to UUID REFERENCES staff(id),
-  
-  -- Assignment result
-  assignment_method assignment_method,
-  assignment_reason TEXT,                    -- Why this rep was chosen
-  
-  -- Retry tracking
-  attempt_count INTEGER NOT NULL DEFAULT 0,
-  last_attempt_at TIMESTAMPTZ,
-  next_attempt_at TIMESTAMPTZ,
-  
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- Index for queue processing
-CREATE INDEX idx_queue_pending 
-  ON lead_assignment_queue(status, priority DESC, queued_at ASC) 
-  WHERE status = 'pending';
-
--- RLS
-ALTER TABLE lead_assignment_queue ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Staff can view queue"
-  ON lead_assignment_queue FOR SELECT
-  TO authenticated
-  USING (EXISTS (
-    SELECT 1 FROM leads l 
-    WHERE l.id = lead_id 
-    AND l.company_id = get_user_company_id(auth.uid())
-  ));
-```
-
-### Table 4: `lead_assignment_log`
-
-Audit trail for all assignment actions.
-
-```sql
-CREATE TYPE assignment_action AS ENUM (
-  'auto_assigned',
-  'manual_assigned',
-  'reassigned',
-  'unassigned',
-  'queue_added',
-  'queue_expired'
-);
-
-CREATE TABLE lead_assignment_log (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  lead_id UUID NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
-  action assignment_action NOT NULL,
-  
-  from_staff_id UUID REFERENCES staff(id),
-  to_staff_id UUID REFERENCES staff(id),
-  performed_by UUID REFERENCES staff(id),  -- Who took the action
-  
-  rule_id UUID REFERENCES lead_assignment_rules(id),
-  method assignment_method,
-  reason TEXT,                              -- Explanation of decision
-  
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- Index for lead history
-CREATE INDEX idx_assignment_log_lead 
-  ON lead_assignment_log(lead_id, created_at DESC);
-
--- RLS
-ALTER TABLE lead_assignment_log ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Staff can view logs"
-  ON lead_assignment_log FOR SELECT
-  TO authenticated
-  USING (EXISTS (
-    SELECT 1 FROM leads l 
-    WHERE l.id = lead_id 
-    AND l.company_id = get_user_company_id(auth.uid())
   ));
 ```
 
 ---
 
-## Assignment Engine Function
+## Core Workflow Engine Function
 
-Core database function for lead assignment:
+Database function to evaluate and execute workflows:
 
 ```sql
-CREATE OR REPLACE FUNCTION assign_lead(
-  _lead_id UUID,
-  _force_method assignment_method DEFAULT NULL,
-  _force_staff_id UUID DEFAULT NULL
+CREATE OR REPLACE FUNCTION evaluate_workflow(
+  _entity_type workflow_entity_type,
+  _entity_id UUID,
+  _trigger_type workflow_trigger_type,
+  _trigger_data JSONB,
+  _company_id UUID
 )
 RETURNS TABLE(
-  assigned_to UUID,
-  method assignment_method,
-  reason TEXT
+  rule_id UUID,
+  rule_name TEXT,
+  status workflow_execution_status,
+  block_message TEXT,
+  actions_result JSONB
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  _lead leads;
-  _rule lead_assignment_rules;
-  _pool_member lead_assignment_pool;
-  _staff_id UUID;
-  _method assignment_method;
-  _reason TEXT;
-  _active_count INTEGER;
-  _min_count INTEGER;
-  _total_weight INTEGER;
-  _rand_weight INTEGER;
-  _cumulative INTEGER;
+  _rule workflow_rules;
+  _conditions_met BOOLEAN;
+  _actions_result JSONB := '[]'::jsonb;
+  _execution_status workflow_execution_status;
+  _block_msg TEXT;
+  _start_time TIMESTAMPTZ;
+  _duration INTEGER;
 BEGIN
-  -- Get lead details
-  SELECT * INTO _lead FROM leads WHERE id = _lead_id;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Lead not found';
-  END IF;
-  
-  -- Manual assignment override
-  IF _force_staff_id IS NOT NULL THEN
-    UPDATE leads SET assigned_to = _force_staff_id WHERE id = _lead_id;
+  FOR _rule IN
+    SELECT * FROM workflow_rules
+    WHERE company_id = _company_id
+      AND entity_type = _entity_type
+      AND trigger_type = _trigger_type
+      AND is_active = true
+    ORDER BY priority DESC
+  LOOP
+    _start_time := clock_timestamp();
+    _conditions_met := true;
+    _block_msg := null;
+    _execution_status := 'success';
     
-    INSERT INTO lead_assignment_log (lead_id, action, from_staff_id, to_staff_id, reason)
-    VALUES (_lead_id, 'manual_assigned', _lead.assigned_to, _force_staff_id, 'Manual assignment');
+    -- Check if trigger matches
+    IF NOT check_trigger_match(_rule.trigger_config, _trigger_data) THEN
+      CONTINUE;
+    END IF;
     
-    RETURN QUERY SELECT _force_staff_id, NULL::assignment_method, 'Manual assignment'::TEXT;
-    RETURN;
-  END IF;
-  
-  -- Find matching rule (highest priority first)
-  SELECT * INTO _rule
-  FROM lead_assignment_rules
-  WHERE company_id = _lead.company_id
-    AND is_active = true
-    AND (source IS NULL OR source = _lead.source)
-    AND (interest_type IS NULL OR interest_type = _lead.interest_type)
-    AND (min_debt_amount IS NULL OR _lead.estimated_debt_amount >= min_debt_amount)
-    AND (max_debt_amount IS NULL OR _lead.estimated_debt_amount <= max_debt_amount)
-  ORDER BY priority DESC
-  LIMIT 1;
-  
-  IF NOT FOUND THEN
-    _reason := 'No matching assignment rule';
-    RETURN QUERY SELECT NULL::UUID, NULL::assignment_method, _reason;
-    RETURN;
-  END IF;
-  
-  _method := COALESCE(_force_method, _rule.method);
-  
-  -- Execute assignment based on method
-  CASE _method
-    WHEN 'round_robin' THEN
-      -- Get next available rep (oldest last_assigned_at)
-      SELECT p.staff_id INTO _staff_id
-      FROM lead_assignment_pool p
-      JOIN staff s ON s.id = p.staff_id
-      WHERE p.rule_id = _rule.id
-        AND p.is_available = true
-        AND s.is_active = true
-      ORDER BY p.last_assigned_at ASC NULLS FIRST, p.assignment_count ASC
-      LIMIT 1;
+    -- Evaluate conditions
+    _conditions_met := evaluate_conditions(
+      _rule.conditions,
+      _entity_type,
+      _entity_id
+    );
+    
+    IF NOT _conditions_met THEN
+      _execution_status := 'skipped';
+    ELSE
+      -- Execute actions
+      _actions_result := execute_workflow_actions(
+        _rule.actions,
+        _entity_type,
+        _entity_id,
+        _rule.is_blocking
+      );
       
-      _reason := 'Round robin - next in rotation';
-      
-    WHEN 'weighted' THEN
-      -- Calculate total weight and pick randomly
-      SELECT SUM(weight) INTO _total_weight
-      FROM lead_assignment_pool p
-      JOIN staff s ON s.id = p.staff_id
-      WHERE p.rule_id = _rule.id AND p.is_available = true AND s.is_active = true;
-      
-      IF _total_weight > 0 THEN
-        _rand_weight := floor(random() * _total_weight)::INTEGER;
-        _cumulative := 0;
-        
-        FOR _pool_member IN
-          SELECT p.* FROM lead_assignment_pool p
-          JOIN staff s ON s.id = p.staff_id
-          WHERE p.rule_id = _rule.id AND p.is_available = true AND s.is_active = true
-          ORDER BY p.weight DESC
-        LOOP
-          _cumulative := _cumulative + _pool_member.weight;
-          IF _cumulative > _rand_weight THEN
-            _staff_id := _pool_member.staff_id;
-            EXIT;
-          END IF;
-        END LOOP;
+      -- Check if any action blocked
+      IF _rule.is_blocking AND (_actions_result->0->>'blocked')::boolean THEN
+        _execution_status := 'blocked';
+        _block_msg := _actions_result->0->>'message';
       END IF;
-      
-      _reason := 'Weighted random selection';
-      
-    WHEN 'backlog_based' THEN
-      -- Get rep with fewest active leads
-      SELECT p.staff_id, COUNT(l.id) as active_count INTO _staff_id, _min_count
-      FROM lead_assignment_pool p
-      JOIN staff s ON s.id = p.staff_id
-      LEFT JOIN leads l ON l.assigned_to = p.staff_id 
-        AND l.status NOT IN ('converted', 'lost')
-      WHERE p.rule_id = _rule.id AND p.is_available = true AND s.is_active = true
-      GROUP BY p.staff_id, p.max_active_leads
-      HAVING COUNT(l.id) < COALESCE(p.max_active_leads, 25)
-      ORDER BY COUNT(l.id) ASC
-      LIMIT 1;
-      
-      _reason := format('Lowest backlog (%s active leads)', _min_count);
-      
-    WHEN 'skillset_match' THEN
-      -- Score reps based on skill match
-      SELECT p.staff_id INTO _staff_id
-      FROM lead_assignment_pool p
-      JOIN staff s ON s.id = p.staff_id
-      WHERE p.rule_id = _rule.id AND p.is_available = true AND s.is_active = true
-      ORDER BY (
-        -- Score based on matching skills
-        CASE WHEN p.skills @> jsonb_build_array(jsonb_build_object('type', 'interest_type', 'value', _lead.interest_type::text)) THEN 10 ELSE 0 END
-        + CASE WHEN _lead.has_active_lawsuit AND p.skills @> jsonb_build_array(jsonb_build_object('type', 'has_lawsuit', 'value', true)) THEN 15 ELSE 0 END
-        + CASE WHEN _lead.estimated_debt_amount >= 50000 AND p.skills @> jsonb_build_array(jsonb_build_object('type', 'high_value')) THEN 10 ELSE 0 END
-      ) DESC,
-      p.assignment_count ASC  -- Tiebreaker
-      LIMIT 1;
-      
-      _reason := 'Best skillset match';
-      
-  END CASE;
-  
-  -- Update lead and pool if assignment successful
-  IF _staff_id IS NOT NULL THEN
-    UPDATE leads SET assigned_to = _staff_id WHERE id = _lead_id;
+    END IF;
     
-    UPDATE lead_assignment_pool
-    SET 
-      last_assigned_at = now(),
-      assignment_count = assignment_count + 1
-    WHERE rule_id = _rule.id AND staff_id = _staff_id;
+    _duration := EXTRACT(MILLISECONDS FROM clock_timestamp() - _start_time)::INTEGER;
     
-    INSERT INTO lead_assignment_log (lead_id, action, from_staff_id, to_staff_id, rule_id, method, reason)
-    VALUES (_lead_id, 'auto_assigned', _lead.assigned_to, _staff_id, _rule.id, _method, _reason);
-  ELSE
-    _reason := 'No available staff in pool';
+    -- Log execution
+    INSERT INTO workflow_executions (
+      rule_id, entity_type, entity_id, status,
+      trigger_data, condition_results, actions_executed,
+      block_message, duration_ms
+    ) VALUES (
+      _rule.id, _entity_type, _entity_id, _execution_status,
+      _trigger_data, _rule.conditions, _actions_result,
+      _block_msg, _duration
+    );
     
-    -- Add to queue
-    INSERT INTO lead_assignment_queue (lead_id, rule_id, priority)
-    VALUES (_lead_id, _rule.id, COALESCE(_lead.lead_score, 0));
-  END IF;
-  
-  RETURN QUERY SELECT _staff_id, _method, _reason;
+    -- Return result
+    rule_id := _rule.id;
+    rule_name := _rule.name;
+    status := _execution_status;
+    block_message := _block_msg;
+    actions_result := _actions_result;
+    RETURN NEXT;
+    
+    -- If blocked, stop processing further rules
+    IF _execution_status = 'blocked' THEN
+      RETURN;
+    END IF;
+  END LOOP;
 END;
 $$;
 ```
 
 ---
 
-## Trigger: Auto-Assign on Lead Creation
+## Transition Validation Function
+
+Function called before status changes to check for blocking rules:
 
 ```sql
-CREATE OR REPLACE FUNCTION trigger_auto_assign_lead()
-RETURNS TRIGGER
+CREATE OR REPLACE FUNCTION validate_status_transition(
+  _entity_type workflow_entity_type,
+  _entity_id UUID,
+  _from_status TEXT,
+  _to_status TEXT,
+  _company_id UUID
+)
+RETURNS TABLE(
+  allowed BOOLEAN,
+  block_message TEXT
+)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  _rule lead_assignment_rules;
   _result RECORD;
 BEGIN
-  -- Only auto-assign if no assignment and rule allows it
-  IF NEW.assigned_to IS NULL THEN
-    -- Check if there's an active auto-assign rule
-    SELECT * INTO _rule
-    FROM lead_assignment_rules
-    WHERE company_id = NEW.company_id
-      AND is_active = true
-      AND (config->>'auto_assign')::boolean = true
-      AND (source IS NULL OR source = NEW.source)
-      AND (interest_type IS NULL OR interest_type = NEW.interest_type)
-    ORDER BY priority DESC
-    LIMIT 1;
-    
-    IF FOUND THEN
-      SELECT * INTO _result FROM assign_lead(NEW.id);
-      NEW.assigned_to := _result.assigned_to;
-    END IF;
-  END IF;
+  -- Evaluate blocking workflows
+  FOR _result IN
+    SELECT * FROM evaluate_workflow(
+      _entity_type,
+      _entity_id,
+      'status_changed',
+      jsonb_build_object('from', _from_status, 'to', _to_status),
+      _company_id
+    )
+    WHERE status = 'blocked'
+  LOOP
+    allowed := false;
+    block_message := _result.block_message;
+    RETURN NEXT;
+    RETURN;
+  END LOOP;
   
-  RETURN NEW;
+  -- No blocking rules triggered
+  allowed := true;
+  block_message := null;
+  RETURN NEXT;
 END;
 $$;
-
-CREATE TRIGGER trg_auto_assign_lead
-  AFTER INSERT ON leads
-  FOR EACH ROW
-  EXECUTE FUNCTION trigger_auto_assign_lead();
 ```
 
 ---
 
 ## Files to Create
 
+### Types
+
+| File | Purpose |
+|------|---------|
+| `src/types/workflow.ts` | TypeScript interfaces for workflows |
+
 ### Hooks
 
 | File | Purpose |
 |------|---------|
-| `src/hooks/useAssignmentRules.ts` | CRUD hooks for assignment rules |
-| `src/hooks/useAssignmentPool.ts` | Manage pool membership and availability |
-| `src/hooks/useAssignmentQueue.ts` | View and manage assignment queue |
-| `src/hooks/useAssignLead.ts` | Manual assignment and reassignment |
+| `src/hooks/useWorkflowRules.ts` | CRUD for workflow rules |
+| `src/hooks/useWorkflowExecutions.ts` | View execution history |
+| `src/hooks/useValidateTransition.ts` | Check if status change allowed |
 
 ### Components
 
 | File | Purpose |
 |------|---------|
-| `src/components/settings/AssignmentRulesTab.tsx` | Rule management in Settings |
-| `src/components/settings/AssignmentRuleFormDialog.tsx` | Create/edit rules |
-| `src/components/settings/AssignmentPoolEditor.tsx` | Manage pool membership |
-| `src/components/leads/AssignmentLogSheet.tsx` | View assignment history |
-| `src/components/leads/ReassignLeadDialog.tsx` | Reassign with reason |
-| `src/components/dashboards/AssignmentQueueWidget.tsx` | Queue status widget |
-
-### Types
-
-| File | Purpose |
-|------|---------|
-| `src/types/assignment.ts` | TypeScript interfaces |
+| `src/components/settings/WorkflowsTab.tsx` | Workflow list in Settings |
+| `src/components/workflows/WorkflowFormDialog.tsx` | Create/edit workflow |
+| `src/components/workflows/TriggerConfig.tsx` | Trigger configuration UI |
+| `src/components/workflows/ConditionBuilder.tsx` | Visual condition builder |
+| `src/components/workflows/ActionConfig.tsx` | Action configuration UI |
+| `src/components/workflows/WorkflowExecutionLog.tsx` | Execution history |
+| `src/components/workflows/TransitionBlockedDialog.tsx` | Show why blocked |
 
 ---
 
@@ -518,374 +449,247 @@ CREATE TRIGGER trg_auto_assign_lead
 
 | File | Changes |
 |------|---------|
-| `src/pages/Settings.tsx` | Add "Assignment" tab |
-| `src/components/leads/LeadDetailSheet.tsx` | Add assignment log and reassign button |
-| `src/components/leads/LeadFormDialog.tsx` | Option to auto-assign or manually select |
-| `src/hooks/useCreateLead.ts` | Trigger assignment after creation |
-| `src/components/dashboards/SalesRepDashboard.tsx` | Add "My Availability" toggle |
-| `src/components/dashboards/AdminDashboard.tsx` | Add queue status widget |
+| `src/pages/Settings.tsx` | Add "Workflows" tab |
+| `src/hooks/useClientServices.ts` | Call validation before status update |
+| `src/hooks/useLitigationMatters.ts` | Call validation before status update |
+| `src/hooks/useLeads.ts` | Call validation before status update |
+| `src/components/services/StatusChangeModal.tsx` | Show block dialog if needed |
 | `src/lib/docs/schemaData.ts` | Document new tables |
-| `src/lib/docs/featureGuides.ts` | Add assignment guide |
+| `src/lib/docs/featureGuides.ts` | Add workflow guide |
 | `src/lib/docs/roadmapData.ts` | Mark as Completed |
 
 ---
 
 ## UI Design
 
-### Assignment Rules Tab (Settings)
+### Workflow List (Settings Tab)
 
 ```text
 +---------------------------------------------------+
-| Lead Assignment Rules                    [+ New Rule]
+| Workflow Rules                        [+ New Workflow]
 +---------------------------------------------------+
-| ✓ Default Round Robin          [Default] [Active]  |
-|   All leads | Round Robin | 5 reps          [Edit] |
+| ✓ Service Graduation Gate              [Blocking]  |
+|   client_services | status_changed | Active [Edit] |
+|   Requires all liabilities settled                 |
 +---------------------------------------------------+
-| ✓ High-Value Leads                       [Active]  |
-|   Debt $50k+ | Weighted | 3 reps           [Edit] |
+| ✓ New Lead Follow-up Task              [Active]    |
+|   leads | record_created | Active           [Edit] |
+|   Creates task 24h after lead creation             |
 +---------------------------------------------------+
-| ✓ Litigation Specialists                 [Active]  |
-|   Litigation | Skillset | 2 reps           [Edit] |
+| ✓ Litigation Response Deadline         [Active]    |
+|   litigation_matters | field_updated | Active      |
+|   Notifies when deadline < 7 days             [Edit]|
 +---------------------------------------------------+
 ```
 
-### Pool Editor (in Rule Form)
+### Workflow Form - Trigger Section
 
 ```text
-+-------------------------------------------+
-| Assignment Pool                           |
-+-------------------------------------------+
-| Staff Member        | Weight | Cap | Avail |
-+-------------------------------------------+
-| ☐ John Smith        |  [40]  | [25] | ✓   |
-| ☐ Jane Doe          |  [30]  | [20] | ✓   |
-| ☐ Mike Johnson      |  [30]  | [25] | ○   |
-+-------------------------------------------+
++---------------------------------------------------+
+| WHEN (Trigger)                                     |
++---------------------------------------------------+
+| Entity: [▼ Client Services              ]         |
+|                                                    |
+| Trigger: [▼ Status Changed              ]         |
+|                                                    |
+| From Status: [ ] Any  [✓] Pending  [ ] Active     |
+| To Status:   [ ] Any  [ ] Pending  [✓] Graduated  |
++---------------------------------------------------+
 ```
 
-### Lead Detail - Assignment History
+### Workflow Form - Conditions Section
 
 ```text
-+-------------------------------------------+
-| Assignment History                        |
-+-------------------------------------------+
-| 📋 Auto-assigned to John Smith            |
-|    Feb 2, 2026 at 2:30 PM                 |
-|    Method: Round Robin                    |
-|    Reason: Next in rotation               |
-+-------------------------------------------+
-| 🔄 Reassigned from Jane to John           |
-|    Feb 2, 2026 at 10:15 AM                |
-|    By: Admin User                         |
-|    Reason: Jane on PTO                    |
-+-------------------------------------------+
++---------------------------------------------------+
+| IF (Conditions)                                    |
++---------------------------------------------------+
+| When ALL of these are true:                        |
+|                                                    |
+| +-----------------------------------------------+ |
+| | [▼ Related Records  ] [▼ Liabilities        ] | |
+| | [▼ NOT All         ] have status             | |
+| | [▼ In              ] [settled, dismissed    ] | |
+| |                                   [× Remove] | |
+| +-----------------------------------------------+ |
+|                                                    |
+| [+ Add Condition]  [+ Add Condition Group (OR)]   |
++---------------------------------------------------+
 ```
 
-### Rep Availability Toggle (Dashboard)
+### Workflow Form - Actions Section
 
 ```text
-+--------------------------------+
-| My Availability                |
-| ○ Available for new leads      |
-|                                |
-| Active Leads: 18/25            |
-| [████████████░░░░░░] 72%       |
-+--------------------------------+
++---------------------------------------------------+
+| THEN (Actions)                                     |
++---------------------------------------------------+
+| +-----------------------------------------------+ |
+| | [▼ Block Transition                         ] | |
+| |                                               | |
+| | Message to display:                           | |
+| | [Cannot graduate - {unresolved_count}        ] | |
+| | [liabilities remain unresolved               ] | |
+| |                                   [× Remove] | |
+| +-----------------------------------------------+ |
+|                                                    |
+| [+ Add Action]                                     |
++---------------------------------------------------+
+```
+
+### Transition Blocked Dialog
+
+```text
++---------------------------------------------------+
+| ⚠️ Status Change Blocked                           |
++---------------------------------------------------+
+|                                                    |
+| This service cannot be changed to "Graduated"     |
+| because:                                           |
+|                                                    |
+| "Cannot graduate - 3 liabilities remain           |
+|  unresolved (must be settled or dismissed)"       |
+|                                                    |
+| Rule: Service Graduation Gate                      |
+|                                                    |
+| +-----------------------------------------------+ |
+| | Unresolved Liabilities:                       | |
+| | • Chase Credit Card - $5,432 (in_negotiation)| |
+| | • Medical Debt - $1,200 (enrolled)           | |
+| | • Personal Loan - $8,750 (in_litigation)     | |
+| +-----------------------------------------------+ |
+|                                                    |
+|                                    [OK, Got It]   |
++---------------------------------------------------+
 ```
 
 ---
 
-## Implementation Details
+## Implementation Flow
 
-### 1. Assignment Rules Hook
-
-**`src/hooks/useAssignmentRules.ts`**
+### 1. Status Change with Validation
 
 ```typescript
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+// useUpdatePrimaryStatus hook modification
+const validateTransition = useValidateTransition();
 
-export interface AssignmentRule {
-  id: string;
-  company_id: string;
-  name: string;
-  description: string | null;
-  method: 'round_robin' | 'weighted' | 'backlog_based' | 'skillset_match';
-  is_active: boolean;
-  is_default: boolean;
-  source: string | null;
-  interest_type: string | null;
-  min_debt_amount: number | null;
-  max_debt_amount: number | null;
-  config: {
-    pool_staff_ids?: string[];
-    weights?: Record<string, number>;
-    max_active_leads?: number;
-    auto_assign?: boolean;
-    work_hours_only?: boolean;
-  };
-  priority: number;
-  created_at: string;
-}
-
-export function useAssignmentRules() {
-  return useQuery({
-    queryKey: ['assignment_rules'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('lead_assignment_rules')
-        .select('*')
-        .order('priority', { ascending: false });
-      if (error) throw error;
-      return data as AssignmentRule[];
-    },
+mutationFn: async ({ id, oldStatus, newStatus, reason }) => {
+  // First, validate the transition
+  const validation = await validateTransition.mutateAsync({
+    entityType: 'client_services',
+    entityId: id,
+    fromStatus: oldStatus,
+    toStatus: newStatus,
   });
-}
-
-export function useCreateAssignmentRule() {
-  const queryClient = useQueryClient();
   
-  return useMutation({
-    mutationFn: async (rule: Omit<AssignmentRule, 'id' | 'created_at'>) => {
-      const { data, error } = await supabase
-        .from('lead_assignment_rules')
-        .insert([rule])
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['assignment_rules'] });
-    },
-  });
+  if (!validation.allowed) {
+    throw new TransitionBlockedError(validation.block_message);
+  }
+  
+  // Proceed with update
+  const { data, error } = await supabase
+    .from('client_services')
+    .update({ status: newStatus })
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
 }
 ```
 
-### 2. Assign Lead Hook
-
-**`src/hooks/useAssignLead.ts`**
+### 2. Condition Evaluation Logic
 
 ```typescript
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-
-export function useAssignLead() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: async ({ 
-      leadId, 
-      staffId,
-      reason 
-    }: { 
-      leadId: string; 
-      staffId: string;
-      reason?: string;
-    }) => {
-      // Call the assign_lead function
-      const { data, error } = await supabase.rpc('assign_lead', {
-        _lead_id: leadId,
-        _force_staff_id: staffId,
-      });
-      
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
-      queryClient.invalidateQueries({ queryKey: ['lead', variables.leadId] });
-      queryClient.invalidateQueries({ queryKey: ['assignment_log', variables.leadId] });
-      toast({ title: 'Lead assigned successfully' });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Failed to assign lead',
-        description: (error as Error).message,
-        variant: 'destructive',
-      });
-    },
-  });
+// Example condition evaluation
+interface Condition {
+  field: string;
+  operator: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'contains' | 'in';
+  value: any;
+  related_entity?: string;
+  related_aggregate?: 'count' | 'all' | 'any' | 'none';
 }
-```
 
-### 3. Rep Availability Component
-
-```typescript
-function AvailabilityToggle() {
-  const { staff } = useAuth();
-  const { data: poolMembership } = usePoolMembership(staff?.id);
-  const toggleAvailability = useToggleAvailability();
+function evaluateCondition(condition: Condition, entity: any, relatedData: any[]): boolean {
+  const fieldValue = entity[condition.field];
   
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>My Availability</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between">
-          <Label>Available for new leads</Label>
-          <Switch
-            checked={poolMembership?.is_available}
-            onCheckedChange={(checked) => 
-              toggleAvailability.mutate({ available: checked })
-            }
-          />
-        </div>
-        <Progress value={myLeadCount / maxLeads * 100} className="mt-4" />
-        <p className="text-xs text-muted-foreground mt-1">
-          {myLeadCount}/{maxLeads} active leads
-        </p>
-      </CardContent>
-    </Card>
-  );
+  switch (condition.operator) {
+    case 'equals':
+      return fieldValue === condition.value;
+    case 'greater_than':
+      return fieldValue > condition.value;
+    case 'in':
+      return condition.value.includes(fieldValue);
+    // ... other operators
+  }
 }
 ```
 
 ---
 
-## Notification Integration
+## Common Workflow Templates
 
-When a lead is auto-assigned, create a notification using the existing system:
+Pre-built templates for quick setup:
 
-```sql
--- Add to assign_lead function after successful assignment
-IF _staff_id IS NOT NULL THEN
-  -- Get user_id from staff
-  SELECT user_id INTO _user_id FROM staff WHERE id = _staff_id;
-  
-  IF _user_id IS NOT NULL THEN
-    PERFORM create_notification(
-      _user_id,
-      'lead_assigned',
-      'New Lead Assigned',
-      format('%s %s - %s', _lead.first_name, _lead.last_name, _reason),
-      '/leads',
-      'lead',
-      _lead_id
-    );
-  END IF;
-END IF;
-```
-
----
-
-## Queue Processing
-
-For leads that couldn't be assigned immediately, process the queue periodically:
-
-```sql
-CREATE OR REPLACE FUNCTION process_assignment_queue()
-RETURNS INTEGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  _queue_item lead_assignment_queue;
-  _result RECORD;
-  _processed INTEGER := 0;
-BEGIN
-  FOR _queue_item IN
-    SELECT * FROM lead_assignment_queue
-    WHERE status = 'pending'
-    ORDER BY priority DESC, queued_at ASC
-    LIMIT 50
-    FOR UPDATE SKIP LOCKED
-  LOOP
-    SELECT * INTO _result FROM assign_lead(_queue_item.lead_id);
-    
-    IF _result.assigned_to IS NOT NULL THEN
-      UPDATE lead_assignment_queue
-      SET 
-        status = 'assigned',
-        assigned_at = now(),
-        assigned_to = _result.assigned_to,
-        assignment_method = _result.method,
-        assignment_reason = _result.reason
-      WHERE id = _queue_item.id;
-      
-      _processed := _processed + 1;
-    ELSE
-      UPDATE lead_assignment_queue
-      SET 
-        attempt_count = attempt_count + 1,
-        last_attempt_at = now(),
-        next_attempt_at = now() + interval '15 minutes'
-      WHERE id = _queue_item.id;
-    END IF;
-  END LOOP;
-  
-  RETURN _processed;
-END;
-$$;
-```
+| Template | Entity | Trigger | Description |
+|----------|--------|---------|-------------|
+| Service Graduation Gate | client_services | status → graduated | Block unless all liabilities resolved |
+| Lead Follow-up Task | leads | record_created | Create task 24h after creation |
+| Litigation Response Alert | litigation_matters | response_deadline updated | Notify when < 7 days |
+| Settlement Approval | settlements | status → accepted | Require manager approval over $10k |
+| NSF Retention Alert | client_services | payment_status → nsf | Notify retention team |
+| Task Overdue Escalation | tasks | due_date passed | Escalate to manager |
 
 ---
 
 ## Files Summary
 
-### Create (10 files)
+### Create (9 files)
 
 | File | Purpose |
 |------|---------|
-| `src/types/assignment.ts` | TypeScript interfaces |
-| `src/hooks/useAssignmentRules.ts` | Rule CRUD hooks |
-| `src/hooks/useAssignmentPool.ts` | Pool management hooks |
-| `src/hooks/useAssignmentQueue.ts` | Queue hooks |
-| `src/hooks/useAssignLead.ts` | Assignment mutation hook |
-| `src/components/settings/AssignmentRulesTab.tsx` | Rules management UI |
-| `src/components/settings/AssignmentRuleFormDialog.tsx` | Rule form |
-| `src/components/leads/AssignmentLogSheet.tsx` | Assignment history |
-| `src/components/leads/ReassignLeadDialog.tsx` | Reassignment dialog |
-| `src/components/dashboards/AssignmentQueueWidget.tsx` | Queue widget |
+| `src/types/workflow.ts` | TypeScript interfaces |
+| `src/hooks/useWorkflowRules.ts` | Rule CRUD hooks |
+| `src/hooks/useWorkflowExecutions.ts` | Execution log hooks |
+| `src/hooks/useValidateTransition.ts` | Transition validation |
+| `src/components/settings/WorkflowsTab.tsx` | Settings tab UI |
+| `src/components/workflows/WorkflowFormDialog.tsx` | Rule form |
+| `src/components/workflows/ConditionBuilder.tsx` | Condition builder |
+| `src/components/workflows/ActionConfig.tsx` | Action configuration |
+| `src/components/workflows/TransitionBlockedDialog.tsx` | Block message UI |
 
-### Modify (8 files)
+### Modify (9 files)
 
 | File | Changes |
 |------|---------|
-| `src/pages/Settings.tsx` | Add Assignment tab |
-| `src/components/leads/LeadDetailSheet.tsx` | Add history and reassign |
-| `src/components/leads/LeadFormDialog.tsx` | Assignment option |
-| `src/components/dashboards/SalesRepDashboard.tsx` | Availability toggle |
-| `src/components/dashboards/AdminDashboard.tsx` | Queue widget |
+| `src/pages/Settings.tsx` | Add Workflows tab |
+| `src/hooks/useClientServices.ts` | Add transition validation |
+| `src/hooks/useLitigationMatters.ts` | Add transition validation |
+| `src/hooks/useLeads.ts` | Add transition validation |
+| `src/components/services/StatusChangeModal.tsx` | Handle block dialog |
 | `src/lib/docs/schemaData.ts` | Document tables |
 | `src/lib/docs/featureGuides.ts` | Add guide |
 | `src/lib/docs/roadmapData.ts` | Mark Completed |
 
 ### Database Migration (1)
 
-- Create `assignment_method` enum
-- Create `lead_assignment_rules` table
-- Create `lead_assignment_pool` table  
-- Create `queue_status` and `assignment_action` enums
-- Create `lead_assignment_queue` table
-- Create `lead_assignment_log` table
-- Create `assign_lead()` function
-- Create `trigger_auto_assign_lead()` trigger
-- Create `process_assignment_queue()` function
-
----
-
-## Testing Scenarios
-
-1. **Round Robin**: Create 3 leads, verify they go to reps 1, 2, 3 in order
-2. **Weighted**: Create 100 leads, verify distribution matches weights (~40/30/30)
-3. **Backlog**: Assign leads, verify new leads go to rep with fewest
-4. **Skillset**: Create litigation lead, verify it goes to litigation specialist
-5. **Availability**: Toggle rep offline, verify they receive no assignments
-6. **Queue**: Make all reps unavailable, verify lead goes to queue
-7. **Manual Override**: Reassign lead, verify log entry created
+- Create workflow enums
+- Create `workflow_rules` table with JSONB config
+- Create `workflow_executions` table
+- Create `evaluate_workflow()` function
+- Create `validate_status_transition()` function
+- Create helper functions for condition evaluation
+- Set up RLS policies
 
 ---
 
 ## Future Enhancements
 
-1. **Cron Job**: Edge Function to process queue every 5 minutes
-2. **Work Hours**: Only assign during configured business hours
-3. **Vacation Mode**: Bulk disable availability for date range
-4. **Team Assignments**: Assign to team, any member can claim
-5. **Performance Weighting**: Auto-adjust weights based on conversion rates
-6. **Geo-Based**: Match leads to reps in same state/region
+After initial implementation:
+
+1. **Visual Flow Builder**: Drag-and-drop workflow designer
+2. **Time-Based Triggers**: Cron-based scheduled workflows
+3. **Webhook Actions**: External system integration
+4. **Approval Workflows**: Multi-step approval chains
+5. **Workflow Versioning**: Track changes to rules
+6. **A/B Testing**: Compare workflow effectiveness
+7. **Template Library**: Shareable workflow templates
