@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { format, isPast } from 'date-fns';
-import { Plus, Scale, Search, Filter } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Scale, Search, Filter, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -107,6 +108,12 @@ export default function LitigationPage() {
             </p>
           </div>
         </div>
+        <Button variant="outline" asChild>
+          <Link to="/litigation/calendar">
+            <Calendar className="h-4 w-4 mr-2" />
+            Court Calendar
+          </Link>
+        </Button>
       </div>
 
       {/* Filters */}
