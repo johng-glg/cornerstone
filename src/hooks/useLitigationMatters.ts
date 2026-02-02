@@ -22,6 +22,8 @@ export interface LitigationMatter {
   state: string | null;
   opposing_party: string | null;
   opposing_counsel: string | null;
+  opposing_law_firm_id: string | null;
+  opposing_counsel_id: string | null;
   status: LitigationStatus;
   service_date: string | null;
   response_deadline: string | null;
@@ -47,6 +49,20 @@ export interface LitigationMatter {
       last_name: string;
     } | null;
   } | null;
+  opposing_law_firm?: {
+    id: string;
+    name: string;
+    phone: string | null;
+    email: string | null;
+  } | null;
+  opposing_counsel_contact?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    title: string | null;
+    email: string | null;
+    phone: string | null;
+  } | null;
 }
 
 export type LitigationMatterInsert = Omit<LitigationMatter, 'id' | 'created_at' | 'updated_at' | 'liability' | 'client_service'>;
@@ -71,7 +87,9 @@ export function useLitigationMatters(clientServiceId?: string) {
             id,
             service_number,
             primary_client:clients!engagements_primary_contact_id_fkey(id, first_name, last_name)
-          )
+          ),
+          opposing_law_firm:law_firms(id, name, phone, email),
+          opposing_counsel_contact:law_firm_contacts(id, first_name, last_name, title, email, phone)
         `)
         .order('created_at', { ascending: false });
 
@@ -142,7 +160,9 @@ export function useLitigationMatter(id: string | undefined) {
             id,
             service_number,
             primary_client:clients!engagements_primary_contact_id_fkey(id, first_name, last_name)
-          )
+          ),
+          opposing_law_firm:law_firms(id, name, phone, email),
+          opposing_counsel_contact:law_firm_contacts(id, first_name, last_name, title, email, phone)
         `)
         .eq('id', id)
         .single();

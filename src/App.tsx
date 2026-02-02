@@ -22,6 +22,7 @@ import CompaniesPage from "./pages/Companies";
 import StaffPage from "./pages/Staff";
 import SettingsPage from "./pages/Settings";
 import ReportsPage from "./pages/Reports";
+import OpposingCounselPage from "./pages/OpposingCounsel";
 import { DocsLayout } from "./components/docs/DocsLayout";
 import DocsOverview from "./pages/docs/DocsOverview";
 import SchemaPage from "./pages/docs/SchemaPage";
@@ -84,6 +85,7 @@ const App = () => (
             <Route path="/companies" element={<AppLayout><CompaniesPage /></AppLayout>} />
             <Route path="/staff" element={<AppLayout><StaffPage /></AppLayout>} />
             <Route path="/payments" element={<AppLayout><PaymentsPage /></AppLayout>} />
+            <Route path="/opposing-counsel" element={<AppLayout><OpposingCounselPage /></AppLayout>} />
             <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
             
             {/* Catch-all */}
