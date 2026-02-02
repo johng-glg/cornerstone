@@ -10,8 +10,8 @@ export function DocsLayout() {
       <DocsSidebar />
       <div className="flex-1 overflow-hidden flex flex-col">
         <div className="border-b px-8 py-3 flex items-center">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/dashboard">
+        <Button variant="ghost" size="sm" asChild>
+            <Link to="/">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Dashboard
             </Link>
