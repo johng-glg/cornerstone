@@ -11,6 +11,7 @@ interface ClientHeaderProps {
     addresses?: Tables<'client_addresses'>[];
   };
   onEdit: () => void;
+  onLogCommunication?: () => void;
 }
 
 const phoneTypeLabels: Record<string, string> = {
@@ -21,7 +22,7 @@ const phoneTypeLabels: Record<string, string> = {
   other: 'Other',
 };
 
-export function ClientHeader({ client, onEdit }: ClientHeaderProps) {
+export function ClientHeader({ client, onEdit, onLogCommunication }: ClientHeaderProps) {
   const navigate = useNavigate();
   const primaryPhone = client.phones?.find(p => p.is_primary) || client.phones?.[0];
   const clientStatus = (client.status as ClientStatus) || 'inactive';
@@ -46,7 +47,12 @@ export function ClientHeader({ client, onEdit }: ClientHeaderProps) {
           </Button>
           
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2"
+              onClick={onLogCommunication}
+            >
               <MessageSquare className="h-4 w-4" />
               Log Communication
             </Button>

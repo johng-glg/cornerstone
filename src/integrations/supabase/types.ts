@@ -108,6 +108,69 @@ export type Database = {
           },
         ]
       }
+      client_communications: {
+        Row: {
+          client_id: string
+          communication_date: string
+          communication_type: Database["public"]["Enums"]["communication_type"]
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          direction: Database["public"]["Enums"]["communication_direction"]
+          duration_minutes: number | null
+          id: string
+          notes: string | null
+          outcome: string | null
+          staff_id: string | null
+          subject: string | null
+        }
+        Insert: {
+          client_id: string
+          communication_date?: string
+          communication_type?: Database["public"]["Enums"]["communication_type"]
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          direction?: Database["public"]["Enums"]["communication_direction"]
+          duration_minutes?: number | null
+          id?: string
+          notes?: string | null
+          outcome?: string | null
+          staff_id?: string | null
+          subject?: string | null
+        }
+        Update: {
+          client_id?: string
+          communication_date?: string
+          communication_type?: Database["public"]["Enums"]["communication_type"]
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          direction?: Database["public"]["Enums"]["communication_direction"]
+          duration_minutes?: number | null
+          id?: string
+          notes?: string | null
+          outcome?: string | null
+          staff_id?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_communications_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_communications_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_documents: {
         Row: {
           client_id: string
@@ -1920,6 +1983,8 @@ export type Database = {
         | "authorized_contact"
         | "other"
       client_status_enum: "active" | "inactive"
+      communication_direction: "inbound" | "outbound"
+      communication_type: "call" | "email" | "sms" | "meeting" | "note"
       company_type: "law_firm" | "affiliate" | "financing_company"
       contact_status_enum:
         | "reachable"
@@ -2208,6 +2273,8 @@ export const Constants = {
         "other",
       ],
       client_status_enum: ["active", "inactive"],
+      communication_direction: ["inbound", "outbound"],
+      communication_type: ["call", "email", "sms", "meeting", "note"],
       company_type: ["law_firm", "affiliate", "financing_company"],
       contact_status_enum: [
         "reachable",
