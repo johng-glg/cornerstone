@@ -36,9 +36,9 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     name: 'Global Search',
     category: 'Core',
     priority: 'High',
-    description: 'Search across leads, clients, services, liabilities, and litigation matters with relevance scoring.',
-    status: 'Planned',
-    notes: 'Implement as Edge Function with Command palette UI (Ctrl+K shortcut)',
+    description: 'Search across leads, clients, liabilities, and litigation matters with Command palette UI (Ctrl+K shortcut).',
+    status: 'Completed',
+    notes: 'Implemented with debounced parallel queries and grouped results.',
   },
   {
     id: 'notification-center',
