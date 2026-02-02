@@ -2522,6 +2522,234 @@ export type Database = {
           },
         ]
       }
+      template_categories: {
+        Row: {
+          company_id: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          sort_order: number
+          template_type: Database["public"]["Enums"]["template_type"] | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+          template_type?: Database["public"]["Enums"]["template_type"] | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+          template_type?: Database["public"]["Enums"]["template_type"] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_categories_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_usages: {
+        Row: {
+          channel: string | null
+          entity_id: string
+          entity_type: string
+          error_message: string | null
+          id: string
+          success: boolean
+          template_id: string
+          used_at: string
+          used_by: string | null
+        }
+        Insert: {
+          channel?: string | null
+          entity_id: string
+          entity_type: string
+          error_message?: string | null
+          id?: string
+          success?: boolean
+          template_id: string
+          used_at?: string
+          used_by?: string | null
+        }
+        Update: {
+          channel?: string | null
+          entity_id?: string
+          entity_type?: string
+          error_message?: string | null
+          id?: string
+          success?: boolean
+          template_id?: string
+          used_at?: string
+          used_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_usages_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_usages_used_by_fkey"
+            columns: ["used_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_versions: {
+        Row: {
+          change_notes: string | null
+          content: string
+          content_html: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          subject: string | null
+          template_id: string
+          version_number: number
+        }
+        Insert: {
+          change_notes?: string | null
+          content: string
+          content_html?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          subject?: string | null
+          template_id: string
+          version_number: number
+        }
+        Update: {
+          change_notes?: string | null
+          content?: string
+          content_html?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          subject?: string | null
+          template_id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_versions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_versions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      templates: {
+        Row: {
+          category_id: string | null
+          company_id: string
+          conditional_clauses: Json
+          content: string
+          content_html: string | null
+          created_at: string
+          created_by: string | null
+          current_version: number
+          description: string | null
+          id: string
+          is_active: boolean
+          is_system: boolean
+          language: Database["public"]["Enums"]["template_language"]
+          merge_fields: Json
+          name: string
+          subject: string | null
+          template_type: Database["public"]["Enums"]["template_type"]
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          company_id: string
+          conditional_clauses?: Json
+          content?: string
+          content_html?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_version?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          language?: Database["public"]["Enums"]["template_language"]
+          merge_fields?: Json
+          name: string
+          subject?: string | null
+          template_type: Database["public"]["Enums"]["template_type"]
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          company_id?: string
+          conditional_clauses?: Json
+          content?: string
+          content_html?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_version?: number
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          language?: Database["public"]["Enums"]["template_language"]
+          merge_fields?: Json
+          name?: string
+          subject?: string | null
+          template_type?: Database["public"]["Enums"]["template_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "templates_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "template_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount: number
@@ -3066,6 +3294,8 @@ export type Database = {
         | "settlement_negotiation"
         | "client_call"
         | "general"
+      template_language: "en" | "es"
+      template_type: "email" | "sms" | "document"
       transaction_status: "open" | "pending" | "cleared" | "cancelled"
       transaction_type:
         | "draft"
@@ -3421,6 +3651,8 @@ export const Constants = {
         "client_call",
         "general",
       ],
+      template_language: ["en", "es"],
+      template_type: ["email", "sms", "document"],
       transaction_status: ["open", "pending", "cleared", "cancelled"],
       transaction_type: [
         "draft",

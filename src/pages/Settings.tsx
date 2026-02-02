@@ -7,6 +7,7 @@ import { ReminderSettingsTab } from '@/components/settings/ReminderSettingsTab';
 import { ScoringProfilesTab } from '@/components/settings/ScoringProfilesTab';
 import { AssignmentRulesTab } from '@/components/settings/AssignmentRulesTab';
 import { WorkflowsTab } from '@/components/settings/WorkflowsTab';
+import { TemplatesTab } from '@/components/settings/TemplatesTab';
 
 export default function SettingsPage() {
   return (
@@ -17,11 +18,12 @@ export default function SettingsPage() {
       </div>
 
       <div className="flex-1 overflow-auto p-6">
-        <Tabs defaultValue="profile" className="max-w-3xl">
+        <Tabs defaultValue="profile" className="max-w-5xl">
           <TabsList className="mb-6 flex-wrap">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="reminders">Reminders</TabsTrigger>
+            <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="scoring">Scoring</TabsTrigger>
             <TabsTrigger value="assignment">Assignment</TabsTrigger>
             <TabsTrigger value="workflows">Workflows</TabsTrigger>
@@ -39,6 +41,10 @@ export default function SettingsPage() {
 
           <TabsContent value="reminders">
             <ReminderSettingsTab />
+          </TabsContent>
+
+          <TabsContent value="templates">
+            <TemplatesTab />
           </TabsContent>
 
           <TabsContent value="scoring">
