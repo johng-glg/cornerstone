@@ -8,6 +8,8 @@ export interface RoadmapItem {
   description: string;
   status: 'Planned' | 'In Progress' | 'Research' | 'Completed';
   notes?: string;
+  difficulty?: 1 | 2 | 3 | 4 | 5; // 1=Easy, 5=Very Hard
+  benefit?: 1 | 2 | 3 | 4 | 5;    // 1=Low, 5=High
 }
 
 export interface IntegrationItem {
@@ -113,6 +115,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Litigation',
     priority: 'High',
     description: 'Automated reminders for response deadlines and hearings with configurable timing.',
+    difficulty: 3,
+    benefit: 5,
     status: 'Planned',
     notes: 'Create deadline_reminders table. Build cron Edge Function to process and send reminders.',
   },
@@ -125,6 +129,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     priority: 'High',
     description: 'Integration with Forth Pay for payment processing with status polling.',
     status: 'Research',
+    difficulty: 4,
+    benefit: 5,
     notes: 'Forth Pay will be first processor. Need API documentation and sandbox access.',
   },
   {
@@ -133,6 +139,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Payments',
     priority: 'High',
     description: 'Automated payment scheduling with frequency options.',
+    difficulty: 3,
+    benefit: 5,
     status: 'Planned',
   },
   {
@@ -141,6 +149,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Payments',
     priority: 'High',
     description: 'Configurable retry attempts and timing for failed payments.',
+    difficulty: 2,
+    benefit: 4,
     status: 'Planned',
   },
   {
@@ -149,6 +159,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Payments',
     priority: 'Medium',
     description: 'Auto-update escrow balance from transaction history.',
+    difficulty: 2,
+    benefit: 4,
     status: 'Planned',
   },
   
@@ -160,6 +172,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     priority: 'Medium',
     description: 'Track creditor responses and build settlement workflow matching current processes.',
     status: 'Planned',
+    difficulty: 3,
+    benefit: 4,
     notes: 'Need to document current settlement flow before implementation.',
   },
   
@@ -170,6 +184,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Analytics',
     priority: 'Medium',
     description: 'Track graduation vs cancellation rates across programs.',
+    difficulty: 2,
+    benefit: 3,
     status: 'Planned',
   },
   {
@@ -178,6 +194,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Reports',
     priority: 'Medium',
     description: 'Auto-generate and email reports on schedule.',
+    difficulty: 3,
+    benefit: 3,
     status: 'Planned',
   },
   
@@ -188,6 +206,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Communications',
     priority: 'Medium',
     description: 'Email, SMS, and document templates with merge fields.',
+    difficulty: 3,
+    benefit: 4,
     status: 'Planned',
   },
   {
@@ -197,6 +217,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     priority: 'Medium',
     description: 'Electronic signature capability - evaluate DocuSign, HelloSign, or custom build.',
     status: 'Research',
+    difficulty: 4,
+    benefit: 4,
   },
   
   // Automation
@@ -215,6 +237,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Compliance',
     priority: 'Medium',
     description: 'Track response times, processing times, and deadlines.',
+    difficulty: 3,
+    benefit: 3,
     status: 'Planned',
   },
   
@@ -225,6 +249,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Client Portal',
     priority: 'Low',
     description: 'Shareable booking links for client appointments.',
+    difficulty: 3,
+    benefit: 2,
     status: 'Planned',
   },
   {
@@ -233,6 +259,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Client Portal',
     priority: 'Low',
     description: 'Self-service portal for clients to view status and documents.',
+    difficulty: 5,
+    benefit: 3,
     status: 'Planned',
   },
   
@@ -243,6 +271,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Services',
     priority: 'Low',
     description: 'Auto-graduate services based on configurable criteria.',
+    difficulty: 2,
+    benefit: 3,
     status: 'Planned',
   },
   
@@ -253,6 +283,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Admin',
     priority: 'Medium',
     description: 'Log of all system activity for compliance and debugging.',
+    difficulty: 3,
+    benefit: 4,
     status: 'Planned',
   },
   
@@ -272,6 +304,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'UI',
     priority: 'Medium',
     description: 'Bulk select and actions on list views.',
+    difficulty: 2,
+    benefit: 3,
     status: 'Planned',
   },
 ];
