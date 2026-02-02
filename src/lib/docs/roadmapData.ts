@@ -93,8 +93,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Leads',
     priority: 'High',
     description: 'Track contact ratio, credit pull ratio, conversion ratio, first draft clear rate, retention by source and rep.',
-    status: 'Planned',
-    notes: 'Create lead_source_metrics and lead_rep_metrics views or materialized tables.',
+    status: 'Completed',
+    notes: 'Implemented with lead_source_metrics and lead_rep_metrics views. Dashboard at /leads/metrics with funnel chart and rep leaderboard.',
   },
   
   // Litigation
