@@ -75,8 +75,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Leads',
     priority: 'High',
     description: 'Automated assignment based on round robin, skillset, backlog, or weighted methods.',
-    status: 'Planned',
-    notes: 'Create lead_assignment_rules and lead_assignment_queue tables.',
+    status: 'In Progress',
+    notes: 'Database schema complete with lead_assignment_rules, lead_assignment_pool, lead_assignment_queue, and lead_assignment_log tables. Core assign_lead() function and auto-assignment trigger implemented. UI components in progress.',
   },
   {
     id: 'duplicate-detection',

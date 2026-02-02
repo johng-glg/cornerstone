@@ -910,6 +910,279 @@ export type Database = {
           },
         ]
       }
+      lead_assignment_log: {
+        Row: {
+          action: Database["public"]["Enums"]["assignment_action"]
+          created_at: string
+          from_staff_id: string | null
+          id: string
+          lead_id: string
+          method: Database["public"]["Enums"]["assignment_method"] | null
+          performed_by: string | null
+          reason: string | null
+          rule_id: string | null
+          to_staff_id: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["assignment_action"]
+          created_at?: string
+          from_staff_id?: string | null
+          id?: string
+          lead_id: string
+          method?: Database["public"]["Enums"]["assignment_method"] | null
+          performed_by?: string | null
+          reason?: string | null
+          rule_id?: string | null
+          to_staff_id?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["assignment_action"]
+          created_at?: string
+          from_staff_id?: string | null
+          id?: string
+          lead_id?: string
+          method?: Database["public"]["Enums"]["assignment_method"] | null
+          performed_by?: string | null
+          reason?: string | null
+          rule_id?: string | null
+          to_staff_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_assignment_log_from_staff_id_fkey"
+            columns: ["from_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_assignment_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_assignment_log_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_assignment_log_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "lead_assignment_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_assignment_log_to_staff_id_fkey"
+            columns: ["to_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_assignment_pool: {
+        Row: {
+          assignment_count: number
+          created_at: string
+          id: string
+          is_available: boolean
+          last_assigned_at: string | null
+          max_active_leads: number | null
+          rule_id: string
+          skills: Json | null
+          staff_id: string
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          assignment_count?: number
+          created_at?: string
+          id?: string
+          is_available?: boolean
+          last_assigned_at?: string | null
+          max_active_leads?: number | null
+          rule_id: string
+          skills?: Json | null
+          staff_id: string
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          assignment_count?: number
+          created_at?: string
+          id?: string
+          is_available?: boolean
+          last_assigned_at?: string | null
+          max_active_leads?: number | null
+          rule_id?: string
+          skills?: Json | null
+          staff_id?: string
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_assignment_pool_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "lead_assignment_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_assignment_pool_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_assignment_queue: {
+        Row: {
+          assigned_at: string | null
+          assigned_to: string | null
+          assignment_method:
+            | Database["public"]["Enums"]["assignment_method"]
+            | null
+          assignment_reason: string | null
+          attempt_count: number
+          created_at: string
+          id: string
+          last_attempt_at: string | null
+          lead_id: string
+          next_attempt_at: string | null
+          priority: number
+          queued_at: string
+          rule_id: string | null
+          status: Database["public"]["Enums"]["queue_status"]
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_to?: string | null
+          assignment_method?:
+            | Database["public"]["Enums"]["assignment_method"]
+            | null
+          assignment_reason?: string | null
+          attempt_count?: number
+          created_at?: string
+          id?: string
+          last_attempt_at?: string | null
+          lead_id: string
+          next_attempt_at?: string | null
+          priority?: number
+          queued_at?: string
+          rule_id?: string | null
+          status?: Database["public"]["Enums"]["queue_status"]
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_to?: string | null
+          assignment_method?:
+            | Database["public"]["Enums"]["assignment_method"]
+            | null
+          assignment_reason?: string | null
+          attempt_count?: number
+          created_at?: string
+          id?: string
+          last_attempt_at?: string | null
+          lead_id?: string
+          next_attempt_at?: string | null
+          priority?: number
+          queued_at?: string
+          rule_id?: string | null
+          status?: Database["public"]["Enums"]["queue_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_assignment_queue_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_assignment_queue_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_assignment_queue_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "lead_assignment_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_assignment_rules: {
+        Row: {
+          company_id: string
+          config: Json
+          created_at: string
+          description: string | null
+          id: string
+          interest_type: Database["public"]["Enums"]["lead_interest"] | null
+          is_active: boolean
+          is_default: boolean
+          max_debt_amount: number | null
+          method: Database["public"]["Enums"]["assignment_method"]
+          min_debt_amount: number | null
+          name: string
+          priority: number
+          source: Database["public"]["Enums"]["lead_source"] | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          config?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          interest_type?: Database["public"]["Enums"]["lead_interest"] | null
+          is_active?: boolean
+          is_default?: boolean
+          max_debt_amount?: number | null
+          method?: Database["public"]["Enums"]["assignment_method"]
+          min_debt_amount?: number | null
+          name: string
+          priority?: number
+          source?: Database["public"]["Enums"]["lead_source"] | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          config?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          interest_type?: Database["public"]["Enums"]["lead_interest"] | null
+          is_active?: boolean
+          is_default?: boolean
+          max_debt_amount?: number | null
+          method?: Database["public"]["Enums"]["assignment_method"]
+          min_debt_amount?: number | null
+          name?: string
+          priority?: number
+          source?: Database["public"]["Enums"]["lead_source"] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_assignment_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_banking: {
         Row: {
           account_number_encrypted: string | null
@@ -2306,6 +2579,18 @@ export type Database = {
       }
     }
     Functions: {
+      assign_lead: {
+        Args: {
+          _force_method?: Database["public"]["Enums"]["assignment_method"]
+          _force_staff_id?: string
+          _lead_id: string
+        }
+        Returns: {
+          assigned_to: string
+          method: Database["public"]["Enums"]["assignment_method"]
+          reason: string
+        }[]
+      }
       calculate_lead_score: {
         Args: { lead_row: Database["public"]["Tables"]["leads"]["Row"] }
         Returns: {
@@ -2337,6 +2622,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      process_assignment_queue: { Args: never; Returns: number }
     }
     Enums: {
       address_type: "home" | "work" | "mailing" | "other"
@@ -2351,6 +2637,18 @@ export type Database = {
         | "payment_processor"
         | "correspondent"
         | "viewer"
+      assignment_action:
+        | "auto_assigned"
+        | "manual_assigned"
+        | "reassigned"
+        | "unassigned"
+        | "queue_added"
+        | "queue_expired"
+      assignment_method:
+        | "round_robin"
+        | "weighted"
+        | "backlog_based"
+        | "skillset_match"
       assignment_type:
         | "primary_attorney"
         | "litigation_attorney"
@@ -2471,6 +2769,7 @@ export type Database = {
       payment_type: "lump_sum" | "payment_plan"
       phone_type: "mobile" | "home" | "work" | "fax" | "other"
       plan_type: "glg_standard" | "glg_adjustable" | "glg_exception"
+      queue_status: "pending" | "assigned" | "expired" | "manual"
       retention_type_enum:
         | "client_requested_cancel"
         | "company_initiated_cancel"
@@ -2649,6 +2948,20 @@ export const Constants = {
         "correspondent",
         "viewer",
       ],
+      assignment_action: [
+        "auto_assigned",
+        "manual_assigned",
+        "reassigned",
+        "unassigned",
+        "queue_added",
+        "queue_expired",
+      ],
+      assignment_method: [
+        "round_robin",
+        "weighted",
+        "backlog_based",
+        "skillset_match",
+      ],
       assignment_type: [
         "primary_attorney",
         "litigation_attorney",
@@ -2784,6 +3097,7 @@ export const Constants = {
       payment_type: ["lump_sum", "payment_plan"],
       phone_type: ["mobile", "home", "work", "fax", "other"],
       plan_type: ["glg_standard", "glg_adjustable", "glg_exception"],
+      queue_status: ["pending", "assigned", "expired", "manual"],
       retention_type_enum: [
         "client_requested_cancel",
         "company_initiated_cancel",
