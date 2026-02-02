@@ -765,6 +765,157 @@ export const FEATURE_GUIDES: FeatureGuide[] = [
       },
     ],
   },
+  {
+    id: 'notifications',
+    title: 'Notification Center',
+    category: 'workflow',
+    description: 'Real-time notifications for system events with configurable preferences.',
+    sections: [
+      {
+        title: 'Overview',
+        content: 'The Notification Center provides real-time alerts for important system events. Notifications appear in the bell icon dropdown in the top navigation bar and update automatically as new events occur.',
+      },
+      {
+        title: 'Notification Types',
+        content: 'The system generates notifications for various events:',
+        steps: [
+          'Task Assigned - When a task is assigned to you',
+          'Task Due Soon - Reminder for upcoming task deadlines',
+          'Task Overdue - Alert when tasks pass their due date',
+          'Lead Assigned - When a new lead is assigned to you',
+          'Matter Assigned - When a litigation matter is assigned',
+          'Hearing Reminder - Upcoming court hearing alerts',
+          'Settlement Update - Changes to settlement status',
+          'Mention - When someone mentions you in a note',
+          'System Alert - Important system announcements',
+        ],
+      },
+      {
+        title: 'Viewing Notifications',
+        content: 'Access your notifications from anywhere in the application.',
+        steps: [
+          'Click the bell icon in the top navigation bar',
+          'View unread count on the badge',
+          'Scroll through recent notifications',
+          'Click a notification to navigate to the related item',
+          'Unread notifications show a blue indicator',
+        ],
+        tips: [
+          'Notifications update in real-time - no refresh needed',
+          'Click "Mark all read" to clear the unread count',
+          'Notifications are sorted by most recent first',
+        ],
+      },
+      {
+        title: 'Managing Notifications',
+        content: 'Keep your notification list organized.',
+        steps: [
+          'Click a notification to mark it as read',
+          'Use "Mark all read" to clear all unread indicators',
+          'Notifications older than 30 days are automatically removed',
+        ],
+      },
+      {
+        title: 'Notification Preferences',
+        content: 'Configure how you receive notifications for each type.',
+        steps: [
+          'Navigate to Settings > Notifications',
+          'View the preference grid for all notification types',
+          'Toggle In-App to show/hide notifications in the dropdown',
+          'Toggle Sound to enable/disable notification sounds',
+          'Email notifications (future feature) can be enabled per type',
+        ],
+        tips: [
+          'You can disable notifications for types you don\'t need',
+          'Sound preferences only affect browser notifications',
+          'Preferences are saved automatically when changed',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'lead-scoring',
+    title: 'Lead Scoring',
+    category: 'workflow',
+    description: 'Automatic lead prioritization using configurable scoring profiles.',
+    sections: [
+      {
+        title: 'Overview',
+        content: 'The Lead Scoring system automatically calculates priority scores for leads based on configurable criteria. Higher scores indicate leads with greater potential, helping sales reps focus on the most promising opportunities.',
+      },
+      {
+        title: 'Understanding Lead Scores',
+        content: 'Scores range from 0-100 and are color-coded for quick identification:',
+        steps: [
+          'Cold (0-30) - Gray badge, needs qualification',
+          'Warm (31-50) - Yellow badge, moderate potential',
+          'Hot (51-70) - Orange badge, high potential',
+          'Very Hot (71-100) - Green badge with flame icon, priority lead',
+        ],
+        tips: [
+          'Scores update automatically when lead data changes',
+          'Hover over a score badge to see the breakdown',
+          'Leads are sorted by score by default in list view',
+        ],
+      },
+      {
+        title: 'Score Factors',
+        content: 'Default scoring criteria consider multiple factors:',
+        steps: [
+          'Estimated Debt Amount - Higher debt = more points',
+          'Number of Debts - Multiple debts = higher priority',
+          'Active Lawsuit - Litigation leads get bonus points',
+          'Credit Authorization - Given authorization = bonus points',
+          'Contact Info - Email and phone provided = bonus points',
+          'Lead Source - Referrals score highest, ads score lower',
+        ],
+      },
+      {
+        title: 'Where Scores Appear',
+        content: 'Lead scores are visible throughout the application.',
+        steps: [
+          'Kanban board - Score badge on each lead card',
+          'List view - Score column with sortable header',
+          'Lead detail sheet - Full score breakdown card',
+          'Dashboards - High-score leads highlighted',
+        ],
+      },
+      {
+        title: 'Managing Scoring Profiles',
+        content: 'Administrators can create and manage scoring profiles.',
+        steps: [
+          'Navigate to Settings > Scoring',
+          'View all scoring profiles for your company',
+          'Click "New Profile" to create a custom profile',
+          'Set a name and optional description',
+          'Choose interest type/source targeting (optional)',
+          'Configure scoring criteria with point values',
+          'Save the profile',
+        ],
+        tips: [
+          'One profile per company can be marked as Default',
+          'Profiles can target specific lead sources or interest types',
+          'More specific profiles take precedence over general ones',
+        ],
+        warnings: [
+          'Deleting a profile causes affected leads to use the default',
+          'Changes to profiles recalculate scores on next lead update',
+        ],
+      },
+      {
+        title: 'Scoring Criteria Configuration',
+        content: 'Each profile contains configurable point values:',
+        steps: [
+          'Debt Thresholds - Set tiers (e.g., $10k=10pts, $25k=20pts, $50k+=30pts)',
+          'Number of Debts - Set tiers based on debt count',
+          'Active Lawsuit - Points for litigation-interested leads',
+          'Credit Auth - Points when authorization is given',
+          'Contact Info - Points for email/phone provided',
+          'Source Quality - Different points per lead source',
+        ],
+      },
+    ],
+  },
 ];
 
 export function getGuideById(id: string): FeatureGuide | undefined {

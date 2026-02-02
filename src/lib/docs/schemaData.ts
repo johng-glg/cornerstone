@@ -19,7 +19,7 @@ export interface TableSchema {
 export const DATABASE_SCHEMAS: TableSchema[] = [
   {
     name: 'leads',
-    description: 'Stores potential client leads from various sources. Tracks lead status through the sales pipeline from initial contact to conversion.',
+    description: 'Stores potential client leads from various sources. Tracks lead status through the sales pipeline from initial contact to conversion. Includes automatic lead scoring.',
     columns: [
       { name: 'id', type: 'uuid', nullable: false, default: 'gen_random_uuid()', description: 'Primary key' },
       { name: 'lead_number', type: 'text', nullable: false, description: 'Auto-generated lead identifier (LEAD-YYYY-XXXX)' },
@@ -38,6 +38,10 @@ export const DATABASE_SCHEMAS: TableSchema[] = [
       { name: 'has_active_lawsuit', type: 'boolean', nullable: true, default: 'false', description: 'Whether lead has active litigation' },
       { name: 'wizard_step', type: 'integer', nullable: true, default: '1', description: 'Current enrollment wizard step' },
       { name: 'wizard_data', type: 'jsonb', nullable: true, default: '{}', description: 'Stored wizard form data' },
+      { name: 'lead_score', type: 'integer', nullable: true, default: '0', description: 'Calculated priority score (0-100)' },
+      { name: 'score_breakdown', type: 'jsonb', nullable: true, description: 'JSONB breakdown of scoring factors' },
+      { name: 'scoring_profile_id', type: 'uuid', nullable: true, description: 'Assigned scoring profile (optional override)' },
+      { name: 'score_calculated_at', type: 'timestamptz', nullable: true, description: 'Last score calculation timestamp' },
     ],
     rlsPolicies: [
       'Staff can view company leads - SELECT using can_access_company(auth.uid(), company_id)',
@@ -47,6 +51,7 @@ export const DATABASE_SCHEMAS: TableSchema[] = [
       'company_id -> companies.id',
       'assigned_to -> staff.id',
       'converted_service_id -> client_services.id',
+      'scoring_profile_id -> lead_scoring_profiles.id',
     ],
   },
   {
@@ -347,6 +352,75 @@ export const DATABASE_SCHEMAS: TableSchema[] = [
       'created_by -> staff.id',
     ],
   },
+  {
+    name: 'notifications',
+    description: 'User notifications for system events. Supports real-time updates via Supabase Realtime.',
+    columns: [
+      { name: 'id', type: 'uuid', nullable: false, default: 'gen_random_uuid()', description: 'Primary key' },
+      { name: 'user_id', type: 'uuid', nullable: false, description: 'Target user for notification' },
+      { name: 'type', type: 'notification_type', nullable: false, description: 'Notification category: task_assigned, lead_assigned, etc.' },
+      { name: 'title', type: 'text', nullable: false, description: 'Notification headline' },
+      { name: 'message', type: 'text', nullable: true, description: 'Detailed notification message' },
+      { name: 'link', type: 'text', nullable: true, description: 'Navigation path (e.g., /tasks/abc123)' },
+      { name: 'entity_type', type: 'text', nullable: true, description: 'Related entity type: task, lead, matter' },
+      { name: 'entity_id', type: 'uuid', nullable: true, description: 'Related entity ID' },
+      { name: 'is_read', type: 'boolean', nullable: false, default: 'false', description: 'Read status' },
+      { name: 'read_at', type: 'timestamptz', nullable: true, description: 'Timestamp when marked read' },
+      { name: 'created_at', type: 'timestamptz', nullable: false, default: 'now()', description: 'Creation timestamp' },
+    ],
+    rlsPolicies: [
+      'Users can view own notifications - SELECT using user_id = auth.uid()',
+      'Users can update own notifications - UPDATE using user_id = auth.uid()',
+      'System can insert notifications - INSERT using true (via triggers)',
+    ],
+    relationships: [
+      'user_id -> auth.users.id',
+    ],
+  },
+  {
+    name: 'notification_preferences',
+    description: 'User preferences for notification delivery channels per notification type.',
+    columns: [
+      { name: 'id', type: 'uuid', nullable: false, default: 'gen_random_uuid()', description: 'Primary key' },
+      { name: 'user_id', type: 'uuid', nullable: false, description: 'User these preferences apply to' },
+      { name: 'notification_type', type: 'notification_type', nullable: false, description: 'Notification type this preference controls' },
+      { name: 'in_app_enabled', type: 'boolean', nullable: false, default: 'true', description: 'Show in-app notifications' },
+      { name: 'email_enabled', type: 'boolean', nullable: false, default: 'false', description: 'Send email notifications' },
+      { name: 'sound_enabled', type: 'boolean', nullable: false, default: 'true', description: 'Play notification sound' },
+      { name: 'created_at', type: 'timestamptz', nullable: false, default: 'now()', description: 'Creation timestamp' },
+      { name: 'updated_at', type: 'timestamptz', nullable: false, default: 'now()', description: 'Last update timestamp' },
+    ],
+    rlsPolicies: [
+      'Users can manage own preferences - ALL using user_id = auth.uid()',
+    ],
+    relationships: [
+      'user_id -> auth.users.id',
+    ],
+  },
+  {
+    name: 'lead_scoring_profiles',
+    description: 'Configurable scoring profiles for lead prioritization. Criteria stored as JSONB for flexibility.',
+    columns: [
+      { name: 'id', type: 'uuid', nullable: false, default: 'gen_random_uuid()', description: 'Primary key' },
+      { name: 'company_id', type: 'uuid', nullable: false, description: 'Company that owns this profile' },
+      { name: 'name', type: 'text', nullable: false, description: 'Profile name' },
+      { name: 'description', type: 'text', nullable: true, description: 'Profile description' },
+      { name: 'interest_type', type: 'lead_interest', nullable: true, description: 'Only apply to specific interest type' },
+      { name: 'source', type: 'lead_source', nullable: true, description: 'Only apply to specific lead source' },
+      { name: 'is_default', type: 'boolean', nullable: false, default: 'false', description: 'Default profile for company' },
+      { name: 'is_active', type: 'boolean', nullable: false, default: 'true', description: 'Profile is active' },
+      { name: 'criteria', type: 'jsonb', nullable: false, default: '{}', description: 'Scoring criteria: debt thresholds, source weights, etc.' },
+      { name: 'created_at', type: 'timestamptz', nullable: false, default: 'now()', description: 'Creation timestamp' },
+      { name: 'updated_at', type: 'timestamptz', nullable: false, default: 'now()', description: 'Last update timestamp' },
+    ],
+    rlsPolicies: [
+      'Users can view company scoring profiles - SELECT using company_id = get_user_company_id(auth.uid())',
+      'Users can manage company scoring profiles - ALL using company_id = get_user_company_id(auth.uid())',
+    ],
+    relationships: [
+      'company_id -> companies.id',
+    ],
+  },
 ];
 
 export const ENUM_DEFINITIONS = [
@@ -410,6 +484,11 @@ export const ENUM_DEFINITIONS = [
     values: ['credit_card', 'personal_loan', 'medical', 'auto_deficiency', 'private_student_loan', 'business_debt', 'other'],
     description: 'Types of debt accounts',
   },
+  {
+    name: 'notification_type',
+    values: ['task_assigned', 'task_due_soon', 'task_overdue', 'lead_assigned', 'matter_assigned', 'hearing_reminder', 'settlement_update', 'mention', 'system_alert'],
+    description: 'Types of system notifications',
+  },
 ];
 
 export const DATABASE_FUNCTIONS = [
@@ -454,6 +533,30 @@ export const DATABASE_FUNCTIONS = [
     signature: 'track_lead_status_transition() RETURNS trigger',
     description: 'Trigger function that records timestamps when lead status changes.',
     securityDefiner: false,
+  },
+  {
+    name: 'create_notification',
+    signature: 'create_notification(_user_id uuid, _type notification_type, _title text, _message text, _link text, _entity_type text, _entity_id uuid) RETURNS uuid',
+    description: 'Creates a notification for a user, respecting their notification preferences. Returns the notification ID.',
+    securityDefiner: true,
+  },
+  {
+    name: 'notify_task_assignment',
+    signature: 'notify_task_assignment() RETURNS trigger',
+    description: 'Trigger function that creates a notification when a task is assigned or reassigned to a staff member.',
+    securityDefiner: true,
+  },
+  {
+    name: 'calculate_lead_score',
+    signature: 'calculate_lead_score(lead_row leads) RETURNS TABLE(score integer, breakdown jsonb)',
+    description: 'Calculates lead score based on assigned or default scoring profile. Returns score and breakdown of contributing factors.',
+    securityDefiner: true,
+  },
+  {
+    name: 'trigger_calculate_lead_score',
+    signature: 'trigger_calculate_lead_score() RETURNS trigger',
+    description: 'Trigger function that auto-calculates lead score on insert or update of scoring-relevant fields.',
+    securityDefiner: true,
   },
 ];
 
