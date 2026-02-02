@@ -102,7 +102,7 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
   const [copied, setCopied] = useState(false);
 
   const { data: companies } = useQuery({
-    queryKey: ['companies'],
+    queryKey: ['companies-dropdown-active'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('companies')

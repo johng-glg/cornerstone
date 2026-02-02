@@ -63,7 +63,7 @@ export function CompanyFormDialog({ open, onOpenChange, company }: CompanyFormDi
   const isRootCompany = isEditing && !company?.parent_company_id;
 
   const { data: companies } = useQuery({
-    queryKey: ['companies'],
+    queryKey: ['companies-dropdown'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('companies')
