@@ -77,9 +77,18 @@ export default function FutureBuildPage() {
   const getItemsByCategory = (category: string) =>
     sortByStatus(filteredItems.filter(item => item.category === category));
 
-  const highPriorityItems = sortByStatus(filteredItems.filter(item => item.priority === 'High'));
+  const highPriorityItems = filteredItems.filter(item => item.priority === 'High');
+  const highPriorityCompleted = highPriorityItems.filter(item => item.status === 'Completed').length;
+  const highPriorityRemaining = highPriorityItems.length - highPriorityCompleted;
+  const sortedHighPriorityItems = sortByStatus(highPriorityItems);
+  
   const inProgressItems = filteredItems.filter(item => item.status === 'In Progress' || item.status === 'Research');
   const sortedFilteredItems = sortByStatus(filteredItems);
+  
+  // Overall stats
+  const completedCount = FUTURE_BUILDS.filter(item => item.status === 'Completed').length;
+  const plannedCount = FUTURE_BUILDS.filter(item => item.status === 'Planned').length;
+  const completionPercent = Math.round((completedCount / FUTURE_BUILDS.length) * 100);
 
   return (
     <div className="space-y-6">
@@ -101,13 +110,23 @@ export default function FutureBuildPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Features</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{FUTURE_BUILDS.length}</p>
+            <p className="text-2xl font-bold text-green-600">
+              {completedCount}
+              <span className="text-sm font-normal text-muted-foreground ml-1">/ {FUTURE_BUILDS.length}</span>
+            </p>
+            <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-green-500 transition-all duration-500" 
+                style={{ width: `${completionPercent}%` }} 
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{completionPercent}% complete</p>
           </CardContent>
         </Card>
         <Card>
@@ -115,15 +134,31 @@ export default function FutureBuildPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">High Priority</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-red-600">{highPriorityItems.length}</p>
+            <p className="text-2xl font-bold text-red-600">
+              {highPriorityRemaining}
+              <span className="text-sm font-normal text-muted-foreground ml-1">remaining</span>
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {highPriorityCompleted} of {highPriorityItems.length} done
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">In Progress / Research</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">In Progress</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-blue-600">{inProgressItems.length}</p>
+            <p className="text-xs text-muted-foreground mt-1">actively being worked on</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Backlog</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-muted-foreground">{plannedCount}</p>
+            <p className="text-xs text-muted-foreground mt-1">planned features</p>
           </CardContent>
         </Card>
       </div>
@@ -149,7 +184,7 @@ export default function FutureBuildPage() {
 
         <TabsContent value="high-priority" className="mt-6">
           <div className="grid gap-4 md:grid-cols-2">
-            {highPriorityItems.map(item => (
+            {sortedHighPriorityItems.map(item => (
               <FeatureCard key={item.id} item={item} />
             ))}
           </div>
