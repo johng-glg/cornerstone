@@ -1311,6 +1311,7 @@ export type Database = {
       litigation_hearings: {
         Row: {
           created_at: string
+          end_date: string | null
           hearing_type: string
           id: string
           judge_name: string | null
@@ -1323,6 +1324,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          end_date?: string | null
           hearing_type: string
           id?: string
           judge_name?: string | null
@@ -1335,6 +1337,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          end_date?: string | null
           hearing_type?: string
           id?: string
           judge_name?: string | null

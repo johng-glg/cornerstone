@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -30,7 +29,8 @@ import { useCreateLitigationHearing, useUpdateLitigationHearing, type Litigation
 
 const hearingSchema = z.object({
   hearing_type: z.string().min(1, 'Hearing type is required'),
-  scheduled_date: z.string().min(1, 'Scheduled date is required'),
+  scheduled_date: z.string().min(1, 'Start date/time is required'),
+  end_date: z.string().optional(),
   location: z.string().optional(),
   judge_name: z.string().optional(),
   outcome: z.string().optional(),
@@ -71,6 +71,9 @@ export function LitigationHearingFormDialog({
       scheduled_date: hearing?.scheduled_date 
         ? new Date(hearing.scheduled_date).toISOString().slice(0, 16) 
         : '',
+      end_date: hearing?.end_date 
+        ? new Date(hearing.end_date).toISOString().slice(0, 16) 
+        : '',
       location: hearing?.location || '',
       judge_name: hearing?.judge_name || '',
       outcome: hearing?.outcome || '',
@@ -83,6 +86,7 @@ export function LitigationHearingFormDialog({
       matter_id: matterId,
       hearing_type: data.hearing_type,
       scheduled_date: new Date(data.scheduled_date).toISOString(),
+      end_date: data.end_date ? new Date(data.end_date).toISOString() : null,
       location: data.location || null,
       judge_name: data.judge_name || null,
       outcome: data.outcome || null,
@@ -133,19 +137,35 @@ export function LitigationHearingFormDialog({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="scheduled_date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date & Time</FormLabel>
-                  <FormControl>
-                    <Input type="datetime-local" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="scheduled_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Time</FormLabel>
+                    <FormControl>
+                      <Input type="datetime-local" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="end_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>End Time (Optional)</FormLabel>
+                    <FormControl>
+                      <Input type="datetime-local" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}
