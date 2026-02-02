@@ -75,8 +75,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Leads',
     priority: 'High',
     description: 'Automated assignment based on round robin, skillset, backlog, or weighted methods.',
-    status: 'In Progress',
-    notes: 'Database schema complete with lead_assignment_rules, lead_assignment_pool, lead_assignment_queue, and lead_assignment_log tables. Core assign_lead() function and auto-assignment trigger implemented. UI components in progress.',
+    status: 'Completed',
+    notes: 'Database schema complete with lead_assignment_rules, lead_assignment_pool, lead_assignment_queue, and lead_assignment_log tables. Core assign_lead() function implemented. UI for rule management, pool editing, and availability toggle available in Settings.',
   },
   {
     id: 'duplicate-detection',
@@ -206,8 +206,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Automation',
     priority: 'Medium',
     description: 'Visual workflow builder with triggers and status transition restrictions.',
-    status: 'Planned',
-    notes: 'Can restrict going from one status to another until conditions are met.',
+    status: 'Completed',
+    notes: 'Implemented with workflow_rules and workflow_executions tables. Supports multiple trigger types (status_changed, field_updated, record_created), condition builder with AND/OR logic, and actions (create_task, send_notification, update_field, block_transition). Blocking rules prevent status changes until conditions are met. UI available in Settings → Workflows.',
   },
   {
     id: 'sla-tracking',

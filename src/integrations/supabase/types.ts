@@ -2532,6 +2532,128 @@ export type Database = {
         }
         Relationships: []
       }
+      workflow_executions: {
+        Row: {
+          actions_executed: Json | null
+          block_message: string | null
+          condition_results: Json | null
+          duration_ms: number | null
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["workflow_entity_type"]
+          error_message: string | null
+          executed_at: string
+          id: string
+          rule_id: string
+          status: Database["public"]["Enums"]["workflow_execution_status"]
+          trigger_data: Json | null
+        }
+        Insert: {
+          actions_executed?: Json | null
+          block_message?: string | null
+          condition_results?: Json | null
+          duration_ms?: number | null
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["workflow_entity_type"]
+          error_message?: string | null
+          executed_at?: string
+          id?: string
+          rule_id: string
+          status: Database["public"]["Enums"]["workflow_execution_status"]
+          trigger_data?: Json | null
+        }
+        Update: {
+          actions_executed?: Json | null
+          block_message?: string | null
+          condition_results?: Json | null
+          duration_ms?: number | null
+          entity_id?: string
+          entity_type?: Database["public"]["Enums"]["workflow_entity_type"]
+          error_message?: string | null
+          executed_at?: string
+          id?: string
+          rule_id?: string
+          status?: Database["public"]["Enums"]["workflow_execution_status"]
+          trigger_data?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_executions_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_rules: {
+        Row: {
+          actions: Json
+          company_id: string
+          conditions: Json
+          created_at: string
+          created_by: string | null
+          description: string | null
+          entity_type: Database["public"]["Enums"]["workflow_entity_type"]
+          id: string
+          is_active: boolean
+          is_blocking: boolean
+          name: string
+          priority: number
+          trigger_config: Json
+          trigger_type: Database["public"]["Enums"]["workflow_trigger_type"]
+          updated_at: string
+        }
+        Insert: {
+          actions?: Json
+          company_id: string
+          conditions?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          entity_type: Database["public"]["Enums"]["workflow_entity_type"]
+          id?: string
+          is_active?: boolean
+          is_blocking?: boolean
+          name: string
+          priority?: number
+          trigger_config?: Json
+          trigger_type: Database["public"]["Enums"]["workflow_trigger_type"]
+          updated_at?: string
+        }
+        Update: {
+          actions?: Json
+          company_id?: string
+          conditions?: Json
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          entity_type?: Database["public"]["Enums"]["workflow_entity_type"]
+          id?: string
+          is_active?: boolean
+          is_blocking?: boolean
+          name?: string
+          priority?: number
+          trigger_config?: Json
+          trigger_type?: Database["public"]["Enums"]["workflow_trigger_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_rules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       lead_rep_metrics: {
@@ -2602,6 +2724,10 @@ export type Database = {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
       }
+      check_trigger_match: {
+        Args: { _trigger_config: Json; _trigger_data: Json }
+        Returns: boolean
+      }
       create_notification: {
         Args: {
           _entity_id?: string
@@ -2614,6 +2740,14 @@ export type Database = {
         }
         Returns: string
       }
+      evaluate_workflow_conditions: {
+        Args: {
+          _conditions: Json
+          _entity_id: string
+          _entity_type: Database["public"]["Enums"]["workflow_entity_type"]
+        }
+        Returns: boolean
+      }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -2623,6 +2757,19 @@ export type Database = {
         Returns: boolean
       }
       process_assignment_queue: { Args: never; Returns: number }
+      validate_status_transition: {
+        Args: {
+          _entity_id: string
+          _entity_type: Database["public"]["Enums"]["workflow_entity_type"]
+          _from_status: string
+          _to_status: string
+        }
+        Returns: {
+          allowed: boolean
+          block_message: string
+          rule_name: string
+        }[]
+      }
     }
     Enums: {
       address_type: "home" | "work" | "mailing" | "other"
@@ -2808,6 +2955,26 @@ export type Database = {
         | "processor_fee"
         | "settlement_payment"
         | "contingency_fee"
+      workflow_action_type:
+        | "create_task"
+        | "send_notification"
+        | "update_field"
+        | "block_transition"
+        | "trigger_webhook"
+      workflow_entity_type:
+        | "leads"
+        | "client_services"
+        | "liabilities"
+        | "litigation_matters"
+        | "tasks"
+        | "settlements"
+      workflow_execution_status: "success" | "blocked" | "failed" | "skipped"
+      workflow_trigger_type:
+        | "status_changed"
+        | "field_updated"
+        | "record_created"
+        | "time_based"
+        | "manual"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3140,6 +3307,29 @@ export const Constants = {
         "processor_fee",
         "settlement_payment",
         "contingency_fee",
+      ],
+      workflow_action_type: [
+        "create_task",
+        "send_notification",
+        "update_field",
+        "block_transition",
+        "trigger_webhook",
+      ],
+      workflow_entity_type: [
+        "leads",
+        "client_services",
+        "liabilities",
+        "litigation_matters",
+        "tasks",
+        "settlements",
+      ],
+      workflow_execution_status: ["success", "blocked", "failed", "skipped"],
+      workflow_trigger_type: [
+        "status_changed",
+        "field_updated",
+        "record_created",
+        "time_based",
+        "manual",
       ],
     },
   },
