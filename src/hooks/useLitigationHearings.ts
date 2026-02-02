@@ -41,17 +41,38 @@ export function useCreateLitigationHearing() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (hearing: LitigationHearingInsert) => {
+    mutationFn: async (hearing: LitigationHearingInsert & { staffId?: string }) => {
+      const { staffId, ...hearingData } = hearing;
       const { data, error } = await supabase
         .from('litigation_hearings')
-        .insert([hearing])
+        .insert([hearingData])
         .select()
         .single();
       if (error) throw error;
+      
+      // Log activity for hearing creation
+      const hearingDate = new Date(data.scheduled_date);
+      const formattedDate = hearingDate.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+      
+      await supabase.from('litigation_activities').insert([{
+        matter_id: data.matter_id,
+        activity_type: 'hearing',
+        description: `${data.hearing_type.replace('_', ' ')} scheduled for ${formattedDate}`,
+        staff_id: staffId || null,
+      }]);
+      
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['litigation_hearings', data.matter_id] });
+      queryClient.invalidateQueries({ queryKey: ['litigation_activities', data.matter_id] });
+      queryClient.invalidateQueries({ queryKey: ['all_litigation_hearings'] });
       toast({ title: 'Hearing scheduled' });
     },
     onError: (error: Error) => {
@@ -77,6 +98,7 @@ export function useUpdateLitigationHearing() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['litigation_hearings', data.matter_id] });
+      queryClient.invalidateQueries({ queryKey: ['all_litigation_hearings'] });
       toast({ title: 'Hearing updated' });
     },
     onError: (error: Error) => {
@@ -100,6 +122,7 @@ export function useDeleteLitigationHearing() {
     },
     onSuccess: ({ matterId }) => {
       queryClient.invalidateQueries({ queryKey: ['litigation_hearings', matterId] });
+      queryClient.invalidateQueries({ queryKey: ['all_litigation_hearings'] });
       toast({ title: 'Hearing deleted' });
     },
     onError: (error: Error) => {

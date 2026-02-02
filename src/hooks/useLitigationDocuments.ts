@@ -55,10 +55,21 @@ export function useCreateLitigationDocument() {
         .select()
         .single();
       if (error) throw error;
+      
+      // Log activity for document upload
+      await supabase.from('litigation_activities').insert([{
+        matter_id: data.matter_id,
+        activity_type: 'filing',
+        description: `Document added: ${data.title} (${data.document_type.replace('_', ' ')})`,
+        document_url: data.file_url,
+        staff_id: doc.uploaded_by || null,
+      }]);
+      
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['litigation_documents', data.matter_id] });
+      queryClient.invalidateQueries({ queryKey: ['litigation_activities', data.matter_id] });
       toast({ title: 'Document added' });
     },
     onError: (error: Error) => {
