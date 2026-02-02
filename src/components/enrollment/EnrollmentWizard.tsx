@@ -3,6 +3,7 @@ import { useCurrentStaff } from '@/hooks/useStaff';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { checkClientEmailDuplicate, type DuplicateMatch } from '@/hooks/useDuplicateDetection';
 import {
   Dialog,
   DialogContent,
@@ -10,11 +11,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Check, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Loader2, AlertTriangle, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   EnrollmentWizardProvider,
   useEnrollmentWizard,
@@ -37,6 +49,71 @@ interface EnrollmentWizardProps {
   onSuccess: () => void;
 }
 
+// Client duplicate blocking dialog
+function ClientDuplicateDialog({
+  open,
+  onOpenChange,
+  duplicate,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  duplicate: DuplicateMatch | null;
+}) {
+  const navigate = useNavigate();
+
+  const handleViewClient = () => {
+    if (duplicate) {
+      onOpenChange(false);
+      navigate(`/clients/${duplicate.id}`);
+    }
+  };
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            Email Already Exists
+          </AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-3">
+              <p>
+                This email is already associated with an existing client. You cannot
+                proceed with enrollment using this email address.
+              </p>
+              {duplicate && (
+                <div className="rounded-lg border bg-muted/50 p-3 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="h-4 w-4 text-primary" />
+                    <span className="font-medium">{duplicate.name}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {duplicate.email}
+                    {duplicate.serviceNumber && (
+                      <span> • Service: {duplicate.serviceNumber}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+              <p className="text-sm">
+                Please update the lead's email address in the Client Info step or work
+                with the existing client record.
+              </p>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Go Back</AlertDialogCancel>
+          <AlertDialogAction onClick={handleViewClient}>
+            View Existing Client
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 function WizardContent({ onClose, onSuccess }: Omit<EnrollmentWizardProps, 'leadId'>) {
   const {
     leadId,
@@ -56,6 +133,10 @@ function WizardContent({ onClose, onSuccess }: Omit<EnrollmentWizardProps, 'lead
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Duplicate detection state
+  const [duplicateClient, setDuplicateClient] = useState<DuplicateMatch | null>(null);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+
   const progress = ((currentStepIndex + 1) / ENROLLMENT_STEPS.length) * 100;
   const isLastStep = currentStepIndex === ENROLLMENT_STEPS.length - 1;
   const isFirstStep = currentStepIndex === 0;
@@ -66,6 +147,17 @@ function WizardContent({ onClose, onSuccess }: Omit<EnrollmentWizardProps, 'lead
     setIsSubmitting(true);
 
     try {
+      // Check for client email duplicate before proceeding
+      if (data.email) {
+        const existingClient = await checkClientEmailDuplicate(data.email);
+        if (existingClient) {
+          setDuplicateClient(existingClient);
+          setShowDuplicateDialog(true);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       // 1. Create client
       const { data: client, error: clientError } = await supabase
         .from('clients')
@@ -292,6 +384,12 @@ function WizardContent({ onClose, onSuccess }: Omit<EnrollmentWizardProps, 'lead
           </Button>
         )}
       </div>
+
+      <ClientDuplicateDialog
+        open={showDuplicateDialog}
+        onOpenChange={setShowDuplicateDialog}
+        duplicate={duplicateClient}
+      />
     </>
   );
 }
