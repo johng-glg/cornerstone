@@ -69,11 +69,17 @@ export default function FutureBuildPage() {
     item.category.toLowerCase().includes(search.toLowerCase())
   );
 
-  const getItemsByCategory = (category: string) =>
-    filteredItems.filter(item => item.category === category);
+  const sortByStatus = (items: RoadmapItem[]) => {
+    const statusOrder = { 'In Progress': 0, 'Research': 1, 'Planned': 2, 'Completed': 3 };
+    return [...items].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+  };
 
-  const highPriorityItems = filteredItems.filter(item => item.priority === 'High');
+  const getItemsByCategory = (category: string) =>
+    sortByStatus(filteredItems.filter(item => item.category === category));
+
+  const highPriorityItems = sortByStatus(filteredItems.filter(item => item.priority === 'High'));
   const inProgressItems = filteredItems.filter(item => item.status === 'In Progress' || item.status === 'Research');
+  const sortedFilteredItems = sortByStatus(filteredItems);
 
   return (
     <div className="space-y-6">
@@ -135,7 +141,7 @@ export default function FutureBuildPage() {
 
         <TabsContent value="all" className="mt-6">
           <div className="grid gap-4 md:grid-cols-2">
-            {filteredItems.map(item => (
+            {sortedFilteredItems.map(item => (
               <FeatureCard key={item.id} item={item} />
             ))}
           </div>
