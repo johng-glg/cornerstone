@@ -66,8 +66,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     category: 'Leads',
     priority: 'High',
     description: 'Adjustable scoring criteria with profiles for different lead types/sources.',
-    status: 'Planned',
-    notes: 'Create lead_scoring_profiles table with JSONB criteria. Add lead_score, scoring_profile_id to leads.',
+    status: 'Completed',
+    notes: 'Implemented lead_scoring_profiles table with JSONB criteria. Database trigger auto-calculates scores on lead insert/update. LeadScoreBadge component shows color-coded scores with breakdown tooltip. Scoring profiles configurable in Settings.',
   },
   {
     id: 'lead-assignment',
