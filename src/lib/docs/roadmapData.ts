@@ -209,14 +209,27 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     status: 'Planned',
   },
   {
-    id: 'esign-integration',
-    name: 'eSign Integration',
-    category: 'Communications',
-    priority: 'Medium',
-    description: 'Electronic signature capability - evaluate DocuSign, HelloSign, or custom build.',
-    status: 'Research',
-    difficulty: 4,
-    benefit: 4,
+    id: 'esign-system',
+    name: 'Proprietary eSign System',
+    category: 'Documents',
+    priority: 'High',
+    description: 'First-class electronic signature system with signing ceremonies, SMS/email notifications, audit trails, and executed PDF storage.',
+    status: 'Planned',
+    difficulty: 5,
+    benefit: 5,
+    notes: `Full-featured eSign built into CRM:
+• Signature Requests panel on Lead/Client records
+• Send for Signature wizard with template selection and merge fields
+• Multi-signer support with role assignment (Client, Spouse, Attorney)
+• Email + SMS delivery via Twilio/Resend
+• Public mobile-first signing ceremony with guided field completion
+• Field types: Signature, Initial, Date, Text, Checkbox
+• Append-only audit log with IP, user agent, timestamps
+• SHA-256 document hashing and evidence bundle
+• Executed PDF and Completion Certificate generation
+• Workflow action node for automated sending
+• Secure tokenized signing links (JWT/OTP)
+• Timeline entries for Sent, Viewed, Completed events`,
   },
   
   // Automation
