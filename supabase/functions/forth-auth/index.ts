@@ -60,7 +60,9 @@ export async function getAccessToken(): Promise<string> {
   
   // Try various response structures
   const accessToken = tokenData.response?.access_token || 
+                      tokenData.response?.api_key ||
                       tokenData.access_token || 
+                      tokenData.api_key ||
                       tokenData.data?.access_token ||
                       tokenData.token;
   
