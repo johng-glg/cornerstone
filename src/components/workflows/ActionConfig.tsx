@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, X, Bell, CheckSquare, Edit3, Shield, Webhook } from 'lucide-react';
+import { Plus, X, Bell, CheckSquare, Edit3, Shield, Webhook, Mail, MessageSquare } from 'lucide-react';
 import {
   WorkflowAction,
   WorkflowActionType,
@@ -12,6 +12,8 @@ import {
   actionTypeLabels,
   CreateTaskActionConfig,
   SendNotificationActionConfig,
+  SendEmailActionConfig,
+  SendSmsActionConfig,
   UpdateFieldActionConfig,
   BlockTransitionActionConfig,
   entityDateFields,
@@ -27,6 +29,8 @@ interface ActionConfigProps {
 const actionIcons: Record<WorkflowActionType, React.ReactNode> = {
   create_task: <CheckSquare className="h-4 w-4" />,
   send_notification: <Bell className="h-4 w-4" />,
+  send_email: <Mail className="h-4 w-4" />,
+  send_sms: <MessageSquare className="h-4 w-4" />,
   update_field: <Edit3 className="h-4 w-4" />,
   block_transition: <Shield className="h-4 w-4" />,
   trigger_webhook: <Webhook className="h-4 w-4" />,
@@ -43,6 +47,12 @@ export function ActionConfig({ actions, onChange, isBlocking, entityType }: Acti
         break;
       case 'send_notification':
         config = { to: 'entity_owner', title: '', message: '' };
+        break;
+      case 'send_email':
+        config = { to: 'client', template_id: '', subject: '', body: '' };
+        break;
+      case 'send_sms':
+        config = { to: 'client', template_id: '', message: '' };
         break;
       case 'update_field':
         config = { field: '', value: '' };
@@ -236,6 +246,96 @@ export function ActionConfig({ actions, onChange, isBlocking, entityType }: Acti
         );
       }
 
+      case 'send_email': {
+        const config = action.config as SendEmailActionConfig;
+        return (
+          <div className="space-y-3">
+            <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                ⚠️ Email sending is not yet functional. This is a placeholder for future integration.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Send To</Label>
+              <Select
+                value={config.to || 'client'}
+                onValueChange={(v) => updateAction(index, { ...config, to: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="client">Client</SelectItem>
+                  <SelectItem value="entity_owner">Entity Owner</SelectItem>
+                  <SelectItem value="specific">Specific Email</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Subject</Label>
+              <Input
+                value={config.subject}
+                onChange={(e) => updateAction(index, { ...config, subject: e.target.value })}
+                placeholder="e.g., Your case status has been updated"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Body</Label>
+              <Textarea
+                value={config.body}
+                onChange={(e) => updateAction(index, { ...config, body: e.target.value })}
+                placeholder="Email body content..."
+                rows={4}
+              />
+              <p className="text-xs text-muted-foreground">
+                Use {'{'}client_name{'}'}, {'{'}service_number{'}'} for dynamic values
+              </p>
+            </div>
+          </div>
+        );
+      }
+
+      case 'send_sms': {
+        const config = action.config as SendSmsActionConfig;
+        return (
+          <div className="space-y-3">
+            <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                ⚠️ SMS sending is not yet functional. This is a placeholder for future integration.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Send To</Label>
+              <Select
+                value={config.to || 'client'}
+                onValueChange={(v) => updateAction(index, { ...config, to: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="client">Client</SelectItem>
+                  <SelectItem value="entity_owner">Entity Owner</SelectItem>
+                  <SelectItem value="specific">Specific Phone</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Message</Label>
+              <Textarea
+                value={config.message}
+                onChange={(e) => updateAction(index, { ...config, message: e.target.value })}
+                placeholder="SMS message content..."
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">
+                Use {'{'}client_name{'}'}, {'{'}service_number{'}'} for dynamic values. Keep under 160 chars for best delivery.
+              </p>
+            </div>
+          </div>
+        );
+      }
+
       case 'update_field': {
         const config = action.config as UpdateFieldActionConfig;
         return (
@@ -358,7 +458,15 @@ export function ActionConfig({ actions, onChange, isBlocking, entityType }: Acti
         </Button>
         <Button variant="outline" size="sm" onClick={() => addAction('send_notification')}>
           <Bell className="h-4 w-4 mr-2" />
-          Send Notification
+          In-App Notification
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => addAction('send_email')}>
+          <Mail className="h-4 w-4 mr-2" />
+          Send Email
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => addAction('send_sms')}>
+          <MessageSquare className="h-4 w-4 mr-2" />
+          Send SMS
         </Button>
         <Button variant="outline" size="sm" onClick={() => addAction('update_field')}>
           <Edit3 className="h-4 w-4 mr-2" />
