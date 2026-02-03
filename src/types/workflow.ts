@@ -38,6 +38,50 @@ export interface ConditionGroup {
   rules: ConditionRule[];
 }
 
+// Role-based assignment options for workflows
+export type RoleBasedAssignment = 
+  | 'entity_owner' 
+  | 'creator'
+  | 'assigned_attorney'
+  | 'assigned_case_manager'
+  | 'assigned_negotiator'
+  | 'assigned_sales_rep'
+  | 'assigned_cs_rep';
+
+// Role assignment options per entity type
+export const ROLE_ASSIGNMENT_OPTIONS: Record<WorkflowEntityType, { value: RoleBasedAssignment; label: string }[]> = {
+  litigation_matters: [
+    { value: 'assigned_attorney', label: 'Assigned Attorney' },
+    { value: 'assigned_case_manager', label: 'Assigned Case Manager' },
+    { value: 'assigned_negotiator', label: 'Assigned Negotiator' },
+  ],
+  leads: [
+    { value: 'assigned_sales_rep', label: 'Assigned Sales Rep' },
+  ],
+  client_services: [
+    { value: 'assigned_cs_rep', label: 'Assigned CS Rep' },
+    { value: 'assigned_case_manager', label: 'Assigned Case Manager' },
+    { value: 'assigned_negotiator', label: 'Assigned Negotiator' },
+  ],
+  liabilities: [
+    { value: 'assigned_case_manager', label: 'Assigned Case Manager' },
+    { value: 'assigned_negotiator', label: 'Assigned Negotiator' },
+  ],
+  tasks: [],
+  settlements: [
+    { value: 'assigned_negotiator', label: 'Assigned Negotiator' },
+  ],
+};
+
+// Mapping from workflow role to database assignment_type
+export const ROLE_TO_ASSIGNMENT_TYPE: Record<string, string> = {
+  'assigned_attorney': 'litigation_attorney',
+  'assigned_case_manager': 'case_manager',
+  'assigned_negotiator': 'negotiator',
+  'assigned_sales_rep': 'sales_rep',
+  'assigned_cs_rep': 'client_services_rep',
+};
+
 // Action configuration types
 export interface CreateTaskActionConfig {
   title: string;
@@ -47,11 +91,11 @@ export interface CreateTaskActionConfig {
   due_days?: number;
   due_field?: string; // field name like 'response_deadline', 'first_draft_date'
   due_field_offset?: number; // days to add/subtract from the field value (e.g., -3 for 3 days before)
-  assign_to?: 'entity_owner' | 'specific' | string;
+  assign_to?: RoleBasedAssignment | string; // Role-based or specific staff UUID
 }
 
 export interface SendNotificationActionConfig {
-  to: 'entity_owner' | 'specific' | string;
+  to: RoleBasedAssignment | string; // Role-based or specific staff UUID
   title: string;
   message: string;
 }
