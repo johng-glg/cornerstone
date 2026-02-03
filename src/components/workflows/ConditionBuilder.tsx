@@ -56,6 +56,7 @@ const entityFields: Record<WorkflowEntityType, { value: string; label: string }[
   ],
   litigation_matters: [
     { value: 'status', label: 'Status' },
+    { value: 'state', label: 'State' },
     { value: 'judgment_amount', label: 'Judgment Amount' },
     { value: 'settlement_amount', label: 'Settlement Amount' },
   ],

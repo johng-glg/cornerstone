@@ -11,6 +11,10 @@ function parseWorkflowRule(data: any): WorkflowRule {
     trigger_config: (data.trigger_config || {}) as TriggerConfig,
     conditions: (data.conditions || []) as ConditionGroup[],
     actions: (data.actions || []) as WorkflowAction[],
+    group: data.workflow_groups ? {
+      ...data.workflow_groups,
+      filter_conditions: (data.workflow_groups.filter_conditions || []) as ConditionGroup[],
+    } : null,
   };
 }
 
@@ -20,7 +24,7 @@ export function useWorkflowRules(entityType?: WorkflowEntityType) {
     queryFn: async () => {
       let query = supabase
         .from('workflow_rules')
-        .select('*')
+        .select('*, workflow_groups(*)')
         .order('priority', { ascending: false })
         .order('created_at', { ascending: false });
 

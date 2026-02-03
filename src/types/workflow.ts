@@ -89,10 +89,33 @@ export interface WorkflowAction {
   config: CreateTaskActionConfig | SendNotificationActionConfig | SendEmailActionConfig | SendSmsActionConfig | UpdateFieldActionConfig | BlockTransitionActionConfig | TriggerWebhookActionConfig;
 }
 
+// =====================================
+// Workflow Groups
+// =====================================
+
+export interface WorkflowGroup {
+  id: string;
+  company_id: string;
+  name: string;
+  description: string | null;
+  entity_type: WorkflowEntityType;
+  filter_conditions: ConditionGroup[];
+  is_active: boolean;
+  color: string | null;
+  priority: number;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
+
+export type WorkflowGroupInsert = Omit<WorkflowGroup, 'id' | 'created_at' | 'updated_at'>;
+export type WorkflowGroupUpdate = Partial<WorkflowGroupInsert> & { id: string };
+
 // Workflow rule type
 export interface WorkflowRule {
   id: string;
   company_id: string;
+  group_id: string | null;
   name: string;
   description: string | null;
   entity_type: WorkflowEntityType;
@@ -106,9 +129,11 @@ export interface WorkflowRule {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  // Joined data
+  group?: WorkflowGroup | null;
 }
 
-export type WorkflowRuleInsert = Omit<WorkflowRule, 'id' | 'created_at' | 'updated_at'>;
+export type WorkflowRuleInsert = Omit<WorkflowRule, 'id' | 'created_at' | 'updated_at' | 'group'>;
 export type WorkflowRuleUpdate = Partial<WorkflowRuleInsert> & { id: string };
 
 // Workflow execution log type

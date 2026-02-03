@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCreateWorkflowRule, useUpdateWorkflowRule } from '@/hooks/useWorkflowRules';
+import { useWorkflowGroups } from '@/hooks/useWorkflowGroups';
 import { useAuth } from '@/lib/auth';
 import { ConditionBuilder } from './ConditionBuilder';
 import { ActionConfig } from './ActionConfig';
@@ -40,6 +41,7 @@ export function WorkflowFormDialog({ open, onOpenChange, editingRule }: Workflow
   const { staff } = useAuth();
   const createRule = useCreateWorkflowRule();
   const updateRule = useUpdateWorkflowRule();
+  const { data: allGroups } = useWorkflowGroups();
 
   // Form state
   const [name, setName] = useState('');
@@ -52,6 +54,10 @@ export function WorkflowFormDialog({ open, onOpenChange, editingRule }: Workflow
   const [actions, setActions] = useState<WorkflowAction[]>([]);
   const [isBlocking, setIsBlocking] = useState(false);
   const [priority, setPriority] = useState(0);
+  const [groupId, setGroupId] = useState<string | null>(null);
+
+  // Filter groups by entity type
+  const availableGroups = allGroups?.filter(g => g.entity_type === entityType) || [];
 
   // Reset form when editing rule changes
   useEffect(() => {
@@ -67,6 +73,7 @@ export function WorkflowFormDialog({ open, onOpenChange, editingRule }: Workflow
       setActions(editingRule.actions);
       setIsBlocking(editingRule.is_blocking);
       setPriority(editingRule.priority);
+      setGroupId(editingRule.group_id);
     } else {
       resetForm();
     }
@@ -83,6 +90,7 @@ export function WorkflowFormDialog({ open, onOpenChange, editingRule }: Workflow
     setActions([]);
     setIsBlocking(false);
     setPriority(0);
+    setGroupId(null);
   };
 
   const handleSubmit = () => {
@@ -94,6 +102,7 @@ export function WorkflowFormDialog({ open, onOpenChange, editingRule }: Workflow
 
     const ruleData = {
       company_id: staff.company_id,
+      group_id: groupId,
       name: name.trim(),
       description: description.trim() || null,
       entity_type: entityType,
@@ -258,6 +267,29 @@ export function WorkflowFormDialog({ open, onOpenChange, editingRule }: Workflow
             </TabsContent>
 
             <TabsContent value="settings" className="mt-0 space-y-4">
+              <div className="space-y-2">
+                <Label>Workflow Group</Label>
+                <Select 
+                  value={groupId || '__none__'} 
+                  onValueChange={(v) => setGroupId(v === '__none__' ? null : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="No group" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No group (ungrouped)</SelectItem>
+                    {availableGroups.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Assign this rule to a group to apply group-level filters
+                </p>
+              </div>
+
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="space-y-0.5">
                   <Label>Blocking Rule</Label>
