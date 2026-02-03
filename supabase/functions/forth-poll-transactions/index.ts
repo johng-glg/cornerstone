@@ -40,7 +40,7 @@ async function getAccessToken(): Promise<string> {
   }
 
   const tokenData = await tokenResponse.json();
-  const accessToken = tokenData.response?.access_token || tokenData.access_token;
+  const accessToken = tokenData.response?.access_token || tokenData.response?.api_key || tokenData.access_token || tokenData.api_key;
   
   cachedToken = {
     token: accessToken,
