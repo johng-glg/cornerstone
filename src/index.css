@@ -106,6 +106,126 @@
     --sidebar-border: 210 36% 18%;
     --sidebar-ring: 39 62% 66%;
   }
+
+  /* 🍀 St. Patrick's Day Theme */
+  .stpatricks {
+    --background: 140 30% 96%;
+    --foreground: 140 40% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 140 40% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 140 40% 15%;
+
+    --primary: 140 70% 35%; /* Irish Green */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 39 80% 50%; /* Gold */
+    --secondary-foreground: 140 40% 15%;
+
+    --muted: 140 20% 90%;
+    --muted-foreground: 140 20% 40%;
+
+    --accent: 39 80% 50%; /* Gold */
+    --accent-foreground: 140 40% 15%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 140 20% 85%;
+    --input: 140 20% 85%;
+    --ring: 140 70% 35%;
+
+    --sidebar-background: 140 50% 20%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 39 80% 50%;
+    --sidebar-primary-foreground: 140 40% 15%;
+    --sidebar-accent: 140 50% 28%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 140 50% 28%;
+    --sidebar-ring: 39 80% 50%;
+  }
+
+  /* 🇺🇸 4th of July Theme */
+  .july4th {
+    --background: 0 0% 98%;
+    --foreground: 220 60% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 60% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 60% 20%;
+
+    --primary: 220 80% 45%; /* Patriot Blue */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 80% 50%; /* American Red */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 220 20% 92%;
+    --muted-foreground: 220 20% 45%;
+
+    --accent: 0 80% 50%; /* American Red */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 80% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 85%;
+    --input: 220 20% 85%;
+    --ring: 220 80% 45%;
+
+    --sidebar-background: 220 70% 25%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 0 80% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 70% 35%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 220 70% 35%;
+    --sidebar-ring: 0 80% 55%;
+  }
+
+  /* 🎃 Halloween Theme */
+  .halloween {
+    --background: 30 15% 10%;
+    --foreground: 35 90% 55%;
+
+    --card: 30 15% 14%;
+    --card-foreground: 35 90% 55%;
+
+    --popover: 30 15% 14%;
+    --popover-foreground: 35 90% 55%;
+
+    --primary: 35 100% 50%; /* Pumpkin Orange */
+    --primary-foreground: 0 0% 0%;
+
+    --secondary: 280 70% 35%; /* Spooky Purple */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 30 15% 18%;
+    --muted-foreground: 35 40% 55%;
+
+    --accent: 280 70% 35%; /* Spooky Purple */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 70% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 30 15% 22%;
+    --input: 30 15% 22%;
+    --ring: 35 100% 50%;
+
+    --sidebar-background: 30 20% 8%;
+    --sidebar-foreground: 35 90% 55%;
+    --sidebar-primary: 35 100% 50%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 280 70% 25%;
+    --sidebar-accent-foreground: 35 90% 55%;
+    --sidebar-border: 30 20% 15%;
+    --sidebar-ring: 35 100% 50%;
+  }
 }
 
 @layer base {
