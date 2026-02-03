@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Users } from 'lucide-react';
 import { AssignmentPoolEditor } from './AssignmentPoolEditor';
 import type { AssignmentRule, AssignmentMethod } from '@/types/assignment';
 
@@ -209,7 +209,10 @@ export function AssignmentRuleFormDialog({
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      How leads are distributed among pool members
+                      {field.value === 'round_robin' && 'Assigns leads in rotation, one per rep in order'}
+                      {field.value === 'weighted' && 'Distributes leads based on weight percentages set per rep'}
+                      {field.value === 'backlog_based' && 'Prioritizes reps with the fewest active leads'}
+                      {field.value === 'skillset_match' && 'Matches lead attributes to rep skill tags'}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -386,9 +389,21 @@ export function AssignmentRuleFormDialog({
               />
             </div>
 
-            {rule && (
+            {rule ? (
               <div className="border-t pt-4">
                 <AssignmentPoolEditor ruleId={rule.id} method={form.watch('method')} />
+              </div>
+            ) : (
+              <div className="border-t pt-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg p-4">
+                  <Users className="h-4 w-4" />
+                  <span>
+                    {form.watch('method') === 'weighted' 
+                      ? "After creating the rule, you'll be able to add staff and set their weight percentages."
+                      : "After creating the rule, you'll be able to add staff members to the assignment pool."
+                    }
+                  </span>
+                </div>
               </div>
             )}
 
