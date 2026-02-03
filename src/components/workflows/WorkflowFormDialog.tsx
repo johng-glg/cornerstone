@@ -29,6 +29,8 @@ interface WorkflowFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingRule?: WorkflowRule | null;
+  defaultGroupId?: string | null;
+  defaultEntityType?: WorkflowEntityType | null;
 }
 
 const defaultConditionGroup: ConditionGroup = {
@@ -37,7 +39,13 @@ const defaultConditionGroup: ConditionGroup = {
   rules: [],
 };
 
-export function WorkflowFormDialog({ open, onOpenChange, editingRule }: WorkflowFormDialogProps) {
+export function WorkflowFormDialog({ 
+  open, 
+  onOpenChange, 
+  editingRule, 
+  defaultGroupId,
+  defaultEntityType,
+}: WorkflowFormDialogProps) {
   const { staff } = useAuth();
   const createRule = useCreateWorkflowRule();
   const updateRule = useUpdateWorkflowRule();
@@ -76,13 +84,20 @@ export function WorkflowFormDialog({ open, onOpenChange, editingRule }: Workflow
       setGroupId(editingRule.group_id);
     } else {
       resetForm();
+      // Apply defaults for new rules
+      if (defaultEntityType) {
+        setEntityType(defaultEntityType);
+      }
+      if (defaultGroupId) {
+        setGroupId(defaultGroupId);
+      }
     }
-  }, [editingRule, open]);
+  }, [editingRule, open, defaultGroupId, defaultEntityType]);
 
   const resetForm = () => {
     setName('');
     setDescription('');
-    setEntityType('client_services');
+    setEntityType(defaultEntityType || 'client_services');
     setTriggerType('status_changed');
     setTriggerFromStatuses([]);
     setTriggerToStatuses([]);
@@ -90,7 +105,7 @@ export function WorkflowFormDialog({ open, onOpenChange, editingRule }: Workflow
     setActions([]);
     setIsBlocking(false);
     setPriority(0);
-    setGroupId(null);
+    setGroupId(defaultGroupId || null);
   };
 
   const handleSubmit = () => {

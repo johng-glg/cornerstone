@@ -59,6 +59,7 @@ export function WorkflowsTab() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<WorkflowRule | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [defaultGroupForNewRule, setDefaultGroupForNewRule] = useState<WorkflowGroup | null>(null);
   
   const [groupFormOpen, setGroupFormOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<WorkflowGroup | null>(null);
@@ -90,14 +91,16 @@ export function WorkflowsTab() {
     setFormOpen(true);
   };
 
-  const handleCreateRule = () => {
+  const handleCreateRule = (forGroup?: WorkflowGroup | null) => {
     setEditingRule(null);
+    setDefaultGroupForNewRule(forGroup || null);
     setFormOpen(true);
   };
 
   const handleFormClose = () => {
     setFormOpen(false);
     setEditingRule(null);
+    setDefaultGroupForNewRule(null);
   };
 
   const handleDeleteRule = (id: string) => {
@@ -248,7 +251,7 @@ export function WorkflowsTab() {
             <Layers className="h-4 w-4 mr-2" />
             New Group
           </Button>
-          <Button onClick={handleCreateRule}>
+          <Button onClick={() => handleCreateRule()}>
             <Plus className="h-4 w-4 mr-2" />
             New Workflow
           </Button>
@@ -269,7 +272,7 @@ export function WorkflowsTab() {
                 <Layers className="h-4 w-4 mr-2" />
                 Create a Group
               </Button>
-              <Button onClick={handleCreateRule}>
+              <Button onClick={() => handleCreateRule()}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create Your First Workflow
               </Button>
@@ -313,6 +316,15 @@ export function WorkflowsTab() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950"
+                            onClick={() => handleCreateRule(group)}
+                            title="Add workflow to this group"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
                           <Switch
                             checked={group.is_active}
                             onCheckedChange={(checked) => handleToggleGroup(group.id, checked)}
@@ -392,6 +404,8 @@ export function WorkflowsTab() {
         open={formOpen}
         onOpenChange={handleFormClose}
         editingRule={editingRule}
+        defaultGroupId={defaultGroupForNewRule?.id}
+        defaultEntityType={defaultGroupForNewRule?.entity_type}
       />
 
       <WorkflowGroupFormDialog
