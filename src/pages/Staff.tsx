@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -18,7 +18,10 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { StaffFormDialog } from '@/components/staff/StaffFormDialog';
+import { SortableHeader, SortDirection } from '@/components/ui/sortable-header';
 import { format, isToday, isYesterday, differenceInDays } from 'date-fns';
+
+type SortKey = 'name' | 'department' | 'email' | 'company' | 'last_login_at' | 'is_active';
 
 interface StaffMember {
   id: string;
@@ -96,6 +99,8 @@ export default function StaffPage() {
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grouped'>('list');
   const [expandedDepts, setExpandedDepts] = useState<Set<string>>(new Set(DEPARTMENT_ORDER));
+  const [sortKey, setSortKey] = useState<SortKey>('last_login_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const { data: staff, isLoading } = useQuery({
     queryKey: ['staff-list'],
@@ -125,11 +130,70 @@ export default function StaffPage() {
     },
   });
 
+  const handleSort = useCallback((key: string) => {
+    const newKey = key as SortKey;
+    if (sortKey === newKey) {
+      // Toggle direction or clear
+      if (sortDirection === 'desc') {
+        setSortDirection('asc');
+      } else {
+        setSortDirection('desc');
+      }
+    } else {
+      setSortKey(newKey);
+      setSortDirection('desc');
+    }
+  }, [sortKey, sortDirection]);
+
+  const sortedStaff = useMemo(() => {
+    if (!staff || !sortKey) return staff || [];
+    
+    return [...staff].sort((a, b) => {
+      let aVal: string | number | boolean | null;
+      let bVal: string | number | boolean | null;
+      
+      switch (sortKey) {
+        case 'name':
+          aVal = `${a.first_name} ${a.last_name}`.toLowerCase();
+          bVal = `${b.first_name} ${b.last_name}`.toLowerCase();
+          break;
+        case 'department':
+          aVal = a.department;
+          bVal = b.department;
+          break;
+        case 'email':
+          aVal = a.email.toLowerCase();
+          bVal = b.email.toLowerCase();
+          break;
+        case 'company':
+          aVal = a.company?.name?.toLowerCase() || '';
+          bVal = b.company?.name?.toLowerCase() || '';
+          break;
+        case 'last_login_at':
+          // Null values go to end
+          aVal = a.last_login_at ? new Date(a.last_login_at).getTime() : 0;
+          bVal = b.last_login_at ? new Date(b.last_login_at).getTime() : 0;
+          break;
+        case 'is_active':
+          aVal = a.is_active ? 1 : 0;
+          bVal = b.is_active ? 1 : 0;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aVal === bVal) return 0;
+      
+      const comparison = aVal < bVal ? -1 : 1;
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [staff, sortKey, sortDirection]);
+
   const staffByDepartment = useMemo(() => {
-    if (!staff) return new Map<string, StaffMember[]>();
+    if (!sortedStaff) return new Map<string, StaffMember[]>();
     
     const grouped = new Map<string, StaffMember[]>();
-    for (const member of staff) {
+    for (const member of sortedStaff) {
       const existing = grouped.get(member.department) || [];
       grouped.set(member.department, [...existing, member]);
     }
@@ -140,7 +204,7 @@ export default function StaffPage() {
         .filter(dept => grouped.has(dept))
         .map(dept => [dept, grouped.get(dept)!])
     );
-  }, [staff]);
+  }, [sortedStaff]);
 
   const getRolesForUser = (userId: string) => {
     return userRoles?.filter(r => r.user_id === userId).map(r => r.role) || [];
@@ -314,17 +378,53 @@ export default function StaffPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Staff Member</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Company</TableHead>
+                  <SortableHeader
+                    label="Staff Member"
+                    sortKey="name"
+                    currentSortKey={sortKey}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                  />
+                  <SortableHeader
+                    label="Department"
+                    sortKey="department"
+                    currentSortKey={sortKey}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                  />
+                  <SortableHeader
+                    label="Contact"
+                    sortKey="email"
+                    currentSortKey={sortKey}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                  />
+                  <SortableHeader
+                    label="Company"
+                    sortKey="company"
+                    currentSortKey={sortKey}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                  />
                   <TableHead>Roles</TableHead>
-                  <TableHead>Last Login</TableHead>
-                  <TableHead>Status</TableHead>
+                  <SortableHeader
+                    label="Last Login"
+                    sortKey="last_login_at"
+                    currentSortKey={sortKey}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                  />
+                  <SortableHeader
+                    label="Status"
+                    sortKey="is_active"
+                    currentSortKey={sortKey}
+                    currentSortDirection={sortDirection}
+                    onSort={handleSort}
+                  />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {staff?.map((member) => renderStaffRow(member, true))}
+                {sortedStaff?.map((member) => renderStaffRow(member, true))}
               </TableBody>
             </Table>
           </CardContent>
