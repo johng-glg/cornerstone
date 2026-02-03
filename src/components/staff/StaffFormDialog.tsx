@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, KeyRound, Copy, Check } from 'lucide-react';
+import { Loader2, KeyRound, Copy, Check, Trash2 } from 'lucide-react';
 import { Constants, type Enums } from '@/integrations/supabase/types';
 import {
   AlertDialog,
@@ -97,6 +97,7 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
   const isEditing = !!staffMember;
   
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showTempPassword, setShowTempPassword] = useState(false);
   const [tempPassword, setTempPassword] = useState('');
   const [copied, setCopied] = useState(false);
@@ -299,6 +300,46 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
     },
   });
 
+  const deleteStaffMutation = useMutation({
+    mutationFn: async () => {
+      if (!staffMember) throw new Error('No staff member selected');
+      
+      // Delete user roles first
+      const { error: rolesError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', staffMember.user_id);
+      
+      if (rolesError) throw rolesError;
+
+      // Delete staff record
+      const { error: staffError } = await supabase
+        .from('staff')
+        .delete()
+        .eq('id', staffMember.id);
+
+      if (staffError) throw staffError;
+
+      return { success: true };
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Staff member deleted',
+        description: `${staffMember?.first_name} ${staffMember?.last_name} has been removed.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['staff-list'] });
+      queryClient.invalidateQueries({ queryKey: ['user-roles-list'] });
+      onOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error deleting staff member',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
   const onSubmit = (values: FormValues) => {
     if (isEditing) {
       updateStaffMutation.mutate(values);
@@ -314,6 +355,15 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
   const confirmResetPassword = () => {
     setShowResetConfirm(false);
     resetPasswordMutation.mutate();
+  };
+
+  const handleDeleteStaff = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteStaff = () => {
+    setShowDeleteConfirm(false);
+    deleteStaffMutation.mutate();
   };
 
   const copyToClipboard = async () => {
@@ -514,20 +564,39 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => onOpenChange(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isPending}>
-                  {isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  {isEditing ? 'Save Changes' : 'Create Staff Member'}
-                </Button>
+              <div className="flex justify-between pt-4">
+                {isEditing ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={handleDeleteStaff}
+                    disabled={deleteStaffMutation.isPending}
+                  >
+                    {deleteStaffMutation.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="mr-2 h-4 w-4" />
+                    )}
+                    Delete
+                  </Button>
+                ) : (
+                  <div />
+                )}
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onOpenChange(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isPending}>
+                    {isPending && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    {isEditing ? 'Save Changes' : 'Create Staff Member'}
+                  </Button>
+                </div>
               </div>
             </form>
           </Form>
@@ -548,6 +617,28 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmResetPassword}>
               Reset Password
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Staff Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Staff Member?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete {staffMember?.first_name} {staffMember?.last_name} from the system. 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteStaff}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Staff Member
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
