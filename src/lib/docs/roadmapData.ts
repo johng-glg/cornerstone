@@ -258,6 +258,23 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
 • Database tables: signature_requests, signature_request_signers, docuseal_templates
 • Secrets configured: DOCUSEAL_API_KEY, DOCUSEAL_API_URL`,
   },
+  {
+    id: 'signed-docs-to-client',
+    name: 'Signed Documents to Client Records',
+    category: 'Documents',
+    priority: 'High',
+    description: 'Automatically save executed signature documents to the client documents page when signing is completed.',
+    status: 'Planned',
+    difficulty: 2,
+    benefit: 5,
+    notes: `When a signature request is completed:
+• Retrieve executed PDF from DocuSeal via webhook
+• Store in client-documents storage bucket
+• Create client_documents record linking to the client
+• Include document type "Signed Agreement" with signature request reference
+• Display in Client Detail → Documents tab
+• Optional: Also store completion certificate as separate document`,
+  },
   
   // Automation
   {
