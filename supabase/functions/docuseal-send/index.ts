@@ -104,13 +104,13 @@ Deno.serve(async (req) => {
       name: signer.name,
       phone: signer.phone || undefined,
       role: signer.signer_role,
-      send_email: false, // CRM handles notifications
+      send_email: true, // DocuSeal sends signing emails
       send_sms: false,
     }));
 
     const docusealPayload = {
       template_id: signatureRequest.docuseal_template_id,
-      send_email: false,
+      send_email: true,
       send_sms: false,
       order: signatureRequest.signing_mode === "sequential" ? "preserved" : "random",
       submitters,
@@ -206,8 +206,8 @@ Deno.serve(async (req) => {
 
     console.log(`Signature request ${signature_request_id} sent successfully`);
 
-    // TODO: Send email/SMS notifications via Resend/Twilio
-    // This will be implemented in Phase 4 when notification providers are configured
+    // NOTE: Currently using DocuSeal's native email delivery
+    // Future: Implement custom notifications via Resend/Twilio for branded emails
 
     return new Response(
       JSON.stringify({
