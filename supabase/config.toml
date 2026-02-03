@@ -17,3 +17,27 @@ verify_jwt = false
 
 [functions.docuseal-webhook]
 verify_jwt = false
+
+[functions.docuseal-test]
+verify_jwt = false
+
+[functions.forth-auth]
+verify_jwt = false
+
+[functions.forth-create-draft]
+verify_jwt = false
+
+[functions.forth-poll-transactions]
+verify_jwt = false
+
+[functions.forth-cancel-draft]
+verify_jwt = false
+
+[functions.forth-update-draft]
+verify_jwt = false
+
+[functions.forth-sync-client]
+verify_jwt = false
+
+[functions.forth-pause-resume]
+verify_jwt = false
