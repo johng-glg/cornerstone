@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Calendar, FileText, DollarSign, Briefcase, Edit2, ExternalLink } from 'lucide-react';
+import { User, Calendar, FileText, DollarSign, Briefcase, Edit2, ExternalLink, CloudUpload, Loader2, CheckCircle2 } from 'lucide-react';
 import { useClientService, useUpdatePrimaryStatus, useUpdatePaymentStatus, useUpdateContactStatus, useUpdateRetention } from '@/hooks/useClientServices';
 import { useServiceStatusHistory } from '@/hooks/useServiceStatusHistory';
+import { useRegisterForthClient } from '@/hooks/useForthApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { ServiceStatusBadges, PrimaryStatusBadge, PaymentStatusBadge, ContactStatusBadge } from './ServiceStatusBadges';
@@ -35,11 +36,15 @@ export function ServiceDetailSheet({ serviceId, open, onOpenChange }: ServiceDet
   const updatePaymentStatus = useUpdatePaymentStatus();
   const updateContactStatus = useUpdateContactStatus();
   const updateRetention = useUpdateRetention();
+  const registerForthClient = useRegisterForthClient();
 
   const [statusModal, setStatusModal] = useState<{
     open: boolean;
     dimension: 'primary' | 'payment' | 'contact';
   }>({ open: false, dimension: 'primary' });
+
+  // Check if client is registered with Forth Pay
+  const hasForthId = service?.primary_client?.forth_crm_id;
 
   const handleStatusChange = (newValue: string, reason: string) => {
     if (!service) return;
@@ -265,6 +270,72 @@ export function ServiceDetailSheet({ serviceId, open, onOpenChange }: ServiceDet
               </TabsContent>
 
               <TabsContent value="program" className="space-y-4 mt-4">
+                {/* Forth Pay Registration Card */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <CloudUpload className="h-4 w-4" />
+                      Forth Pay Integration
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {hasForthId ? (
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <span className="text-muted-foreground">Registered with Forth Pay</span>
+                        <Badge variant="outline" className="ml-auto">
+                          ID: {service.primary_client?.forth_crm_id}
+                        </Badge>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                          This client is not yet registered with Forth Pay. Register to enable payment drafts.
+                        </p>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (!service?.primary_client) return;
+                            
+                            // We need to fetch full client data to register
+                            // For now, show a placeholder - full implementation would need client addresses/phones
+                            registerForthClient.mutate({
+                              client_id: service.primary_client.id,
+                              client_service_id: service.id,
+                              client_data: {
+                                first_name: service.primary_client.first_name,
+                                last_name: service.primary_client.last_name,
+                                middle_name: service.primary_client.middle_name || undefined,
+                                address: '', // Would need to fetch from client_addresses
+                                city: '',
+                                state: '',
+                                zip: '',
+                                email: service.primary_client.email || '',
+                                phone: '', // Would need to fetch from client_phones
+                                date_of_birth: service.primary_client.date_of_birth || '',
+                              },
+                              debts: [], // Would need to fetch from liabilities
+                            });
+                          }}
+                          disabled={registerForthClient.isPending}
+                        >
+                          {registerForthClient.isPending ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Registering...
+                            </>
+                          ) : (
+                            <>
+                              <CloudUpload className="h-4 w-4 mr-2" />
+                              Register with Forth Pay
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base flex items-center gap-2">

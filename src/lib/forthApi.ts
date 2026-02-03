@@ -5,6 +5,44 @@ export interface ForthApiResponse<T = unknown> {
   data?: T;
   error?: string;
   message?: string;
+  warning?: string;
+}
+
+export interface RegisterClientData {
+  first_name: string;
+  last_name: string;
+  middle_name?: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  email: string;
+  phone: string;
+  date_of_birth: string;
+  ssn?: string;
+}
+
+export interface RegisterBankingData {
+  bank_name: string;
+  routing_number: string;
+  account_number: string;
+  account_type: 'checking' | 'savings';
+}
+
+export interface RegisterDebtData {
+  creditor_name: string;
+  account_type: string;
+  current_balance: number;
+  original_balance?: number;
+  account_number?: string;
+}
+
+export interface RegisterClientRequest {
+  client_id: string;
+  client_service_id: string;
+  client_data: RegisterClientData;
+  banking?: RegisterBankingData;
+  debts: RegisterDebtData[];
 }
 
 // Create a draft in Forth Pay from a transaction
@@ -213,4 +251,30 @@ export function canModifyDraft(scheduledDate: string | null | undefined): boolea
   const diffDays = (scheduled.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
   
   return diffDays > 7;
+}
+
+// Register a new client with Forth Pay (creates client, bank account, debts, and enrolls)
+export async function registerForthClient(
+  request: RegisterClientRequest
+): Promise<ForthApiResponse<{ forth_crm_id: string }>> {
+  try {
+    const { data, error } = await supabase.functions.invoke('forth-register-client', {
+      body: request,
+    });
+    
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    
+    return {
+      success: data?.success ?? false,
+      data: data?.forth_crm_id ? { forth_crm_id: data.forth_crm_id } : undefined,
+      error: data?.error,
+      message: data?.message,
+      warning: data?.warning,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return { success: false, error: message };
+  }
 }
