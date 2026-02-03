@@ -3,7 +3,7 @@ import type { Enums, Json } from '@/integrations/supabase/types';
 // Enum types from database
 export type WorkflowTriggerType = 'status_changed' | 'field_updated' | 'record_created' | 'time_based' | 'manual';
 export type WorkflowEntityType = 'leads' | 'client_services' | 'liabilities' | 'litigation_matters' | 'tasks' | 'settlements';
-export type WorkflowActionType = 'create_task' | 'send_notification' | 'update_field' | 'block_transition' | 'trigger_webhook';
+export type WorkflowActionType = 'create_task' | 'send_notification' | 'send_email' | 'send_sms' | 'update_field' | 'block_transition' | 'trigger_webhook';
 export type WorkflowExecutionStatus = 'success' | 'blocked' | 'failed' | 'skipped';
 
 // Trigger configuration types
@@ -56,6 +56,19 @@ export interface SendNotificationActionConfig {
   message: string;
 }
 
+export interface SendEmailActionConfig {
+  to: 'client' | 'entity_owner' | 'specific';
+  template_id?: string;
+  subject: string;
+  body: string;
+}
+
+export interface SendSmsActionConfig {
+  to: 'client' | 'entity_owner' | 'specific';
+  template_id?: string;
+  message: string;
+}
+
 export interface UpdateFieldActionConfig {
   field: string;
   value: string | number | boolean;
@@ -73,7 +86,7 @@ export interface TriggerWebhookActionConfig {
 
 export interface WorkflowAction {
   type: WorkflowActionType;
-  config: CreateTaskActionConfig | SendNotificationActionConfig | UpdateFieldActionConfig | BlockTransitionActionConfig | TriggerWebhookActionConfig;
+  config: CreateTaskActionConfig | SendNotificationActionConfig | SendEmailActionConfig | SendSmsActionConfig | UpdateFieldActionConfig | BlockTransitionActionConfig | TriggerWebhookActionConfig;
 }
 
 // Workflow rule type
@@ -189,7 +202,9 @@ export const triggerTypeLabels: Record<WorkflowTriggerType, string> = {
 // Action type labels for UI
 export const actionTypeLabels: Record<WorkflowActionType, string> = {
   create_task: 'Create Task',
-  send_notification: 'Send Notification',
+  send_notification: 'Send In-App Notification',
+  send_email: 'Send Email',
+  send_sms: 'Send SMS',
   update_field: 'Update Field',
   block_transition: 'Block Transition',
   trigger_webhook: 'Trigger Webhook',
