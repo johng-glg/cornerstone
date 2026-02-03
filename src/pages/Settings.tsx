@@ -8,6 +8,7 @@ import { ScoringProfilesTab } from '@/components/settings/ScoringProfilesTab';
 import { AssignmentRulesTab } from '@/components/settings/AssignmentRulesTab';
 import { WorkflowsTab } from '@/components/settings/WorkflowsTab';
 import { TemplatesTab } from '@/components/settings/TemplatesTab';
+import { LitigationTeamsSettingsTab } from '@/components/settings/LitigationTeamsSettingsTab';
 
 export default function SettingsPage() {
   return (
@@ -27,6 +28,7 @@ export default function SettingsPage() {
             <TabsTrigger value="scoring">Scoring</TabsTrigger>
             <TabsTrigger value="assignment">Assignment</TabsTrigger>
             <TabsTrigger value="workflows">Workflows</TabsTrigger>
+            <TabsTrigger value="legal-teams">Legal Teams</TabsTrigger>
             <TabsTrigger value="appearance">Appearance</TabsTrigger>
             <TabsTrigger value="company">Company</TabsTrigger>
           </TabsList>
@@ -57,6 +59,10 @@ export default function SettingsPage() {
 
           <TabsContent value="workflows">
             <WorkflowsTab />
+          </TabsContent>
+
+          <TabsContent value="legal-teams">
+            <LitigationTeamsSettingsTab />
           </TabsContent>
 
           <TabsContent value="appearance">
