@@ -2537,6 +2537,7 @@ export type Database = {
           id: string
           is_active: boolean
           job_title: string | null
+          last_login_at: string | null
           last_name: string
           phone: string | null
           updated_at: string
@@ -2552,6 +2553,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           job_title?: string | null
+          last_login_at?: string | null
           last_name: string
           phone?: string | null
           updated_at?: string
@@ -2567,6 +2569,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           job_title?: string | null
+          last_login_at?: string | null
           last_name?: string
           phone?: string | null
           updated_at?: string
