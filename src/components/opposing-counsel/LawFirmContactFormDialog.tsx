@@ -37,13 +37,15 @@ interface LawFirmContactFormDialogProps {
   onOpenChange: (open: boolean) => void;
   lawFirmId: string;
   contact?: LawFirmContact | null;
+  onCreated?: (contact: LawFirmContact) => void;
 }
 
 export function LawFirmContactFormDialog({ 
   open, 
   onOpenChange, 
   lawFirmId,
-  contact 
+  contact,
+  onCreated 
 }: LawFirmContactFormDialogProps) {
   const createContact = useCreateLawFirmContact();
   const updateContact = useUpdateLawFirmContact();
@@ -101,7 +103,12 @@ export function LawFirmContactFormDialog({
         { onSuccess: () => onOpenChange(false) }
       );
     } else {
-      createContact.mutate(data, { onSuccess: () => onOpenChange(false) });
+      createContact.mutate(data, { 
+        onSuccess: (newContact) => {
+          onCreated?.(newContact);
+          onOpenChange(false);
+        } 
+      });
     }
   };
 

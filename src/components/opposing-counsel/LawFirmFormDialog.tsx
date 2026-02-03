@@ -47,6 +47,7 @@ interface LawFirmFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   firm?: LawFirm | null;
+  onCreated?: (firm: LawFirm) => void;
 }
 
 const usStates = [
@@ -57,7 +58,7 @@ const usStates = [
   'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
 ];
 
-export function LawFirmFormDialog({ open, onOpenChange, firm }: LawFirmFormDialogProps) {
+export function LawFirmFormDialog({ open, onOpenChange, firm, onCreated }: LawFirmFormDialogProps) {
   const createFirm = useCreateLawFirm();
   const updateFirm = useUpdateLawFirm();
   const isEditing = !!firm;
@@ -129,7 +130,12 @@ export function LawFirmFormDialog({ open, onOpenChange, firm }: LawFirmFormDialo
         { onSuccess: () => onOpenChange(false) }
       );
     } else {
-      createFirm.mutate(data, { onSuccess: () => onOpenChange(false) });
+      createFirm.mutate(data, { 
+        onSuccess: (newFirm) => {
+          onCreated?.(newFirm);
+          onOpenChange(false);
+        } 
+      });
     }
   };
 
