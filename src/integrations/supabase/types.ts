@@ -524,6 +524,7 @@ export type Database = {
           date_of_birth: string | null
           email: string | null
           first_name: string
+          forth_crm_id: string | null
           id: string
           is_active: boolean
           last_name: string
@@ -544,6 +545,7 @@ export type Database = {
           date_of_birth?: string | null
           email?: string | null
           first_name: string
+          forth_crm_id?: string | null
           id?: string
           is_active?: boolean
           last_name: string
@@ -564,6 +566,7 @@ export type Database = {
           date_of_birth?: string | null
           email?: string | null
           first_name?: string
+          forth_crm_id?: string | null
           id?: string
           is_active?: boolean
           last_name?: string
@@ -864,6 +867,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      forth_sync_log: {
+        Row: {
+          action: string
+          created_at: string | null
+          entity_id: string
+          entity_type: string
+          error_message: string | null
+          id: string
+          request_payload: Json | null
+          response_payload: Json | null
+          success: boolean
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          entity_id: string
+          entity_type: string
+          error_message?: string | null
+          id?: string
+          request_payload?: Json | null
+          response_payload?: Json | null
+          success: boolean
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          entity_id?: string
+          entity_type?: string
+          error_message?: string | null
+          id?: string
+          request_payload?: Json | null
+          response_payload?: Json | null
+          success?: boolean
+        }
+        Relationships: []
       }
       law_firm_contacts: {
         Row: {
@@ -3143,6 +3182,7 @@ export type Database = {
           error_message: string | null
           external_id: string | null
           id: string
+          last_sync_at: string | null
           liability_id: string | null
           parent_transaction_id: string | null
           processed_at: string | null
@@ -3152,6 +3192,7 @@ export type Database = {
           sequence_number: number | null
           settlement_id: string | null
           status: string
+          sync_error: string | null
           transaction_type: string
           updated_at: string
         }
@@ -3163,6 +3204,7 @@ export type Database = {
           error_message?: string | null
           external_id?: string | null
           id?: string
+          last_sync_at?: string | null
           liability_id?: string | null
           parent_transaction_id?: string | null
           processed_at?: string | null
@@ -3172,6 +3214,7 @@ export type Database = {
           sequence_number?: number | null
           settlement_id?: string | null
           status?: string
+          sync_error?: string | null
           transaction_type: string
           updated_at?: string
         }
@@ -3183,6 +3226,7 @@ export type Database = {
           error_message?: string | null
           external_id?: string | null
           id?: string
+          last_sync_at?: string | null
           liability_id?: string | null
           parent_transaction_id?: string | null
           processed_at?: string | null
@@ -3192,6 +3236,7 @@ export type Database = {
           sequence_number?: number | null
           settlement_id?: string | null
           status?: string
+          sync_error?: string | null
           transaction_type?: string
           updated_at?: string
         }
