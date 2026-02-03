@@ -9,6 +9,7 @@ import { AssignmentRulesTab } from '@/components/settings/AssignmentRulesTab';
 import { WorkflowsTab } from '@/components/settings/WorkflowsTab';
 import { TemplatesTab } from '@/components/settings/TemplatesTab';
 import { LitigationTeamsSettingsTab } from '@/components/settings/LitigationTeamsSettingsTab';
+import { DocuSealTemplatesTab } from '@/components/settings/DocuSealTemplatesTab';
 
 export default function SettingsPage() {
   return (
@@ -25,6 +26,7 @@ export default function SettingsPage() {
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="reminders">Reminders</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
+            <TabsTrigger value="docuseal">eSign</TabsTrigger>
             <TabsTrigger value="scoring">Scoring</TabsTrigger>
             <TabsTrigger value="assignment">Assignment</TabsTrigger>
             <TabsTrigger value="workflows">Workflows</TabsTrigger>
@@ -47,6 +49,10 @@ export default function SettingsPage() {
 
           <TabsContent value="templates">
             <TemplatesTab />
+          </TabsContent>
+
+          <TabsContent value="docuseal">
+            <DocuSealTemplatesTab />
           </TabsContent>
 
           <TabsContent value="scoring">

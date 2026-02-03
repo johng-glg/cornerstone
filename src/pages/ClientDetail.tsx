@@ -15,6 +15,7 @@ import { ClientDetailsTab } from '@/components/clients/detail/ClientDetailsTab';
 import { ClientLitigationTab } from '@/components/clients/detail/ClientLitigationTab';
 import { ClientDocumentsTab } from '@/components/clients/detail/ClientDocumentsTab';
 import { ClientCommsTab } from '@/components/clients/detail/ClientCommsTab';
+import { ClientSignaturesTab } from '@/components/clients/detail/ClientSignaturesTab';
 
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -79,6 +80,7 @@ export default function ClientDetailPage() {
               <TabsTrigger value="payments">Payments</TabsTrigger>
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
+              <TabsTrigger value="signatures">Signatures</TabsTrigger>
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="comms">Comms</TabsTrigger>
             </TabsList>
@@ -115,6 +117,17 @@ export default function ClientDetailPage() {
 
             <TabsContent value="documents" className="mt-0">
               <ClientDocumentsTab clientId={client.id} />
+            </TabsContent>
+
+            <TabsContent value="signatures" className="mt-0">
+              <ClientSignaturesTab 
+                clientId={client.id}
+                clientData={{
+                  firstName: client.first_name,
+                  lastName: client.last_name,
+                  email: client.email || '',
+                }}
+              />
             </TabsContent>
 
             <TabsContent value="details" className="mt-0">
