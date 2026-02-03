@@ -395,14 +395,41 @@ export function AssignmentRuleFormDialog({
               </div>
             ) : (
               <div className="border-t pt-4">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-lg p-4">
-                  <Users className="h-4 w-4" />
-                  <span>
-                    {form.watch('method') === 'weighted' 
-                      ? "After creating the rule, you'll be able to add staff and set their weight percentages."
-                      : "After creating the rule, you'll be able to add staff members to the assignment pool."
-                    }
-                  </span>
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Users className="h-4 w-4" />
+                    <span className="font-medium">Assignment Pool</span>
+                  </div>
+                  {form.watch('method') === 'weighted' ? (
+                    <div className="text-sm space-y-2">
+                      <p className="text-muted-foreground">
+                        After creating the rule, you'll be able to add staff members and set their <strong>weight values</strong>.
+                      </p>
+                      <div className="bg-background rounded border p-3 text-xs space-y-1">
+                        <p className="font-medium">How weights work:</p>
+                        <p className="text-muted-foreground">
+                          Weights are relative values. For example, if Rep A has weight 20 and Rep B has weight 10, 
+                          Rep A receives ~67% of leads and Rep B receives ~33%.
+                        </p>
+                      </div>
+                    </div>
+                  ) : form.watch('method') === 'skillset_match' ? (
+                    <div className="text-sm space-y-2">
+                      <p className="text-muted-foreground">
+                        After creating the rule, you'll be able to add staff members and configure their <strong>skill tags</strong>.
+                      </p>
+                      <div className="bg-background rounded border p-3 text-xs space-y-1">
+                        <p className="font-medium">How skillset matching works:</p>
+                        <p className="text-muted-foreground">
+                          Leads are matched to reps based on interest type, debt range, and other attributes you configure per rep.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      After creating the rule, you'll be able to add staff members to the assignment pool.
+                    </p>
+                  )}
                 </div>
               </div>
             )}
