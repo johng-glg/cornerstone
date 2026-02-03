@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/lib/auth";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
@@ -44,58 +45,60 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/auth" element={<Auth />} />
-            
-            {/* Documentation routes */}
-            <Route path="/docs" element={<DocsLayout />}>
-              <Route index element={<DocsOverview />} />
-              <Route path="schema" element={<SchemaPage />} />
-              <Route path="erd" element={<ERDPage />} />
-              <Route path="enums" element={<EnumsPage />} />
-              <Route path="functions" element={<FunctionsPage />} />
-              <Route path="edge-functions" element={<EdgeFunctionsPage />} />
-              <Route path="storage" element={<StoragePage />} />
-              <Route path="roles/:role" element={<RoleGuidePage />} />
-              <Route path="features/:feature" element={<FeatureGuidePage />} />
-              <Route path="rls-policies" element={<RLSPoliciesPage />} />
-              <Route path="permissions" element={<PermissionsPage />} />
-              <Route path="future-builds" element={<FutureBuildPage />} />
-              <Route path="integrations" element={<IntegrationsPage />} />
-              <Route path="security-concerns" element={<SecurityPage />} />
-            </Route>
-            
-            {/* Protected routes with layout */}
-            <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
-            <Route path="/leads" element={<AppLayout><LeadsPage /></AppLayout>} />
-            <Route path="/leads/metrics" element={<AppLayout><LeadMetricsPage /></AppLayout>} />
-            <Route path="/services" element={<AppLayout><ServicesPage /></AppLayout>} />
-            <Route path="/clients" element={<AppLayout><ClientsPage /></AppLayout>} />
-            <Route path="/clients/:id" element={<AppLayout><ClientDetailPage /></AppLayout>} />
-            <Route path="/liabilities" element={<AppLayout><LiabilitiesPage /></AppLayout>} />
-            <Route path="/litigation" element={<AppLayout><LitigationPage /></AppLayout>} />
-            <Route path="/litigation/calendar" element={<AppLayout><CourtCalendarPage /></AppLayout>} />
-            <Route path="/tasks" element={<AppLayout><TasksPage /></AppLayout>} />
-            <Route path="/creditors" element={<AppLayout><CreditorsPage /></AppLayout>} />
-            <Route path="/reports" element={<AppLayout><ReportsPage /></AppLayout>} />
-            <Route path="/companies" element={<AppLayout><CompaniesPage /></AppLayout>} />
-            <Route path="/staff" element={<AppLayout><StaffPage /></AppLayout>} />
-            <Route path="/payments" element={<AppLayout><PaymentsPage /></AppLayout>} />
-            <Route path="/opposing-counsel" element={<AppLayout><OpposingCounselPage /></AppLayout>} />
-            <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
-            
-            {/* Catch-all */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/auth" element={<Auth />} />
+              
+              {/* Documentation routes */}
+              <Route path="/docs" element={<DocsLayout />}>
+                <Route index element={<DocsOverview />} />
+                <Route path="schema" element={<SchemaPage />} />
+                <Route path="erd" element={<ERDPage />} />
+                <Route path="enums" element={<EnumsPage />} />
+                <Route path="functions" element={<FunctionsPage />} />
+                <Route path="edge-functions" element={<EdgeFunctionsPage />} />
+                <Route path="storage" element={<StoragePage />} />
+                <Route path="roles/:role" element={<RoleGuidePage />} />
+                <Route path="features/:feature" element={<FeatureGuidePage />} />
+                <Route path="rls-policies" element={<RLSPoliciesPage />} />
+                <Route path="permissions" element={<PermissionsPage />} />
+                <Route path="future-builds" element={<FutureBuildPage />} />
+                <Route path="integrations" element={<IntegrationsPage />} />
+                <Route path="security-concerns" element={<SecurityPage />} />
+              </Route>
+              
+              {/* Protected routes with layout */}
+              <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
+              <Route path="/leads" element={<AppLayout><LeadsPage /></AppLayout>} />
+              <Route path="/leads/metrics" element={<AppLayout><LeadMetricsPage /></AppLayout>} />
+              <Route path="/services" element={<AppLayout><ServicesPage /></AppLayout>} />
+              <Route path="/clients" element={<AppLayout><ClientsPage /></AppLayout>} />
+              <Route path="/clients/:id" element={<AppLayout><ClientDetailPage /></AppLayout>} />
+              <Route path="/liabilities" element={<AppLayout><LiabilitiesPage /></AppLayout>} />
+              <Route path="/litigation" element={<AppLayout><LitigationPage /></AppLayout>} />
+              <Route path="/litigation/calendar" element={<AppLayout><CourtCalendarPage /></AppLayout>} />
+              <Route path="/tasks" element={<AppLayout><TasksPage /></AppLayout>} />
+              <Route path="/creditors" element={<AppLayout><CreditorsPage /></AppLayout>} />
+              <Route path="/reports" element={<AppLayout><ReportsPage /></AppLayout>} />
+              <Route path="/companies" element={<AppLayout><CompaniesPage /></AppLayout>} />
+              <Route path="/staff" element={<AppLayout><StaffPage /></AppLayout>} />
+              <Route path="/payments" element={<AppLayout><PaymentsPage /></AppLayout>} />
+              <Route path="/opposing-counsel" element={<AppLayout><OpposingCounselPage /></AppLayout>} />
+              <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
+              
+              {/* Catch-all */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
