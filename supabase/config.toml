@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.forth-pause-resume]
 verify_jwt = false
+
+[functions.forth-register-client]
+verify_jwt = false

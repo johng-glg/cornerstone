@@ -255,6 +255,50 @@ function WizardContent({ onClose, onSuccess }: Omit<EnrollmentWizardProps, 'lead
         converted_service_id: clientService.id,
       });
 
+      // 8. Register with Forth Pay (non-blocking - enrollment proceeds even if this fails)
+      if (data.address_line1 && data.city && data.address_state && data.zip_code) {
+        try {
+          const forthRequest = {
+            client_id: client.id,
+            client_service_id: clientService.id,
+            client_data: {
+              first_name: data.first_name,
+              last_name: data.last_name,
+              middle_name: data.middle_name || undefined,
+              address: data.address_line1,
+              city: data.city,
+              state: data.address_state,
+              zip: data.zip_code,
+              email: data.email || '',
+              phone: data.phone || '',
+              date_of_birth: data.date_of_birth || '',
+              ssn: data.ssn_last4 || undefined,
+            },
+            banking: data.routing_number && data.account_number ? {
+              bank_name: data.bank_name || 'Unknown Bank',
+              routing_number: data.routing_number,
+              account_number: data.account_number,
+              account_type: (data.bank_account_type || 'checking') as 'checking' | 'savings',
+            } : undefined,
+            debts: data.debts.filter(d => d.is_enrolled).map(d => ({
+              creditor_name: d.creditor_name,
+              account_type: d.account_type,
+              current_balance: d.current_balance,
+              original_balance: d.original_balance,
+              account_number: d.account_number_last4,
+            })),
+          };
+
+          await supabase.functions.invoke('forth-register-client', {
+            body: forthRequest,
+          });
+          console.log('Client registered with Forth Pay');
+        } catch (forthError) {
+          // Log error but don't block enrollment
+          console.error('Forth registration failed (non-blocking):', forthError);
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['client_services'] });
 

@@ -11,6 +11,8 @@ import {
   resumeForthClient,
   pollForthTransactions,
   testForthAuth,
+  registerForthClient,
+  type RegisterClientRequest,
 } from '@/lib/forthApi';
 
 // Push a transaction to Forth Pay as a draft
@@ -315,6 +317,44 @@ export function useTestForthAuth() {
     onError: (error: Error) => {
       toast({
         title: 'Authentication Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+// Register a new client with Forth Pay
+export function useRegisterForthClient() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (request: RegisterClientRequest) => {
+      const result = await registerForthClient(request);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to register client with Forth');
+      }
+      return result;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['client'] });
+      toast({
+        title: 'Client Registered',
+        description: data.message || `Client registered with Forth Pay (ID: ${data.data?.forth_crm_id})`,
+      });
+      if (data.warning) {
+        toast({
+          title: 'Warning',
+          description: data.warning,
+          variant: 'destructive',
+        });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to Register Client',
         description: error.message,
         variant: 'destructive',
       });
