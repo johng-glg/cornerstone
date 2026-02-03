@@ -1,165 +1,213 @@
 
 
-# Plan: Staff Management Enhancements
+# Plan: Role-Based Workflow Assignment & Single-User Constraint
 
 ## Overview
-Add two enhancements to the Staff Management page:
-1. **Group by Department Toggle** - Option to organize the staff list by department with collapsible sections
-2. **Last Login Display** - Show when each staff member last logged in
+Enhance workflow rules to assign tasks and notifications to specific role-based assignees on a record (e.g., "the attorney assigned to this matter"), and add a database constraint to ensure only one user can hold each key role per entity.
 
 ---
 
 ## How It Works
 
+When creating a task action in a workflow rule, users will see new assignment options:
+
 ```text
-Staff Management Header:
-+------------------------------------------------------------------+
-| Staff Management                                [List | Grouped]  |
-| 15 staff members                                    [+ Add Staff] |
-+------------------------------------------------------------------+
-
-Flat List View (Current):
-+------------------------------------------------------------------+
-| Staff Member    | Dept     | Contact | Company | Roles | Status  |
-+------------------------------------------------------------------+
-| John Smith      | Admin    | ...     | ...     | ...   | Active  |
-| Jane Doe        | Attorney | ...     | ...     | ...   | Active  |
-+------------------------------------------------------------------+
-
-Grouped View (New):
-+------------------------------------------------------------------+
-| [v] Admin (2 members)                                             |
-|   +--------------------------------------------------------------+
-|   | Staff Member  | Contact   | Company | Roles | Last Login      |
-|   +--------------------------------------------------------------+
-|   | John Smith    | john@...  | GLG     | Admin | Today, 3:15 PM  |
-|   | Mary Johnson  | mary@...  | GLG     | Admin | Yesterday       |
-+------------------------------------------------------------------+
-| [v] Attorney (4 members)                                          |
-|   ...                                                             |
-+------------------------------------------------------------------+
-| [v] Case Manager (3 members)                                      |
-|   ...                                                             |
-+------------------------------------------------------------------+
+Assign To:
++----------------------------------+
+| Entity Owner (first assignee)   |
+| Workflow Creator                |
+|----------------------------------|
+| Assigned Attorney       ← NEW   |
+| Assigned Case Manager   ← NEW   |
+| Assigned Negotiator     ← NEW   |
+| Assigned Sales Rep      ← NEW   |
+| Assigned CS Rep         ← NEW   |
++----------------------------------+
 ```
+
+Example: A workflow rule for litigation matters can say "When status changes to pre_response, create a task and assign it to the Assigned Attorney."
 
 ---
 
 ## Implementation Steps
 
-### 1. Database: Add last_login_at Column to Staff
-Add a new column to track when staff last logged in:
-- `last_login_at timestamptz` - Updated via database trigger when user signs in
+### 1. Database: Add Unique Constraint for Single-Role Assignments
 
-Create a trigger that updates this field when a user authenticates. The trigger will listen for auth events and update the corresponding staff record.
+Add a partial unique index to ensure only one active assignment per role per entity for the key roles. This prevents having two attorneys assigned to the same matter:
 
-### 2. Update Staff Interface
-Update the `StaffMember` interface in `src/pages/Staff.tsx` to include:
-- `last_login_at: string | null` - The timestamp of last login
+```sql
+CREATE UNIQUE INDEX idx_assignments_single_role 
+ON assignments (entity_type, entity_id, assignment_type)
+WHERE is_active = true 
+  AND assignment_type IN (
+    'litigation_attorney', 
+    'case_manager', 
+    'negotiator', 
+    'primary_attorney', 
+    'client_services_rep', 
+    'sales_rep'
+  );
+```
 
-### 3. UI Components
+This ensures:
+- Each litigation matter can have only one active litigation_attorney
+- Each litigation matter can have only one active case_manager
+- Each litigation matter can have only one active negotiator
+- Same for other entity types using these assignment roles
 
-**Add View Toggle to Header:**
-- Toggle between "List" (flat table) and "Grouped" (by department) views
-- Use ToggleGroup component for consistent UI with other pages
+### 2. Update Workflow Types
 
-**Add Last Login Column:**
-- New column showing formatted last login time
-- Display relative times like "Today, 3:15 PM", "Yesterday", "3 days ago", or "Never" for null values
-- Use Clock icon for visual consistency
+Expand the `CreateTaskActionConfig` and `SendNotificationActionConfig` types to include the new role-based assignment options:
 
-**Grouped View Implementation:**
-- Group staff by department using collapsible sections
-- Each group header shows department name and member count
-- Groups are color-coded using existing department colors
-- Department order follows natural hierarchy:
-  1. Admin
-  2. Sales/Intake
-  3. Client Services
-  4. Attorney
-  5. Case Manager
-  6. Negotiations
-  7. Payment Processing
-  8. Correspondence
+```typescript
+export interface CreateTaskActionConfig {
+  // ... existing fields
+  assign_to?: 
+    | 'entity_owner' 
+    | 'creator'
+    | 'assigned_attorney'      // NEW
+    | 'assigned_case_manager'  // NEW
+    | 'assigned_negotiator'    // NEW
+    | 'assigned_sales_rep'     // NEW
+    | 'assigned_cs_rep'        // NEW
+    | string;  // specific staff UUID
+}
+```
 
-### 4. Date Formatting Helper
-Create a helper function to format last login times:
-- Within today: "Today, 3:15 PM"
-- Yesterday: "Yesterday, 3:15 PM"
-- Within 7 days: "3 days ago"
-- Older: "Jan 15, 2026"
-- Never logged in: "Never"
+### 3. Update ActionConfig UI
+
+Add new options to the "Assign To" dropdown in the workflow action configuration:
+
+| Value | Display Label |
+|-------|---------------|
+| entity_owner | Entity Owner |
+| creator | Workflow Creator |
+| assigned_attorney | Assigned Attorney |
+| assigned_case_manager | Assigned Case Manager |
+| assigned_negotiator | Assigned Negotiator |
+| assigned_sales_rep | Assigned Sales Rep |
+| assigned_cs_rep | Assigned CS Rep |
+
+The dropdown will show role-based options conditionally based on entity type:
+- **Litigation Matters**: Attorney, Case Manager, Negotiator
+- **Leads**: Sales Rep
+- **Client Services**: CS Rep, Case Manager, Negotiator
+
+### 4. Update Workflow Execution Logic
+
+Enhance the `resolveAssignee` function in `useExecuteWorkflow.ts` to look up the specific role-based assignee:
+
+```typescript
+async function resolveAssignee(
+  assignTo: string | undefined,
+  entityType: WorkflowEntityType,
+  entityId: string
+): Promise<string | null> {
+  // Map workflow assign_to values to database assignment_type enum
+  const roleToAssignmentType: Record<string, string> = {
+    'assigned_attorney': 'litigation_attorney',
+    'assigned_case_manager': 'case_manager',
+    'assigned_negotiator': 'negotiator',
+    'assigned_sales_rep': 'sales_rep',
+    'assigned_cs_rep': 'client_services_rep',
+  };
+  
+  // Check if this is a role-based assignment
+  if (assignTo && roleToAssignmentType[assignTo]) {
+    const assignmentType = roleToAssignmentType[assignTo];
+    const taskEntityType = mapToTaskEntityType(entityType);
+    
+    const { data } = await supabase
+      .from('assignments')
+      .select('staff_id')
+      .eq('entity_type', taskEntityType)
+      .eq('entity_id', entityId)
+      .eq('assignment_type', assignmentType)
+      .eq('is_active', true)
+      .maybeSingle();
+    
+    return data?.staff_id || null;
+  }
+  
+  // ... existing entity_owner and creator logic
+}
+```
+
+### 5. Update MatterAssignmentDialog Behavior
+
+When a user tries to assign someone to a role that already has an assignee, the dialog should either:
+- **Option A**: Show an error message explaining the role is already filled
+- **Option B**: Automatically unassign the previous person and assign the new one (with confirmation)
+
+For simplicity, we'll implement Option A with a clear error message from the database constraint, and the UI will gracefully handle the error.
 
 ---
 
 ## Technical Details
 
-### Department Order Constant
-```typescript
-const DEPARTMENT_ORDER = [
-  'admin',
-  'sales_intake',
-  'client_services',
-  'attorney',
-  'case_manager',
-  'negotiations',
-  'payment_processing',
-  'correspondence',
-];
-```
+### Entity-Specific Role Options
 
-### Department Display Labels
+Different entity types support different role assignments:
+
+| Entity Type | Available Roles |
+|-------------|-----------------|
+| litigation_matters | Attorney, Case Manager, Negotiator |
+| leads | Sales Rep |
+| client_services | CS Rep, Case Manager, Negotiator |
+| liabilities | Case Manager, Negotiator |
+| tasks | (inherits from parent entity) |
+
+### Role-to-Assignment Type Mapping
+
 ```typescript
-const DEPARTMENT_LABELS: Record<string, string> = {
-  admin: 'Admin',
-  sales_intake: 'Sales & Intake',
-  client_services: 'Client Services',
-  attorney: 'Attorney',
-  case_manager: 'Case Manager',
-  negotiations: 'Negotiations',
-  payment_processing: 'Payment Processing',
-  correspondence: 'Correspondence',
+const ROLE_ASSIGNMENT_OPTIONS: Record<WorkflowEntityType, { value: string; label: string }[]> = {
+  litigation_matters: [
+    { value: 'assigned_attorney', label: 'Assigned Attorney' },
+    { value: 'assigned_case_manager', label: 'Assigned Case Manager' },
+    { value: 'assigned_negotiator', label: 'Assigned Negotiator' },
+  ],
+  leads: [
+    { value: 'assigned_sales_rep', label: 'Assigned Sales Rep' },
+  ],
+  client_services: [
+    { value: 'assigned_cs_rep', label: 'Assigned CS Rep' },
+    { value: 'assigned_case_manager', label: 'Assigned Case Manager' },
+    { value: 'assigned_negotiator', label: 'Assigned Negotiator' },
+  ],
+  liabilities: [
+    { value: 'assigned_case_manager', label: 'Assigned Case Manager' },
+    { value: 'assigned_negotiator', label: 'Assigned Negotiator' },
+  ],
+  tasks: [],
+  settlements: [
+    { value: 'assigned_negotiator', label: 'Assigned Negotiator' },
+  ],
 };
 ```
 
-### Grouping Logic
-```typescript
-const staffByDepartment = useMemo(() => {
-  if (!staff) return new Map();
-  
-  const grouped = new Map<string, StaffMember[]>();
-  for (const member of staff) {
-    const existing = grouped.get(member.department) || [];
-    grouped.set(member.department, [...existing, member]);
-  }
-  
-  // Sort by department order
-  return new Map(
-    DEPARTMENT_ORDER
-      .filter(dept => grouped.has(dept))
-      .map(dept => [dept, grouped.get(dept)!])
-  );
-}, [staff]);
-```
+### Database Constraint Behavior
 
-### Database Migration
-The migration will:
-1. Add `last_login_at` column to the `staff` table
-2. Create a function to update `last_login_at` when user signs in
-3. Create a trigger on `auth.sessions` to call this function (or use Supabase's built-in auth hooks)
+The partial unique index ensures:
+1. Only ONE active `litigation_attorney` per litigation matter
+2. Only ONE active `case_manager` per entity
+3. Only ONE active `negotiator` per entity
+4. Inactive assignments (is_active = false) are excluded from the constraint
 
-Note: Since we cannot create triggers on auth schema tables, we'll update `last_login_at` from the client side when the user loads the app and is authenticated. This approach is simpler and doesn't require modifying reserved schemas.
+When someone tries to assign a second attorney:
+- Database returns a constraint violation error
+- UI displays: "This role is already assigned to [Name]. Please unassign them first."
 
 ---
 
+## Files to Create
+None
+
 ## Files to Modify
+- `src/types/workflow.ts` - Add role-based assignment type constants
+- `src/components/workflows/ActionConfig.tsx` - Add role options to Assign To dropdown
+- `src/hooks/useExecuteWorkflow.ts` - Update resolveAssignee function
+- `src/hooks/useMatterAssignments.ts` - Improve error handling for constraint violations
 
-### Modified Files
-- `src/pages/Staff.tsx` - Add view toggle, grouped view, last login column
-
-### Database Changes
-- Add `last_login_at` column to `staff` table
-
-### Optional Enhancement
-- Update auth flow (e.g., in `AppLayout.tsx` or auth provider) to update `last_login_at` on successful authentication
+## Database Changes
+- Add partial unique index on `assignments` table for single-role enforcement
 
