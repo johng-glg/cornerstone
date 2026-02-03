@@ -79,7 +79,7 @@ export function AssignmentPoolEditor({ ruleId, method }: AssignmentPoolEditorPro
           </SelectTrigger>
           <SelectContent>
             {availableStaff.length === 0 ? (
-              <SelectItem value="" disabled>No available staff</SelectItem>
+              <SelectItem value="__none__" disabled>No available staff</SelectItem>
             ) : (
               availableStaff.map(s => (
                 <SelectItem key={s.id} value={s.id}>
