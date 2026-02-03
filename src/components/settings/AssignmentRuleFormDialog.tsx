@@ -247,14 +247,17 @@ export function AssignmentRuleFormDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Lead Source</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select 
+                        onValueChange={(val) => field.onChange(val === '__any__' ? '' : val)} 
+                        value={field.value || '__any__'}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Any source" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Any Source</SelectItem>
+                          <SelectItem value="__any__">Any Source</SelectItem>
                           <SelectItem value="web_form">Web Form</SelectItem>
                           <SelectItem value="phone">Phone</SelectItem>
                           <SelectItem value="referral">Referral</SelectItem>
@@ -274,14 +277,17 @@ export function AssignmentRuleFormDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Interest Type</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select 
+                        onValueChange={(val) => field.onChange(val === '__any__' ? '' : val)} 
+                        value={field.value || '__any__'}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Any type" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Any Type</SelectItem>
+                          <SelectItem value="__any__">Any Type</SelectItem>
                           <SelectItem value="debt_resolution">Debt Resolution</SelectItem>
                           <SelectItem value="litigation">Litigation</SelectItem>
                           <SelectItem value="both">Both</SelectItem>
