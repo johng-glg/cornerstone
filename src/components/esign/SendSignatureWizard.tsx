@@ -9,6 +9,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -73,6 +83,7 @@ export function SendSignatureWizard({
   entityData,
 }: SendSignatureWizardProps) {
   const [step, setStep] = useState(1);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const { toast } = useToast();
   
   const { data: templates, isLoading: templatesLoading } = useDocuSealTemplates();
@@ -130,7 +141,16 @@ export function SendSignatureWizard({
     if (step > 1) setStep(step - 1);
   };
 
-  const handleSubmit = async (data: FormData) => {
+  const handleSendClick = async () => {
+    // Validate the form first
+    const isValid = await form.trigger();
+    if (isValid) {
+      setShowConfirmDialog(true);
+    }
+  };
+
+  const handleConfirmedSubmit = async () => {
+    const data = form.getValues();
     try {
       // Create the signature request
       const signersWithIndex: CreateSignerData[] = data.signers.map((s, i) => ({
@@ -160,10 +180,12 @@ export function SendSignatureWizard({
         description: 'The document has been sent for signature.',
       });
 
+      setShowConfirmDialog(false);
       onOpenChange(false);
       form.reset();
       setStep(1);
     } catch (error) {
+      setShowConfirmDialog(false);
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to send signature request',
@@ -175,6 +197,7 @@ export function SendSignatureWizard({
   const isSubmitting = createRequest.isPending || sendRequest.isPending;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -203,7 +226,7 @@ export function SendSignatureWizard({
         </div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
             {/* Step 1: Template Selection */}
             {step === 1 && (
               <div className="space-y-4">
@@ -509,7 +532,7 @@ export function SendSignatureWizard({
                   Continue
                 </Button>
               ) : (
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="button" onClick={handleSendClick} disabled={isSubmitting}>
                   {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   Send for Signature
                 </Button>
@@ -519,5 +542,25 @@ export function SendSignatureWizard({
         </Form>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Send Signature Request?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will send "{form.getValues('title')}" to {signers.length} signer{signers.length !== 1 ? 's' : ''} for signature. 
+            They will receive an email with a link to sign the document.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirmedSubmit} disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Yes, Send Now
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
