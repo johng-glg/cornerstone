@@ -821,6 +821,50 @@ export type Database = {
           },
         ]
       }
+      docuseal_templates: {
+        Row: {
+          company_id: string
+          created_at: string
+          description: string | null
+          docuseal_template_id: number
+          id: string
+          is_active: boolean
+          name: string
+          signer_roles: Json
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          description?: string | null
+          docuseal_template_id: number
+          id?: string
+          is_active?: boolean
+          name: string
+          signer_roles?: Json
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          docuseal_template_id?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          signer_roles?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "docuseal_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       law_firm_contacts: {
         Row: {
           created_at: string
@@ -2526,6 +2570,207 @@ export type Database = {
           },
         ]
       }
+      signature_events: {
+        Row: {
+          created_at: string
+          event_data: Json
+          event_type: string
+          id: string
+          occurred_at: string
+          request_id: string
+          signer_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_data?: Json
+          event_type: string
+          id?: string
+          occurred_at?: string
+          request_id: string
+          signer_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_data?: Json
+          event_type?: string
+          id?: string
+          occurred_at?: string
+          request_id?: string
+          signer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signature_events_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "signature_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signature_events_signer_id_fkey"
+            columns: ["signer_id"]
+            isOneToOne: false
+            referencedRelation: "signature_signers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signature_requests: {
+        Row: {
+          certificate_url: string | null
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          delivery_method: string
+          docuseal_submission_id: number | null
+          docuseal_template_id: number | null
+          entity_id: string
+          entity_type: string
+          evidence_json: Json | null
+          executed_pdf_url: string | null
+          expires_at: string | null
+          id: string
+          language: string
+          short_token: string
+          signing_mode: string
+          status: Database["public"]["Enums"]["signature_request_status"]
+          template_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          certificate_url?: string | null
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivery_method?: string
+          docuseal_submission_id?: number | null
+          docuseal_template_id?: number | null
+          entity_id: string
+          entity_type: string
+          evidence_json?: Json | null
+          executed_pdf_url?: string | null
+          expires_at?: string | null
+          id?: string
+          language?: string
+          short_token: string
+          signing_mode?: string
+          status?: Database["public"]["Enums"]["signature_request_status"]
+          template_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          certificate_url?: string | null
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivery_method?: string
+          docuseal_submission_id?: number | null
+          docuseal_template_id?: number | null
+          entity_id?: string
+          entity_type?: string
+          evidence_json?: Json | null
+          executed_pdf_url?: string | null
+          expires_at?: string | null
+          id?: string
+          language?: string
+          short_token?: string
+          signing_mode?: string
+          status?: Database["public"]["Enums"]["signature_request_status"]
+          template_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signature_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signature_requests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signature_requests_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signature_signers: {
+        Row: {
+          created_at: string
+          docuseal_submitter_id: number | null
+          email: string
+          id: string
+          ip_address: string | null
+          name: string
+          order_index: number
+          phone: string | null
+          request_id: string
+          short_token: string | null
+          signed_at: string | null
+          signer_role: string
+          signing_url: string | null
+          status: Database["public"]["Enums"]["signer_status"]
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          docuseal_submitter_id?: number | null
+          email: string
+          id?: string
+          ip_address?: string | null
+          name: string
+          order_index?: number
+          phone?: string | null
+          request_id: string
+          short_token?: string | null
+          signed_at?: string | null
+          signer_role: string
+          signing_url?: string | null
+          status?: Database["public"]["Enums"]["signer_status"]
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          docuseal_submitter_id?: number | null
+          email?: string
+          id?: string
+          ip_address?: string | null
+          name?: string
+          order_index?: number
+          phone?: string | null
+          request_id?: string
+          short_token?: string | null
+          signed_at?: string | null
+          signer_role?: string
+          signing_url?: string | null
+          status?: Database["public"]["Enums"]["signer_status"]
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signature_signers_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "signature_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff: {
         Row: {
           avatar_url: string | null
@@ -3506,6 +3751,18 @@ export type Database = {
         | "completed"
         | "defaulted"
         | "cancelled"
+      signature_request_status:
+        | "draft"
+        | "queued"
+        | "sent"
+        | "viewed"
+        | "partially_signed"
+        | "completed"
+        | "declined"
+        | "expired"
+        | "canceled"
+        | "error"
+      signer_status: "pending" | "sent" | "viewed" | "signed" | "declined"
       task_priority: "low" | "medium" | "high" | "urgent"
       task_status: "pending" | "in_progress" | "completed" | "cancelled"
       task_type:
@@ -3864,6 +4121,19 @@ export const Constants = {
         "defaulted",
         "cancelled",
       ],
+      signature_request_status: [
+        "draft",
+        "queued",
+        "sent",
+        "viewed",
+        "partially_signed",
+        "completed",
+        "declined",
+        "expired",
+        "canceled",
+        "error",
+      ],
+      signer_status: ["pending", "sent", "viewed", "signed", "declined"],
       task_priority: ["low", "medium", "high", "urgent"],
       task_status: ["pending", "in_progress", "completed", "cancelled"],
       task_type: [
