@@ -344,7 +344,16 @@ export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: Li
                 <TabsContent value="team" className="mt-4">
                   <MatterTeamPanel 
                     matterId={matterId} 
-                    onAddAssignment={() => setAssignmentDialogOpen(true)} 
+                    onAddAssignment={() => setAssignmentDialogOpen(true)}
+                    opposingCounsel={{
+                      lawFirmName: matter.opposing_law_firm?.name,
+                      contactName: matter.opposing_counsel_contact 
+                        ? `${matter.opposing_counsel_contact.first_name} ${matter.opposing_counsel_contact.last_name}`
+                        : null,
+                      contactTitle: matter.opposing_counsel_contact?.title,
+                      contactEmail: matter.opposing_counsel_contact?.email,
+                      contactPhone: matter.opposing_counsel_contact?.phone,
+                    }}
                   />
                 </TabsContent>
 
