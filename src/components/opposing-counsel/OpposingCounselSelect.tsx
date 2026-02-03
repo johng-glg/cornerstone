@@ -27,6 +27,8 @@ interface OpposingCounselSelectProps {
   onLawFirmChange: (id: string | null) => void;
   onContactChange: (id: string | null) => void;
   disabled?: boolean;
+  onFirmCreated?: (firmId: string) => void;
+  onContactCreated?: (contactId: string) => void;
 }
 
 export function OpposingCounselSelect({
@@ -35,6 +37,8 @@ export function OpposingCounselSelect({
   onLawFirmChange,
   onContactChange,
   disabled,
+  onFirmCreated,
+  onContactCreated,
 }: OpposingCounselSelectProps) {
   const [firmOpen, setFirmOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
@@ -241,6 +245,10 @@ export function OpposingCounselSelect({
       <LawFirmFormDialog
         open={firmDialogOpen}
         onOpenChange={setFirmDialogOpen}
+        onCreated={(firm) => {
+          onLawFirmChange(firm.id);
+          onFirmCreated?.(firm.id);
+        }}
       />
 
       {lawFirmId && (
@@ -248,6 +256,10 @@ export function OpposingCounselSelect({
           open={contactDialogOpen}
           onOpenChange={setContactDialogOpen}
           lawFirmId={lawFirmId}
+          onCreated={(contact) => {
+            onContactChange(contact.id);
+            onContactCreated?.(contact.id);
+          }}
         />
       )}
     </div>

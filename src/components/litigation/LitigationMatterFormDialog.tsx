@@ -27,6 +27,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCreateLitigationMatter, useUpdateLitigationMatter, type LitigationMatter, type LitigationStatus } from '@/hooks/useLitigationMatters';
+import { OpposingCounselSelect } from '@/components/opposing-counsel/OpposingCounselSelect';
+import { useLawFirms } from '@/hooks/useLawFirms';
+import { useLawFirmContacts } from '@/hooks/useLawFirmContacts';
 
 const formSchema = z.object({
   case_number: z.string().optional(),
@@ -109,6 +112,11 @@ export function LitigationMatterFormDialog({
     },
   });
 
+  // For auto-populating opposing_counsel text field
+  const { data: firms } = useLawFirms();
+  const currentLawFirmId = form.watch('opposing_law_firm_id');
+  const { data: contacts } = useLawFirmContacts(currentLawFirmId || undefined);
+
   // Reset form when matter or creditorName changes
   useEffect(() => {
     if (matter) {
@@ -152,7 +160,26 @@ export function LitigationMatterFormDialog({
     }
   }, [matter, form, creditorName]);
 
+  // Helper to build opposing_counsel display string
+  const buildOpposingCounselText = (lawFirmId: string | null, contactId: string | null): string => {
+    const firm = firms?.find(f => f.id === lawFirmId);
+    const contact = contacts?.find(c => c.id === contactId);
+    
+    if (contact && firm) {
+      return `${contact.first_name} ${contact.last_name}, ${firm.name}`;
+    }
+    if (firm) {
+      return firm.name;
+    }
+    return '';
+  };
+
   const onSubmit = (values: FormValues) => {
+    // Auto-populate opposing_counsel text from selected firm/contact
+    const opposingCounselText = values.opposing_law_firm_id 
+      ? buildOpposingCounselText(values.opposing_law_firm_id, values.opposing_counsel_id || null)
+      : values.opposing_counsel;
+
     const data = {
       liability_id: liabilityId,
       client_service_id: clientServiceId,
@@ -161,7 +188,7 @@ export function LitigationMatterFormDialog({
       county: values.county || null,
       state: values.state || null,
       opposing_party: values.opposing_party || null,
-      opposing_counsel: values.opposing_counsel || null,
+      opposing_counsel: opposingCounselText || null,
       opposing_law_firm_id: values.opposing_law_firm_id || null,
       opposing_counsel_id: values.opposing_counsel_id || null,
       status: values.status as LitigationStatus,
@@ -290,33 +317,31 @@ export function LitigationMatterFormDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="opposing_party"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Opposing Party</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Plaintiff/Creditor name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <FormField
+              control={form.control}
+              name="opposing_party"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Opposing Party</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Plaintiff/Creditor name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name="opposing_counsel"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Opposing Counsel</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Attorney/Law firm name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+            {/* Opposing Counsel Lookup */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Opposing Counsel</label>
+              <OpposingCounselSelect
+                lawFirmId={form.watch('opposing_law_firm_id') || null}
+                contactId={form.watch('opposing_counsel_id') || null}
+                onLawFirmChange={(id) => {
+                  form.setValue('opposing_law_firm_id', id);
+                  form.setValue('opposing_counsel_id', null);
+                }}
+                onContactChange={(id) => form.setValue('opposing_counsel_id', id)}
               />
             </div>
 
