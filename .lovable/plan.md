@@ -1,213 +1,465 @@
 
-
-# Plan: Role-Based Workflow Assignment & Single-User Constraint
+# DocuSeal eSign Integration Plan
 
 ## Overview
-Enhance workflow rules to assign tasks and notifications to specific role-based assignees on a record (e.g., "the attorney assigned to this matter"), and add a database constraint to ensure only one user can hold each key role per entity.
+Implement a hybrid eSign system where the CRM is the system of record, and DocuSeal handles signing ceremonies and PDF generation. The CRM will manage signature requests, deliver notifications via its own channels (Email/SMS), generate short links, and store all signed artifacts.
 
 ---
 
-## How It Works
-
-When creating a task action in a workflow rule, users will see new assignment options:
+## Architecture Diagram
 
 ```text
-Assign To:
-+----------------------------------+
-| Entity Owner (first assignee)   |
-| Workflow Creator                |
-|----------------------------------|
-| Assigned Attorney       ← NEW   |
-| Assigned Case Manager   ← NEW   |
-| Assigned Negotiator     ← NEW   |
-| Assigned Sales Rep      ← NEW   |
-| Assigned CS Rep         ← NEW   |
-+----------------------------------+
++------------------+        +-------------------+        +------------------+
+|    CRM (React)   |        |   Edge Functions  |        |    DocuSeal      |
+|------------------|        |-------------------|        |------------------|
+| Signature Panel  |------->| docuseal-send     |------->| Create Submission|
+| Send Wizard      |        | docuseal-webhook  |<-------| Webhook Events   |
+| Timeline Events  |<-------|                   |        | PDF Generation   |
++------------------+        +-------------------+        +------------------+
+                                    |
+                                    v
+                            +---------------+
+                            |   Supabase    |
+                            |---------------|
+                            | signature_    |
+                            |   requests    |
+                            | signature_    |
+                            |   signers     |
+                            | signature_    |
+                            |   events      |
+                            +---------------+
 ```
-
-Example: A workflow rule for litigation matters can say "When status changes to pre_response, create a task and assign it to the Assigned Attorney."
 
 ---
 
-## Implementation Steps
+## Database Schema
 
-### 1. Database: Add Unique Constraint for Single-Role Assignments
+### 1. `signature_requests` table
+Main table tracking each signature request sent from the CRM.
 
-Add a partial unique index to ensure only one active assignment per role per entity for the key roles. This prevents having two attorneys assigned to the same matter:
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| company_id | uuid | FK to companies |
+| entity_type | text | 'lead' or 'client' |
+| entity_id | uuid | Lead or Client ID |
+| template_id | uuid | FK to templates (CRM template) |
+| docuseal_template_id | integer | DocuSeal template ID |
+| docuseal_submission_id | integer | DocuSeal submission ID (after send) |
+| title | text | Document title |
+| status | signature_request_status enum | Draft, Queued, Sent, Viewed, Partially Signed, Completed, Declined, Expired, Canceled, Error |
+| signing_mode | text | 'parallel' or 'sequential' |
+| delivery_method | text | 'email_sms', 'email_only', 'sms_only' |
+| language | text | 'en' or 'es' |
+| expires_at | timestamptz | Expiration date |
+| completed_at | timestamptz | When all signers completed |
+| executed_pdf_url | text | URL to final signed PDF |
+| certificate_url | text | URL to completion certificate |
+| evidence_json | jsonb | DocuSeal audit/evidence data |
+| short_token | text | Unique token for /s/{token} redirect |
+| created_by | uuid | FK to staff |
+| created_at | timestamptz | |
+| updated_at | timestamptz | |
 
+### 2. `signature_signers` table
+Individual signers within a signature request.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| request_id | uuid | FK to signature_requests |
+| signer_role | text | 'client', 'co_client', 'attorney', etc. |
+| name | text | Full name |
+| email | text | Email address |
+| phone | text | Phone for SMS delivery |
+| docuseal_submitter_id | integer | DocuSeal submitter ID |
+| signing_url | text | DocuSeal signing URL |
+| status | signer_status enum | Pending, Sent, Viewed, Signed, Declined |
+| signed_at | timestamptz | When this signer completed |
+| ip_address | text | Signer's IP |
+| user_agent | text | Signer's browser |
+| order_index | integer | For sequential signing order |
+| created_at | timestamptz | |
+
+### 3. `signature_events` table
+Append-only audit log of all signature events.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| request_id | uuid | FK to signature_requests |
+| signer_id | uuid | FK to signature_signers (nullable) |
+| event_type | text | 'sent', 'viewed', 'signed', 'declined', 'expired', 'completed', 'reminder_sent' |
+| event_data | jsonb | Additional event metadata |
+| occurred_at | timestamptz | When event happened |
+| created_at | timestamptz | |
+
+### 4. `docuseal_templates` table
+Maps CRM templates to DocuSeal template IDs.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| company_id | uuid | FK to companies |
+| name | text | Template name |
+| docuseal_template_id | integer | DocuSeal template ID |
+| description | text | Template description |
+| signer_roles | jsonb | Array of role definitions |
+| is_active | boolean | Whether template is available |
+| created_at | timestamptz | |
+| updated_at | timestamptz | |
+
+### Enums to Add
 ```sql
-CREATE UNIQUE INDEX idx_assignments_single_role 
-ON assignments (entity_type, entity_id, assignment_type)
-WHERE is_active = true 
-  AND assignment_type IN (
-    'litigation_attorney', 
-    'case_manager', 
-    'negotiator', 
-    'primary_attorney', 
-    'client_services_rep', 
-    'sales_rep'
-  );
+CREATE TYPE signature_request_status AS ENUM (
+  'draft', 'queued', 'sent', 'viewed', 'partially_signed', 
+  'completed', 'declined', 'expired', 'canceled', 'error'
+);
+
+CREATE TYPE signer_status AS ENUM (
+  'pending', 'sent', 'viewed', 'signed', 'declined'
+);
 ```
-
-This ensures:
-- Each litigation matter can have only one active litigation_attorney
-- Each litigation matter can have only one active case_manager
-- Each litigation matter can have only one active negotiator
-- Same for other entity types using these assignment roles
-
-### 2. Update Workflow Types
-
-Expand the `CreateTaskActionConfig` and `SendNotificationActionConfig` types to include the new role-based assignment options:
-
-```typescript
-export interface CreateTaskActionConfig {
-  // ... existing fields
-  assign_to?: 
-    | 'entity_owner' 
-    | 'creator'
-    | 'assigned_attorney'      // NEW
-    | 'assigned_case_manager'  // NEW
-    | 'assigned_negotiator'    // NEW
-    | 'assigned_sales_rep'     // NEW
-    | 'assigned_cs_rep'        // NEW
-    | string;  // specific staff UUID
-}
-```
-
-### 3. Update ActionConfig UI
-
-Add new options to the "Assign To" dropdown in the workflow action configuration:
-
-| Value | Display Label |
-|-------|---------------|
-| entity_owner | Entity Owner |
-| creator | Workflow Creator |
-| assigned_attorney | Assigned Attorney |
-| assigned_case_manager | Assigned Case Manager |
-| assigned_negotiator | Assigned Negotiator |
-| assigned_sales_rep | Assigned Sales Rep |
-| assigned_cs_rep | Assigned CS Rep |
-
-The dropdown will show role-based options conditionally based on entity type:
-- **Litigation Matters**: Attorney, Case Manager, Negotiator
-- **Leads**: Sales Rep
-- **Client Services**: CS Rep, Case Manager, Negotiator
-
-### 4. Update Workflow Execution Logic
-
-Enhance the `resolveAssignee` function in `useExecuteWorkflow.ts` to look up the specific role-based assignee:
-
-```typescript
-async function resolveAssignee(
-  assignTo: string | undefined,
-  entityType: WorkflowEntityType,
-  entityId: string
-): Promise<string | null> {
-  // Map workflow assign_to values to database assignment_type enum
-  const roleToAssignmentType: Record<string, string> = {
-    'assigned_attorney': 'litigation_attorney',
-    'assigned_case_manager': 'case_manager',
-    'assigned_negotiator': 'negotiator',
-    'assigned_sales_rep': 'sales_rep',
-    'assigned_cs_rep': 'client_services_rep',
-  };
-  
-  // Check if this is a role-based assignment
-  if (assignTo && roleToAssignmentType[assignTo]) {
-    const assignmentType = roleToAssignmentType[assignTo];
-    const taskEntityType = mapToTaskEntityType(entityType);
-    
-    const { data } = await supabase
-      .from('assignments')
-      .select('staff_id')
-      .eq('entity_type', taskEntityType)
-      .eq('entity_id', entityId)
-      .eq('assignment_type', assignmentType)
-      .eq('is_active', true)
-      .maybeSingle();
-    
-    return data?.staff_id || null;
-  }
-  
-  // ... existing entity_owner and creator logic
-}
-```
-
-### 5. Update MatterAssignmentDialog Behavior
-
-When a user tries to assign someone to a role that already has an assignee, the dialog should either:
-- **Option A**: Show an error message explaining the role is already filled
-- **Option B**: Automatically unassign the previous person and assign the new one (with confirmation)
-
-For simplicity, we'll implement Option A with a clear error message from the database constraint, and the UI will gracefully handle the error.
 
 ---
 
-## Technical Details
+## Edge Functions
 
-### Entity-Specific Role Options
+### 1. `docuseal-send` - Create and send signature requests
 
-Different entity types support different role assignments:
-
-| Entity Type | Available Roles |
-|-------------|-----------------|
-| litigation_matters | Attorney, Case Manager, Negotiator |
-| leads | Sales Rep |
-| client_services | CS Rep, Case Manager, Negotiator |
-| liabilities | Case Manager, Negotiator |
-| tasks | (inherits from parent entity) |
-
-### Role-to-Assignment Type Mapping
+Responsibilities:
+- Fetch signature request and signers from database
+- Call DocuSeal API to create submission
+- Update database with DocuSeal IDs and signing URLs
+- Send notifications via Resend (email) and/or Twilio (SMS)
+- Generate CRM short link token
 
 ```typescript
-const ROLE_ASSIGNMENT_OPTIONS: Record<WorkflowEntityType, { value: string; label: string }[]> = {
-  litigation_matters: [
-    { value: 'assigned_attorney', label: 'Assigned Attorney' },
-    { value: 'assigned_case_manager', label: 'Assigned Case Manager' },
-    { value: 'assigned_negotiator', label: 'Assigned Negotiator' },
-  ],
-  leads: [
-    { value: 'assigned_sales_rep', label: 'Assigned Sales Rep' },
-  ],
-  client_services: [
-    { value: 'assigned_cs_rep', label: 'Assigned CS Rep' },
-    { value: 'assigned_case_manager', label: 'Assigned Case Manager' },
-    { value: 'assigned_negotiator', label: 'Assigned Negotiator' },
-  ],
-  liabilities: [
-    { value: 'assigned_case_manager', label: 'Assigned Case Manager' },
-    { value: 'assigned_negotiator', label: 'Assigned Negotiator' },
-  ],
-  tasks: [],
-  settlements: [
-    { value: 'assigned_negotiator', label: 'Assigned Negotiator' },
-  ],
-};
+// POST /functions/v1/docuseal-send
+interface SendRequest {
+  signature_request_id: string;
+}
+
+// Flow:
+// 1. Fetch request + signers from DB
+// 2. Create DocuSeal submission (send_email: false, send_sms: false)
+// 3. Store docuseal_submission_id and signing URLs
+// 4. Send CRM-owned notifications with short links
+// 5. Log signature_events
 ```
 
-### Database Constraint Behavior
+### 2. `docuseal-webhook` - Handle DocuSeal events
 
-The partial unique index ensures:
-1. Only ONE active `litigation_attorney` per litigation matter
-2. Only ONE active `case_manager` per entity
-3. Only ONE active `negotiator` per entity
-4. Inactive assignments (is_active = false) are excluded from the constraint
+Responsibilities:
+- Receive webhook events from DocuSeal
+- Validate webhook signature
+- Update signer and request status
+- Download and store artifacts on completion
+- Log events to signature_events table
 
-When someone tries to assign a second attorney:
-- Database returns a constraint violation error
-- UI displays: "This role is already assigned to [Name]. Please unassign them first."
+```typescript
+// POST /functions/v1/docuseal-webhook
+// Webhook events: form.viewed, form.started, form.completed, form.declined
+
+// On form.completed (all signers done):
+// 1. Download executed PDF from DocuSeal
+// 2. Download completion certificate
+// 3. Store in Supabase Storage
+// 4. Update signature_request with URLs
+// 5. Create timeline entry on Lead/Client
+```
+
+### 3. `docuseal-reminder` - Send signature reminders
+
+Responsibilities:
+- Query pending signatures past reminder threshold
+- Send reminder notifications
+- Log reminder events
+
+### 4. `signature-short-link` - Redirect handler (optional)
+Could also be handled client-side via React Router.
+
+---
+
+## TypeScript Types
+
+### New file: `src/types/esign.ts`
+
+```typescript
+export type SignatureRequestStatus = 
+  | 'draft' | 'queued' | 'sent' | 'viewed' 
+  | 'partially_signed' | 'completed' | 'declined' 
+  | 'expired' | 'canceled' | 'error';
+
+export type SignerStatus = 
+  | 'pending' | 'sent' | 'viewed' | 'signed' | 'declined';
+
+export type SignerRole = 'client' | 'co_client' | 'attorney';
+export type DeliveryMethod = 'email_sms' | 'email_only' | 'sms_only';
+export type SigningMode = 'parallel' | 'sequential';
+
+export interface SignatureRequest {
+  id: string;
+  company_id: string;
+  entity_type: 'lead' | 'client';
+  entity_id: string;
+  title: string;
+  status: SignatureRequestStatus;
+  signing_mode: SigningMode;
+  delivery_method: DeliveryMethod;
+  language: 'en' | 'es';
+  expires_at: string | null;
+  completed_at: string | null;
+  executed_pdf_url: string | null;
+  certificate_url: string | null;
+  short_token: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  signers?: SignatureSigner[];
+  events?: SignatureEvent[];
+  creator?: { first_name: string; last_name: string };
+}
+
+export interface SignatureSigner {
+  id: string;
+  request_id: string;
+  signer_role: SignerRole;
+  name: string;
+  email: string;
+  phone: string | null;
+  status: SignerStatus;
+  signed_at: string | null;
+  order_index: number;
+}
+
+export interface SignatureEvent {
+  id: string;
+  request_id: string;
+  signer_id: string | null;
+  event_type: string;
+  event_data: Record<string, unknown>;
+  occurred_at: string;
+}
+
+export interface DocuSealTemplate {
+  id: string;
+  company_id: string;
+  name: string;
+  docuseal_template_id: number;
+  description: string | null;
+  signer_roles: { role: string; name: string }[];
+  is_active: boolean;
+}
+```
+
+---
+
+## React Components
+
+### 1. Signature Requests Panel
+Display on Lead and Client detail pages.
+
+**File:** `src/components/esign/SignatureRequestsPanel.tsx`
+
+```text
++------------------------------------------------------------------+
+| Signature Requests                          [+ Send for Signature]|
++------------------------------------------------------------------+
+| Contract Agreement          | Completed ✓   | Jan 15, 2026       |
+| John Doe (Client)           | Signed ✓      |                    |
+| Jane Doe (Co-Client)        | Signed ✓      |                    |
+|                             |               | [View PDF] [Details]|
++------------------------------------------------------------------+
+| Disclosure Form             | Awaiting      | Jan 16, 2026       |
+| John Doe (Client)           | Pending ⏳    |                    |
+|                             |               | [Resend] [Details]  |
++------------------------------------------------------------------+
+```
+
+### 2. Send for Signature Wizard
+Multi-step dialog for creating signature requests.
+
+**File:** `src/components/esign/SendSignatureWizard.tsx`
+
+Steps:
+1. **Template Selection** - Choose DocuSeal template
+2. **Signer Configuration** - Add signers with roles, pre-fill from Lead/Client data
+3. **Delivery Options** - Email/SMS, language, expiration, signing mode
+4. **Review & Send** - Preview and confirm
+
+### 3. Signature Request Detail Sheet
+Slide-out panel showing full request details.
+
+**File:** `src/components/esign/SignatureRequestSheet.tsx`
+
+- Header with status badge and title
+- Signers list with individual statuses
+- Timeline of events (sent, viewed, signed)
+- Actions: Resend, Cancel, Download PDF
+
+### 4. DocuSeal Template Manager (Settings)
+Manage linked DocuSeal templates.
+
+**File:** `src/components/settings/DocuSealTemplatesTab.tsx`
+
+- List of synced templates
+- Sync button to fetch from DocuSeal
+- Edit signer role mappings
+
+---
+
+## React Query Hooks
+
+### New file: `src/hooks/useSignatureRequests.ts`
+
+```typescript
+// Core hooks
+useSignatureRequests(entityType, entityId)
+useSignatureRequest(id)
+useCreateSignatureRequest()
+useSendSignatureRequest()  // Triggers docuseal-send
+useCancelSignatureRequest()
+useResendSignatureReminder()
+
+// DocuSeal templates
+useDocuSealTemplates()
+useSyncDocuSealTemplates()
+```
+
+---
+
+## Workflow Integration
+
+### New Workflow Action: `send_signature`
+
+Add to `src/types/workflow.ts`:
+
+```typescript
+export interface SendSignatureActionConfig {
+  docuseal_template_id: string;
+  signers: {
+    role: string;
+    source: 'entity_field' | 'specific';
+    field?: string;  // e.g., 'client.email' or 'co_client.email'
+  }[];
+  delivery_method: DeliveryMethod;
+  language: 'en' | 'es';
+  expires_days?: number;
+}
+```
+
+Update `WorkflowActionType` enum to include `'send_signature'`.
+
+---
+
+## CRM Short Links
+
+### Route: `/s/:token`
+
+Simple redirect page that:
+1. Looks up signature_signer by short_token
+2. Logs a 'viewed' event if first visit
+3. Redirects to DocuSeal signing URL
+
+**File:** `src/pages/SigningRedirect.tsx`
+
+---
+
+## API Key Configuration
+
+The user will need to provide their DocuSeal API key. This will be stored as a Supabase secret:
+
+- **Secret name:** `DOCUSEAL_API_KEY`
+- **Optional:** `DOCUSEAL_API_URL` (for self-hosted instances)
+
+---
+
+## Implementation Phases
+
+### Phase 1: Foundation (Core Tables & Types)
+1. Create database migration with all tables and enums
+2. Create TypeScript types in `src/types/esign.ts`
+3. Add `DOCUSEAL_API_KEY` secret
+
+### Phase 2: DocuSeal API Integration
+1. Create `docuseal-send` edge function
+2. Create `docuseal-webhook` edge function
+3. Test with DocuSeal sandbox
+
+### Phase 3: UI Components
+1. Create `useSignatureRequests` hooks
+2. Build `SignatureRequestsPanel` component
+3. Build `SendSignatureWizard` dialog
+4. Build `SignatureRequestSheet` detail view
+5. Add "Signatures" section to Lead/Client detail pages
+
+### Phase 4: Notifications & Short Links
+1. Integrate with Resend for email delivery (requires API key)
+2. Integrate with Twilio for SMS delivery (requires API key)
+3. Create `/s/:token` redirect route
+4. Implement reminder logic
+
+### Phase 5: Workflow Integration
+1. Add `send_signature` action type
+2. Update ActionConfig UI
+3. Update workflow execution logic
+
+### Phase 6: Settings & Templates
+1. Create DocuSeal templates settings tab
+2. Implement template sync from DocuSeal
+3. Add role mapping configuration
 
 ---
 
 ## Files to Create
-None
+
+| File | Description |
+|------|-------------|
+| `src/types/esign.ts` | TypeScript types for eSign |
+| `src/hooks/useSignatureRequests.ts` | React Query hooks |
+| `src/hooks/useDocuSealTemplates.ts` | Template management hooks |
+| `src/components/esign/SignatureRequestsPanel.tsx` | Panel for Lead/Client pages |
+| `src/components/esign/SendSignatureWizard.tsx` | Multi-step send wizard |
+| `src/components/esign/SignatureRequestSheet.tsx` | Detail slide-out |
+| `src/components/esign/SignerCard.tsx` | Signer status card |
+| `src/components/esign/SignatureTimeline.tsx` | Event timeline |
+| `src/components/settings/DocuSealTemplatesTab.tsx` | Settings template manager |
+| `src/pages/SigningRedirect.tsx` | Short link redirect page |
+| `supabase/functions/docuseal-send/index.ts` | Send edge function |
+| `supabase/functions/docuseal-webhook/index.ts` | Webhook handler |
 
 ## Files to Modify
-- `src/types/workflow.ts` - Add role-based assignment type constants
-- `src/components/workflows/ActionConfig.tsx` - Add role options to Assign To dropdown
-- `src/hooks/useExecuteWorkflow.ts` - Update resolveAssignee function
-- `src/hooks/useMatterAssignments.ts` - Improve error handling for constraint violations
 
-## Database Changes
-- Add partial unique index on `assignments` table for single-role enforcement
+| File | Changes |
+|------|---------|
+| `src/pages/ClientDetail.tsx` | Add Signatures tab |
+| `src/components/leads/LeadDetailSheet.tsx` | Add signature panel |
+| `src/pages/Settings.tsx` | Add DocuSeal Templates tab |
+| `src/App.tsx` | Add `/s/:token` route |
+| `src/types/workflow.ts` | Add send_signature action type |
+| `src/components/workflows/ActionConfig.tsx` | Add signature action UI |
+| `supabase/config.toml` | Add new edge functions |
 
+---
+
+## Security Considerations
+
+1. **Webhook Validation** - Verify DocuSeal webhook signatures
+2. **Short Link Tokens** - Use cryptographically secure random tokens (32+ chars)
+3. **RLS Policies** - Company-scoped access to all signature tables
+4. **Audit Trail** - Append-only events table for compliance
+5. **PDF Storage** - Store in Supabase Storage with proper bucket policies
+
+---
+
+## Next Steps
+
+Before implementation, we need:
+1. **DocuSeal API Key** - User to provide via secret configuration
+2. **DocuSeal API URL** - If self-hosted, provide the URL; otherwise use `https://api.docuseal.com`
+3. **Twilio credentials** (optional for SMS) - For SMS notifications
+4. **Resend API key** (optional for email) - For email notifications
+
+Would you like me to proceed with Phase 1 (database schema and types)?
