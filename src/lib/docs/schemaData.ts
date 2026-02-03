@@ -792,6 +792,58 @@ export const EDGE_FUNCTIONS = [
     inputs: [],
     outputs: 'JSON with processed count, sent, failed stats',
   },
+  {
+    name: 'render-template',
+    path: 'supabase/functions/render-template',
+    description: 'Renders a template with merge fields replaced by entity data. Supports lead, client, service, liability, and litigation entities.',
+    authentication: 'JWT required (authenticated users)',
+    inputs: [
+      { name: 'template_id', type: 'string', description: 'Template UUID to render' },
+      { name: 'entity_type', type: 'string', description: 'Type of entity: lead, client, client_service, liability, litigation_matter' },
+      { name: 'entity_id', type: 'string', description: 'Entity UUID to pull data from' },
+    ],
+    outputs: 'Rendered template content with merge fields replaced',
+  },
+  {
+    name: 'docuseal-send',
+    path: 'supabase/functions/docuseal-send',
+    description: 'Creates a DocuSeal submission for signature requests. Handles template selection, signer configuration, and submission creation via DocuSeal API.',
+    authentication: 'JWT required (authenticated users)',
+    inputs: [
+      { name: 'signature_request_id', type: 'string', description: 'CRM signature request UUID' },
+    ],
+    outputs: 'JSON with submission_id, signing URLs, and status',
+  },
+  {
+    name: 'docuseal-webhook',
+    path: 'supabase/functions/docuseal-webhook',
+    description: 'Receives DocuSeal webhook events (form.viewed, form.started, form.completed, form.declined, submission.completed). Updates signature request status and retrieves executed documents.',
+    authentication: 'None (public webhook endpoint)',
+    inputs: [
+      { name: 'event_type', type: 'string', description: 'DocuSeal event type' },
+      { name: 'data', type: 'object', description: 'Event payload with submission details' },
+    ],
+    outputs: 'Acknowledgment response',
+  },
+  {
+    name: 'docuseal-test',
+    path: 'supabase/functions/docuseal-test',
+    description: 'Tests DocuSeal API connectivity and lists available templates. Used to verify API key configuration.',
+    authentication: 'None (diagnostic endpoint)',
+    inputs: [],
+    outputs: 'JSON with connection status and template list',
+  },
+  {
+    name: 'reset-staff-password',
+    path: 'supabase/functions/reset-staff-password',
+    description: 'Resets a staff user password. Admin function for password recovery.',
+    authentication: 'Service role (admin only)',
+    inputs: [
+      { name: 'user_id', type: 'string', description: 'Auth user UUID' },
+      { name: 'new_password', type: 'string', description: 'New password to set' },
+    ],
+    outputs: 'Success confirmation',
+  },
 ];
 
 export const STORAGE_BUCKETS = [
@@ -811,6 +863,15 @@ export const STORAGE_BUCKETS = [
     policies: [
       'Authenticated users can upload to their company folder',
       'Staff can view documents for their company clients',
+    ],
+  },
+  {
+    name: 'signed-documents',
+    isPublic: false,
+    description: 'Stores executed signature documents from DocuSeal. Contains signed PDFs and completion certificates.',
+    policies: [
+      'Staff can view signed documents for their company',
+      'System can upload via service role (webhook)',
     ],
   },
 ];

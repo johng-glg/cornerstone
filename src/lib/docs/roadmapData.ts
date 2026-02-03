@@ -238,26 +238,25 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     name: 'DocuSeal eSign Integration',
     category: 'Documents',
     priority: 'High',
-    description: 'Hybrid eSign system using self-hosted DocuSeal for signing ceremonies with CRM-owned notifications, short links, and artifact storage.',
-    status: 'Planned',
+    description: 'Hybrid eSign system using DocuSeal for signing ceremonies with CRM-owned notifications, short links, and artifact storage.',
+    status: 'Completed',
     difficulty: 4,
     benefit: 5,
-    notes: `CRM + DocuSeal hybrid architecture:
+    notes: `CRM + DocuSeal hybrid architecture implemented:
 • CRM is system of record; DocuSeal handles signing ceremony + PDF generation
 • Signature Requests panel on Lead/Client records with multi-signer support (Client + Co-Client)
 • Send for Signature wizard with template selection and signer configuration
 • Signing modes: Parallel (default) or Sequential
 • Delivery: Email + SMS (Twilio), Email only, or SMS only
 • CRM-owned short links (/s/{token}) that redirect to DocuSeal signing URLs
-• Inline DocuSeal field tags in DOCX/HTML templates for proper text reflow
-• Webhook receiver for DocuSeal events (viewed, signed, completed, declined)
-• Automatic artifact retrieval: Executed PDF, Completion Certificate, Evidence JSON
-• Workflow action node: "Send Template for Signature (DocuSeal)"
-• Language support: English/Spanish
-• Expiration dates and reminder scheduling
+• Edge Functions deployed: docuseal-send (creates submissions), docuseal-webhook (processes events), docuseal-test (API verification)
+• Webhook receiver for DocuSeal events: form.viewed, form.started, form.completed, form.declined, submission.completed
+• Automatic artifact retrieval: Executed PDF stored in signed-documents bucket
+• DocuSeal Templates sync in Settings → eSign Templates tab
 • Status tracking: Draft, Queued, Sent, Viewed, Partially Signed, Completed, Declined, Expired, Canceled, Error
-• Timeline entries for all signature events
-• Idempotent job processing: create-send, reminders, expiration, completion`,
+• Timeline entries for all signature events via SignatureTimeline component
+• Database tables: signature_requests, signature_request_signers, docuseal_templates
+• Secrets configured: DOCUSEAL_API_KEY, DOCUSEAL_API_URL`,
   },
   
   // Automation
@@ -433,8 +432,8 @@ export const INTEGRATIONS: IntegrationItem[] = [
     name: 'DocuSeal',
     purpose: 'Electronic signature ceremonies and PDF execution',
     priority: 'High',
-    status: 'Research',
-    notes: 'Open-source eSign engine. Self-hosted for data control. API for submission creation, webhook for status updates, artifact retrieval.',
+    status: 'Completed',
+    notes: 'Integrated via edge functions (docuseal-send, docuseal-webhook). API connection verified. Templates synced in Settings. Webhook events configured for form lifecycle tracking.',
     apiDocs: 'https://www.docuseal.co/docs/api',
   },
 ];
