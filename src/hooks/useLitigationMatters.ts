@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { executeWorkflows } from './useExecuteWorkflow';
 
 export type LitigationStatus = 
   | 'new'
@@ -224,13 +225,16 @@ export function useUpdateLitigationMatter() {
     mutationFn: async ({ id, staffId, ...updates }: LitigationMatterUpdate & { staffId?: string }) => {
       // Fetch current matter to detect status changes
       let previousStatus: LitigationStatus | null = null;
+      let matterData: Record<string, unknown> = {};
+      
       if (updates.status) {
         const { data: currentMatter } = await supabase
           .from('litigation_matters')
-          .select('status')
+          .select('*')
           .eq('id', id)
           .single();
         previousStatus = currentMatter?.status ?? null;
+        matterData = currentMatter || {};
       }
 
       const { data, error } = await supabase
@@ -249,6 +253,21 @@ export function useUpdateLitigationMatter() {
           description: `Status changed from ${previousStatus.replace('_', ' ')} to ${updates.status.replace('_', ' ')}`,
           staff_id: staffId || null,
         }]);
+        
+        // Execute workflow rules for status change
+        const workflowResult = await executeWorkflows({
+          entityType: 'litigation_matters',
+          entityId: id,
+          triggerType: 'status_changed',
+          previousStatus,
+          newStatus: updates.status,
+          entityData: { ...matterData, ...data },
+          staffId,
+        });
+        
+        if (workflowResult.tasksCreated > 0) {
+          console.log(`Workflow created ${workflowResult.tasksCreated} task(s) for matter ${id}`);
+        }
       }
 
       return data;
@@ -257,6 +276,7 @@ export function useUpdateLitigationMatter() {
       queryClient.invalidateQueries({ queryKey: ['litigation_matters'] });
       queryClient.invalidateQueries({ queryKey: ['litigation_matter', data.id] });
       queryClient.invalidateQueries({ queryKey: ['litigation_activities', data.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] }); // Refresh tasks after workflow creates them
       toast({ title: 'Litigation matter updated' });
     },
     onError: (error: Error) => {
