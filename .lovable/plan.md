@@ -1,62 +1,39 @@
 
-# Enable DocuSeal Native Email Delivery
+# Enable Full Page Width for Settings Page
 
 ## Overview
-Enable DocuSeal's built-in email notifications so signers receive signing request emails directly from DocuSeal. This is a simple change to the `docuseal-send` edge function that switches the `send_email` flags from `false` to `true`.
+The Settings page currently constrains all content to `max-w-5xl` (1024px), which limits the width of tabs like Templates, Workflows, eSign, and Legal Teams that would benefit from more horizontal space. This plan removes the artificial width constraint so all settings tabs can expand to fill the available page width.
 
 ## Current State
-The edge function currently sets `send_email: false` in two places:
-- **Line 107**: Per-submitter level
-- **Line 113**: Submission level
+In `src/pages/Settings.tsx` (line 23):
+```typescript
+<Tabs defaultValue="profile" className="max-w-5xl">
+```
 
-This was intentional because the architecture planned for the CRM to handle notifications via Resend/Twilio, but that layer isn't implemented yet.
+This constrains all tab content to a maximum of 1024px regardless of screen size.
+
+## Problem
+- Tabs with tables, grids, or complex layouts (Templates, Workflows, Legal Teams) are cramped
+- Inconsistent with other pages like Clients, Reports, and Payments which use full width
+- Wastes available screen real estate on larger monitors
+
+## Solution
+Remove the `max-w-5xl` class from the Tabs component, allowing content to expand naturally.
 
 ## Changes Required
 
-### File: `supabase/functions/docuseal-send/index.ts`
+### File: `src/pages/Settings.tsx`
 
-**Change 1 - Submitter level (line 107)**
+**Change (line 23)**
 ```typescript
 // Before
-send_email: false, // CRM handles notifications
+<Tabs defaultValue="profile" className="max-w-5xl">
 
 // After
-send_email: true, // DocuSeal sends signing emails
+<Tabs defaultValue="profile">
 ```
 
-**Change 2 - Payload level (line 113)**
-```typescript
-// Before
-send_email: false,
-
-// After
-send_email: true,
-```
-
-**Change 3 - Update TODO comment (lines 209-210)**
-```typescript
-// Before
-// TODO: Send email/SMS notifications via Resend/Twilio
-// This will be implemented in Phase 4 when notification providers are configured
-
-// After
-// NOTE: Currently using DocuSeal's native email delivery
-// Future: Implement custom notifications via Resend/Twilio for branded emails
-```
-
-## What This Enables
-- Signers will receive DocuSeal's standard signing invitation emails
-- Emails will come from DocuSeal's domain (not your custom domain)
-- All signing lifecycle emails handled by DocuSeal (reminders, completion, etc.)
-
-## Future Enhancement (Not in Scope)
-When Resend/Twilio integration is implemented, you can:
-- Switch back to `send_email: false`
-- Send branded emails from your domain
-- Have full control over email templates and delivery timing
-
-## Testing
-After the change is deployed, create a new signature request and verify:
-1. The signer receives an email from DocuSeal
-2. The email contains a link to sign the document
-3. Clicking the link opens the DocuSeal signing experience
+## Result
+- All Settings tabs will expand to use the full available width
+- Individual tab components can still set their own width constraints if needed (e.g., ProfileSettingsTab uses a Card which naturally constrains form width)
+- Data-heavy tabs like Templates, Workflows, and Legal Teams will have more room for their tables and grids
