@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { 
-  WorkflowRule, 
+  WorkflowRule,
+  WorkflowGroup, 
   WorkflowEntityType, 
   WorkflowTriggerType,
   WorkflowAction,
@@ -39,7 +40,7 @@ async function fetchMatchingRules(
 ): Promise<WorkflowRule[]> {
   const { data, error } = await supabase
     .from('workflow_rules')
-    .select('*')
+    .select('*, workflow_groups(*)')
     .eq('entity_type', entityType)
     .eq('trigger_type', triggerType as Enums<'workflow_trigger_type'>)
     .eq('is_active', true)
@@ -74,6 +75,10 @@ async function fetchMatchingRules(
     trigger_config: rule.trigger_config as unknown as StatusChangedTriggerConfig,
     conditions: (rule.conditions as unknown as ConditionGroup[]) || [],
     actions: (rule.actions as unknown as WorkflowAction[]) || [],
+    group: rule.workflow_groups ? {
+      ...rule.workflow_groups,
+      filter_conditions: (rule.workflow_groups.filter_conditions as unknown as ConditionGroup[]) || [],
+    } as WorkflowGroup : null,
   }));
 }
 
@@ -370,6 +375,30 @@ export async function executeWorkflows(
       const actionsExecuted: WorkflowAction[] = [];
       let ruleSuccess = true;
       let ruleError: string | undefined;
+
+      // Check if rule belongs to an inactive group
+      if (rule.group && !rule.group.is_active) {
+        // Skip this rule - group is inactive
+        await logExecution(
+          rule.id,
+          params.entityType,
+          params.entityId,
+          'skipped',
+          {
+            previousStatus: params.previousStatus,
+            newStatus: params.newStatus,
+            skipReason: 'Group is inactive',
+          },
+          [],
+          undefined,
+          Date.now() - ruleStartTime
+        );
+        continue;
+      }
+
+      // TODO: Evaluate group filter conditions if group exists
+      // For now, group filters are applied at the database level via validate_status_transition
+      // Full client-side evaluation would require fetching entity data and evaluating conditions
 
       // Execute all actions for this rule
       for (const action of rule.actions) {

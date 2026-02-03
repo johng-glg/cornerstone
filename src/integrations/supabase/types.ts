@@ -2983,6 +2983,66 @@ export type Database = {
           },
         ]
       }
+      workflow_groups: {
+        Row: {
+          color: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          entity_type: Database["public"]["Enums"]["workflow_entity_type"]
+          filter_conditions: Json
+          id: string
+          is_active: boolean
+          name: string
+          priority: number
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          entity_type: Database["public"]["Enums"]["workflow_entity_type"]
+          filter_conditions?: Json
+          id?: string
+          is_active?: boolean
+          name: string
+          priority?: number
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          entity_type?: Database["public"]["Enums"]["workflow_entity_type"]
+          filter_conditions?: Json
+          id?: string
+          is_active?: boolean
+          name?: string
+          priority?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_groups_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_groups_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_rules: {
         Row: {
           actions: Json
@@ -2992,6 +3052,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           entity_type: Database["public"]["Enums"]["workflow_entity_type"]
+          group_id: string | null
           id: string
           is_active: boolean
           is_blocking: boolean
@@ -3009,6 +3070,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           entity_type: Database["public"]["Enums"]["workflow_entity_type"]
+          group_id?: string | null
           id?: string
           is_active?: boolean
           is_blocking?: boolean
@@ -3026,6 +3088,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           entity_type?: Database["public"]["Enums"]["workflow_entity_type"]
+          group_id?: string | null
           id?: string
           is_active?: boolean
           is_blocking?: boolean
@@ -3048,6 +3111,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_rules_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_groups"
             referencedColumns: ["id"]
           },
         ]
