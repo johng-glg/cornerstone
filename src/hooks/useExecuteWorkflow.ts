@@ -9,7 +9,9 @@ import type {
   CreateTaskActionConfig,
   SendNotificationActionConfig,
   ConditionGroup,
+  ROLE_TO_ASSIGNMENT_TYPE,
 } from '@/types/workflow';
+import { ROLE_TO_ASSIGNMENT_TYPE as roleToAssignmentType } from '@/types/workflow';
 import type { Json, Enums } from '@/integrations/supabase/types';
 
 interface ExecuteWorkflowParams {
@@ -113,12 +115,33 @@ function calculateDueDate(
 
 /**
  * Determines who to assign the task to
+ * Supports role-based assignments (e.g., 'assigned_attorney') and specific UUIDs
  */
 async function resolveAssignee(
   assignTo: string | undefined,
   entityType: WorkflowEntityType,
   entityId: string
 ): Promise<string | null> {
+  // Check if this is a role-based assignment
+  if (assignTo && roleToAssignmentType[assignTo]) {
+    const assignmentType = roleToAssignmentType[assignTo] as Enums<'assignment_type'>;
+    const taskEntityType = mapToTaskEntityType(entityType);
+    
+    if (taskEntityType) {
+      const { data } = await supabase
+        .from('assignments')
+        .select('staff_id')
+        .eq('entity_type', taskEntityType)
+        .eq('entity_id', entityId)
+        .eq('assignment_type', assignmentType)
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      return data?.staff_id || null;
+    }
+    return null;
+  }
+  
   if (!assignTo || assignTo === 'entity_owner') {
     // Try to find the owner based on entity type
     // For litigation_matters, look up assignments
@@ -139,7 +162,7 @@ async function resolveAssignee(
   }
   
   // If it's a specific UUID, return it
-  if (assignTo !== 'specific') {
+  if (assignTo !== 'specific' && assignTo !== 'creator') {
     return assignTo;
   }
   

@@ -17,6 +17,7 @@ import {
   UpdateFieldActionConfig,
   BlockTransitionActionConfig,
   entityDateFields,
+  ROLE_ASSIGNMENT_OPTIONS,
 } from '@/types/workflow';
 
 interface ActionConfigProps {
@@ -197,8 +198,13 @@ export function ActionConfig({ actions, onChange, isBlocking, entityType }: Acti
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="entity_owner">Entity Owner</SelectItem>
+                  <SelectItem value="entity_owner">Entity Owner (first assignee)</SelectItem>
                   <SelectItem value="creator">Workflow Creator</SelectItem>
+                  {entityType && ROLE_ASSIGNMENT_OPTIONS[entityType]?.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -220,8 +226,13 @@ export function ActionConfig({ actions, onChange, isBlocking, entityType }: Acti
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="entity_owner">Entity Owner</SelectItem>
+                  <SelectItem value="entity_owner">Entity Owner (first assignee)</SelectItem>
                   <SelectItem value="creator">Workflow Creator</SelectItem>
+                  {entityType && ROLE_ASSIGNMENT_OPTIONS[entityType]?.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
