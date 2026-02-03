@@ -20,7 +20,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="flex-1 overflow-auto p-6">
-        <Tabs defaultValue="profile" className="max-w-5xl">
+        <Tabs defaultValue="profile">
           <TabsList className="mb-6 flex-wrap">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
