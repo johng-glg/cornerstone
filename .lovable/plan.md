@@ -1,87 +1,154 @@
 
-# Opposing Counsel Lookup Field for Litigation Matters
+# Plan: Workflow Groups with Group-Level Filters
 
 ## Overview
-Replace the plain text "Opposing Counsel" input in the Litigation Matter form with a structured lookup field that allows users to:
-1. Search and select from existing law firms in the Opposing Counsel Directory
-2. Optionally select a specific attorney/contact at the selected firm
-3. Create a new law firm or contact inline without leaving the matter form
-4. Automatically associate the selected firm/contact with the matter
+Add the ability to organize workflow rules into groups, where each group can have its own filter conditions that apply to all rules within. For example, a "California Matters" group would automatically apply a state filter to all workflows inside it.
 
-## Current State
-- `LitigationMatterFormDialog.tsx` has a simple text `<Input>` for `opposing_counsel` (line 308-319)
-- The form schema already supports `opposing_law_firm_id` and `opposing_counsel_id` fields
-- The database `litigation_matters` table has foreign key columns to link to `law_firms` and `law_firm_contacts`
-- `OpposingCounselSelect.tsx` component already exists with inline "Add New" functionality
+## How It Works
 
-## Implementation Plan
+```text
++------------------------------------------+
+|  Workflow Group: California Matters      |
+|  Filter: state = 'CA'                    |
++------------------------------------------+
+|  |- Rule 1: Response Deadline Reminder   |
+|  |- Rule 2: Hearing Task Creator         |
+|  |- Rule 3: Status Transition Gate       |
++------------------------------------------+
 
-### Step 1: Update the Litigation Matter Form Dialog
-**File:** `src/components/litigation/LitigationMatterFormDialog.tsx`
++------------------------------------------+
+|  Workflow Group: Texas Matters           |
+|  Filter: state = 'TX'                    |
++------------------------------------------+
+|  |- Rule 4: Texas-specific Deadlines     |
++------------------------------------------+
 
-Changes:
-1. Import the `OpposingCounselSelect` component
-2. Replace the text input for `opposing_counsel` with the `OpposingCounselSelect` component
-3. Wire up the component to control both `opposing_law_firm_id` and `opposing_counsel_id` form fields
-4. Retain the `opposing_counsel` text field as a fallback label (auto-populate with selected firm/contact name for display purposes)
++------------------------------------------+
+|  Ungrouped Rules                         |
++------------------------------------------+
+|  |- Rule 5: Global Payment Reminder      |
++------------------------------------------+
+```
 
-### Step 2: Enhance OpposingCounselSelect for Callbacks
-**File:** `src/components/opposing-counsel/OpposingCounselSelect.tsx`
+When a workflow rule in a group is evaluated, the group's filter conditions are checked first. If the entity doesn't match the group filter, the rule is skipped entirely.
 
-Changes:
-1. Add optional `onFirmCreated` callback prop to auto-select newly created firms
-2. Add optional `onContactCreated` callback prop to auto-select newly created contacts
-3. Modify the `LawFirmFormDialog` and `LawFirmContactFormDialog` usage to capture the newly created IDs and trigger the callbacks
+---
 
-### Step 3: Update LawFirmFormDialog for onCreate Callback
-**File:** `src/components/opposing-counsel/LawFirmFormDialog.tsx`
+## Implementation Steps
 
-Changes:
-1. Add optional `onCreated?: (firm: LawFirm) => void` prop
-2. Call the callback with the newly created firm data upon successful creation
-3. This allows the parent component to immediately select the new firm
+### 1. Database: Create workflow_groups Table
+Create a new table to store workflow groups with their filter conditions:
 
-### Step 4: Update LawFirmContactFormDialog for onCreate Callback
-**File:** `src/components/opposing-counsel/LawFirmContactFormDialog.tsx`
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| company_id | uuid | Company reference (RLS) |
+| name | text | Group name (e.g., "California Matters") |
+| description | text | Optional description |
+| entity_type | workflow_entity_type | Which entity type this group applies to |
+| filter_conditions | jsonb | The filter conditions (same format as rule conditions) |
+| is_active | boolean | Enable/disable entire group |
+| color | text | Optional color for visual organization |
+| priority | integer | Group evaluation order |
+| created_at, updated_at | timestamptz | Timestamps |
+| created_by | uuid | Staff reference |
 
-Changes:
-1. Add optional `onCreated?: (contact: LawFirmContact) => void` prop  
-2. Call the callback with the newly created contact data upon successful creation
-3. This allows the parent component to immediately select the new contact
+### 2. Database: Add group_id to workflow_rules
+Add an optional foreign key column to link rules to groups:
+- `group_id uuid REFERENCES workflow_groups(id) ON DELETE SET NULL`
+
+### 3. TypeScript Types
+Create new types in `src/types/workflow.ts`:
+- `WorkflowGroup` interface
+- `WorkflowGroupInsert` and `WorkflowGroupUpdate` types
+- Update `WorkflowRule` to include optional `group_id` and `group` reference
+
+### 4. React Query Hooks
+Create `src/hooks/useWorkflowGroups.ts`:
+- `useWorkflowGroups(entityType?)` - Fetch all groups
+- `useWorkflowGroup(id)` - Fetch single group
+- `useCreateWorkflowGroup()` - Create mutation
+- `useUpdateWorkflowGroup()` - Update mutation  
+- `useDeleteWorkflowGroup()` - Delete mutation
+- `useToggleWorkflowGroup()` - Toggle active state
+
+### 5. UI Components
+
+**WorkflowsTab.tsx Updates:**
+- Add "New Group" button alongside "New Workflow"
+- Display rules organized by group using collapsible sections
+- Show group filter summary in the group header
+- Allow dragging rules between groups (future enhancement)
+- Show ungrouped rules in a separate "Ungrouped" section
+
+**New WorkflowGroupFormDialog.tsx:**
+- Form to create/edit groups
+- Group name and description inputs
+- Entity type selector (locked after creation if rules exist)
+- Filter condition builder (reuses existing ConditionBuilder component)
+- Color picker for visual organization
+- Active toggle
+
+**WorkflowFormDialog.tsx Updates:**
+- Add group selector dropdown in the "Settings" tab
+- Only show groups matching the selected entity type
+- "No group" option for ungrouped rules
+
+### 6. Workflow Execution Logic
+Update `useExecuteWorkflow.ts` and related hooks:
+- When fetching applicable rules, join with workflow_groups
+- Before evaluating a rule, check if its group's filter conditions pass
+- Skip the rule entirely if group filter fails
+- Include group info in execution logs for debugging
 
 ---
 
 ## Technical Details
 
-### Form Field Layout Change
-The current layout has Opposing Party and Opposing Counsel side-by-side in a 2-column grid (lines 293-321). The new layout will:
-- Keep "Opposing Party" as a standalone text input (for the creditor/plaintiff name)
-- Place the "Opposing Counsel" lookup below it, spanning full width to accommodate the two-tier selection (firm + contact)
+### Group Filter Conditions Format
+The group's `filter_conditions` will use the same `ConditionGroup[]` structure as individual rules, enabling reuse of the existing ConditionBuilder component:
 
-### Data Flow
-```text
-User selects Law Firm → opposing_law_firm_id is set
-                      → opposing_counsel_id is cleared
-                      → Contact dropdown becomes available
-
-User selects Contact  → opposing_counsel_id is set
-
-User clicks "Add New Law Firm" → Dialog opens
-                                → On save, new firm is created
-                                → Firm is auto-selected in dropdown
-
-User clicks "Add New Contact"  → Dialog opens (for selected firm)
-                               → On save, contact is created  
-                               → Contact is auto-selected in dropdown
+```json
+[
+  {
+    "group_id": "g1",
+    "operator": "AND",
+    "rules": [
+      { "field": "state", "operator": "equals", "value": "CA" }
+    ]
+  }
+]
 ```
 
-### Backwards Compatibility
-- The `opposing_counsel` text field is retained for legacy data display
-- When saving, if a firm/contact is selected, we'll concatenate their names into `opposing_counsel` for backwards-compatible display in lists/reports
+### UI Layout Example
+The WorkflowsTab will display:
+```text
+[+ New Group]  [+ New Workflow]
 
-### UI Preview
-The form will show:
-- **Opposing Party**: [Text Input] - for plaintiff/creditor name
-- **Opposing Counsel**: 
-  - [Law Firm Dropdown] with search and "Add New" option
-  - [Attorney/Contact Dropdown] (only appears after firm is selected) with "Add New" option
+[v] California Matters (4 rules)         [toggle] [edit] [delete]
+    Filter: state = 'CA'
+    |- Response Deadline Reminder        [toggle] [edit] [delete]
+    |- Hearing Task Creator              [toggle] [edit] [delete]
+    |- Status Transition Gate            [toggle] [edit] [delete]
+    |- Settlement Notification           [toggle] [edit] [delete]
+
+[v] Texas Matters (2 rules)              [toggle] [edit] [delete]
+    Filter: state = 'TX'
+    ...
+
+[v] Ungrouped (3 rules)
+    |- Global Payment Reminder           [toggle] [edit] [delete]
+    ...
+```
+
+### Files to Create
+- `src/hooks/useWorkflowGroups.ts`
+- `src/components/workflows/WorkflowGroupFormDialog.tsx`
+
+### Files to Modify
+- `src/types/workflow.ts` - Add group types
+- `src/hooks/useWorkflowRules.ts` - Include group data in queries
+- `src/components/settings/WorkflowsTab.tsx` - Grouped display with collapsibles
+- `src/components/workflows/WorkflowFormDialog.tsx` - Group selector
+- `src/components/workflows/ConditionBuilder.tsx` - Add `state` field for litigation_matters
+- `src/hooks/useExecuteWorkflow.ts` - Group filter evaluation
