@@ -26,6 +26,7 @@ import SettingsPage from "./pages/Settings";
 import ReportsPage from "./pages/Reports";
 import OpposingCounselPage from "./pages/OpposingCounsel";
 import LeadMetricsPage from "./pages/LeadMetrics";
+import BillingPage from "./pages/Billing";
 import { DocsLayout } from "./components/docs/DocsLayout";
 import DocsOverview from "./pages/docs/DocsOverview";
 import SchemaPage from "./pages/docs/SchemaPage";
@@ -90,6 +91,7 @@ const App = () => (
               <Route path="/litigation" element={<AppLayout><LitigationPage /></AppLayout>} />
               <Route path="/litigation/teams" element={<AppLayout><LitigationTeamsPage /></AppLayout>} />
               <Route path="/litigation/calendar" element={<AppLayout><CourtCalendarPage /></AppLayout>} />
+              <Route path="/billing" element={<AppLayout><BillingPage /></AppLayout>} />
               <Route path="/tasks" element={<AppLayout><TasksPage /></AppLayout>} />
               <Route path="/creditors" element={<AppLayout><CreditorsPage /></AppLayout>} />
               <Route path="/reports" element={<AppLayout><ReportsPage /></AppLayout>} />
