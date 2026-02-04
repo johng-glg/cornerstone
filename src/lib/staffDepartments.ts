@@ -10,6 +10,7 @@ export const roleToDepartment: Record<Enums<'app_role'>, Department> = {
   attorney: 'legal',
   paralegal: 'legal',
   case_manager: 'legal',
+  of_counsel: 'legal',
   negotiator: 'negotiations',
   sales_rep: 'sales',
   client_services_rep: 'client_services',
