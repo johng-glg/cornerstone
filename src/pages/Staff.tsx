@@ -20,6 +20,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { StaffFormDialog } from '@/components/staff/StaffFormDialog';
 import { SortableHeader, SortDirection } from '@/components/ui/sortable-header';
 import { format, isToday, isYesterday, differenceInDays } from 'date-fns';
+import { DEPARTMENT_ORDER, DEPARTMENT_LABELS, DEPARTMENT_COLORS, type Department } from '@/lib/staffDepartments';
 
 type SortKey = 'name' | 'department' | 'email' | 'company' | 'last_login_at' | 'is_active';
 
@@ -30,7 +31,7 @@ interface StaffMember {
   last_name: string;
   email: string;
   phone: string | null;
-  department: string;
+  department: Department;
   company_id: string;
   is_active: boolean;
   avatar_url: string | null;
@@ -38,39 +39,6 @@ interface StaffMember {
   last_login_at: string | null;
   company: { name: string } | null;
 }
-
-const DEPARTMENT_ORDER = [
-  'admin',
-  'sales_intake',
-  'client_services',
-  'attorney',
-  'case_manager',
-  'negotiations',
-  'payment_processing',
-  'correspondence',
-];
-
-const DEPARTMENT_LABELS: Record<string, string> = {
-  admin: 'Admin',
-  sales_intake: 'Sales & Intake',
-  client_services: 'Client Services',
-  attorney: 'Attorney',
-  case_manager: 'Case Manager',
-  negotiations: 'Negotiations',
-  payment_processing: 'Payment Processing',
-  correspondence: 'Correspondence',
-};
-
-const DEPARTMENT_COLORS: Record<string, string> = {
-  admin: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-  attorney: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  negotiations: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  case_manager: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-  sales_intake: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-  client_services: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
-  payment_processing: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  correspondence: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
-};
 
 function formatLastLogin(dateString: string | null): string {
   if (!dateString) return 'Never';

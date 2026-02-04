@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type { Tables, Enums } from '@/integrations/supabase/types';
+import type { Tables } from '@/integrations/supabase/types';
+import type { Department } from '@/lib/staffDepartments';
 
 export type Staff = Tables<'staff'>;
 
-export function useStaff(department?: Enums<'department'>) {
+export function useStaff(department?: Department) {
   return useQuery({
     queryKey: ['staff', department],
     queryFn: async () => {

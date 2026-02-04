@@ -68,13 +68,13 @@ export function AppSidebar() {
     if (isAdmin()) {
       return adminNavItems;
     }
-    // Show Reports and Creditors to attorneys and managers
+    // Show Reports and Creditors to attorneys and managers (in legal department)
     if (hasRole('attorney') || hasRole('case_manager')) {
       return adminNavItems.filter(item => 
         item.title === 'Reports' || item.title === 'Creditors'
       );
     }
-    // Show Payments to payment processors
+    // Show Payments to payment processors (in operations department)
     if (hasRole('payment_processor')) {
       return adminNavItems.filter(item => item.title === 'Payments');
     }

@@ -42,22 +42,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { roleToDepartment, formatDepartment, type Department } from '@/lib/staffDepartments';
+import { useJobTitles } from '@/hooks/useJobTitles';
+import { cn } from '@/lib/utils';
+import { ChevronsUpDown } from 'lucide-react';
 
 const appRoles = Constants.public.Enums.app_role;
-
-// Map roles to their corresponding departments
-const roleToDepartment: Record<Enums<'app_role'>, Enums<'department'>> = {
-  admin: 'admin',
-  attorney: 'attorney',
-  paralegal: 'attorney',
-  negotiator: 'negotiations',
-  case_manager: 'case_manager',
-  sales_rep: 'sales_intake',
-  client_services_rep: 'client_services',
-  payment_processor: 'payment_processing',
-  correspondent: 'correspondence',
-  viewer: 'admin',
-};
 
 const formSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
@@ -69,6 +61,7 @@ const formSchema = z.object({
   role: z.enum(appRoles as unknown as [string, ...string[]], {
     required_error: 'Role is required',
   }),
+  job_title: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -83,6 +76,7 @@ interface StaffMember {
   department: string;
   company_id: string;
   is_active: boolean;
+  job_title: string | null;
 }
 
 interface StaffFormDialogProps {
@@ -101,6 +95,7 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
   const [showTempPassword, setShowTempPassword] = useState(false);
   const [tempPassword, setTempPassword] = useState('');
   const [copied, setCopied] = useState(false);
+  const [jobTitleOpen, setJobTitleOpen] = useState(false);
 
   const { data: companies } = useQuery({
     queryKey: ['companies-dropdown-active'],
@@ -141,6 +136,7 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
       company_id: '',
       is_active: true,
       role: undefined,
+      job_title: '',
     },
   });
 
@@ -155,6 +151,7 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
         company_id: staffMember.company_id,
         is_active: staffMember.is_active,
         role: (staffRole as Enums<'app_role'>) || undefined,
+        job_title: staffMember.job_title || '',
       });
     } else if (open && !staffMember) {
       form.reset({
@@ -165,12 +162,16 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
         company_id: '',
         is_active: true,
         role: undefined,
+        job_title: '',
       });
     }
   }, [open, staffMember, staffRole, form]);
 
   const selectedRole = form.watch('role');
   const department = selectedRole ? roleToDepartment[selectedRole as Enums<'app_role'>] : null;
+  
+  // Get job titles for the selected role
+  const { data: jobTitles } = useJobTitles(selectedRole as Enums<'app_role'> | undefined);
 
   const createStaffMutation = useMutation({
     mutationFn: async (values: FormValues) => {
@@ -186,6 +187,7 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
           phone: values.phone || undefined,
           is_active: values.is_active,
           roles: [values.role],
+          job_title: values.job_title || undefined,
         },
       });
 
@@ -227,6 +229,7 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
           department: derivedDepartment,
           company_id: values.company_id,
           is_active: values.is_active,
+          job_title: values.job_title || null,
         })
         .eq('id', staffMember.id);
 
@@ -377,9 +380,6 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
   const formatRole = (role: string) =>
     role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
-  const formatDepartment = (dept: string) =>
-    dept.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -490,6 +490,62 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
                   </p>
                 </div>
               )}
+
+              <FormField
+                control={form.control}
+                name="job_title"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Job Title (optional)</FormLabel>
+                    <Popover open={jobTitleOpen} onOpenChange={setJobTitleOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className={cn(
+                              "w-full justify-between",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value || "Select or enter job title..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[400px] p-0">
+                        <Command>
+                          <CommandInput 
+                            placeholder="Search or type custom title..." 
+                            value={field.value || ''}
+                            onValueChange={field.onChange}
+                          />
+                          <CommandList>
+                            <CommandEmpty>
+                              {field.value ? `Use "${field.value}"` : "No titles found"}
+                            </CommandEmpty>
+                            <CommandGroup heading="Suggestions">
+                              {jobTitles?.map((jt) => (
+                                <CommandItem
+                                  key={jt.id}
+                                  value={jt.title}
+                                  onSelect={() => {
+                                    field.onChange(jt.title);
+                                    setJobTitleOpen(false);
+                                  }}
+                                >
+                                  {jt.title}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}

@@ -5,16 +5,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// New consolidated department type
+type Department = 'administration' | 'legal' | 'negotiations' | 'sales' | 'client_services' | 'operations';
+
 interface CreateStaffRequest {
   email: string
   password?: string
   first_name: string
   last_name: string
-  department: string
+  department: Department
   company_id: string
   phone?: string
   is_active?: boolean
   roles?: string[]
+  job_title?: string
 }
 
 Deno.serve(async (req) => {
@@ -122,7 +126,8 @@ Deno.serve(async (req) => {
         department: body.department,
         company_id: body.company_id,
         phone: body.phone || null,
-        is_active: body.is_active !== undefined ? body.is_active : true
+        is_active: body.is_active !== undefined ? body.is_active : true,
+        job_title: body.job_title || null,
       })
       .select()
       .single()
