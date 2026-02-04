@@ -39,13 +39,23 @@ const billingEntrySchema = z.object({
   description: z.string().min(1, 'Description is required'),
   billing_date: z.string().min(1, 'Date is required'),
   staff_id: z.string().min(1, 'Attorney is required'),
+  bill_to_client: z.boolean(),
   client_id: z.string().optional(),
   litigation_matter_id: z.string().optional(),
   duration_input: z.string().optional(),
-  hourly_rate: z.string().optional(),
   expense_amount: z.string().optional(),
   is_billable: z.boolean(),
   notes: z.string().optional(),
+}).refine((data) => {
+  // Require client OR matter based on toggle
+  if (data.bill_to_client) {
+    return !!data.client_id && data.client_id !== '';
+  } else {
+    return !!data.litigation_matter_id && data.litigation_matter_id !== '';
+  }
+}, {
+  message: 'Please select a client or matter to bill to',
+  path: ['litigation_matter_id'],
 }).refine((data) => {
   if (data.entry_type === 'time') {
     const duration = parseDuration(data.duration_input || '');
@@ -95,6 +105,9 @@ export function BillingEntryFormDialog({
     s.department === 'legal'
   ) || [];
 
+  // Determine initial bill_to_client based on what's provided
+  const initialBillToClient = !!defaultClientId && !defaultMatterId;
+
   const form = useForm<BillingEntryFormData>({
     resolver: zodResolver(billingEntrySchema),
     defaultValues: {
@@ -102,10 +115,10 @@ export function BillingEntryFormDialog({
       description: '',
       billing_date: new Date().toISOString().split('T')[0],
       staff_id: currentStaff?.id || '',
+      bill_to_client: initialBillToClient,
       client_id: defaultClientId || '',
       litigation_matter_id: defaultMatterId || '',
       duration_input: '',
-      hourly_rate: '350',
       expense_amount: '',
       is_billable: true,
       notes: '',
@@ -113,33 +126,41 @@ export function BillingEntryFormDialog({
   });
 
   const entryType = form.watch('entry_type');
+  const billToClient = form.watch('bill_to_client');
+
+  // Get the selected staff's hourly rate
+  const selectedStaffId = form.watch('staff_id');
+  const selectedStaff = legalStaff.find(s => s.id === selectedStaffId);
+  const staffHourlyRate = selectedStaff?.hourly_rate ?? 350;
 
   useEffect(() => {
     if (entry) {
       const durationHours = entry.duration_minutes ? (entry.duration_minutes / 60).toFixed(2) : '';
+      const entryBillToClient = !!entry.client_id && !entry.litigation_matter_id;
       form.reset({
         entry_type: entry.entry_type,
         description: entry.description,
         billing_date: entry.billing_date,
         staff_id: entry.staff_id,
+        bill_to_client: entryBillToClient,
         client_id: entry.client_id || '',
         litigation_matter_id: entry.litigation_matter_id || '',
         duration_input: durationHours,
-        hourly_rate: entry.hourly_rate?.toString() || '350',
         expense_amount: entry.expense_amount?.toString() || '',
         is_billable: entry.is_billable,
         notes: entry.notes || '',
       });
     } else {
+      const newBillToClient = !!defaultClientId && !defaultMatterId;
       form.reset({
         entry_type: 'time',
         description: '',
         billing_date: new Date().toISOString().split('T')[0],
         staff_id: currentStaff?.id || '',
+        bill_to_client: newBillToClient,
         client_id: defaultClientId || '',
         litigation_matter_id: defaultMatterId || '',
         duration_input: '',
-        hourly_rate: '350',
         expense_amount: '',
         is_billable: true,
         notes: '',
@@ -150,24 +171,30 @@ export function BillingEntryFormDialog({
   const onSubmit = async (data: BillingEntryFormData) => {
     let totalAmount = 0;
     let duration_minutes: number | null = null;
-    let hourly_rate: number | null = null;
     let expense_amount: number | null = null;
+
+    // Get hourly rate from staff record
+    const billingStaff = legalStaff.find(s => s.id === data.staff_id);
+    const hourly_rate = billingStaff?.hourly_rate ?? 350;
 
     if (data.entry_type === 'time') {
       duration_minutes = parseDuration(data.duration_input || '') || 0;
-      hourly_rate = parseFloat(data.hourly_rate || '0');
       totalAmount = (duration_minutes / 60) * hourly_rate;
     } else {
       expense_amount = parseFloat(data.expense_amount || '0');
       totalAmount = expense_amount;
     }
 
+    // Set client or matter based on toggle
+    const client_id = data.bill_to_client ? (data.client_id || null) : null;
+    const litigation_matter_id = data.bill_to_client ? null : (data.litigation_matter_id || null);
+
     const entryData = {
       company_id: currentStaff?.company_id || '',
       staff_id: data.staff_id,
-      client_id: data.client_id || null,
+      client_id,
       client_service_id: null,
-      litigation_matter_id: data.litigation_matter_id || null,
+      litigation_matter_id,
       entry_type: data.entry_type as BillingEntryType,
       description: data.description,
       billing_date: data.billing_date,
@@ -262,16 +289,34 @@ export function BillingEntryFormDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="bill_to_client"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>Bill to Client (instead of Matter)</FormLabel>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            {billToClient ? (
               <FormField
                 control={form.control}
                 name="client_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Client (Optional)</FormLabel>
+                    <FormLabel>Client *</FormLabel>
                     <Select 
-                      onValueChange={(val) => field.onChange(val === '__none__' ? '' : val)} 
-                      value={field.value || '__none__'}
+                      onValueChange={field.onChange} 
+                      value={field.value || ''}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -279,7 +324,6 @@ export function BillingEntryFormDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="__none__">None</SelectItem>
                         {clientsData?.data?.map((client) => (
                           <SelectItem key={client.id} value={client.id}>
                             {client.first_name} {client.last_name}
@@ -291,16 +335,16 @@ export function BillingEntryFormDialog({
                   </FormItem>
                 )}
               />
-
+            ) : (
               <FormField
                 control={form.control}
                 name="litigation_matter_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Matter (Optional)</FormLabel>
+                    <FormLabel>Matter *</FormLabel>
                     <Select 
-                      onValueChange={(val) => field.onChange(val === '__none__' ? '' : val)} 
-                      value={field.value || '__none__'}
+                      onValueChange={field.onChange} 
+                      value={field.value || ''}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -308,7 +352,6 @@ export function BillingEntryFormDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="__none__">None</SelectItem>
                         {matters?.map((matter) => (
                           <SelectItem key={matter.id} value={matter.id}>
                             {matter.case_number || matter.id.slice(0, 8)}
@@ -320,10 +363,10 @@ export function BillingEntryFormDialog({
                   </FormItem>
                 )}
               />
-            </div>
+            )}
 
             {entryType === 'time' ? (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <FormField
                   control={form.control}
                   name="duration_input"
@@ -337,20 +380,9 @@ export function BillingEntryFormDialog({
                     </FormItem>
                   )}
                 />
-
-                <FormField
-                  control={form.control}
-                  name="hourly_rate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Hourly Rate ($)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <p className="text-xs text-muted-foreground">
+                  Rate: ${staffHourlyRate.toFixed(2)}/hr
+                </p>
               </div>
             ) : (
               <FormField
