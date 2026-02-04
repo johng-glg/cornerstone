@@ -269,14 +269,17 @@ export function BillingEntryFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Client (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select 
+                      onValueChange={(val) => field.onChange(val === '__none__' ? '' : val)} 
+                      value={field.value || '__none__'}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select client" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="__none__">None</SelectItem>
                         {clientsData?.data?.map((client) => (
                           <SelectItem key={client.id} value={client.id}>
                             {client.first_name} {client.last_name}
@@ -295,14 +298,17 @@ export function BillingEntryFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Matter (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select 
+                      onValueChange={(val) => field.onChange(val === '__none__' ? '' : val)} 
+                      value={field.value || '__none__'}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select matter" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="__none__">None</SelectItem>
                         {matters?.map((matter) => (
                           <SelectItem key={matter.id} value={matter.id}>
                             {matter.case_number || matter.id.slice(0, 8)}
