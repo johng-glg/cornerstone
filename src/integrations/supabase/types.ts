@@ -904,6 +904,33 @@ export type Database = {
         }
         Relationships: []
       }
+      job_titles: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          role: Database["public"]["Enums"]["app_role"]
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          role: Database["public"]["Enums"]["app_role"]
+          title: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          role?: Database["public"]["Enums"]["app_role"]
+          title?: string
+        }
+        Relationships: []
+      }
       law_firm_contacts: {
         Row: {
           created_at: string
@@ -2815,7 +2842,7 @@ export type Database = {
           avatar_url: string | null
           company_id: string
           created_at: string
-          department: Database["public"]["Enums"]["department"]
+          department: Database["public"]["Enums"]["department_new"]
           email: string
           first_name: string
           id: string
@@ -2831,7 +2858,7 @@ export type Database = {
           avatar_url?: string | null
           company_id: string
           created_at?: string
-          department: Database["public"]["Enums"]["department"]
+          department: Database["public"]["Enums"]["department_new"]
           email: string
           first_name: string
           id?: string
@@ -2847,7 +2874,7 @@ export type Database = {
           avatar_url?: string | null
           company_id?: string
           created_at?: string
-          department?: Database["public"]["Enums"]["department"]
+          department?: Database["public"]["Enums"]["department_new"]
           email?: string
           first_name?: string
           id?: string
@@ -3676,15 +3703,13 @@ export type Database = {
         | "law_firm"
         | "debt_buyer"
       data_visibility: "own_only" | "parent_and_own" | "full_hierarchy"
-      department:
-        | "admin"
-        | "sales_intake"
-        | "client_services"
-        | "attorney"
-        | "case_manager"
+      department_new:
+        | "administration"
+        | "legal"
         | "negotiations"
-        | "payment_processing"
-        | "correspondence"
+        | "sales"
+        | "client_services"
+        | "operations"
       employment_status:
         | "employed"
         | "unemployed"
@@ -4032,15 +4057,13 @@ export const Constants = {
         "debt_buyer",
       ],
       data_visibility: ["own_only", "parent_and_own", "full_hierarchy"],
-      department: [
-        "admin",
-        "sales_intake",
-        "client_services",
-        "attorney",
-        "case_manager",
+      department_new: [
+        "administration",
+        "legal",
         "negotiations",
-        "payment_processing",
-        "correspondence",
+        "sales",
+        "client_services",
+        "operations",
       ],
       employment_status: [
         "employed",

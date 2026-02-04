@@ -347,9 +347,9 @@ export function CourtCalendar() {
   const { data: hearingTypes } = useHearingTypes();
   const { data: staff } = useStaff();
 
-  // Filter attorneys (department = attorney)
+  // Filter attorneys (department = legal)
   const attorneys = useMemo(() => 
-    staff?.filter(s => s.department === 'attorney') || [],
+    staff?.filter(s => s.department === 'legal') || [],
     [staff]
   );
 

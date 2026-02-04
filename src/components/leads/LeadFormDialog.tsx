@@ -60,7 +60,7 @@ interface LeadFormDialogProps {
 export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps) {
   const createLead = useCreateLead();
   const updateLead = useUpdateLead();
-  const { data: salesStaff } = useStaff('sales_intake');
+  const { data: salesStaff } = useStaff('sales');
   const { data: currentStaff } = useCurrentStaff();
   const isEditing = !!lead;
 

@@ -23,7 +23,7 @@ export const ROLE_PERMISSIONS: RolePermission[] = [
   {
     role: 'admin',
     displayName: 'Administrator',
-    department: 'admin',
+    department: 'administration',
     description: 'Full system access with ability to manage companies, staff, and system configuration. Administrators oversee all operations and have unrestricted access to all data and functions.',
     dashboardAccess: ['Admin Dashboard with company-wide metrics', 'All role-specific dashboards'],
     moduleAccess: [
@@ -82,7 +82,7 @@ export const ROLE_PERMISSIONS: RolePermission[] = [
   {
     role: 'case_manager',
     displayName: 'Case Manager',
-    department: 'case_management',
+    department: 'legal',
     description: 'Manages client cases from enrollment through completion. Case managers coordinate between departments, track progress, and ensure clients stay on track with their programs.',
     dashboardAccess: ['Case Manager Dashboard with assigned caseload', 'Task queue', 'Client status overview'],
     moduleAccess: [
@@ -187,7 +187,7 @@ export const ROLE_PERMISSIONS: RolePermission[] = [
   {
     role: 'payment_processor',
     displayName: 'Payment Processor',
-    department: 'payment_processing',
+    department: 'operations',
     description: 'Manages payment processing and escrow transactions. Ensures payments are processed correctly and maintains accurate financial records.',
     dashboardAccess: ['Payment Processor Dashboard', 'Transaction queue', 'Payment alerts'],
     moduleAccess: [
@@ -213,7 +213,7 @@ export const ROLE_PERMISSIONS: RolePermission[] = [
   {
     role: 'correspondence',
     displayName: 'Correspondence Specialist',
-    department: 'correspondence',
+    department: 'operations',
     description: 'Manages incoming and outgoing correspondence with creditors. Handles document processing, mail, and communication logging.',
     dashboardAccess: ['Correspondence Dashboard', 'Document queue', 'Mail processing'],
     moduleAccess: [

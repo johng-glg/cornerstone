@@ -93,14 +93,16 @@ export default function Dashboard() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   // Determine which dashboard to show based on department/role
-  const isAdmin = staff?.department === 'admin' || hasRole('admin');
-  const isAttorney = staff?.department === 'attorney' || hasRole('attorney');
+  const isAdmin = staff?.department === 'administration' || hasRole('admin');
+  const isAttorney = staff?.department === 'legal' && hasRole('attorney');
   const isCaseManager = hasRole('case_manager');
-  const isSalesRep = staff?.department === 'sales_intake' || hasRole('sales_rep');
+  const isSalesRep = staff?.department === 'sales' || hasRole('sales_rep');
   const isNegotiator = staff?.department === 'negotiations' || hasRole('negotiator');
-  const isPaymentProcessor = staff?.department === 'payment_processing' || hasRole('payment_processor');
-  const isCorrespondence = staff?.department === 'correspondence' || hasRole('correspondence');
+  const isPaymentProcessor = staff?.department === 'operations' && hasRole('payment_processor');
+  const isCorrespondence = staff?.department === 'operations' && hasRole('correspondent');
   const isClientServicesRep = staff?.department === 'client_services' && !isCaseManager;
+  // Staff in legal department who are not attorneys default to CaseManager dashboard
+  const isLegalNonAttorney = staff?.department === 'legal' && !hasRole('attorney');
 
   // Show role-specific dashboards (order matters - most specific first)
   if (isAdmin) {
@@ -111,7 +113,7 @@ export default function Dashboard() {
     return <AttorneyDashboard />;
   }
 
-  if (isCaseManager) {
+  if (isCaseManager || isLegalNonAttorney) {
     return <CaseManagerDashboard />;
   }
 

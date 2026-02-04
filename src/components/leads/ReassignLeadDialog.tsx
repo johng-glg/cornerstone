@@ -32,7 +32,7 @@ export function ReassignLeadDialog({
   currentAssigneeId,
   leadName,
 }: ReassignLeadDialogProps) {
-  const { data: salesStaff, isLoading } = useStaff('sales_intake');
+  const { data: salesStaff, isLoading } = useStaff('sales');
   const assignLead = useAssignLead();
 
   const [selectedStaffId, setSelectedStaffId] = useState<string>('');

@@ -31,7 +31,7 @@ interface AssignmentPoolEditorProps {
 
 export function AssignmentPoolEditor({ ruleId, method }: AssignmentPoolEditorProps) {
   const { data: pool, isLoading: poolLoading } = useAssignmentPool(ruleId);
-  const { data: allStaff, isLoading: staffLoading } = useStaff('sales_intake');
+  const { data: allStaff, isLoading: staffLoading } = useStaff('sales');
   const addMember = useAddPoolMember();
   const updateMember = useUpdatePoolMember();
   const removeMember = useRemovePoolMember();

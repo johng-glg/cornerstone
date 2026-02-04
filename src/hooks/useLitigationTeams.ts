@@ -53,7 +53,7 @@ export function useEligibleLitigationStaff() {
         .from('staff')
         .select('id, first_name, last_name, department, job_title, avatar_url, email')
         .eq('is_active', true)
-        .in('department', ['attorney', 'case_manager', 'negotiations'])
+        .in('department', ['legal', 'negotiations'])
         .order('first_name');
 
       if (error) throw error;
