@@ -13,7 +13,8 @@ import {
   Landmark,
   BookOpen,
   Gavel,
-  TrendingUp
+  TrendingUp,
+  Clock
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/lib/auth';
@@ -39,6 +40,7 @@ const mainNavItems = [
   { title: 'Clients', url: '/clients', icon: Users },
   { title: 'Liabilities', url: '/liabilities', icon: DollarSign },
   { title: 'Litigation', url: '/litigation', icon: Scale },
+  { title: 'Billing', url: '/billing', icon: Clock },
   { title: 'Tasks', url: '/tasks', icon: CheckSquare },
 ];
 
