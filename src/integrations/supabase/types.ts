@@ -58,6 +58,105 @@ export type Database = {
           },
         ]
       }
+      billing_entries: {
+        Row: {
+          billing_date: string
+          client_id: string | null
+          client_service_id: string | null
+          company_id: string
+          created_at: string
+          description: string
+          duration_minutes: number | null
+          entry_type: Database["public"]["Enums"]["billing_entry_type"]
+          expense_amount: number | null
+          hourly_rate: number | null
+          id: string
+          is_billable: boolean
+          litigation_matter_id: string | null
+          notes: string | null
+          staff_id: string
+          status: Database["public"]["Enums"]["billing_entry_status"]
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          billing_date?: string
+          client_id?: string | null
+          client_service_id?: string | null
+          company_id: string
+          created_at?: string
+          description: string
+          duration_minutes?: number | null
+          entry_type: Database["public"]["Enums"]["billing_entry_type"]
+          expense_amount?: number | null
+          hourly_rate?: number | null
+          id?: string
+          is_billable?: boolean
+          litigation_matter_id?: string | null
+          notes?: string | null
+          staff_id: string
+          status?: Database["public"]["Enums"]["billing_entry_status"]
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          billing_date?: string
+          client_id?: string | null
+          client_service_id?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string
+          duration_minutes?: number | null
+          entry_type?: Database["public"]["Enums"]["billing_entry_type"]
+          expense_amount?: number | null
+          hourly_rate?: number | null
+          id?: string
+          is_billable?: boolean
+          litigation_matter_id?: string | null
+          notes?: string | null
+          staff_id?: string
+          status?: Database["public"]["Enums"]["billing_entry_status"]
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_entries_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_entries_client_service_id_fkey"
+            columns: ["client_service_id"]
+            isOneToOne: false
+            referencedRelation: "client_services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_entries_litigation_matter_id_fkey"
+            columns: ["litigation_matter_id"]
+            isOneToOne: false
+            referencedRelation: "litigation_matters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_entries_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_addresses: {
         Row: {
           address_line1: string
@@ -3662,6 +3761,7 @@ export type Database = {
         | "payment_processor"
         | "correspondent"
         | "viewer"
+        | "of_counsel"
       assignment_action:
         | "auto_assigned"
         | "manual_assigned"
@@ -3682,6 +3782,8 @@ export type Database = {
         | "negotiator"
         | "sales_rep"
       bank_account_type: "checking" | "savings"
+      billing_entry_status: "draft" | "approved" | "invoiced" | "paid"
+      billing_entry_type: "time" | "expense"
       client_relationship:
         | "primary_client"
         | "co_client"
@@ -4009,6 +4111,7 @@ export const Constants = {
         "payment_processor",
         "correspondent",
         "viewer",
+        "of_counsel",
       ],
       assignment_action: [
         "auto_assigned",
@@ -4033,6 +4136,8 @@ export const Constants = {
         "sales_rep",
       ],
       bank_account_type: ["checking", "savings"],
+      billing_entry_status: ["draft", "approved", "invoiced", "paid"],
+      billing_entry_type: ["time", "expense"],
       client_relationship: [
         "primary_client",
         "co_client",

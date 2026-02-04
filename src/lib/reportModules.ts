@@ -283,6 +283,36 @@ export const REPORT_MODULES: ModuleConfig[] = [
     defaultColumns: ['case_number', 'status', 'court_name', 'opposing_party', 'response_deadline'],
     currencyFields: ['judgment_amount', 'settlement_amount'],
   },
+  {
+    module: 'billing',
+    displayName: 'Billing Entries',
+    table: 'billing_entries',
+    columns: [
+      { key: 'id', label: 'Entry ID', type: 'text' },
+      { key: 'staff_id', label: 'Attorney', type: 'staff', sortable: true },
+      { key: 'client_id', label: 'Client', type: 'text' },
+      { key: 'litigation_matter_id', label: 'Matter', type: 'text' },
+      { key: 'entry_type', label: 'Type', type: 'enum', sortable: true },
+      { key: 'description', label: 'Description', type: 'text' },
+      { key: 'billing_date', label: 'Date', type: 'date', sortable: true },
+      { key: 'duration_minutes', label: 'Duration (min)', type: 'number' },
+      { key: 'hourly_rate', label: 'Hourly Rate', type: 'currency' },
+      { key: 'expense_amount', label: 'Expense Amount', type: 'currency' },
+      { key: 'total_amount', label: 'Total', type: 'currency', sortable: true },
+      { key: 'is_billable', label: 'Billable', type: 'boolean' },
+      { key: 'status', label: 'Status', type: 'enum', sortable: true },
+      { key: 'created_at', label: 'Created', type: 'datetime', sortable: true },
+    ],
+    filters: [
+      { key: 'entry_type', label: 'Type', type: 'enum', options: ['time', 'expense'] },
+      { key: 'status', label: 'Status', type: 'enum', options: ['draft', 'approved', 'invoiced', 'paid'] },
+      { key: 'is_billable', label: 'Billable', type: 'boolean' },
+      { key: 'staff_id', label: 'Attorney', type: 'staff' },
+    ],
+    dateFields: ['billing_date', 'created_at'],
+    defaultColumns: ['billing_date', 'entry_type', 'description', 'staff_id', 'total_amount', 'status'],
+    currencyFields: ['hourly_rate', 'expense_amount', 'total_amount'],
+  },
 ];
 
 export function getModuleConfig(moduleKey: string): ModuleConfig | undefined {

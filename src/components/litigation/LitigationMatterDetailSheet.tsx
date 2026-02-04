@@ -28,6 +28,7 @@ import { LitigationHearingFormDialog } from './LitigationHearingFormDialog';
 import { LitigationDocumentFormDialog } from './LitigationDocumentFormDialog';
 import { LitigationActivityFormDialog } from './LitigationActivityFormDialog';
 import { MatterAssignmentDialog } from './MatterAssignmentDialog';
+import { MatterBillingPanel } from './MatterBillingPanel';
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog';
 import {
   Select,
@@ -163,12 +164,13 @@ export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: Li
               </SheetHeader>
 
               <Tabs defaultValue="overview" className="mt-4">
-                <TabsList className="grid w-full grid-cols-6">
+                <TabsList className="grid w-full grid-cols-7">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="notes">Notes</TabsTrigger>
                   <TabsTrigger value="team">Team</TabsTrigger>
                   <TabsTrigger value="events">Events</TabsTrigger>
                   <TabsTrigger value="docs">Docs</TabsTrigger>
+                  <TabsTrigger value="billing">Billing</TabsTrigger>
                   <TabsTrigger value="activity">Activity</TabsTrigger>
                 </TabsList>
 
@@ -412,6 +414,10 @@ export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: Li
                     onAddDocument={() => setDocumentDialogOpen(true)}
                     onDeleteDocument={handleDeleteDocument}
                   />
+                </TabsContent>
+
+                <TabsContent value="billing" className="mt-4">
+                  <MatterBillingPanel matterId={matterId!} />
                 </TabsContent>
 
                 <TabsContent value="activity" className="mt-4">
