@@ -2944,6 +2944,7 @@ export type Database = {
           department: Database["public"]["Enums"]["department_new"]
           email: string
           first_name: string
+          hourly_rate: number | null
           id: string
           is_active: boolean
           job_title: string | null
@@ -2960,6 +2961,7 @@ export type Database = {
           department: Database["public"]["Enums"]["department_new"]
           email: string
           first_name: string
+          hourly_rate?: number | null
           id?: string
           is_active?: boolean
           job_title?: string | null
@@ -2976,6 +2978,7 @@ export type Database = {
           department?: Database["public"]["Enums"]["department_new"]
           email?: string
           first_name?: string
+          hourly_rate?: number | null
           id?: string
           is_active?: boolean
           job_title?: string | null
