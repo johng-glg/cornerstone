@@ -115,7 +115,7 @@ export function BillingEntryFormDialog({
       entry_type: 'time',
       description: '',
       billing_date: new Date().toISOString().split('T')[0],
-      staff_id: currentStaff?.id || '',
+      staff_id: '',
       bill_to_client: initialBillToClient,
       client_id: defaultClientId || '',
       litigation_matter_id: defaultMatterId || '',
@@ -135,6 +135,9 @@ export function BillingEntryFormDialog({
   const staffHourlyRate = selectedStaff?.hourly_rate ?? 350;
 
   useEffect(() => {
+    // Only reset form when dialog opens (open changes) or when editing entry changes
+    if (!open) return;
+    
     if (entry) {
       const durationHours = entry.duration_minutes ? (entry.duration_minutes / 60).toFixed(2) : '';
       const entryBillToClient = !!entry.client_id && !entry.litigation_matter_id;
@@ -151,13 +154,13 @@ export function BillingEntryFormDialog({
         is_billable: entry.is_billable,
         notes: entry.notes || '',
       });
-    } else {
+    } else if (currentStaff) {
       const newBillToClient = !!defaultClientId && !defaultMatterId;
       form.reset({
         entry_type: 'time',
         description: '',
         billing_date: new Date().toISOString().split('T')[0],
-        staff_id: currentStaff?.id || '',
+        staff_id: currentStaff.id,
         bill_to_client: newBillToClient,
         client_id: defaultClientId || '',
         litigation_matter_id: defaultMatterId || '',
@@ -167,7 +170,7 @@ export function BillingEntryFormDialog({
         notes: '',
       });
     }
-  }, [entry, currentStaff?.id, defaultClientId, defaultMatterId, form]);
+  }, [open, entry, currentStaff, defaultClientId, defaultMatterId, form]);
 
   const onSubmit = async (data: BillingEntryFormData) => {
     let totalAmount = 0;
