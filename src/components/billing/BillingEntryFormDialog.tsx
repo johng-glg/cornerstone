@@ -35,8 +35,19 @@ import { useLitigationMatters } from '@/hooks/useLitigationMatters';
 import type { BillingEntry, BillingEntryType } from '@/types/billing';
 import { COMMON_EXPENSE_TYPES, parseDuration } from '@/types/billing';
 
+const SERVICE_TYPES = [
+  'Answer',
+  'Phone Call',
+  'Email',
+  'Appearance',
+  'Motion',
+  'Research',
+  'Other',
+] as const;
+
 const billingEntrySchema = z.object({
   entry_type: z.enum(['time', 'expense']),
+  service_type: z.string().min(1, 'Service type is required'),
   description: z.string().min(1, 'Description is required'),
   billing_date: z.string().min(1, 'Date is required'),
   staff_id: z.string().min(1, 'Attorney is required'),
@@ -113,6 +124,7 @@ export function BillingEntryFormDialog({
     resolver: zodResolver(billingEntrySchema),
     defaultValues: {
       entry_type: 'time',
+      service_type: '',
       description: '',
       billing_date: new Date().toISOString().split('T')[0],
       staff_id: '',
@@ -143,6 +155,7 @@ export function BillingEntryFormDialog({
       const entryBillToClient = !!entry.client_id && !entry.litigation_matter_id;
       form.reset({
         entry_type: entry.entry_type,
+        service_type: (entry as any).service_type || '',
         description: entry.description,
         billing_date: entry.billing_date,
         staff_id: entry.staff_id,
@@ -158,6 +171,7 @@ export function BillingEntryFormDialog({
       const newBillToClient = !!defaultClientId && !defaultMatterId;
       form.reset({
         entry_type: 'time',
+        service_type: '',
         description: '',
         billing_date: new Date().toISOString().split('T')[0],
         staff_id: currentStaff.id,
@@ -244,6 +258,31 @@ export function BillingEntryFormDialog({
                     <SelectContent>
                       <SelectItem value="time">Time Entry</SelectItem>
                       <SelectItem value="expense">Expense</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="service_type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Service Type *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select service type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {SERVICE_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
