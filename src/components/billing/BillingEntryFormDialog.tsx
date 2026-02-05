@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { useCreateBillingEntry, useUpdateBillingEntry } from '@/hooks/useBillingEntries';
 import { useCurrentStaff, useStaff } from '@/hooks/useStaff';
 import { useClients } from '@/hooks/useClients';
@@ -314,23 +315,20 @@ export function BillingEntryFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Client *</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      value={field.value || ''}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select client" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {clientsData?.data?.map((client) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.first_name} {client.last_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <SearchableSelect
+                        options={clientsData?.data?.map((client) => ({
+                          value: client.id,
+                          label: `${client.first_name} ${client.last_name}`,
+                          subtitle: client.email || undefined,
+                        })) || []}
+                        value={field.value || ''}
+                        onValueChange={field.onChange}
+                        placeholder="Search clients..."
+                        searchPlaceholder="Type to search..."
+                        emptyText="No clients found."
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -342,23 +340,20 @@ export function BillingEntryFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Matter *</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      value={field.value || ''}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select matter" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {matters?.map((matter) => (
-                          <SelectItem key={matter.id} value={matter.id}>
-                            {matter.case_number || matter.id.slice(0, 8)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <SearchableSelect
+                        options={matters?.map((matter) => ({
+                          value: matter.id,
+                          label: matter.case_number || matter.id.slice(0, 8),
+                          subtitle: matter.court_name || undefined,
+                        })) || []}
+                        value={field.value || ''}
+                        onValueChange={field.onChange}
+                        placeholder="Search matters..."
+                        searchPlaceholder="Type to search..."
+                        emptyText="No matters found."
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
