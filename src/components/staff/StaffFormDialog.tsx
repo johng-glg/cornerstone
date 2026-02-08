@@ -177,6 +177,13 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
     mutationFn: async (values: FormValues) => {
       const derivedDepartment = roleToDepartment[values.role as Enums<'app_role'>];
       
+      // Debug: Log the role to department mapping
+      console.log('Creating staff - Role:', values.role, '-> Department:', derivedDepartment);
+      
+      if (!derivedDepartment) {
+        throw new Error(`Invalid role mapping: ${values.role} has no department`);
+      }
+      
       const { data, error } = await supabase.functions.invoke('create-staff-user', {
         body: {
           email: values.email,
