@@ -1,6 +1,7 @@
 import type { Enums } from '@/integrations/supabase/types';
 
-// New consolidated department type (matches database enum)
+// Consolidated department type matching database enum 'department_new'
+// Valid values: administration, legal, negotiations, sales, client_services, operations
 export type Department = 'administration' | 'legal' | 'negotiations' | 'sales' | 'client_services' | 'operations';
 
 // Map roles to their corresponding consolidated departments
