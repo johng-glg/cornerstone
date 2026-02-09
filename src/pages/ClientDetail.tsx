@@ -118,7 +118,7 @@ export default function ClientDetailPage() {
             </TabsContent>
 
             <TabsContent value="tasks" className="mt-0">
-              <ClientTasksTab clientId={client.id} />
+              <ClientTasksTab clientId={client.id} clientName={`${client.first_name} ${client.last_name}`} />
             </TabsContent>
 
             <TabsContent value="documents" className="mt-0">
