@@ -14,7 +14,8 @@ import {
   BookOpen,
   Gavel,
   TrendingUp,
-  Clock
+  Clock,
+  Lightbulb
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/lib/auth';
@@ -52,6 +53,7 @@ const adminNavItems = [
   { title: 'Staff', url: '/staff', icon: Users },
   { title: 'Payments', url: '/payments', icon: CreditCard },
   { title: 'Settings', url: '/settings', icon: Settings },
+  { title: 'Feature Requests', url: '/feature-requests', icon: Lightbulb },
   { title: 'Documentation', url: '/docs', icon: BookOpen },
 ];
 

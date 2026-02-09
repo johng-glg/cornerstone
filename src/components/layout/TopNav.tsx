@@ -12,14 +12,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Search, LogOut, User, Settings } from 'lucide-react';
+import { Search, LogOut, User, Settings, Lightbulb } from 'lucide-react';
 import { GlobalSearch } from '@/components/search/GlobalSearch';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { FeatureRequestDialog } from '@/components/features/FeatureRequestDialog';
 
 export function TopNav() {
   const { user, staff, signOut } = useAuth();
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
+  const [featureRequestOpen, setFeatureRequestOpen] = useState(false);
 
   // Global keyboard shortcut for search
   useEffect(() => {
@@ -69,6 +71,27 @@ export function TopNav() {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Feature Request Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setFeatureRequestOpen(true)}
+          className="hidden sm:flex items-center gap-1.5"
+        >
+          <Lightbulb className="h-4 w-4" />
+          <span className="hidden lg:inline">Request Feature</span>
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setFeatureRequestOpen(true)}
+          className="sm:hidden h-9 w-9"
+        >
+          <Lightbulb className="h-4 w-4" />
+        </Button>
+
+        <FeatureRequestDialog open={featureRequestOpen} onOpenChange={setFeatureRequestOpen} />
+
         {/* Notifications */}
         <NotificationCenter />
 

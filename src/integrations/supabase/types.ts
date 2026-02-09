@@ -967,6 +967,60 @@ export type Database = {
           },
         ]
       }
+      feature_requests: {
+        Row: {
+          admin_notes: string | null
+          affected_module: string | null
+          category: Database["public"]["Enums"]["feature_request_category"]
+          created_at: string
+          department: string | null
+          description: string
+          id: string
+          priority: Database["public"]["Enums"]["feature_request_priority"]
+          request_type: Database["public"]["Enums"]["feature_request_type"]
+          staff_name: string | null
+          status: Database["public"]["Enums"]["feature_request_status"]
+          submitted_by: string | null
+          title: string
+          updated_at: string
+          votes: number
+        }
+        Insert: {
+          admin_notes?: string | null
+          affected_module?: string | null
+          category?: Database["public"]["Enums"]["feature_request_category"]
+          created_at?: string
+          department?: string | null
+          description: string
+          id?: string
+          priority?: Database["public"]["Enums"]["feature_request_priority"]
+          request_type?: Database["public"]["Enums"]["feature_request_type"]
+          staff_name?: string | null
+          status?: Database["public"]["Enums"]["feature_request_status"]
+          submitted_by?: string | null
+          title: string
+          updated_at?: string
+          votes?: number
+        }
+        Update: {
+          admin_notes?: string | null
+          affected_module?: string | null
+          category?: Database["public"]["Enums"]["feature_request_category"]
+          created_at?: string
+          department?: string | null
+          description?: string
+          id?: string
+          priority?: Database["public"]["Enums"]["feature_request_priority"]
+          request_type?: Database["public"]["Enums"]["feature_request_type"]
+          staff_name?: string | null
+          status?: Database["public"]["Enums"]["feature_request_status"]
+          submitted_by?: string | null
+          title?: string
+          updated_at?: string
+          votes?: number
+        }
+        Relationships: []
+      }
       forth_sync_log: {
         Row: {
           action: string
@@ -3827,6 +3881,23 @@ export type Database = {
         | "liability"
         | "lead"
         | "litigation_matter"
+      feature_request_category:
+        | "workflow_gap"
+        | "missing_field"
+        | "ui_improvement"
+        | "new_feature"
+        | "integration"
+        | "reporting"
+        | "other"
+      feature_request_priority: "critical" | "high" | "medium" | "low"
+      feature_request_status:
+        | "submitted"
+        | "under_review"
+        | "planned"
+        | "in_progress"
+        | "completed"
+        | "declined"
+      feature_request_type: "existing_workflow" | "future_improvement"
       fee_collection_method: "split" | "lump_sum"
       hardship_reason:
         | "job_loss"
@@ -4187,6 +4258,25 @@ export const Constants = {
         "lead",
         "litigation_matter",
       ],
+      feature_request_category: [
+        "workflow_gap",
+        "missing_field",
+        "ui_improvement",
+        "new_feature",
+        "integration",
+        "reporting",
+        "other",
+      ],
+      feature_request_priority: ["critical", "high", "medium", "low"],
+      feature_request_status: [
+        "submitted",
+        "under_review",
+        "planned",
+        "in_progress",
+        "completed",
+        "declined",
+      ],
+      feature_request_type: ["existing_workflow", "future_improvement"],
       fee_collection_method: ["split", "lump_sum"],
       hardship_reason: [
         "job_loss",
