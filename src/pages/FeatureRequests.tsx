@@ -65,19 +65,25 @@ export default function FeatureRequestsPage() {
   const [selectedRequest, setSelectedRequest] = useState<FeatureRequest | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('open');
   const [adminNotes, setAdminNotes] = useState('');
 
   const filtered = useMemo(() => {
     if (!requests) return [];
-    return requests.filter(r => {
+    const result = requests.filter(r => {
       const matchesSearch = !searchQuery ||
         r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.description.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesType = filterType === 'all' || r.request_type === filterType;
-      const matchesStatus = filterStatus === 'all' || r.status === filterStatus;
+      const matchesStatus =
+        filterStatus === 'all' ? true :
+        filterStatus === 'open' ? !['completed', 'declined'].includes(r.status) :
+        r.status === filterStatus;
       return matchesSearch && matchesType && matchesStatus;
     });
+
+    const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+    return result.sort((a, b) => (priorityOrder[a.priority] ?? 99) - (priorityOrder[b.priority] ?? 99));
   }, [requests, searchQuery, filterType, filterStatus]);
 
   const stats = useMemo(() => {
@@ -188,6 +194,7 @@ export default function FeatureRequestsPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="open">Open</SelectItem>
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="submitted">Submitted</SelectItem>
             <SelectItem value="under_review">Under Review</SelectItem>
