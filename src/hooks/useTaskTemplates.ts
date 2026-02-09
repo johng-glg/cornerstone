@@ -43,7 +43,7 @@ export function useCreateTaskTemplate() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (template: Omit<TaskTemplate, 'id' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (template: TaskTemplateInsert) => {
       const { data, error } = await supabase
         .from('task_templates')
         .insert([template])
