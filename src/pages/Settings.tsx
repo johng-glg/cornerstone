@@ -10,6 +10,7 @@ import { WorkflowsTab } from '@/components/settings/WorkflowsTab';
 import { TemplatesTab } from '@/components/settings/TemplatesTab';
 import { LitigationTeamsSettingsTab } from '@/components/settings/LitigationTeamsSettingsTab';
 import { DocuSealTemplatesTab } from '@/components/settings/DocuSealTemplatesTab';
+import { RolesSettingsTab } from '@/components/settings/RolesSettingsTab';
 
 export default function SettingsPage() {
   return (
@@ -31,6 +32,7 @@ export default function SettingsPage() {
             <TabsTrigger value="assignment">Assignment</TabsTrigger>
             <TabsTrigger value="workflows">Workflows</TabsTrigger>
             <TabsTrigger value="legal-teams">Legal Teams</TabsTrigger>
+            <TabsTrigger value="roles">Roles</TabsTrigger>
             <TabsTrigger value="appearance">Appearance</TabsTrigger>
             <TabsTrigger value="company">Company</TabsTrigger>
           </TabsList>
@@ -69,6 +71,10 @@ export default function SettingsPage() {
 
           <TabsContent value="legal-teams">
             <LitigationTeamsSettingsTab />
+          </TabsContent>
+
+          <TabsContent value="roles">
+            <RolesSettingsTab />
           </TabsContent>
 
           <TabsContent value="appearance">
