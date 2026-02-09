@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Search, Rocket, Clock, CheckCircle, AlertCircle, Zap, TrendingUp } from 'lucide-react';
 import { FUTURE_BUILDS, getRoadmapCategories, type RoadmapItem } from '@/lib/docs/roadmapData';
+import { useFeatureRequests } from '@/hooks/useFeatureRequests';
 
 const priorityColors = {
   High: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
@@ -95,11 +96,47 @@ function FeatureCard({ item }: { item: RoadmapItem }) {
   );
 }
 
+const PRIORITY_MAP: Record<string, RoadmapItem['priority']> = {
+  critical: 'High',
+  high: 'High',
+  medium: 'Medium',
+  low: 'Low',
+};
+
+const STATUS_MAP: Record<string, RoadmapItem['status']> = {
+  planned: 'Planned',
+  in_progress: 'In Progress',
+  under_review: 'Research',
+};
+
 export default function FutureBuildPage() {
   const [search, setSearch] = useState('');
-  const categories = getRoadmapCategories();
-  
-  const filteredItems = FUTURE_BUILDS.filter(item =>
+  const { data: featureRequests } = useFeatureRequests();
+
+  // Merge static roadmap items with "planned"/"in_progress" feature requests
+  const allItems = useMemo(() => {
+    const staticIds = new Set(FUTURE_BUILDS.map(i => i.id));
+    const fromRequests: RoadmapItem[] = (featureRequests || [])
+      .filter(fr => ['planned', 'in_progress'].includes(fr.status))
+      .filter(fr => !staticIds.has(`fr-${fr.id}`))
+      .map(fr => ({
+        id: `fr-${fr.id}`,
+        name: fr.title,
+        category: fr.affected_module || 'Feature Requests',
+        priority: PRIORITY_MAP[fr.priority] || 'Medium',
+        description: fr.description,
+        status: STATUS_MAP[fr.status] || 'Planned',
+        notes: fr.admin_notes || undefined,
+      }));
+    return [...FUTURE_BUILDS, ...fromRequests];
+  }, [featureRequests]);
+
+  const categories = useMemo(() => {
+    const cats = new Set(allItems.map(i => i.category));
+    return Array.from(cats).sort();
+  }, [allItems]);
+
+  const filteredItems = allItems.filter(item =>
     item.name.toLowerCase().includes(search.toLowerCase()) ||
     item.description.toLowerCase().includes(search.toLowerCase()) ||
     item.category.toLowerCase().includes(search.toLowerCase())
@@ -122,9 +159,9 @@ export default function FutureBuildPage() {
   const sortedFilteredItems = sortByStatus(filteredItems);
   
   // Overall stats
-  const completedCount = FUTURE_BUILDS.filter(item => item.status === 'Completed').length;
-  const plannedCount = FUTURE_BUILDS.filter(item => item.status === 'Planned').length;
-  const completionPercent = Math.round((completedCount / FUTURE_BUILDS.length) * 100);
+  const completedCount = allItems.filter(item => item.status === 'Completed').length;
+  const plannedCount = allItems.filter(item => item.status === 'Planned').length;
+  const completionPercent = Math.round((completedCount / allItems.length) * 100);
 
   return (
     <div className="space-y-6">
@@ -154,7 +191,7 @@ export default function FutureBuildPage() {
           <CardContent>
             <p className="text-2xl font-bold text-green-600">
               {completedCount}
-              <span className="text-sm font-normal text-muted-foreground ml-1">/ {FUTURE_BUILDS.length}</span>
+              <span className="text-sm font-normal text-muted-foreground ml-1">/ {allItems.length}</span>
             </p>
             <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
               <div 
