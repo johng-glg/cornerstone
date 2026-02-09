@@ -127,7 +127,7 @@ export function MatterTeamPanel({ matterId, onAddAssignment, opposingCounsel }: 
               <AssignmentCard
                 key={assignment.id}
                 assignment={assignment}
-                onRemove={handleUnassign}
+                onRemove={() => handleUnassign(assignment)}
               />
             ))}
           </div>
