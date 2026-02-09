@@ -1,125 +1,123 @@
 
 
-## Litigation Tab Enhancements
+## Role Management Settings Tab
 
-This plan covers four feature requests to improve the Litigation section of the app.
+### Overview
+Add a new "Roles" tab to the Settings page where administrators can view all system roles, see and edit what each role can access, and assign/remove users from roles -- all in one place.
+
+### Current State
+- Roles are defined as a Postgres enum (`app_role`) with 11 values: admin, attorney, paralegal, negotiator, case_manager, sales_rep, client_services_rep, payment_processor, correspondent, viewer, of_counsel.
+- Permissions per role are hardcoded in `src/lib/docs/rolePermissions.ts` and only displayed in the documentation section.
+- Role assignment to users happens exclusively inside the Staff form dialog.
+- There is no database-backed permissions system -- the permissions matrix is purely informational.
+
+### What This Plan Delivers
+
+**A new "Roles" settings tab with three sections:**
+
+1. **Roles List** -- A card for each role showing its display name, department, description, and member count. Clicking a role opens its detail view.
+
+2. **Role Detail / Permissions Editor** -- When a role is selected:
+   - View and edit the **module permissions matrix** (RCUD per module) stored in a new database table.
+   - View and edit **special permissions** (free-text capabilities like "Approve settlement offers").
+   - See all staff members currently assigned to this role.
+
+3. **Role Member Management** -- Add or remove staff from the selected role directly from this tab (in addition to the existing Staff form dialog).
 
 ---
 
-### 1. Client Info on Litigation Table and Detail Sheet
+### Database Changes
 
-**Current state:** The Litigation page table shows Case #, Opposing Party, Court, Status, Deadlines, and Judgment -- but not the client name. The data is already fetched (client name comes through `client_service.primary_client`), it just isn't displayed.
-
-**Changes:**
-- **Litigation page table (`src/pages/Litigation.tsx`):** Add a "Client" column showing the client's full name, linked to their Client Detail page (`/clients/:id`). Also show their service number.
-- **Matter detail sheet header (`src/components/litigation/LitigationMatterDetailSheet.tsx`):** Add a client info card to the Overview tab showing: client name (linked to `/clients/:id`), email, and primary phone number. This requires expanding the `useLitigationMatter` query to also fetch `clients.email` and a subquery for the primary phone from `client_phones`.
-- **Hook update (`src/hooks/useLitigationMatters.ts`):** Expand the `useLitigationMatters` and `useLitigationMatter` select queries to include `clients.email` and the client's ID for linking.
-
----
-
-### 2. Filing Fees Tracking
-
-**Current state:** No filing fee concept exists in the database.
-
-**Database migration:**
-- Create a `filing_fees` table:
+**New table: `role_permissions`**
 
 | Column | Type | Notes |
 |--------|------|-------|
 | id | UUID PK | |
-| matter_id | UUID FK | References `litigation_matters.id` |
-| amount | NUMERIC(10,2) | Fee amount |
-| description | TEXT | e.g. "Initial filing fee", "Motion fee" |
-| status | ENUM | `pending`, `submitted_to_client`, `approved`, `declined`, `paid` |
-| requested_date | DATE | When the fee was identified |
-| approved_date | DATE | When client approved |
-| paid_date | DATE | When payment was made |
-| notes | TEXT | |
-| created_by | UUID FK | References `staff.id` |
-| created_at / updated_at | TIMESTAMPTZ | Auto-managed |
+| role | app_role | The role this permission applies to |
+| module | TEXT | e.g. "Leads", "Clients", "Litigation" |
+| can_read | BOOLEAN | Default false |
+| can_create | BOOLEAN | Default false |
+| can_update | BOOLEAN | Default false |
+| can_delete | BOOLEAN | Default false |
+| notes | TEXT (nullable) | e.g. "View only for case context" |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
 
-- Create enum `filing_fee_status` with values: `pending`, `submitted_to_client`, `approved`, `declined`, `paid`.
-- RLS: Authenticated users can CRUD.
-- Create a notification trigger: when status changes to `submitted_to_client`, notify relevant assigned staff.
+Unique constraint on `(role, module)`.
 
-**Frontend:**
-- Add a **"Filing Fees" tab** to `LitigationMatterDetailSheet` (between Billing and Activity).
-- Create `src/components/litigation/FilingFeesList.tsx` -- table showing all fees for a matter with status badges, amounts, dates, and an "Add Filing Fee" button.
-- Create `src/components/litigation/FilingFeeFormDialog.tsx` -- form to add/edit a filing fee with amount, description, and status.
-- Create `src/hooks/useFilingFees.ts` -- CRUD hook for the `filing_fees` table.
+RLS: All authenticated users can read; only admins can insert/update/delete (using the existing `has_role` function).
 
----
-
-### 3. Appearance Requests Tab
-
-**Database migration:**
-- Create an `appearance_requests` table:
+**New table: `role_special_permissions`**
 
 | Column | Type | Notes |
 |--------|------|-------|
 | id | UUID PK | |
-| matter_id | UUID FK | References `litigation_matters.id` |
-| hearing_id | UUID FK (nullable) | References `litigation_hearings.id` |
-| requested_date | DATE | |
-| appearance_date | DATE | When appearance is needed |
-| court_name | TEXT | |
-| description | TEXT | Details of what's needed |
-| status | ENUM | `pending`, `approved`, `assigned`, `completed`, `cancelled` |
-| assigned_to | UUID FK (nullable) | References `staff.id` |
-| requested_by | UUID FK | References `staff.id` |
-| notes | TEXT | |
-| created_at / updated_at | TIMESTAMPTZ | |
+| role | app_role | |
+| permission | TEXT | e.g. "Approve settlement offers" |
+| created_at | TIMESTAMPTZ | |
 
-- Create enum `appearance_request_status`.
-- RLS: Authenticated users can CRUD.
+Unique constraint on `(role, permission)`.
 
-**Frontend:**
-- Add an **"Appearances" tab** to `LitigationMatterDetailSheet`.
-- Create `src/components/litigation/AppearanceRequestsList.tsx` -- list of requests with status tracking.
-- Create `src/components/litigation/AppearanceRequestFormDialog.tsx` -- form to create/edit requests.
-- Create `src/hooks/useAppearanceRequests.ts` -- CRUD hook.
+RLS: Same as above -- authenticated read, admin write.
+
+**Seed data migration:** Insert the current hardcoded values from `rolePermissions.ts` into both new tables so nothing changes for existing users.
 
 ---
 
-### 4. Notifications for Task/Matter Assignments
-
-**Current state:** The `matter_assigned` notification type exists in the enum but no trigger fires it when staff are assigned to matters. Similarly, task assignment notifications exist but may not cover all scenarios.
-
-**Database migration:**
-- Add a trigger on the `assignments` table: when a new row is inserted with `entity_type = 'litigation_matter'` and `is_active = true`, call `create_notification()` for the assigned staff member with type `matter_assigned`, including a link to `/litigation?open={matter_id}`.
-- The email notification preference column (`email_enabled`) already exists on `notification_preferences`. The actual email sending would be a future integration (via Resend), but the in-app notification will fire immediately.
-
-**Frontend:** No UI changes needed -- the existing Notification Center and preference toggles already support `matter_assigned`. The real-time subscription will display the toast automatically.
-
----
-
-### 5. Other Active Lawsuits on Overview Tab
-
-**Current state:** The matter detail Overview tab shows case info, dates, and financials -- but no awareness of sibling matters for the same client.
-
-**Changes to `LitigationMatterDetailSheet.tsx`:**
-- On the Overview tab, add an "Other Active Matters" card below Financial Summary.
-- Query `litigation_matters` filtered by the same `client_service_id` (or same client across services), excluding the current matter, where status is not `settled`/`dismissed`/`judgment`.
-- Display each sibling matter as a clickable row showing case number, status badge, creditor name, and balance.
-- Clicking opens that matter's detail sheet (swap the `selectedMatterId`).
-
-**New hook:** `useSiblingMatters(matterId, clientServiceId)` in `useLitigationMatters.ts` -- fetches other active matters for the same client service.
-
----
-
-### Summary of Files
+### Frontend Changes
 
 **New files:**
-- `src/hooks/useFilingFees.ts`
-- `src/hooks/useAppearanceRequests.ts`
-- `src/components/litigation/FilingFeesList.tsx`
-- `src/components/litigation/FilingFeeFormDialog.tsx`
-- `src/components/litigation/AppearanceRequestsList.tsx`
-- `src/components/litigation/AppearanceRequestFormDialog.tsx`
-- 1 SQL migration file
+- `src/components/settings/RolesSettingsTab.tsx` -- Main tab component with role list and detail panels.
+- `src/hooks/useRolePermissions.ts` -- CRUD hook for `role_permissions` and `role_special_permissions` tables, plus a hook to fetch/manage role members from `user_roles`.
 
 **Modified files:**
-- `src/hooks/useLitigationMatters.ts` (expanded queries + sibling matters hook)
-- `src/pages/Litigation.tsx` (add Client column)
-- `src/components/litigation/LitigationMatterDetailSheet.tsx` (client info card, Filing Fees tab, Appearances tab, Other Matters card)
+- `src/pages/Settings.tsx` -- Add the "Roles" tab trigger and content.
+- `src/lib/docs/rolePermissions.ts` -- Update the docs `PermissionsMatrix` to optionally read from the database instead of hardcoded values (fallback to hardcoded if no DB data exists).
+
+**UI Layout for the Roles Tab:**
+
+```text
++------------------------------------------+
+| Roles Settings                           |
++------------------------------------------+
+| [Admin] [Attorney] [Case Mgr] [Negot..].|
+|                                          |
+| --- Selected: Attorney ---               |
+|                                          |
+| Description: [editable text]             |
+| Department:  Legal                       |
+|                                          |
+| Module Permissions                       |
+| +------+---+---+---+---+------+         |
+| |Module | R | C | U | D |Notes |         |
+| +------+---+---+---+---+------+         |
+| |Leads  | x |   |   |   |View..|         |
+| |Client | x |   | x |   |      |         |
+| |...    |   |   |   |   |      |         |
+| +------+---+---+---+---+------+         |
+|                                          |
+| Special Permissions          [+ Add]     |
+| * Approve settlement offers    [x]       |
+| * File court documents         [x]       |
+|                                          |
+| Members (3)                  [+ Assign]  |
+| * Jane Smith (Attorney)        [Remove]  |
+| * Bob Jones (Attorney)         [Remove]  |
++------------------------------------------+
+```
+
+- Each checkbox in the permissions matrix triggers an upsert to `role_permissions`.
+- "Add" on special permissions opens an inline input.
+- "Assign" opens a staff picker (searchable dropdown of staff not already in this role).
+- "Remove" removes the `user_roles` row for that user.
+- All changes save immediately (no "Save" button needed -- optimistic updates with toast confirmations).
+
+---
+
+### Technical Notes
+
+- The `app_role` enum values cannot be added/removed from this UI (that requires a database migration). This tab manages what each existing role **can do**, not which roles exist. A note in the UI will explain this.
+- The role-to-department mapping remains in `staffDepartments.ts` since departments are derived from roles automatically.
+- The `has_role` security definer function already exists and will be used in the RLS policies for the new tables.
+- Admin-only access: The tab itself will be hidden for non-admin users using the `useAuth().isAdmin()` check.
 
