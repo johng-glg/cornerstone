@@ -194,6 +194,7 @@ export default function FeatureRequestsPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="open">Open</SelectItem>
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="submitted">Submitted</SelectItem>
             <SelectItem value="under_review">Under Review</SelectItem>
