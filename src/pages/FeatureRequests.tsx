@@ -65,7 +65,7 @@ export default function FeatureRequestsPage() {
   const [selectedRequest, setSelectedRequest] = useState<FeatureRequest | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('open');
   const [adminNotes, setAdminNotes] = useState('');
 
   const filtered = useMemo(() => {
