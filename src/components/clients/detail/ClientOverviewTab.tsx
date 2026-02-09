@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Briefcase, TrendingUp, CheckCircle, Clock, FileText, Activity, Scale, DollarSign, RefreshCw } from 'lucide-react';
+import { Briefcase, TrendingUp, CheckCircle, Clock, FileText, Activity, Scale, DollarSign, RefreshCw, CheckSquare, Upload, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
 import { useClientServicesForClient, useLiabilitiesForClient } from '@/hooks/useClientData';
 import { NotesPanel } from '@/components/notes/NotesPanel';
@@ -19,17 +19,25 @@ const formatCurrency = (amount: number) =>
 const activityTypeIcons: Record<string, React.ElementType> = {
   liability_action: FileText,
   litigation_activity: Scale,
-  task_completed: CheckCircle,
+  task_update: CheckSquare,
   settlement: DollarSign,
   status_change: RefreshCw,
+  communication: MessageSquare,
+  billing_entry: DollarSign,
+  document_upload: Upload,
+  note: MessageSquare,
 };
 
 const activityTypeColors: Record<string, string> = {
   liability_action: 'bg-blue-100 text-blue-600',
   litigation_activity: 'bg-purple-100 text-purple-600',
-  task_completed: 'bg-green-100 text-green-600',
+  task_update: 'bg-green-100 text-green-600',
   settlement: 'bg-orange-100 text-orange-600',
   status_change: 'bg-gray-100 text-gray-600',
+  communication: 'bg-yellow-100 text-yellow-600',
+  billing_entry: 'bg-amber-100 text-amber-600',
+  document_upload: 'bg-cyan-100 text-cyan-600',
+  note: 'bg-indigo-100 text-indigo-600',
 };
 
 
