@@ -59,6 +59,15 @@ export function useAssignStaffToMatter() {
       staffId: string;
       assignmentType: AssignmentType;
     }) => {
+      // Deactivate any existing active assignment for this role on this matter
+      await supabase
+        .from('assignments')
+        .update({ is_active: false, unassigned_date: new Date().toISOString() })
+        .eq('entity_type', 'litigation_matter')
+        .eq('entity_id', matterId)
+        .eq('assignment_type', assignmentType)
+        .eq('is_active', true);
+
       const { data, error } = await supabase
         .from('assignments')
         .insert([{
