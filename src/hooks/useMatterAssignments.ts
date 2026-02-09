@@ -59,6 +59,15 @@ export function useAssignStaffToMatter() {
       staffId: string;
       assignmentType: AssignmentType;
     }) => {
+      // Deactivate any existing active assignment for this role on this matter
+      await supabase
+        .from('assignments')
+        .update({ is_active: false, unassigned_date: new Date().toISOString() })
+        .eq('entity_type', 'litigation_matter')
+        .eq('entity_id', matterId)
+        .eq('assignment_type', assignmentType)
+        .eq('is_active', true);
+
       const { data, error } = await supabase
         .from('assignments')
         .insert([{
@@ -78,20 +87,7 @@ export function useAssignStaffToMatter() {
       toast({ title: 'Staff assigned to matter' });
     },
     onError: (error: Error) => {
-      // Check for unique constraint violation
-      const isRoleConflict = error.message.includes('idx_assignments_single_role') || 
-                              error.message.includes('duplicate key') ||
-                              error.message.includes('unique constraint');
-      
-      if (isRoleConflict) {
-        toast({ 
-          title: 'Role already assigned', 
-          description: 'This role already has an active assignment. Please unassign the current person first.', 
-          variant: 'destructive' 
-        });
-      } else {
-        toast({ title: 'Failed to assign staff', description: error.message, variant: 'destructive' });
-      }
+      toast({ title: 'Failed to assign staff', description: error.message, variant: 'destructive' });
     },
   });
 }

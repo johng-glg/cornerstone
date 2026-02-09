@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -7,6 +8,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Form,
   FormControl,
@@ -23,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useAssignStaffToMatter } from '@/hooks/useMatterAssignments';
+import { useAssignStaffToMatter, useMatterAssignments } from '@/hooks/useMatterAssignments';
 import { useStaff } from '@/hooks/useStaff';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Database } from '@/integrations/supabase/types';
@@ -56,6 +67,8 @@ export function MatterAssignmentDialog({
 }: MatterAssignmentDialogProps) {
   const assignStaff = useAssignStaffToMatter();
   const { data: staffMembers, isLoading: isLoadingStaff } = useStaff();
+  const { data: currentAssignments } = useMatterAssignments(matterId);
+  const [confirmData, setConfirmData] = useState<{ data: AssignmentFormData; currentName: string } | null>(null);
 
   const form = useForm<AssignmentFormData>({
     resolver: zodResolver(assignmentSchema),
@@ -65,18 +78,30 @@ export function MatterAssignmentDialog({
     },
   });
 
-  const onSubmit = async (data: AssignmentFormData) => {
+  const doAssign = async (data: AssignmentFormData) => {
     await assignStaff.mutateAsync({
       matterId,
       staffId: data.staff_id,
       assignmentType: data.assignment_type as AssignmentType,
     });
-    
     onOpenChange(false);
     form.reset();
   };
 
+  const onSubmit = async (data: AssignmentFormData) => {
+    const existing = currentAssignments?.find(
+      a => a.assignment_type === data.assignment_type && a.staff_id !== data.staff_id
+    );
+    if (existing?.staff) {
+      const name = `${existing.staff.first_name} ${existing.staff.last_name}`;
+      setConfirmData({ data, currentName: name });
+      return;
+    }
+    await doAssign(data);
+  };
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
@@ -155,5 +180,34 @@ export function MatterAssignmentDialog({
         )}
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={!!confirmData} onOpenChange={(o) => !o && setConfirmData(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Replace existing assignment?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {confirmData && (
+              <>
+                <strong>{confirmData.currentName}</strong> is currently assigned as{' '}
+                <strong>{assignmentTypes.find(t => t.value === confirmData.data.assignment_type)?.label}</strong>.
+                They will be unassigned and replaced with the new selection.
+              </>
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={async () => {
+            if (confirmData) {
+              await doAssign(confirmData.data);
+              setConfirmData(null);
+            }
+          }}>
+            Replace
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
