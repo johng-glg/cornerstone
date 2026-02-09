@@ -50,8 +50,16 @@ export function MatterTeamPanel({ matterId, onAddAssignment, opposingCounsel }: 
     );
   }
 
-  const handleUnassign = (assignmentId: string) => {
-    unassign.mutate({ assignmentId, matterId });
+  const handleUnassign = (assignment: MatterAssignment) => {
+    const staffName = assignment.staff
+      ? `${assignment.staff.first_name} ${assignment.staff.last_name}`
+      : undefined;
+    unassign.mutate({
+      assignmentId: assignment.id,
+      matterId,
+      staffName,
+      assignmentType: assignment.assignment_type,
+    });
   };
 
   const hasOpposingCounsel = opposingCounsel?.lawFirmName || opposingCounsel?.contactName;
@@ -119,7 +127,7 @@ export function MatterTeamPanel({ matterId, onAddAssignment, opposingCounsel }: 
               <AssignmentCard
                 key={assignment.id}
                 assignment={assignment}
-                onRemove={handleUnassign}
+                onRemove={() => handleUnassign(assignment)}
               />
             ))}
           </div>
@@ -140,7 +148,7 @@ function AssignmentCard({
   onRemove 
 }: { 
   assignment: MatterAssignment; 
-  onRemove: (id: string) => void;
+  onRemove: () => void;
 }) {
   const staff = assignment.staff;
   if (!staff) return null;
@@ -170,7 +178,7 @@ function AssignmentCard({
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => onRemove(assignment.id)}
+          onClick={() => onRemove()}
           className="h-8 w-8"
         >
           <X className="h-4 w-4 text-muted-foreground" />
