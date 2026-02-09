@@ -307,15 +307,20 @@ export function useClientActivity(clientId: string | undefined) {
     queryFn: async () => {
       if (!clientId) return [];
 
+      // Fetch client record for creation event
+      const { data: client } = await supabase
+        .from('clients')
+        .select('created_at, first_name, last_name')
+        .eq('id', clientId)
+        .single();
+
       const { data: services } = await supabase
         .from('client_services')
-        .select('id, service_number')
+        .select('id, service_number, created_at')
         .eq('primary_client_id', clientId);
 
-      if (!services || services.length === 0) return [];
-
-      const serviceIds = services.map(s => s.id);
-      const liabilityIds = await fetchLiabilityIds(serviceIds);
+      const serviceIds = services?.map(s => s.id) || [];
+      const liabilityIds = serviceIds.length > 0 ? await fetchLiabilityIds(serviceIds) : [];
 
       // Run all fetches in parallel
       const [
@@ -340,6 +345,29 @@ export function useClientActivity(clientId: string | undefined) {
         fetchNotes(clientId, serviceIds),
       ]);
 
+      // Synthetic creation events
+      const creationEvents: ClientActivity[] = [];
+
+      if (client) {
+        creationEvents.push({
+          id: `creation-client-${clientId}`,
+          type: 'status_change',
+          description: `Client record created for ${client.first_name} ${client.last_name}`,
+          source_label: 'System',
+          created_at: client.created_at,
+        });
+      }
+
+      (services || []).forEach(s => {
+        creationEvents.push({
+          id: `creation-service-${s.id}`,
+          type: 'status_change',
+          description: `Service ${s.service_number} created`,
+          source_label: 'System',
+          created_at: s.created_at,
+        });
+      });
+
       return [
         ...liabilityActions,
         ...litigationActivities,
@@ -350,6 +378,7 @@ export function useClientActivity(clientId: string | undefined) {
         ...billingEntries,
         ...documents,
         ...notes,
+        ...creationEvents,
       ]
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 50);
