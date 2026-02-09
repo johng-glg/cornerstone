@@ -351,6 +351,7 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
                   </Card>
                 )}
 
+                {lead.notes && (
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm font-medium text-muted-foreground">
