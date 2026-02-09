@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { format, isPast } from 'date-fns';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Plus, Scale, Search, Filter, Calendar, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -210,6 +210,7 @@ export default function LitigationPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Case #</TableHead>
+                <TableHead>Client</TableHead>
                 <TableHead>Opposing Party</TableHead>
                 <TableHead>Court</TableHead>
                 <TableHead>Status</TableHead>
@@ -232,6 +233,20 @@ export default function LitigationPage() {
                   >
                     <TableCell className="font-medium">
                       {matter.case_number || '—'}
+                    </TableCell>
+                    <TableCell>
+                      {matter.client_service?.primary_client ? (
+                        <Link
+                          to={`/clients/${matter.client_service.primary_client.id}`}
+                          className="text-primary hover:underline text-sm"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {matter.client_service.primary_client.first_name} {matter.client_service.primary_client.last_name}
+                        </Link>
+                      ) : '—'}
+                      {matter.client_service?.service_number && (
+                        <p className="text-xs text-muted-foreground">{matter.client_service.service_number}</p>
+                      )}
                     </TableCell>
                     <TableCell>{matter.opposing_party || '—'}</TableCell>
                     <TableCell>
