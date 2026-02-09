@@ -188,6 +188,13 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
       number_of_debts: data.number_of_debts || null,
       assigned_to: data.assigned_to || null,
       notes: data.notes || null,
+      utm_source: data.utm_source || null,
+      utm_medium: data.utm_medium || null,
+      utm_campaign: data.utm_campaign || null,
+      utm_term: data.utm_term || null,
+      utm_content: data.utm_content || null,
+      landing_page: data.landing_page || null,
+      referrer_url: data.referrer_url || null,
     };
 
     await createLead.mutateAsync(leadData);
