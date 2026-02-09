@@ -42,6 +42,7 @@ import FutureBuildPage from "./pages/docs/FutureBuildPage";
 import IntegrationsPage from "./pages/docs/IntegrationsPage";
 import SecurityPage from "./pages/docs/SecurityPage";
 import ERDPage from "./pages/docs/ERDPage";
+import FeatureRequestsPage from "./pages/FeatureRequests";
 
 const queryClient = new QueryClient();
 
@@ -99,6 +100,7 @@ const App = () => (
               <Route path="/staff" element={<AppLayout><StaffPage /></AppLayout>} />
               <Route path="/payments" element={<AppLayout><PaymentsPage /></AppLayout>} />
               <Route path="/opposing-counsel" element={<AppLayout><OpposingCounselPage /></AppLayout>} />
+              <Route path="/feature-requests" element={<AppLayout><FeatureRequestsPage /></AppLayout>} />
               <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
               
               {/* Catch-all */}
