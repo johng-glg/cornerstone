@@ -883,6 +883,56 @@ export type Database = {
           },
         ]
       }
+      creditor_contacts: {
+        Row: {
+          created_at: string
+          creditor_id: string
+          email: string | null
+          first_name: string
+          id: string
+          is_active: boolean
+          last_name: string
+          notes: string | null
+          phone: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          creditor_id: string
+          email?: string | null
+          first_name: string
+          id?: string
+          is_active?: boolean
+          last_name: string
+          notes?: string | null
+          phone?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          creditor_id?: string
+          email?: string | null
+          first_name?: string
+          id?: string
+          is_active?: boolean
+          last_name?: string
+          notes?: string | null
+          phone?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creditor_contacts_creditor_id_fkey"
+            columns: ["creditor_id"]
+            isOneToOne: false
+            referencedRelation: "creditors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creditors: {
         Row: {
           address_line1: string | null
@@ -2339,8 +2389,10 @@ export type Database = {
           liability_id: string
           next_hearing_date: string | null
           notes: string | null
+          opposing_contact_id: string | null
           opposing_counsel: string | null
           opposing_counsel_id: string | null
+          opposing_creditor_id: string | null
           opposing_law_firm_id: string | null
           opposing_party: string | null
           response_deadline: string | null
@@ -2361,8 +2413,10 @@ export type Database = {
           liability_id: string
           next_hearing_date?: string | null
           notes?: string | null
+          opposing_contact_id?: string | null
           opposing_counsel?: string | null
           opposing_counsel_id?: string | null
+          opposing_creditor_id?: string | null
           opposing_law_firm_id?: string | null
           opposing_party?: string | null
           response_deadline?: string | null
@@ -2383,8 +2437,10 @@ export type Database = {
           liability_id?: string
           next_hearing_date?: string | null
           notes?: string | null
+          opposing_contact_id?: string | null
           opposing_counsel?: string | null
           opposing_counsel_id?: string | null
+          opposing_creditor_id?: string | null
           opposing_law_firm_id?: string | null
           opposing_party?: string | null
           response_deadline?: string | null
@@ -2410,10 +2466,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "litigation_matters_opposing_contact_id_fkey"
+            columns: ["opposing_contact_id"]
+            isOneToOne: false
+            referencedRelation: "creditor_contacts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "litigation_matters_opposing_counsel_id_fkey"
             columns: ["opposing_counsel_id"]
             isOneToOne: false
             referencedRelation: "law_firm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "litigation_matters_opposing_creditor_id_fkey"
+            columns: ["opposing_creditor_id"]
+            isOneToOne: false
+            referencedRelation: "creditors"
             referencedColumns: ["id"]
           },
           {

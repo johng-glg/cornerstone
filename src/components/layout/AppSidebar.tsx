@@ -47,7 +47,6 @@ const mainNavItems = [
 
 const adminNavItems = [
   { title: 'Creditors', url: '/creditors', icon: Landmark },
-  { title: 'Opposing Counsel', url: '/opposing-counsel', icon: Gavel },
   { title: 'Reports', url: '/reports', icon: BarChart3 },
   { title: 'Companies', url: '/companies', icon: Building2 },
   { title: 'Staff', url: '/staff', icon: Users },

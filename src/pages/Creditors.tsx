@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Search, Building2, Phone, Mail } from 'lucide-react';
+import { Plus, Search, Building2, Phone, Mail, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCreditors, type Creditor, type CreditorType } from '@/hooks/useCreditors';
+import { useCreditorContacts } from '@/hooks/useCreditorContacts';
 import { CreditorFormDialog } from '@/components/creditors/CreditorFormDialog';
 import { CreditorDetailSheet } from '@/components/creditors/CreditorDetailSheet';
 import { format } from 'date-fns';
@@ -93,6 +94,7 @@ export default function CreditorsPage() {
               <TableHead>Type</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>Email</TableHead>
+              <TableHead># Contacts</TableHead>
               <TableHead>Location</TableHead>
               <TableHead>Added</TableHead>
             </TableRow>
@@ -149,6 +151,12 @@ export default function CreditorsPage() {
                       <span className="text-muted-foreground text-sm">—</span>
                     )}
                   </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1 text-sm">
+                      <Users className="h-3 w-3 text-muted-foreground" />
+                      —
+                    </div>
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {creditor.city && creditor.state 
                       ? `${creditor.city}, ${creditor.state}` 
@@ -161,7 +169,7 @@ export default function CreditorsPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   {search || typeFilter !== 'all' 
                     ? 'No creditors match your filters' 
                     : 'No creditors yet. Add your first creditor!'}

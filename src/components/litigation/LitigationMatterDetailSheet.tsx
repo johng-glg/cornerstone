@@ -367,13 +367,13 @@ export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: Li
                     matterId={matterId} 
                     onAddAssignment={() => setAssignmentDialogOpen(true)}
                     opposingCounsel={{
-                      lawFirmName: matter.opposing_law_firm?.name,
-                      contactName: matter.opposing_counsel_contact 
-                        ? `${matter.opposing_counsel_contact.first_name} ${matter.opposing_counsel_contact.last_name}`
+                      lawFirmName: (matter as any).opposing_creditor?.name,
+                      contactName: (matter as any).opposing_contact 
+                        ? `${(matter as any).opposing_contact.first_name} ${(matter as any).opposing_contact.last_name}`
                         : null,
-                      contactTitle: matter.opposing_counsel_contact?.title,
-                      contactEmail: matter.opposing_counsel_contact?.email,
-                      contactPhone: matter.opposing_counsel_contact?.phone,
+                      contactTitle: (matter as any).opposing_contact?.title,
+                      contactEmail: (matter as any).opposing_contact?.email,
+                      contactPhone: (matter as any).opposing_contact?.phone,
                     }}
                   />
                 </TabsContent>

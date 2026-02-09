@@ -30,6 +30,7 @@ interface CreditorFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   creditor?: Creditor | null;
+  onCreated?: (creditor: Creditor) => void;
 }
 
 const creditorTypeLabels: Record<string, string> = {
@@ -39,7 +40,7 @@ const creditorTypeLabels: Record<string, string> = {
   debt_buyer: 'Debt Buyer',
 };
 
-export function CreditorFormDialog({ open, onOpenChange, creditor }: CreditorFormDialogProps) {
+export function CreditorFormDialog({ open, onOpenChange, creditor, onCreated }: CreditorFormDialogProps) {
   const createCreditor = useCreateCreditor();
   const updateCreditor = useUpdateCreditor();
   const isEditing = !!creditor;
@@ -111,7 +112,8 @@ export function CreditorFormDialog({ open, onOpenChange, creditor }: CreditorFor
     if (isEditing && creditor) {
       await updateCreditor.mutateAsync({ id: creditor.id, ...creditorData });
     } else {
-      await createCreditor.mutateAsync(creditorData);
+      const newCreditor = await createCreditor.mutateAsync(creditorData);
+      onCreated?.(newCreditor as Creditor);
     }
     
     onOpenChange(false);

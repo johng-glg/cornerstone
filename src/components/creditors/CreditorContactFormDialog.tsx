@@ -19,7 +19,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { useCreateLawFirmContact, useUpdateLawFirmContact, type LawFirmContact } from '@/hooks/useLawFirmContacts';
+import { useCreateCreditorContact, useUpdateCreditorContact, type CreditorContact } from '@/hooks/useCreditorContacts';
 
 const formSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
@@ -32,23 +32,23 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-interface LawFirmContactFormDialogProps {
+interface CreditorContactFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  lawFirmId: string;
-  contact?: LawFirmContact | null;
-  onCreated?: (contact: LawFirmContact) => void;
+  creditorId: string;
+  contact?: CreditorContact | null;
+  onCreated?: (contact: CreditorContact) => void;
 }
 
-export function LawFirmContactFormDialog({ 
+export function CreditorContactFormDialog({ 
   open, 
   onOpenChange, 
-  lawFirmId,
+  creditorId,
   contact,
   onCreated 
-}: LawFirmContactFormDialogProps) {
-  const createContact = useCreateLawFirmContact();
-  const updateContact = useUpdateLawFirmContact();
+}: CreditorContactFormDialogProps) {
+  const createContact = useCreateCreditorContact();
+  const updateContact = useUpdateCreditorContact();
   const isEditing = !!contact;
 
   const form = useForm<FormValues>({
@@ -87,7 +87,7 @@ export function LawFirmContactFormDialog({
 
   const onSubmit = (values: FormValues) => {
     const data = {
-      law_firm_id: lawFirmId,
+      creditor_id: creditorId,
       first_name: values.first_name,
       last_name: values.last_name,
       title: values.title || null,
@@ -158,7 +158,7 @@ export function LawFirmContactFormDialog({
                 <FormItem>
                   <FormLabel>Title</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Partner, Associate" {...field} />
+                    <Input placeholder="e.g., Attorney, Account Manager" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -172,7 +172,7 @@ export function LawFirmContactFormDialog({
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="jsmith@lawfirm.com" {...field} />
+                    <Input type="email" placeholder="jsmith@example.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
