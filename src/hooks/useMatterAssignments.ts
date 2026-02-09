@@ -157,16 +157,35 @@ export function useUnassignStaffFromMatter() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ assignmentId, matterId }: { assignmentId: string; matterId: string }) => {
+    mutationFn: async ({ assignmentId, matterId, staffName, assignmentType }: {
+      assignmentId: string;
+      matterId: string;
+      staffName?: string;
+      assignmentType?: string;
+    }) => {
       const { error } = await supabase
         .from('assignments')
         .update({ is_active: false, unassigned_date: new Date().toISOString() })
         .eq('id', assignmentId);
       if (error) throw error;
+
+      // Log activity
+      const roleLabel = assignmentType ? (ROLE_LABELS[assignmentType] || assignmentType) : 'role';
+      const actingStaffId = await getCurrentUsersStaffId();
+      const description = `${staffName || 'Staff member'} unassigned from ${roleLabel}`;
+
+      await supabase.from('litigation_activities').insert([{
+        matter_id: matterId,
+        activity_type: 'assignment_change',
+        description,
+        staff_id: actingStaffId,
+      }]);
+
       return { matterId };
     },
     onSuccess: ({ matterId }) => {
       queryClient.invalidateQueries({ queryKey: ['matter_assignments', matterId] });
+      queryClient.invalidateQueries({ queryKey: ['litigation_activities', matterId] });
       toast({ title: 'Staff unassigned from matter' });
     },
     onError: (error: Error) => {
