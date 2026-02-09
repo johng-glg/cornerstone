@@ -70,7 +70,7 @@ export default function FeatureRequestsPage() {
 
   const filtered = useMemo(() => {
     if (!requests) return [];
-    return requests.filter(r => {
+    const result = requests.filter(r => {
       const matchesSearch = !searchQuery ||
         r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.description.toLowerCase().includes(searchQuery.toLowerCase());
