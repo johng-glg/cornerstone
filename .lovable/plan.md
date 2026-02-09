@@ -1,123 +1,87 @@
 
 
-## Role Management Settings Tab
+## Task System Enhancements
 
 ### Overview
-Add a new "Roles" tab to the Settings page where administrators can view all system roles, see and edit what each role can access, and assign/remove users from roles -- all in one place.
-
-### Current State
-- Roles are defined as a Postgres enum (`app_role`) with 11 values: admin, attorney, paralegal, negotiator, case_manager, sales_rep, client_services_rep, payment_processor, correspondent, viewer, of_counsel.
-- Permissions per role are hardcoded in `src/lib/docs/rolePermissions.ts` and only displayed in the documentation section.
-- Role assignment to users happens exclusively inside the Staff form dialog.
-- There is no database-backed permissions system -- the permissions matrix is purely informational.
-
-### What This Plan Delivers
-
-**A new "Roles" settings tab with three sections:**
-
-1. **Roles List** -- A card for each role showing its display name, department, description, and member count. Clicking a role opens its detail view.
-
-2. **Role Detail / Permissions Editor** -- When a role is selected:
-   - View and edit the **module permissions matrix** (RCUD per module) stored in a new database table.
-   - View and edit **special permissions** (free-text capabilities like "Approve settlement offers").
-   - See all staff members currently assigned to this role.
-
-3. **Role Member Management** -- Add or remove staff from the selected role directly from this tab (in addition to the existing Staff form dialog).
+Three improvements to the task system: (1) an entity search picker in the task form so tasks can be linked to any module item, (2) a task template system with department-based organization, and (3) "Add Task" buttons on the Client and Lead detail views.
 
 ---
 
-### Database Changes
+### 1. Entity Linker with Search in Task Form
 
-**New table: `role_permissions`**
+**Problem:** When creating a task from the main Tasks page, there is no way to associate it with a client, lead, liability, or litigation matter.
+
+**Solution:** Add an "Entity Link" section to `TaskFormDialog` that reuses the existing global search logic to let users search across leads, clients, liabilities, and litigation matters, then associate the selected item with the task.
+
+**Changes:**
+- **New component: `src/components/tasks/EntitySearchSelect.tsx`** -- A combo-box search field that queries the same data sources as global search (`useGlobalSearch`). When an item is selected, it maps the search result type to the corresponding `entity_type` enum value and stores the entity ID.
+- **Modified: `src/components/tasks/TaskFormDialog.tsx`** -- Add `entity_type` and `entity_id` fields to the form schema. Render the `EntitySearchSelect` component. When the form already has a `defaultEntityType`/`defaultEntityId`, show the linked entity as a read-only badge instead.
+
+**Type mapping:**
+```text
+search type "lead"       -> entity_type "lead"
+search type "client"     -> entity_type "engagement" (matches existing pattern)
+search type "liability"  -> entity_type "liability"
+search type "litigation" -> entity_type "litigation_matter"
+```
+
+---
+
+### 2. Task Templates (Database + Builder + Picker)
+
+**Database changes (1 migration):**
+
+**New table: `task_templates`**
 
 | Column | Type | Notes |
 |--------|------|-------|
-| id | UUID PK | |
-| role | app_role | The role this permission applies to |
-| module | TEXT | e.g. "Leads", "Clients", "Litigation" |
-| can_read | BOOLEAN | Default false |
-| can_create | BOOLEAN | Default false |
-| can_update | BOOLEAN | Default false |
-| can_delete | BOOLEAN | Default false |
-| notes | TEXT (nullable) | e.g. "View only for case context" |
+| id | UUID PK | Default gen_random_uuid() |
+| name | TEXT NOT NULL | Template display name |
+| description | TEXT | Optional longer description |
+| department | department_new (enum) | Which department this template belongs to |
+| task_type | task_type (enum) | Default task type |
+| priority | task_priority (enum) | Default priority |
+| default_title | TEXT NOT NULL | Pre-filled task title |
+| default_description | TEXT | Pre-filled task description |
+| default_due_days | INTEGER | Days from creation to auto-set due date |
+| company_id | UUID FK | Reference to companies table |
+| created_by | UUID FK | Staff who created the template |
+| is_active | BOOLEAN | Default true |
 | created_at | TIMESTAMPTZ | |
 | updated_at | TIMESTAMPTZ | |
 
-Unique constraint on `(role, module)`.
+RLS: Authenticated users can read; admin-only write (using `has_role`).
 
-RLS: All authenticated users can read; only admins can insert/update/delete (using the existing `has_role` function).
+**New files:**
+- **`src/hooks/useTaskTemplates.ts`** -- CRUD hooks for `task_templates` table.
+- **`src/components/tasks/TaskTemplateFormDialog.tsx`** -- Form to create/edit a task template (name, department, default title, description, priority, type, due days).
+- **`src/components/tasks/TaskTemplateList.tsx`** -- List of all templates grouped by department with create/edit/delete actions.
+- **`src/components/settings/TaskTemplatesTab.tsx`** -- Settings tab wrapper for the template builder.
 
-**New table: `role_special_permissions`**
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID PK | |
-| role | app_role | |
-| permission | TEXT | e.g. "Approve settlement offers" |
-| created_at | TIMESTAMPTZ | |
-
-Unique constraint on `(role, permission)`.
-
-RLS: Same as above -- authenticated read, admin write.
-
-**Seed data migration:** Insert the current hardcoded values from `rolePermissions.ts` into both new tables so nothing changes for existing users.
+**Modified files:**
+- **`src/pages/Settings.tsx`** -- Add "Task Templates" tab in the settings page.
+- **`src/components/tasks/TaskFormDialog.tsx`** -- Add a "Use Template" dropdown at the top of the form. When a template is selected, auto-fill the title, description, priority, type, and due date (calculated from `default_due_days`). Templates are grouped by department in the dropdown for easy browsing.
 
 ---
 
-### Frontend Changes
+### 3. "Add Task" Buttons on Client and Lead Detail Views
 
-**New files:**
-- `src/components/settings/RolesSettingsTab.tsx` -- Main tab component with role list and detail panels.
-- `src/hooks/useRolePermissions.ts` -- CRUD hook for `role_permissions` and `role_special_permissions` tables, plus a hook to fetch/manage role members from `user_roles`.
+**Modified: `src/components/clients/detail/ClientTasksTab.tsx`**
+- Add an "Add Task" button at the top of the tab.
+- Include the `TaskFormDialog` with `defaultEntityType="engagement"` and `defaultEntityId={clientId}` so the task auto-links to the client.
+- After creating, invalidate the client tasks query.
 
-**Modified files:**
-- `src/pages/Settings.tsx` -- Add the "Roles" tab trigger and content.
-- `src/lib/docs/rolePermissions.ts` -- Update the docs `PermissionsMatrix` to optionally read from the database instead of hardcoded values (fallback to hardcoded if no DB data exists).
-
-**UI Layout for the Roles Tab:**
-
-```text
-+------------------------------------------+
-| Roles Settings                           |
-+------------------------------------------+
-| [Admin] [Attorney] [Case Mgr] [Negot..].|
-|                                          |
-| --- Selected: Attorney ---               |
-|                                          |
-| Description: [editable text]             |
-| Department:  Legal                       |
-|                                          |
-| Module Permissions                       |
-| +------+---+---+---+---+------+         |
-| |Module | R | C | U | D |Notes |         |
-| +------+---+---+---+---+------+         |
-| |Leads  | x |   |   |   |View..|         |
-| |Client | x |   | x |   |      |         |
-| |...    |   |   |   |   |      |         |
-| +------+---+---+---+---+------+         |
-|                                          |
-| Special Permissions          [+ Add]     |
-| * Approve settlement offers    [x]       |
-| * File court documents         [x]       |
-|                                          |
-| Members (3)                  [+ Assign]  |
-| * Jane Smith (Attorney)        [Remove]  |
-| * Bob Jones (Attorney)         [Remove]  |
-+------------------------------------------+
-```
-
-- Each checkbox in the permissions matrix triggers an upsert to `role_permissions`.
-- "Add" on special permissions opens an inline input.
-- "Assign" opens a staff picker (searchable dropdown of staff not already in this role).
-- "Remove" removes the `user_roles` row for that user.
-- All changes save immediately (no "Save" button needed -- optimistic updates with toast confirmations).
+**Modified: `src/components/leads/LeadDetailSheet.tsx`**
+- Add a "Tasks" tab (making the tabs grid 4 columns instead of 3).
+- Inside the new tab, show tasks filtered by `entity_type: 'lead'` and `entity_id: leadId` using the existing `useTasks` hook.
+- Include an "Add Task" button with `defaultEntityType="lead"` and `defaultEntityId={leadId}`.
 
 ---
 
 ### Technical Notes
 
-- The `app_role` enum values cannot be added/removed from this UI (that requires a database migration). This tab manages what each existing role **can do**, not which roles exist. A note in the UI will explain this.
-- The role-to-department mapping remains in `staffDepartments.ts` since departments are derived from roles automatically.
-- The `has_role` security definer function already exists and will be used in the RLS policies for the new tables.
-- Admin-only access: The tab itself will be hidden for non-admin users using the `useAuth().isAdmin()` check.
+- The `entity_type` enum already supports `engagement`, `case`, `liability`, `lead`, and `litigation_matter` -- no enum changes needed.
+- The `department_new` enum already exists with values matching the department system (`administration`, `legal`, `negotiations`, `sales`, `client_services`, `operations`).
+- Task template selection is additive -- it pre-fills fields but users can modify anything before saving.
+- The entity search select will debounce input and run parallel queries just like the existing global search.
 
