@@ -87,20 +87,7 @@ export function useAssignStaffToMatter() {
       toast({ title: 'Staff assigned to matter' });
     },
     onError: (error: Error) => {
-      // Check for unique constraint violation
-      const isRoleConflict = error.message.includes('idx_assignments_single_role') || 
-                              error.message.includes('duplicate key') ||
-                              error.message.includes('unique constraint');
-      
-      if (isRoleConflict) {
-        toast({ 
-          title: 'Role already assigned', 
-          description: 'This role already has an active assignment. Please unassign the current person first.', 
-          variant: 'destructive' 
-        });
-      } else {
-        toast({ title: 'Failed to assign staff', description: error.message, variant: 'destructive' });
-      }
+      toast({ title: 'Failed to assign staff', description: error.message, variant: 'destructive' });
     },
   });
 }
