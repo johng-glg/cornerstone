@@ -3,6 +3,7 @@ import { NotesPanel } from '@/components/notes/NotesPanel';
 import { useLead, useUpdateLeadStatus, type LeadStatus } from '@/hooks/useLeads';
 import { useLeadActivities, useCreateLeadActivity } from '@/hooks/useLeadActivities';
 import { useCurrentStaff } from '@/hooks/useStaff';
+import { useTasks } from '@/hooks/useTasks';
 import {
   Sheet,
   SheetContent,
@@ -16,6 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   Select,
   SelectContent,
@@ -23,9 +26,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
 import { LeadFormDialog } from './LeadFormDialog';
 import { LeadScoreBadge } from './LeadScoreBadge';
+import { TaskFormDialog } from '@/components/tasks/TaskFormDialog';
+import { TaskDetailSheet } from '@/components/tasks/TaskDetailSheet';
 import { SCORE_FACTOR_LABELS } from '@/types/scoring';
 import { 
   Phone, 
@@ -42,7 +46,8 @@ import {
   Flag,
   CheckCircle2,
   XCircle,
-  Target
+  Target,
+  Plus
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -56,6 +61,9 @@ interface LeadDetailSheetProps {
 export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetProps) {
   const { data: lead, isLoading } = useLead(leadId ?? undefined);
   const { data: activities, isLoading: activitiesLoading } = useLeadActivities(leadId ?? undefined);
+  const { data: leadTasks, isLoading: tasksLoading } = useTasks(
+    leadId ? { entityType: 'lead', entityId: leadId } : undefined
+  );
   const createActivity = useCreateLeadActivity();
   const updateStatus = useUpdateLeadStatus();
   const { data: currentStaff } = useCurrentStaff();
@@ -64,6 +72,8 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
   const [activityNotes, setActivityNotes] = useState('');
   const [outcome, setOutcome] = useState<string>('');
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const handleStatusChange = (newStatus: LeadStatus) => {
     if (!leadId) return;
@@ -97,6 +107,15 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
     converted: 'bg-primary/20 text-primary border-primary/30',
     lost: 'bg-muted text-muted-foreground border-muted',
   };
+
+  const statusBadgeColors: Record<string, string> = {
+    pending: 'bg-yellow-500/10 text-yellow-700 border-yellow-200',
+    in_progress: 'bg-blue-500/10 text-blue-700 border-blue-200',
+    completed: 'bg-green-500/10 text-green-700 border-green-200',
+    cancelled: 'bg-gray-500/10 text-gray-700 border-gray-200',
+  };
+
+  const leadName = lead ? `${lead.first_name} ${lead.last_name}` : '';
 
   return (
     <Sheet open={!!leadId} onOpenChange={() => onClose()}>
@@ -146,9 +165,10 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
             </SheetHeader>
 
             <Tabs defaultValue="details" className="mt-6">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="details">Details</TabsTrigger>
                 <TabsTrigger value="notes">Notes</TabsTrigger>
+                <TabsTrigger value="tasks">Tasks</TabsTrigger>
                 <TabsTrigger value="activity">Activity</TabsTrigger>
               </TabsList>
 
@@ -296,6 +316,61 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
 
               <TabsContent value="notes" className="mt-4">
                 {leadId && <NotesPanel entityType="lead" entityId={leadId} />}
+              </TabsContent>
+
+              <TabsContent value="tasks" className="space-y-4 mt-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium text-muted-foreground">
+                    {leadTasks?.length || 0} task{leadTasks?.length !== 1 ? 's' : ''}
+                  </h4>
+                  <Button size="sm" onClick={() => setShowAddTask(true)}>
+                    <Plus className="mr-1.5 h-4 w-4" />
+                    Add Task
+                  </Button>
+                </div>
+
+                {tasksLoading ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                  </div>
+                ) : !leadTasks || leadTasks.length === 0 ? (
+                  <div className="border rounded-lg p-6 text-center text-muted-foreground text-sm">
+                    No tasks linked to this lead.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {leadTasks.map((task) => (
+                      <Card
+                        key={task.id}
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => setSelectedTaskId(task.id)}
+                      >
+                        <CardContent className="p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium truncate">{task.title}</p>
+                              {task.due_date && (
+                                <p className={cn(
+                                  'text-xs mt-0.5',
+                                  new Date(task.due_date) < new Date() && task.status !== 'completed'
+                                    ? 'text-destructive'
+                                    : 'text-muted-foreground'
+                                )}>
+                                  Due {format(new Date(task.due_date), 'MMM d, yyyy')}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex gap-1.5">
+                              <Badge className={statusBadgeColors[task.status] || ''} variant="outline">
+                                {task.status.replace('_', ' ')}
+                              </Badge>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="activity" className="space-y-4 mt-4">
@@ -447,6 +522,19 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
               open={showEditDialog}
               onOpenChange={setShowEditDialog}
               lead={lead}
+            />
+            <TaskFormDialog
+              open={showAddTask}
+              onOpenChange={setShowAddTask}
+              defaultEntityType="lead"
+              defaultEntityId={leadId || undefined}
+              defaultEntityLabel={leadName}
+            />
+            <TaskDetailSheet
+              taskId={selectedTaskId}
+              open={!!selectedTaskId}
+              onOpenChange={(open) => !open && setSelectedTaskId(null)}
+              onEdit={() => {}}
             />
           </>
         ) : (
