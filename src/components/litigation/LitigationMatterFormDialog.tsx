@@ -27,9 +27,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCreateLitigationMatter, useUpdateLitigationMatter, type LitigationMatter, type LitigationStatus } from '@/hooks/useLitigationMatters';
-import { OpposingCounselSelect } from '@/components/opposing-counsel/OpposingCounselSelect';
-import { useLawFirms } from '@/hooks/useLawFirms';
-import { useLawFirmContacts } from '@/hooks/useLawFirmContacts';
+import { CreditorCounselSelect } from '@/components/creditors/CreditorCounselSelect';
+import { useCreditors } from '@/hooks/useCreditors';
+import { useCreditorContacts } from '@/hooks/useCreditorContacts';
 
 const formSchema = z.object({
   case_number: z.string().optional(),
@@ -38,8 +38,8 @@ const formSchema = z.object({
   state: z.string().optional(),
   opposing_party: z.string().optional(),
   opposing_counsel: z.string().optional(),
-  opposing_law_firm_id: z.string().nullable().optional(),
-  opposing_counsel_id: z.string().nullable().optional(),
+  opposing_creditor_id: z.string().nullable().optional(),
+  opposing_contact_id: z.string().nullable().optional(),
   status: z.string().default('pending_response'),
   service_date: z.string().optional(),
   response_deadline: z.string().optional(),
@@ -100,8 +100,8 @@ export function LitigationMatterFormDialog({
       state: '',
       opposing_party: creditorName || '',
       opposing_counsel: '',
-      opposing_law_firm_id: null,
-      opposing_counsel_id: null,
+      opposing_creditor_id: null,
+      opposing_contact_id: null,
       status: 'new',
       service_date: '',
       response_deadline: '',
@@ -113,9 +113,9 @@ export function LitigationMatterFormDialog({
   });
 
   // For auto-populating opposing_counsel text field
-  const { data: firms } = useLawFirms();
-  const currentLawFirmId = form.watch('opposing_law_firm_id');
-  const { data: contacts } = useLawFirmContacts(currentLawFirmId || undefined);
+  const { data: creditors } = useCreditors();
+  const currentCreditorId = form.watch('opposing_creditor_id');
+  const { data: contacts } = useCreditorContacts(currentCreditorId || undefined);
 
   // Reset form when matter or creditorName changes
   useEffect(() => {
@@ -127,8 +127,8 @@ export function LitigationMatterFormDialog({
         state: matter.state || '',
         opposing_party: matter.opposing_party || '',
         opposing_counsel: matter.opposing_counsel || '',
-        opposing_law_firm_id: matter.opposing_law_firm_id || null,
-        opposing_counsel_id: matter.opposing_counsel_id || null,
+        opposing_creditor_id: (matter as any).opposing_creditor_id || null,
+        opposing_contact_id: (matter as any).opposing_contact_id || null,
         status: matter.status || 'new',
         service_date: matter.service_date || '',
         response_deadline: matter.response_deadline || '',
@@ -147,8 +147,8 @@ export function LitigationMatterFormDialog({
         state: '',
         opposing_party: creditorName || '',
         opposing_counsel: '',
-        opposing_law_firm_id: null,
-        opposing_counsel_id: null,
+        opposing_creditor_id: null,
+        opposing_contact_id: null,
         status: 'new',
         service_date: '',
         response_deadline: '',
@@ -161,23 +161,23 @@ export function LitigationMatterFormDialog({
   }, [matter, form, creditorName]);
 
   // Helper to build opposing_counsel display string
-  const buildOpposingCounselText = (lawFirmId: string | null, contactId: string | null): string => {
-    const firm = firms?.find(f => f.id === lawFirmId);
-    const contact = contacts?.find(c => c.id === contactId);
+  const buildOpposingCounselText = (creditorIdVal: string | null, contactIdVal: string | null): string => {
+    const creditor = creditors?.find(c => c.id === creditorIdVal);
+    const contact = contacts?.find(c => c.id === contactIdVal);
     
-    if (contact && firm) {
-      return `${contact.first_name} ${contact.last_name}, ${firm.name}`;
+    if (contact && creditor) {
+      return `${contact.first_name} ${contact.last_name}, ${creditor.name}`;
     }
-    if (firm) {
-      return firm.name;
+    if (creditor) {
+      return creditor.name;
     }
     return '';
   };
 
   const onSubmit = (values: FormValues) => {
-    // Auto-populate opposing_counsel text from selected firm/contact
-    const opposingCounselText = values.opposing_law_firm_id 
-      ? buildOpposingCounselText(values.opposing_law_firm_id, values.opposing_counsel_id || null)
+    // Auto-populate opposing_counsel text from selected creditor/contact
+    const opposingCounselText = values.opposing_creditor_id 
+      ? buildOpposingCounselText(values.opposing_creditor_id, values.opposing_contact_id || null)
       : values.opposing_counsel;
 
     const data = {
@@ -189,8 +189,10 @@ export function LitigationMatterFormDialog({
       state: values.state || null,
       opposing_party: values.opposing_party || null,
       opposing_counsel: opposingCounselText || null,
-      opposing_law_firm_id: values.opposing_law_firm_id || null,
-      opposing_counsel_id: values.opposing_counsel_id || null,
+      opposing_law_firm_id: null,
+      opposing_counsel_id: null,
+      opposing_creditor_id: values.opposing_creditor_id || null,
+      opposing_contact_id: values.opposing_contact_id || null,
       status: values.status as LitigationStatus,
       service_date: values.service_date || null,
       response_deadline: values.response_deadline || null,
@@ -331,17 +333,17 @@ export function LitigationMatterFormDialog({
               )}
             />
 
-            {/* Opposing Counsel Lookup */}
+            {/* Opposing Counsel Lookup - now using Creditors */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Opposing Counsel</label>
-              <OpposingCounselSelect
-                lawFirmId={form.watch('opposing_law_firm_id') || null}
-                contactId={form.watch('opposing_counsel_id') || null}
-                onLawFirmChange={(id) => {
-                  form.setValue('opposing_law_firm_id', id);
-                  form.setValue('opposing_counsel_id', null);
+              <CreditorCounselSelect
+                creditorId={form.watch('opposing_creditor_id') || null}
+                contactId={form.watch('opposing_contact_id') || null}
+                onCreditorChange={(id) => {
+                  form.setValue('opposing_creditor_id', id);
+                  form.setValue('opposing_contact_id', null);
                 }}
-                onContactChange={(id) => form.setValue('opposing_counsel_id', id)}
+                onContactChange={(id) => form.setValue('opposing_contact_id', id)}
               />
             </div>
 

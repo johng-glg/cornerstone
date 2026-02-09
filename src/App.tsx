@@ -24,7 +24,7 @@ import CompaniesPage from "./pages/Companies";
 import StaffPage from "./pages/Staff";
 import SettingsPage from "./pages/Settings";
 import ReportsPage from "./pages/Reports";
-import OpposingCounselPage from "./pages/OpposingCounsel";
+// OpposingCounsel removed - consolidated into Creditors
 import LeadMetricsPage from "./pages/LeadMetrics";
 import BillingPage from "./pages/Billing";
 import { DocsLayout } from "./components/docs/DocsLayout";
@@ -99,7 +99,7 @@ const App = () => (
               <Route path="/companies" element={<AppLayout><CompaniesPage /></AppLayout>} />
               <Route path="/staff" element={<AppLayout><StaffPage /></AppLayout>} />
               <Route path="/payments" element={<AppLayout><PaymentsPage /></AppLayout>} />
-              <Route path="/opposing-counsel" element={<AppLayout><OpposingCounselPage /></AppLayout>} />
+              {/* opposing-counsel route removed - consolidated into creditors */}
               <Route path="/feature-requests" element={<AppLayout><FeatureRequestsPage /></AppLayout>} />
               <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
               

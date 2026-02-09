@@ -2,89 +2,89 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-export interface LawFirmContact {
+export interface CreditorContact {
   id: string;
-  law_firm_id: string;
+  creditor_id: string;
   first_name: string;
   last_name: string;
   title: string | null;
   email: string | null;
   phone: string | null;
-  is_active: boolean;
   notes: string | null;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
-  law_firm?: {
+  creditor?: {
     id: string;
     name: string;
   } | null;
 }
 
-export type LawFirmContactInsert = Omit<LawFirmContact, 'id' | 'created_at' | 'updated_at' | 'law_firm'>;
-export type LawFirmContactUpdate = Partial<LawFirmContactInsert> & { id: string };
+export type CreditorContactInsert = Omit<CreditorContact, 'id' | 'created_at' | 'updated_at' | 'creditor'>;
+export type CreditorContactUpdate = Partial<CreditorContactInsert> & { id: string };
 
-export function useLawFirmContacts(lawFirmId?: string) {
+export function useCreditorContacts(creditorId?: string) {
   return useQuery({
-    queryKey: ['law_firm_contacts', lawFirmId],
+    queryKey: ['creditor_contacts', creditorId],
     queryFn: async () => {
       let query = supabase
-        .from('law_firm_contacts')
+        .from('creditor_contacts')
         .select(`
           *,
-          law_firm:law_firms(id, name)
+          creditor:creditors(id, name)
         `)
         .eq('is_active', true)
         .order('last_name', { ascending: true });
 
-      if (lawFirmId) {
-        query = query.eq('law_firm_id', lawFirmId);
+      if (creditorId) {
+        query = query.eq('creditor_id', creditorId);
       }
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as LawFirmContact[];
+      return data as CreditorContact[];
     },
-    enabled: lawFirmId ? !!lawFirmId : true,
+    enabled: creditorId ? !!creditorId : true,
   });
 }
 
-export function useLawFirmContact(id: string | undefined) {
+export function useCreditorContact(id: string | undefined) {
   return useQuery({
-    queryKey: ['law_firm_contact', id],
+    queryKey: ['creditor_contact', id],
     queryFn: async () => {
       if (!id) return null;
       const { data, error } = await supabase
-        .from('law_firm_contacts')
+        .from('creditor_contacts')
         .select(`
           *,
-          law_firm:law_firms(id, name)
+          creditor:creditors(id, name)
         `)
         .eq('id', id)
         .single();
       if (error) throw error;
-      return data as LawFirmContact;
+      return data as CreditorContact;
     },
     enabled: !!id,
   });
 }
 
-export function useCreateLawFirmContact() {
+export function useCreateCreditorContact() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (contact: LawFirmContactInsert) => {
+    mutationFn: async (contact: CreditorContactInsert) => {
       const { data, error } = await supabase
-        .from('law_firm_contacts')
+        .from('creditor_contacts')
         .insert([contact])
         .select()
         .single();
       if (error) throw error;
-      return data as LawFirmContact;
+      return data as CreditorContact;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['law_firm_contacts'] });
-      queryClient.invalidateQueries({ queryKey: ['law_firms'] }); // Refresh contact counts
+      queryClient.invalidateQueries({ queryKey: ['creditor_contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['creditors'] });
       toast({ title: 'Contact created' });
     },
     onError: (error: Error) => {
@@ -93,24 +93,24 @@ export function useCreateLawFirmContact() {
   });
 }
 
-export function useUpdateLawFirmContact() {
+export function useUpdateCreditorContact() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: LawFirmContactUpdate) => {
+    mutationFn: async ({ id, ...updates }: CreditorContactUpdate) => {
       const { data, error } = await supabase
-        .from('law_firm_contacts')
+        .from('creditor_contacts')
         .update(updates)
         .eq('id', id)
         .select()
         .single();
       if (error) throw error;
-      return data as LawFirmContact;
+      return data as CreditorContact;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['law_firm_contacts'] });
-      queryClient.invalidateQueries({ queryKey: ['law_firm_contact', data.id] });
+      queryClient.invalidateQueries({ queryKey: ['creditor_contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['creditor_contact', data.id] });
       toast({ title: 'Contact updated' });
     },
     onError: (error: Error) => {
@@ -119,22 +119,21 @@ export function useUpdateLawFirmContact() {
   });
 }
 
-export function useDeleteLawFirmContact() {
+export function useDeleteCreditorContact() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (id: string) => {
-      // Soft delete by setting is_active to false
       const { error } = await supabase
-        .from('law_firm_contacts')
+        .from('creditor_contacts')
         .update({ is_active: false })
         .eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['law_firm_contacts'] });
-      queryClient.invalidateQueries({ queryKey: ['law_firms'] }); // Refresh contact counts
+      queryClient.invalidateQueries({ queryKey: ['creditor_contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['creditors'] });
       toast({ title: 'Contact deleted' });
     },
     onError: (error: Error) => {

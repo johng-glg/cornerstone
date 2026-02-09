@@ -25,6 +25,8 @@ export interface LitigationMatter {
   opposing_counsel: string | null;
   opposing_law_firm_id: string | null;
   opposing_counsel_id: string | null;
+  opposing_creditor_id: string | null;
+  opposing_contact_id: string | null;
   status: LitigationStatus;
   service_date: string | null;
   response_deadline: string | null;
@@ -50,13 +52,13 @@ export interface LitigationMatter {
       last_name: string;
     } | null;
   } | null;
-  opposing_law_firm?: {
+  opposing_creditor?: {
     id: string;
     name: string;
     phone: string | null;
     email: string | null;
   } | null;
-  opposing_counsel_contact?: {
+  opposing_contact?: {
     id: string;
     first_name: string;
     last_name: string;
@@ -89,8 +91,8 @@ export function useLitigationMatters(clientServiceId?: string) {
             service_number,
             primary_client:clients!engagements_primary_contact_id_fkey(id, first_name, last_name)
           ),
-          opposing_law_firm:law_firms(id, name, phone, email),
-          opposing_counsel_contact:law_firm_contacts(id, first_name, last_name, title, email, phone)
+          opposing_creditor:creditors!litigation_matters_opposing_creditor_id_fkey(id, name, phone, email),
+          opposing_contact:creditor_contacts!litigation_matters_opposing_contact_id_fkey(id, first_name, last_name, title, email, phone)
         `)
         .order('created_at', { ascending: false });
 
@@ -162,8 +164,8 @@ export function useLitigationMatter(id: string | undefined) {
             service_number,
             primary_client:clients!engagements_primary_contact_id_fkey(id, first_name, last_name, email)
           ),
-          opposing_law_firm:law_firms(id, name, phone, email),
-          opposing_counsel_contact:law_firm_contacts(id, first_name, last_name, title, email, phone)
+          opposing_creditor:creditors!litigation_matters_opposing_creditor_id_fkey(id, name, phone, email),
+          opposing_contact:creditor_contacts!litigation_matters_opposing_contact_id_fkey(id, first_name, last_name, title, email, phone)
         `)
         .eq('id', id)
         .single();
