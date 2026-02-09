@@ -3393,6 +3393,72 @@ export type Database = {
           },
         ]
       }
+      task_templates: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          default_description: string | null
+          default_due_days: number | null
+          default_title: string
+          department: Database["public"]["Enums"]["department_new"] | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          priority: Database["public"]["Enums"]["task_priority"]
+          task_type: Database["public"]["Enums"]["task_type"]
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_description?: string | null
+          default_due_days?: number | null
+          default_title: string
+          department?: Database["public"]["Enums"]["department_new"] | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          priority?: Database["public"]["Enums"]["task_priority"]
+          task_type?: Database["public"]["Enums"]["task_type"]
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_description?: string | null
+          default_due_days?: number | null
+          default_title?: string
+          department?: Database["public"]["Enums"]["department_new"] | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          priority?: Database["public"]["Enums"]["task_priority"]
+          task_type?: Database["public"]["Enums"]["task_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assigned_to: string | null
