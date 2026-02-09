@@ -159,14 +159,23 @@ Deno.serve(async (req) => {
       file_type: 'DEBT SETTLEMENT',
     };
 
-    console.log('Creating Forth client...');
+    console.log('Creating Forth client with payload:', JSON.stringify(clientPayload, null, 2));
     const createClientResponse = await fetch(`${FORTH_API_BASE}/clients`, {
       method: 'POST',
       headers: buildForthHeaders(accessToken),
       body: JSON.stringify(clientPayload),
     });
 
-    const createClientResult = await createClientResponse.json();
+    const createClientText = await createClientResponse.text();
+    console.log(`Forth create-client response status: ${createClientResponse.status}`);
+    console.log('Forth create-client response body:', createClientText);
+
+    let createClientResult;
+    try {
+      createClientResult = JSON.parse(createClientText);
+    } catch {
+      createClientResult = { raw: createClientText };
+    }
     
     await logOperation(
       supabase,
@@ -176,14 +185,16 @@ Deno.serve(async (req) => {
       createClientResponse.ok,
       clientPayload,
       createClientResult,
-      !createClientResponse.ok ? JSON.stringify(createClientResult) : undefined
+      !createClientResponse.ok ? `HTTP ${createClientResponse.status}: ${createClientText}` : undefined
     );
 
     if (!createClientResponse.ok) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: `Failed to create Forth client: ${JSON.stringify(createClientResult)}` 
+          error: `Forth API returned HTTP ${createClientResponse.status}`,
+          details: createClientResult,
+          sent_payload: { ...clientPayload, ssn: clientPayload.ssn ? '***' : '' },
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
