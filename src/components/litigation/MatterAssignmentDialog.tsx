@@ -179,5 +179,34 @@ export function MatterAssignmentDialog({
         )}
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={!!confirmData} onOpenChange={(o) => !o && setConfirmData(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Replace existing assignment?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {confirmData && (
+              <>
+                <strong>{confirmData.currentName}</strong> is currently assigned as{' '}
+                <strong>{assignmentTypes.find(t => t.value === confirmData.data.assignment_type)?.label}</strong>.
+                They will be unassigned and replaced with the new selection.
+              </>
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={async () => {
+            if (confirmData) {
+              await doAssign(confirmData.data);
+              setConfirmData(null);
+            }
+          }}>
+            Replace
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
