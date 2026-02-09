@@ -47,6 +47,13 @@ const leadSchema = z.object({
   has_active_lawsuit: z.boolean().default(false),
   assigned_to: z.string().optional(),
   notes: z.string().optional(),
+  utm_source: z.string().max(200).optional(),
+  utm_medium: z.string().max(200).optional(),
+  utm_campaign: z.string().max(200).optional(),
+  utm_term: z.string().max(200).optional(),
+  utm_content: z.string().max(200).optional(),
+  landing_page: z.string().max(500).optional(),
+  referrer_url: z.string().max(500).optional(),
 });
 
 type LeadFormData = z.infer<typeof leadSchema>;
