@@ -88,6 +88,13 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
       interest_type: 'debt_resolution',
       has_active_lawsuit: false,
       notes: '',
+      utm_source: '',
+      utm_medium: '',
+      utm_campaign: '',
+      utm_term: '',
+      utm_content: '',
+      landing_page: '',
+      referrer_url: '',
     },
   });
 
