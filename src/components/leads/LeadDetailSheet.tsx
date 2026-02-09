@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { NotesPanel } from '@/components/notes/NotesPanel';
 import { useLead, useUpdateLeadStatus, type LeadStatus } from '@/hooks/useLeads';
 import { useLeadActivities, useCreateLeadActivity } from '@/hooks/useLeadActivities';
 import { useCurrentStaff } from '@/hooks/useStaff';
@@ -145,8 +146,9 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
             </SheetHeader>
 
             <Tabs defaultValue="details" className="mt-6">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="notes">Notes</TabsTrigger>
                 <TabsTrigger value="activity">Activity</TabsTrigger>
               </TabsList>
 
@@ -290,6 +292,10 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
                 <div className="text-xs text-muted-foreground pt-4">
                   Created {format(new Date(lead.created_at), 'PPP')}
                 </div>
+              </TabsContent>
+
+              <TabsContent value="notes" className="mt-4">
+                {leadId && <NotesPanel entityType="lead" entityId={leadId} />}
               </TabsContent>
 
               <TabsContent value="activity" className="space-y-4 mt-4">

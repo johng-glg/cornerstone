@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Building2, FileText, Plus, Handshake, History, Calculator, Scale } from 'lucide-react';
+import { DollarSign, Building2, FileText, Plus, Handshake, History, Calculator, Scale, MessageSquare } from 'lucide-react';
+import { NotesPanel } from '@/components/notes/NotesPanel';
 import { useLiability } from '@/hooks/useLiabilities';
 import { useSettlements } from '@/hooks/useSettlements';
 import { useClientService } from '@/hooks/useClientServices';
@@ -122,8 +123,12 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
             <Separator className="my-4" />
 
             <Tabs defaultValue="details" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="notes">
+                  <MessageSquare className="h-3.5 w-3.5 mr-1" />
+                  Notes
+                </TabsTrigger>
                 <TabsTrigger value="settlements">Settlements</TabsTrigger>
                 <TabsTrigger value="history">History</TabsTrigger>
               </TabsList>
@@ -199,17 +204,21 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
                   </Card>
                 )}
 
-                {/* Notes */}
+                {/* Legacy Notes */}
                 {liability.notes && (
                   <Card>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-base">Notes</CardTitle>
+                      <CardTitle className="text-base">Legacy Notes</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm whitespace-pre-wrap">{liability.notes}</p>
                     </CardContent>
                   </Card>
                 )}
+              </TabsContent>
+
+              <TabsContent value="notes" className="mt-4">
+                <NotesPanel entityType="liability" entityId={liabilityId!} />
               </TabsContent>
 
               <TabsContent value="settlements" className="space-y-4 mt-4">
