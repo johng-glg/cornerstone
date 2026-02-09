@@ -1897,6 +1897,7 @@ export type Database = {
           in_bankruptcy: boolean | null
           interest_type: Database["public"]["Enums"]["lead_interest"]
           job_title: string | null
+          landing_page: string | null
           last_name: string
           lead_number: string
           lead_score: number | null
@@ -1909,6 +1910,7 @@ export type Database = {
           originating_company_id: string | null
           phone: string | null
           qualified_at: string | null
+          referrer_url: string | null
           response_deadline: string | null
           score_breakdown: Json | null
           score_calculated_at: string | null
@@ -1920,6 +1922,11 @@ export type Database = {
           state: string | null
           status: Database["public"]["Enums"]["lead_status"]
           updated_at: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
           wizard_data: Json | null
           wizard_step: number | null
         }
@@ -1954,6 +1961,7 @@ export type Database = {
           in_bankruptcy?: boolean | null
           interest_type?: Database["public"]["Enums"]["lead_interest"]
           job_title?: string | null
+          landing_page?: string | null
           last_name: string
           lead_number: string
           lead_score?: number | null
@@ -1966,6 +1974,7 @@ export type Database = {
           originating_company_id?: string | null
           phone?: string | null
           qualified_at?: string | null
+          referrer_url?: string | null
           response_deadline?: string | null
           score_breakdown?: Json | null
           score_calculated_at?: string | null
@@ -1977,6 +1986,11 @@ export type Database = {
           state?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           wizard_data?: Json | null
           wizard_step?: number | null
         }
@@ -2011,6 +2025,7 @@ export type Database = {
           in_bankruptcy?: boolean | null
           interest_type?: Database["public"]["Enums"]["lead_interest"]
           job_title?: string | null
+          landing_page?: string | null
           last_name?: string
           lead_number?: string
           lead_score?: number | null
@@ -2023,6 +2038,7 @@ export type Database = {
           originating_company_id?: string | null
           phone?: string | null
           qualified_at?: string | null
+          referrer_url?: string | null
           response_deadline?: string | null
           score_breakdown?: Json | null
           score_calculated_at?: string | null
@@ -2034,6 +2050,11 @@ export type Database = {
           state?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           wizard_data?: Json | null
           wizard_step?: number | null
         }
