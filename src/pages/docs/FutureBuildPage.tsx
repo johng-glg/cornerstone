@@ -191,7 +191,7 @@ export default function FutureBuildPage() {
           <CardContent>
             <p className="text-2xl font-bold text-green-600">
               {completedCount}
-              <span className="text-sm font-normal text-muted-foreground ml-1">/ {FUTURE_BUILDS.length}</span>
+              <span className="text-sm font-normal text-muted-foreground ml-1">/ {allItems.length}</span>
             </p>
             <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
               <div 
