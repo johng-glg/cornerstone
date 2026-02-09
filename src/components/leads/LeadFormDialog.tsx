@@ -47,6 +47,13 @@ const leadSchema = z.object({
   has_active_lawsuit: z.boolean().default(false),
   assigned_to: z.string().optional(),
   notes: z.string().optional(),
+  utm_source: z.string().max(200).optional(),
+  utm_medium: z.string().max(200).optional(),
+  utm_campaign: z.string().max(200).optional(),
+  utm_term: z.string().max(200).optional(),
+  utm_content: z.string().max(200).optional(),
+  landing_page: z.string().max(500).optional(),
+  referrer_url: z.string().max(500).optional(),
 });
 
 type LeadFormData = z.infer<typeof leadSchema>;
@@ -81,6 +88,13 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
       interest_type: 'debt_resolution',
       has_active_lawsuit: false,
       notes: '',
+      utm_source: '',
+      utm_medium: '',
+      utm_campaign: '',
+      utm_term: '',
+      utm_content: '',
+      landing_page: '',
+      referrer_url: '',
     },
   });
 
@@ -99,6 +113,13 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
         has_active_lawsuit: lead.has_active_lawsuit || false,
         assigned_to: lead.assigned_to || undefined,
         notes: lead.notes || '',
+        utm_source: lead.utm_source || '',
+        utm_medium: lead.utm_medium || '',
+        utm_campaign: lead.utm_campaign || '',
+        utm_term: lead.utm_term || '',
+        utm_content: lead.utm_content || '',
+        landing_page: lead.landing_page || '',
+        referrer_url: lead.referrer_url || '',
       });
     } else {
       form.reset({
@@ -138,6 +159,13 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
         has_active_lawsuit: data.has_active_lawsuit,
         assigned_to: data.assigned_to || null,
         notes: data.notes || null,
+        utm_source: data.utm_source || null,
+        utm_medium: data.utm_medium || null,
+        utm_campaign: data.utm_campaign || null,
+        utm_term: data.utm_term || null,
+        utm_content: data.utm_content || null,
+        landing_page: data.landing_page || null,
+        referrer_url: data.referrer_url || null,
       });
       onOpenChange(false);
       return;
@@ -160,6 +188,13 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
       number_of_debts: data.number_of_debts || null,
       assigned_to: data.assigned_to || null,
       notes: data.notes || null,
+      utm_source: data.utm_source || null,
+      utm_medium: data.utm_medium || null,
+      utm_campaign: data.utm_campaign || null,
+      utm_term: data.utm_term || null,
+      utm_content: data.utm_content || null,
+      landing_page: data.landing_page || null,
+      referrer_url: data.referrer_url || null,
     };
 
     await createLead.mutateAsync(leadData);
@@ -432,6 +467,71 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                   </FormItem>
                 )}
               />
+
+              {/* UTM / Marketing Attribution */}
+              <details className="group border rounded-lg">
+                <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-medium">
+                  Marketing Attribution (UTM)
+                  <span className="text-muted-foreground text-xs group-open:hidden">Click to expand</span>
+                </summary>
+                <div className="px-4 pb-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="utm_source" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>UTM Source</FormLabel>
+                        <FormControl><Input {...field} placeholder="google, facebook..." /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="utm_medium" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>UTM Medium</FormLabel>
+                        <FormControl><Input {...field} placeholder="cpc, email, social..." /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  <FormField control={form.control} name="utm_campaign" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>UTM Campaign</FormLabel>
+                      <FormControl><Input {...field} placeholder="spring_2026_promo..." /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="utm_term" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>UTM Term</FormLabel>
+                        <FormControl><Input {...field} placeholder="debt+relief..." /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="utm_content" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>UTM Content</FormLabel>
+                        <FormControl><Input {...field} placeholder="banner_ad_v2..." /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="landing_page" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Landing Page</FormLabel>
+                        <FormControl><Input {...field} placeholder="/get-started" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="referrer_url" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Referrer URL</FormLabel>
+                        <FormControl><Input {...field} placeholder="https://google.com" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                </div>
+              </details>
 
               <div className="flex justify-end gap-3 pt-4">
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

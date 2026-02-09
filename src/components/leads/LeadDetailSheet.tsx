@@ -296,6 +296,61 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
                   </CardContent>
                 </Card>
 
+                {/* UTM / Marketing Attribution */}
+                {(lead.utm_source || lead.utm_medium || lead.utm_campaign || lead.utm_term || lead.utm_content || lead.landing_page || lead.referrer_url) && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">
+                        Marketing Attribution
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {lead.utm_source && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Source</span>
+                          <Badge variant="outline">{lead.utm_source}</Badge>
+                        </div>
+                      )}
+                      {lead.utm_medium && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Medium</span>
+                          <Badge variant="outline">{lead.utm_medium}</Badge>
+                        </div>
+                      )}
+                      {lead.utm_campaign && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Campaign</span>
+                          <Badge variant="outline">{lead.utm_campaign}</Badge>
+                        </div>
+                      )}
+                      {lead.utm_term && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Term</span>
+                          <span className="text-sm">{lead.utm_term}</span>
+                        </div>
+                      )}
+                      {lead.utm_content && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Content</span>
+                          <span className="text-sm">{lead.utm_content}</span>
+                        </div>
+                      )}
+                      {lead.landing_page && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Landing Page</span>
+                          <span className="text-sm truncate max-w-[200px]">{lead.landing_page}</span>
+                        </div>
+                      )}
+                      {lead.referrer_url && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Referrer</span>
+                          <span className="text-sm truncate max-w-[200px]">{lead.referrer_url}</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
                 {lead.notes && (
                   <Card>
                     <CardHeader className="pb-3">
