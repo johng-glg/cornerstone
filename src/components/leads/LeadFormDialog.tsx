@@ -468,6 +468,71 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
                 )}
               />
 
+              {/* UTM / Marketing Attribution */}
+              <details className="group border rounded-lg">
+                <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-medium">
+                  Marketing Attribution (UTM)
+                  <span className="text-muted-foreground text-xs group-open:hidden">Click to expand</span>
+                </summary>
+                <div className="px-4 pb-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="utm_source" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>UTM Source</FormLabel>
+                        <FormControl><Input {...field} placeholder="google, facebook..." /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="utm_medium" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>UTM Medium</FormLabel>
+                        <FormControl><Input {...field} placeholder="cpc, email, social..." /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  <FormField control={form.control} name="utm_campaign" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>UTM Campaign</FormLabel>
+                      <FormControl><Input {...field} placeholder="spring_2026_promo..." /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="utm_term" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>UTM Term</FormLabel>
+                        <FormControl><Input {...field} placeholder="debt+relief..." /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="utm_content" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>UTM Content</FormLabel>
+                        <FormControl><Input {...field} placeholder="banner_ad_v2..." /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="landing_page" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Landing Page</FormLabel>
+                        <FormControl><Input {...field} placeholder="/get-started" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="referrer_url" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Referrer URL</FormLabel>
+                        <FormControl><Input {...field} placeholder="https://google.com" /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+                </div>
+              </details>
+
               <div className="flex justify-end gap-3 pt-4">
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                   Cancel
