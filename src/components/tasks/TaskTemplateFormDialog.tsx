@@ -9,7 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useCreateTaskTemplate, useUpdateTaskTemplate, type TaskTemplate } from '@/hooks/useTaskTemplates';
-import { useAuth } from '@/lib/auth';
+import type { Enums } from '@/integrations/supabase/types';
+
+type Department = Enums<'department_new'>;
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
