@@ -16,7 +16,7 @@ type Department = Enums<'department_new'>;
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional().nullable(),
-  department: z.string().optional().nullable(),
+  department: z.enum(['administration', 'client_services', 'legal', 'negotiations', 'operations', 'sales']).optional().nullable(),
   task_type: z.enum(['follow_up', 'document_review', 'court_deadline', 'settlement_negotiation', 'client_call', 'general']),
   priority: z.enum(['low', 'medium', 'high', 'urgent']),
   default_title: z.string().min(1, 'Default title is required'),
