@@ -74,6 +74,17 @@ export function useUpdateFeatureRequest() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<FeatureRequest> & { id: string }) => {
+      // If status is changing, fetch the current request to get submitter and old status
+      let previousRequest: FeatureRequest | null = null;
+      if (updates.status) {
+        const { data: existing } = await supabase
+          .from('feature_requests')
+          .select('*')
+          .eq('id', id)
+          .single();
+        previousRequest = existing as FeatureRequest | null;
+      }
+
       const { data, error } = await supabase
         .from('feature_requests')
         .update(updates)
@@ -81,10 +92,31 @@ export function useUpdateFeatureRequest() {
         .select()
         .single();
       if (error) throw error;
+
+      // Send notification to the submitter if status changed
+      if (
+        updates.status &&
+        previousRequest?.submitted_by &&
+        previousRequest.status !== updates.status
+      ) {
+        const statusLabel = updates.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        await supabase.from('notifications').insert({
+          user_id: previousRequest.submitted_by,
+          type: 'system_alert' as any,
+          title: `Feature request status updated to "${statusLabel}"`,
+          message: `Your request "${previousRequest.title}" has been moved to ${statusLabel}.`,
+          entity_type: 'feature_request',
+          entity_id: id,
+          link: '/feature-requests',
+        });
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['feature-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications_unread_count'] });
       toast({ title: 'Request updated' });
     },
     onError: (error: Error) => {
