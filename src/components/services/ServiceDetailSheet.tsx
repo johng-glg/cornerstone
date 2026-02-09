@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Calendar, FileText, DollarSign, Briefcase, Edit2, ExternalLink, CloudUpload, Loader2, CheckCircle2 } from 'lucide-react';
+import { User, Calendar, FileText, DollarSign, Briefcase, Edit2, ExternalLink, CloudUpload, Loader2, CheckCircle2, MessageSquare } from 'lucide-react';
+import { NotesPanel } from '@/components/notes/NotesPanel';
 import { useClientService, useUpdatePrimaryStatus, useUpdatePaymentStatus, useUpdateContactStatus, useUpdateRetention } from '@/hooks/useClientServices';
 import { useServiceStatusHistory } from '@/hooks/useServiceStatusHistory';
 import { useRegisterForthClient } from '@/hooks/useForthApi';
@@ -408,16 +409,7 @@ export function ServiceDetailSheet({ serviceId, open, onOpenChange }: ServiceDet
                   </CardContent>
                 </Card>
 
-                {service.notes && (
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">Notes</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm whitespace-pre-wrap">{service.notes}</p>
-                    </CardContent>
-                  </Card>
-                )}
+                {serviceId && <NotesPanel entityType="client_service" entityId={serviceId} />}
               </TabsContent>
 
               <TabsContent value="financials" className="space-y-4 mt-4">

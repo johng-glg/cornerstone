@@ -1,3 +1,4 @@
+import { NotesPanel } from '@/components/notes/NotesPanel';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -122,12 +123,7 @@ export function CreditorDetailSheet({ creditorId, open, onOpenChange, onEdit }: 
               </div>
 
               {/* Notes */}
-              {creditor.notes && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-muted-foreground">Notes</h4>
-                  <p className="text-sm whitespace-pre-wrap">{creditor.notes}</p>
-                </div>
-              )}
+              {creditorId && <NotesPanel entityType="creditor" entityId={creditorId} flat />}
 
               <Separator />
 

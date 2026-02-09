@@ -1,11 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Briefcase, TrendingUp, CheckCircle, Clock, FileText, Activity, MessageSquare, Scale, DollarSign, RefreshCw } from 'lucide-react';
+import { Briefcase, TrendingUp, CheckCircle, Clock, FileText, Activity, Scale, DollarSign, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { useClientServicesForClient, useLiabilitiesForClient } from '@/hooks/useClientData';
-import { useClientNotes, type ClientNote } from '@/hooks/useClientNotes';
+import { NotesPanel } from '@/components/notes/NotesPanel';
 import { useClientActivity, type ClientActivity } from '@/hooks/useClientActivity';
 
 interface ClientOverviewTabProps {
@@ -33,18 +32,10 @@ const activityTypeColors: Record<string, string> = {
   status_change: 'bg-gray-100 text-gray-600',
 };
 
-const noteSourceColors: Record<string, string> = {
-  client: 'bg-blue-100 text-blue-700',
-  service: 'bg-green-100 text-green-700',
-  liability: 'bg-orange-100 text-orange-700',
-  litigation: 'bg-purple-100 text-purple-700',
-  task: 'bg-teal-100 text-teal-700',
-};
 
 export function ClientOverviewTab({ clientId, onViewServices, onViewTasks }: ClientOverviewTabProps) {
   const { data: services, isLoading: servicesLoading } = useClientServicesForClient(clientId);
   const { data: liabilities, isLoading: liabilitiesLoading } = useLiabilitiesForClient(clientId);
-  const { data: notes, isLoading: notesLoading } = useClientNotes(clientId);
   const { data: activities, isLoading: activitiesLoading } = useClientActivity(clientId);
 
   const isLoading = servicesLoading || liabilitiesLoading;
@@ -145,35 +136,8 @@ export function ClientOverviewTab({ clientId, onViewServices, onViewTasks }: Cli
       <div className="grid grid-cols-2 gap-6">
         {/* All Notes */}
         <Card className="h-[500px] flex flex-col">
-          <CardHeader className="pb-2 flex-shrink-0">
-            <CardTitle className="text-base flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              All Notes
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 overflow-hidden p-0">
-            {notesLoading ? (
-              <div className="p-4 space-y-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-16 w-full" />
-                ))}
-              </div>
-            ) : notes && notes.length > 0 ? (
-              <ScrollArea className="h-full px-4 pb-4">
-                <div className="space-y-3 pt-1">
-                  {notes.map((note) => (
-                    <NoteCard key={note.id} note={note} />
-                  ))}
-                </div>
-              </ScrollArea>
-            ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                <div className="text-center">
-                  <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No notes found</p>
-                </div>
-              </div>
-            )}
+          <CardContent className="flex-1 overflow-hidden p-4">
+            <NotesPanel entityType="client" entityId={clientId} title="Client Notes" maxHeight="420px" flat />
           </CardContent>
         </Card>
 
@@ -215,23 +179,6 @@ export function ClientOverviewTab({ clientId, onViewServices, onViewTasks }: Cli
   );
 }
 
-function NoteCard({ note }: { note: ClientNote }) {
-  return (
-    <div className="border rounded-lg p-3 bg-card">
-      <div className="flex items-center justify-between mb-2">
-        <Badge className={noteSourceColors[note.source] || 'bg-gray-100 text-gray-700'}>
-          {note.source_label}
-        </Badge>
-        <span className="text-xs text-muted-foreground">
-          {format(new Date(note.created_at), 'MMM d, yyyy')}
-        </span>
-      </div>
-      <p className="text-sm text-foreground whitespace-pre-wrap line-clamp-3">
-        {note.notes}
-      </p>
-    </div>
-  );
-}
 
 function ActivityCard({ activity }: { activity: ClientActivity }) {
   const Icon = activityTypeIcons[activity.type] || FileText;

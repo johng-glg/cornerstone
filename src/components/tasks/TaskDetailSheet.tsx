@@ -1,3 +1,4 @@
+import { NotesPanel } from '@/components/notes/NotesPanel';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -163,6 +164,10 @@ export function TaskDetailSheet({ taskId, open, onOpenChange, onEdit }: TaskDeta
                   </div>
                 )}
               </div>
+
+              {/* Notes */}
+              <Separator />
+              {taskId && <NotesPanel entityType="task" entityId={taskId} flat />}
             </div>
           </>
         ) : (
