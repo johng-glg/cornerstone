@@ -42,16 +42,43 @@ export function useLitigationActivities(matterId: string | undefined, options?: 
     queryKey,
     queryFn: async () => {
       if (!matterId) return [];
-      const { data, error } = await supabase
-        .from('litigation_activities')
-        .select(`
-          *,
-          staff:staff(id, first_name, last_name)
-        `)
-        .eq('matter_id', matterId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data as LitigationActivity[];
+
+      // Fetch activities and matter creation date in parallel
+      const [activitiesResult, matterResult] = await Promise.all([
+        supabase
+          .from('litigation_activities')
+          .select(`*, staff:staff(id, first_name, last_name)`)
+          .eq('matter_id', matterId)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('litigation_matters')
+          .select('created_at, case_number')
+          .eq('id', matterId)
+          .single(),
+      ]);
+
+      if (activitiesResult.error) throw activitiesResult.error;
+
+      const activities = activitiesResult.data as LitigationActivity[];
+
+      // Add synthetic "Matter created" entry
+      if (matterResult.data) {
+        activities.push({
+          id: `creation-matter-${matterId}`,
+          matter_id: matterId,
+          activity_type: 'status_change',
+          description: `Matter ${matterResult.data.case_number || ''} created`,
+          outcome: null,
+          activity_date: matterResult.data.created_at,
+          staff_id: null,
+          document_url: null,
+          created_at: matterResult.data.created_at,
+          staff: null,
+        });
+        activities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      }
+
+      return activities;
     },
     enabled: !!matterId,
   });
