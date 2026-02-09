@@ -50,8 +50,16 @@ export function MatterTeamPanel({ matterId, onAddAssignment, opposingCounsel }: 
     );
   }
 
-  const handleUnassign = (assignmentId: string) => {
-    unassign.mutate({ assignmentId, matterId });
+  const handleUnassign = (assignment: MatterAssignment) => {
+    const staffName = assignment.staff
+      ? `${assignment.staff.first_name} ${assignment.staff.last_name}`
+      : undefined;
+    unassign.mutate({
+      assignmentId: assignment.id,
+      matterId,
+      staffName,
+      assignmentType: assignment.assignment_type,
+    });
   };
 
   const hasOpposingCounsel = opposingCounsel?.lawFirmName || opposingCounsel?.contactName;
