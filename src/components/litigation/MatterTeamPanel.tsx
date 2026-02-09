@@ -178,7 +178,7 @@ function AssignmentCard({
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => onRemove(assignment.id)}
+          onClick={() => onRemove()}
           className="h-8 w-8"
         >
           <X className="h-4 w-4 text-muted-foreground" />
