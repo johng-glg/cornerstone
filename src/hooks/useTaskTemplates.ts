@@ -67,7 +67,7 @@ export function useUpdateTaskTemplate() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<TaskTemplate> & { id: string }) => {
+    mutationFn: async ({ id, ...updates }: TaskTemplateUpdate & { id: string }) => {
       const { data, error } = await supabase
         .from('task_templates')
         .update(updates)
