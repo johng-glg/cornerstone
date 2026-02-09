@@ -11,8 +11,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useCreateTaskTemplate, useUpdateTaskTemplate, type TaskTemplate } from '@/hooks/useTaskTemplates';
 import type { Enums } from '@/integrations/supabase/types';
 
-type Department = Enums<'department_new'>;
+import { useAuth } from '@/lib/auth';
 
+type Department = Enums<'department_new'>;
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional().nullable(),
