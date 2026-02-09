@@ -113,6 +113,13 @@ export function LeadFormDialog({ open, onOpenChange, lead }: LeadFormDialogProps
         has_active_lawsuit: lead.has_active_lawsuit || false,
         assigned_to: lead.assigned_to || undefined,
         notes: lead.notes || '',
+        utm_source: lead.utm_source || '',
+        utm_medium: lead.utm_medium || '',
+        utm_campaign: lead.utm_campaign || '',
+        utm_term: lead.utm_term || '',
+        utm_content: lead.utm_content || '',
+        landing_page: lead.landing_page || '',
+        referrer_url: lead.referrer_url || '',
       });
     } else {
       form.reset({
