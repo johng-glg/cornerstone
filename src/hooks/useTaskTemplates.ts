@@ -1,23 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
-export interface TaskTemplate {
-  id: string;
-  name: string;
-  description: string | null;
-  department: string | null;
-  task_type: string;
-  priority: string;
-  default_title: string;
-  default_description: string | null;
-  default_due_days: number | null;
-  company_id: string | null;
-  created_by: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
+export type TaskTemplate = Tables<'task_templates'>;
+type TaskTemplateInsert = TablesInsert<'task_templates'>;
+type TaskTemplateUpdate = TablesUpdate<'task_templates'>;
 
 export function useTaskTemplates() {
   return useQuery({
