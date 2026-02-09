@@ -243,10 +243,15 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
       if (staffError) throw staffError;
 
       // Update role - delete existing and insert new
-      await supabase
+      const { error: deleteRoleError } = await supabase
         .from('user_roles')
         .delete()
         .eq('user_id', staffMember.user_id);
+
+      if (deleteRoleError) {
+        console.error('Failed to delete existing role:', deleteRoleError);
+        throw new Error(`Failed to update role: ${deleteRoleError.message}`);
+      }
 
       const { error: roleError } = await supabase
         .from('user_roles')
@@ -255,7 +260,10 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
           role: values.role as Enums<'app_role'>,
         }]);
 
-      if (roleError) throw roleError;
+      if (roleError) {
+        console.error('Failed to insert new role:', roleError);
+        throw new Error(`Failed to set new role: ${roleError.message}`);
+      }
 
       return { success: true };
     },
