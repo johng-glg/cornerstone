@@ -148,7 +148,7 @@ function AssignmentCard({
   onRemove 
 }: { 
   assignment: MatterAssignment; 
-  onRemove: (id: string) => void;
+  onRemove: () => void;
 }) {
   const staff = assignment.staff;
   if (!staff) return null;
