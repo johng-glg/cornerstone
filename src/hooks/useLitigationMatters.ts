@@ -160,7 +160,7 @@ export function useLitigationMatter(id: string | undefined) {
           client_service:client_services!litigation_matters_client_service_id_fkey(
             id,
             service_number,
-            primary_client:clients!engagements_primary_contact_id_fkey(id, first_name, last_name)
+            primary_client:clients!engagements_primary_contact_id_fkey(id, first_name, last_name, email)
           ),
           opposing_law_firm:law_firms(id, name, phone, email),
           opposing_counsel_contact:law_firm_contacts(id, first_name, last_name, title, email, phone)

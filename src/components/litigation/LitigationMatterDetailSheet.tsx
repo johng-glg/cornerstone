@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { format, isPast } from 'date-fns';
-import { Scale, Building2, Calendar, User, Edit, Plus, DollarSign, CheckSquare } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Scale, Building2, Calendar, User, Edit, Plus, DollarSign, CheckSquare, Phone, Mail, ExternalLink, AlertTriangle } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -14,7 +15,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { NotesPanel } from '@/components/notes/NotesPanel';
-import { useLitigationMatter, type LitigationStatus, useUpdateLitigationMatter } from '@/hooks/useLitigationMatters';
+import { useLitigationMatter, useLitigationMatters, type LitigationStatus, type LitigationMatter, useUpdateLitigationMatter } from '@/hooks/useLitigationMatters';
 import { useLitigationHearings, useDeleteLitigationHearing, type LitigationHearing } from '@/hooks/useLitigationHearings';
 import { useDeleteLitigationDocument } from '@/hooks/useLitigationDocuments';
 import { useCurrentStaff } from '@/hooks/useStaff';
@@ -29,6 +30,8 @@ import { LitigationDocumentFormDialog } from './LitigationDocumentFormDialog';
 import { LitigationActivityFormDialog } from './LitigationActivityFormDialog';
 import { MatterAssignmentDialog } from './MatterAssignmentDialog';
 import { MatterBillingPanel } from './MatterBillingPanel';
+import { FilingFeesList } from './FilingFeesList';
+import { AppearanceRequestsList } from './AppearanceRequestsList';
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog';
 import {
   Select,
@@ -71,11 +74,17 @@ const formatCurrency = (amount: number | null) =>
 
 export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: LitigationMatterDetailSheetProps) {
   const { data: matter, isLoading } = useLitigationMatter(matterId || undefined);
+  const { data: allMatters } = useLitigationMatters(matter?.client_service_id || undefined);
   const { data: hearings } = useLitigationHearings(matterId || undefined);
   const { data: currentStaff } = useCurrentStaff();
   const updateMatter = useUpdateLitigationMatter();
   const deleteHearing = useDeleteLitigationHearing();
   const deleteDocument = useDeleteLitigationDocument();
+
+  // Sibling matters: other active matters for the same client service
+  const siblingMatters = allMatters?.filter(
+    m => m.id !== matterId && !['settled', 'dismissed', 'dropped', 'judgment'].includes(m.status)
+  ) ?? [];
 
   // Dialog states
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -151,17 +160,54 @@ export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: Li
               </SheetHeader>
 
               <Tabs defaultValue="overview" className="mt-4">
-                <TabsList className="grid w-full grid-cols-7">
+                <TabsList className="flex flex-wrap h-auto gap-1">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="notes">Notes</TabsTrigger>
                   <TabsTrigger value="team">Team</TabsTrigger>
                   <TabsTrigger value="events">Events</TabsTrigger>
                   <TabsTrigger value="docs">Docs</TabsTrigger>
+                  <TabsTrigger value="fees">Fees</TabsTrigger>
+                  <TabsTrigger value="appearances">Appearances</TabsTrigger>
                   <TabsTrigger value="billing">Billing</TabsTrigger>
                   <TabsTrigger value="activity">Activity</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview" className="mt-4 space-y-4">
+                  {/* Client Info Card */}
+                  {matter.client_service?.primary_client && (
+                    <Card>
+                      <CardContent className="pt-4">
+                        <h4 className="font-medium flex items-center gap-2 mb-3">
+                          <User className="h-4 w-4" />
+                          Client Information
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Client</p>
+                            <Link
+                              to={`/clients/${matter.client_service.primary_client.id}`}
+                              className="font-medium text-primary hover:underline inline-flex items-center gap-1"
+                              onClick={() => onOpenChange(false)}
+                            >
+                              {matter.client_service.primary_client.first_name} {matter.client_service.primary_client.last_name}
+                              <ExternalLink className="h-3 w-3" />
+                            </Link>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Service #</p>
+                            <p className="font-medium">{matter.client_service.service_number}</p>
+                          </div>
+                          {(matter.client_service.primary_client as any)?.email && (
+                            <div>
+                              <p className="text-muted-foreground flex items-center gap-1"><Mail className="h-3 w-3" /> Email</p>
+                              <p className="font-medium">{(matter.client_service.primary_client as any).email}</p>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   {/* Status Change */}
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Status</label>
@@ -261,7 +307,44 @@ export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: Li
                         </div>
                       </div>
                     </CardContent>
-                  </Card>
+                   </Card>
+
+                  {/* Other Active Matters */}
+                  {siblingMatters.length > 0 && (
+                    <Card className="border-amber-200">
+                      <CardContent className="pt-4 space-y-3">
+                        <h4 className="font-medium flex items-center gap-2 text-amber-700">
+                          <AlertTriangle className="h-4 w-4" />
+                          Other Active Matters ({siblingMatters.length})
+                        </h4>
+                        <div className="space-y-2">
+                          {siblingMatters.map((m) => (
+                            <div
+                              key={m.id}
+                              className="flex items-center justify-between p-2 rounded-md bg-muted/50 cursor-pointer hover:bg-muted"
+                              onClick={() => {
+                                // Close and reopen with new matter
+                                onOpenChange(false);
+                                setTimeout(() => {
+                                  window.location.href = `/litigation?open=${m.id}`;
+                                }, 200);
+                              }}
+                            >
+                              <div>
+                                <p className="text-sm font-medium">{m.case_number || 'No case #'}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {m.liability?.current_creditor?.name || m.opposing_party || '—'} · {formatCurrency(m.liability?.current_balance)}
+                                </p>
+                              </div>
+                              <Badge className={statusBadgeColors[m.status]}>
+                                {statusLabels[m.status]}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
                 </TabsContent>
 
@@ -350,6 +433,14 @@ export function LitigationMatterDetailSheet({ matterId, open, onOpenChange }: Li
                     onAddDocument={() => setDocumentDialogOpen(true)}
                     onDeleteDocument={handleDeleteDocument}
                   />
+                </TabsContent>
+
+                <TabsContent value="fees" className="mt-4">
+                  <FilingFeesList matterId={matterId!} />
+                </TabsContent>
+
+                <TabsContent value="appearances" className="mt-4">
+                  <AppearanceRequestsList matterId={matterId!} />
                 </TabsContent>
 
                 <TabsContent value="billing" className="mt-4">

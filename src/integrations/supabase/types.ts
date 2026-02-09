@@ -14,6 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
+      appearance_requests: {
+        Row: {
+          appearance_date: string
+          assigned_to: string | null
+          court_name: string | null
+          created_at: string
+          description: string
+          hearing_id: string | null
+          id: string
+          matter_id: string
+          notes: string | null
+          requested_by: string | null
+          requested_date: string
+          status: Database["public"]["Enums"]["appearance_request_status"]
+          updated_at: string
+        }
+        Insert: {
+          appearance_date: string
+          assigned_to?: string | null
+          court_name?: string | null
+          created_at?: string
+          description: string
+          hearing_id?: string | null
+          id?: string
+          matter_id: string
+          notes?: string | null
+          requested_by?: string | null
+          requested_date?: string
+          status?: Database["public"]["Enums"]["appearance_request_status"]
+          updated_at?: string
+        }
+        Update: {
+          appearance_date?: string
+          assigned_to?: string | null
+          court_name?: string | null
+          created_at?: string
+          description?: string
+          hearing_id?: string | null
+          id?: string
+          matter_id?: string
+          notes?: string | null
+          requested_by?: string | null
+          requested_date?: string
+          status?: Database["public"]["Enums"]["appearance_request_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appearance_requests_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appearance_requests_hearing_id_fkey"
+            columns: ["hearing_id"]
+            isOneToOne: false
+            referencedRelation: "litigation_hearings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appearance_requests_matter_id_fkey"
+            columns: ["matter_id"]
+            isOneToOne: false
+            referencedRelation: "litigation_matters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appearance_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assignments: {
         Row: {
           assigned_date: string
@@ -1020,6 +1097,66 @@ export type Database = {
           votes?: number
         }
         Relationships: []
+      }
+      filing_fees: {
+        Row: {
+          amount: number
+          approved_date: string | null
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          matter_id: string
+          notes: string | null
+          paid_date: string | null
+          requested_date: string
+          status: Database["public"]["Enums"]["filing_fee_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          approved_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          matter_id: string
+          notes?: string | null
+          paid_date?: string | null
+          requested_date?: string
+          status?: Database["public"]["Enums"]["filing_fee_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          approved_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          matter_id?: string
+          notes?: string | null
+          paid_date?: string | null
+          requested_date?: string
+          status?: Database["public"]["Enums"]["filing_fee_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "filing_fees_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "filing_fees_matter_id_fkey"
+            columns: ["matter_id"]
+            isOneToOne: false
+            referencedRelation: "litigation_matters"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       forth_sync_log: {
         Row: {
@@ -3893,6 +4030,12 @@ export type Database = {
         | "correspondent"
         | "viewer"
         | "of_counsel"
+      appearance_request_status:
+        | "pending"
+        | "approved"
+        | "assigned"
+        | "completed"
+        | "cancelled"
       assignment_action:
         | "auto_assigned"
         | "manual_assigned"
@@ -3973,6 +4116,12 @@ export type Database = {
         | "declined"
       feature_request_type: "existing_workflow" | "future_improvement"
       fee_collection_method: "split" | "lump_sum"
+      filing_fee_status:
+        | "pending"
+        | "submitted_to_client"
+        | "approved"
+        | "declined"
+        | "paid"
       hardship_reason:
         | "job_loss"
         | "medical_emergency"
@@ -4261,6 +4410,13 @@ export const Constants = {
         "viewer",
         "of_counsel",
       ],
+      appearance_request_status: [
+        "pending",
+        "approved",
+        "assigned",
+        "completed",
+        "cancelled",
+      ],
       assignment_action: [
         "auto_assigned",
         "manual_assigned",
@@ -4352,6 +4508,13 @@ export const Constants = {
       ],
       feature_request_type: ["existing_workflow", "future_improvement"],
       fee_collection_method: ["split", "lump_sum"],
+      filing_fee_status: [
+        "pending",
+        "submitted_to_client",
+        "approved",
+        "declined",
+        "paid",
+      ],
       hardship_reason: [
         "job_loss",
         "medical_emergency",
