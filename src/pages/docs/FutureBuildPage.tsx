@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Search, Rocket, Clock, CheckCircle, AlertCircle, Zap, TrendingUp } from 'lucide-react';
 import { FUTURE_BUILDS, getRoadmapCategories, type RoadmapItem } from '@/lib/docs/roadmapData';
+import { useFeatureRequests } from '@/hooks/useFeatureRequests';
 
 const priorityColors = {
   High: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
