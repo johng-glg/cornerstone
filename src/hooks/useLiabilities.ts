@@ -6,6 +6,7 @@ import type { Tables, TablesInsert, TablesUpdate, Enums } from '@/integrations/s
 export type Liability = Tables<'liabilities'> & {
   original_creditor?: Tables<'creditors'> | null;
   current_creditor?: Tables<'creditors'> | null;
+  servicing_creditor?: Tables<'creditors'> | null;
   client_service?: Tables<'client_services'> & {
     primary_client?: Tables<'clients'> | null;
   };
@@ -44,6 +45,7 @@ export function useLiabilities(options: UseLiabilitiesOptions = {}) {
           *,
           original_creditor:creditors!liabilities_original_creditor_id_fkey(id, name, creditor_type),
           current_creditor:creditors!liabilities_current_creditor_id_fkey(id, name, creditor_type),
+          servicing_creditor:creditors!liabilities_servicing_creditor_id_fkey(id, name, creditor_type),
           client_service:client_services!liabilities_engagement_id_fkey(
             id, 
             service_number, 
@@ -84,6 +86,7 @@ export function useLiability(id: string | undefined) {
           *,
           original_creditor:creditors!liabilities_original_creditor_id_fkey(*),
           current_creditor:creditors!liabilities_current_creditor_id_fkey(*),
+          servicing_creditor:creditors!liabilities_servicing_creditor_id_fkey(*),
           client_service:client_services!liabilities_engagement_id_fkey(
             id, 
             service_number, 

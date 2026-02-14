@@ -181,6 +181,12 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
                         {liability.current_creditor?.name || liability.original_creditor?.name || 'Not specified'}
                       </p>
                     </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Servicing Creditor</p>
+                      <p className="font-medium">
+                        {liability.servicing_creditor?.name || 'Not specified'}
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
 

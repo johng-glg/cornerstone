@@ -1734,6 +1734,44 @@ export type Database = {
           },
         ]
       }
+      lead_budgets: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          id: string
+          label: string
+          lead_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          category: string
+          created_at?: string
+          id?: string
+          label: string
+          lead_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          id?: string
+          label?: string
+          lead_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_budgets_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_debts: {
         Row: {
           account_number_last4: string | null
@@ -1813,6 +1851,54 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          file_url: string
+          id: string
+          lead_id: string
+          notes: string | null
+          title: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          file_url: string
+          id?: string
+          lead_id: string
+          notes?: string | null
+          title: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          file_url?: string
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          title?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_documents_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
             referencedColumns: ["id"]
           },
         ]
@@ -2114,6 +2200,7 @@ export type Database = {
           original_balance: number | null
           original_creditor_id: string | null
           priority: number | null
+          servicing_creditor_id: string | null
           status: Database["public"]["Enums"]["liability_status"]
           updated_at: string
         }
@@ -2134,6 +2221,7 @@ export type Database = {
           original_balance?: number | null
           original_creditor_id?: string | null
           priority?: number | null
+          servicing_creditor_id?: string | null
           status?: Database["public"]["Enums"]["liability_status"]
           updated_at?: string
         }
@@ -2154,6 +2242,7 @@ export type Database = {
           original_balance?: number | null
           original_creditor_id?: string | null
           priority?: number | null
+          servicing_creditor_id?: string | null
           status?: Database["public"]["Enums"]["liability_status"]
           updated_at?: string
         }
@@ -2189,6 +2278,13 @@ export type Database = {
           {
             foreignKeyName: "liabilities_original_creditor_id_fkey"
             columns: ["original_creditor_id"]
+            isOneToOne: false
+            referencedRelation: "creditors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liabilities_servicing_creditor_id_fkey"
+            columns: ["servicing_creditor_id"]
             isOneToOne: false
             referencedRelation: "creditors"
             referencedColumns: ["id"]
