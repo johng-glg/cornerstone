@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Building2, FileText, Plus, Handshake, History, Calculator, Scale, MessageSquare } from 'lucide-react';
+import { DollarSign, Building2, FileText, Plus, Handshake, History, Calculator, Scale, MessageSquare, AlertTriangle } from 'lucide-react';
 import { NotesPanel } from '@/components/notes/NotesPanel';
 import { useLiability } from '@/hooks/useLiabilities';
-import { useSettlements } from '@/hooks/useSettlements';
+import { useSettlements, useDeleteSettlement } from '@/hooks/useSettlements';
 import { useClientService } from '@/hooks/useClientServices';
 import { useLitigationMatters } from '@/hooks/useLitigationMatters';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,6 +17,17 @@ import { SettlementCard } from './SettlementCard';
 import { LiabilityActionsTimeline } from './LiabilityActionsTimeline';
 import { SettlementOfferBuilder } from './SettlementOfferBuilder';
 import { LitigationMatterFormDialog } from '@/components/litigation/LitigationMatterFormDialog';
+import { useAuth } from '@/lib/auth';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface LiabilityDetailSheetProps {
   liabilityId: string | null;
@@ -67,11 +78,43 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
   const [showSettlementForm, setShowSettlementForm] = useState(false);
   const [showOfferBuilder, setShowOfferBuilder] = useState(false);
   const [showMatterForm, setShowMatterForm] = useState(false);
+  const [showVoidPrompt, setShowVoidPrompt] = useState(false);
+  const { staff } = useAuth();
+  const voidSettlement = useDeleteSettlement();
 
   // Check if this liability already has a litigation matter
   const existingMatter = litigationMatters?.find(m => m.liability_id === liabilityId);
 
+  // Check for active (accepted) settlement
+  const activeSettlement = useMemo(
+    () => settlements?.find(s => s.status === 'accepted'),
+    [settlements]
+  );
+
+  const handleOfferClick = (type: 'quick' | 'builder') => {
+    if (activeSettlement) {
+      setShowVoidPrompt(true);
+    } else if (type === 'quick') {
+      setShowSettlementForm(true);
+    } else {
+      setShowOfferBuilder(true);
+    }
+  };
+
+  const handleVoidAndProceed = () => {
+    if (activeSettlement && liabilityId) {
+      voidSettlement.mutate({
+        id: activeSettlement.id,
+        liabilityId,
+        offerAmount: activeSettlement.offer_amount,
+        staffId: staff?.id,
+      });
+    }
+    setShowVoidPrompt(false);
+  };
+
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
         {isLoading ? (
@@ -234,11 +277,11 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
                     <h4 className="font-medium">Settlement Offers</h4>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setShowSettlementForm(true)}>
+                    <Button size="sm" variant="outline" onClick={() => handleOfferClick('quick')}>
                       <Plus className="h-4 w-4 mr-1" />
                       Quick Offer
                     </Button>
-                    <Button size="sm" onClick={() => setShowOfferBuilder(true)}>
+                    <Button size="sm" onClick={() => handleOfferClick('builder')}>
                       <Calculator className="h-4 w-4 mr-1" />
                       Build Offer
                     </Button>
@@ -304,5 +347,36 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
         )}
       </SheetContent>
     </Sheet>
+
+    {/* Void Active Settlement Prompt */}
+    <AlertDialog open={showVoidPrompt} onOpenChange={setShowVoidPrompt}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            Active Settlement Exists
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            There is already an accepted settlement of{' '}
+            <strong>
+              {activeSettlement
+                ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(activeSettlement.offer_amount)
+                : ''}
+            </strong>{' '}
+            on this liability. You must void the existing settlement before creating a new offer.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleVoidAndProceed}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Void Existing Settlement
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </>
   );
 }
