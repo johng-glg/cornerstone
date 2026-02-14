@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useEligibilityReviews, type EligibilityReview } from '@/hooks/useEligibilityReviews';
 import { EligibilityReviewDetailSheet } from '@/components/eligibility/EligibilityReviewDetailSheet';
+import { EligibilityPipelineProgress } from '@/components/eligibility/EligibilityPipelineProgress';
 import { ReviewFlagsBadges } from '@/components/eligibility/ReviewFlagsBadges';
+import { LeadDetailSheet } from '@/components/leads/LeadDetailSheet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,6 +17,7 @@ export default function EligibilityReviewsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('pending');
   const { data: reviews, isLoading } = useEligibilityReviews(statusFilter || undefined);
   const [selectedReview, setSelectedReview] = useState<EligibilityReview | null>(null);
+  const [openLeadId, setOpenLeadId] = useState<string | null>(null);
 
   const statusBadge = (status: string) => {
     const config: Record<string, { icon: typeof Clock; color: string }> = {
@@ -70,6 +73,9 @@ export default function EligibilityReviewsPage() {
                 <TableRow>
                   <TableHead>Lead</TableHead>
                   <TableHead>Submitted</TableHead>
+                  <TableHead>Est. Debt</TableHead>
+                  <TableHead>Debts</TableHead>
+                  <TableHead>Pipeline</TableHead>
                   <TableHead>Flags</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Reviewer</TableHead>
@@ -93,6 +99,17 @@ export default function EligibilityReviewsPage() {
                     <TableCell className="text-sm">
                       {review.submitted_at ? format(new Date(review.submitted_at), 'MMM d, yyyy') : '—'}
                     </TableCell>
+                    <TableCell className="text-sm">
+                      {review.lead?.estimated_debt_amount
+                        ? `$${review.lead.estimated_debt_amount.toLocaleString()}`
+                        : '—'}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {review.lead?.number_of_debts ?? '—'}
+                    </TableCell>
+                    <TableCell>
+                      <EligibilityPipelineProgress checklist={review.checklist} compact />
+                    </TableCell>
                     <TableCell>
                       <ReviewFlagsBadges flags={review.flags} compact />
                     </TableCell>
@@ -114,6 +131,16 @@ export default function EligibilityReviewsPage() {
         review={selectedReview}
         open={!!selectedReview}
         onOpenChange={(open) => !open && setSelectedReview(null)}
+        onOpenLead={(leadId) => {
+          setSelectedReview(null);
+          setOpenLeadId(leadId);
+        }}
+      />
+
+      <LeadDetailSheet
+        leadId={openLeadId}
+        onClose={() => setOpenLeadId(null)}
+        onConvert={() => {}}
       />
     </div>
   );

@@ -2,6 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useCurrentStaff } from '@/hooks/useStaff';
+import type { ChecklistItem } from '@/components/eligibility/EligibilityPipelineProgress';
+
+export type { ChecklistItem };
 
 export interface EligibilityFlag {
   code: string;
@@ -21,6 +24,7 @@ export interface EligibilityReview {
   review_notes: string | null;
   decline_reason: string | null;
   flags: EligibilityFlag[];
+  checklist: ChecklistItem[];
   created_at: string;
   updated_at: string;
   // Joined
@@ -32,9 +36,30 @@ export interface EligibilityReview {
     estimated_debt_amount: number | null;
     phone: string | null;
     email: string | null;
+    state: string | null;
+    date_of_birth: string | null;
+    employment_status: string | null;
+    employer_name: string | null;
+    monthly_income: number | null;
+    interest_type: string | null;
+    number_of_debts: number | null;
+    has_active_lawsuit: boolean | null;
+    lead_score: number | null;
   } | null;
   submitted_staff?: { first_name: string; last_name: string } | null;
   reviewed_staff?: { first_name: string; last_name: string } | null;
+}
+
+const DEFAULT_CHECKLIST: ChecklistItem[] = [
+  { step: 'agreement_sent', completed: false, completed_at: null, completed_by: null },
+  { step: 'agreement_signed', completed: false, completed_at: null, completed_by: null },
+  { step: 'paperwork_received', completed: false, completed_at: null, completed_by: null },
+  { step: 'documents_verified', completed: false, completed_at: null, completed_by: null },
+];
+
+function parseChecklist(raw: any): ChecklistItem[] {
+  if (Array.isArray(raw) && raw.length > 0) return raw;
+  return DEFAULT_CHECKLIST;
 }
 
 export function useEligibilityReviews(status?: string) {
@@ -45,7 +70,7 @@ export function useEligibilityReviews(status?: string) {
         .from('eligibility_reviews')
         .select(`
           *,
-          lead:leads!eligibility_reviews_lead_id_fkey(id, first_name, last_name, lead_number, estimated_debt_amount, phone, email),
+          lead:leads!eligibility_reviews_lead_id_fkey(id, first_name, last_name, lead_number, estimated_debt_amount, phone, email, state, date_of_birth, employment_status, employer_name, monthly_income, interest_type, number_of_debts, has_active_lawsuit, lead_score),
           submitted_staff:staff!eligibility_reviews_submitted_by_fkey(first_name, last_name),
           reviewed_staff:staff!eligibility_reviews_reviewed_by_fkey(first_name, last_name)
         `)
@@ -60,6 +85,7 @@ export function useEligibilityReviews(status?: string) {
       return (data || []).map((r: any) => ({
         ...r,
         flags: Array.isArray(r.flags) ? r.flags : [],
+        checklist: parseChecklist(r.checklist),
       })) as EligibilityReview[];
     },
   });
@@ -86,6 +112,7 @@ export function useEligibilityReviewForLead(leadId: string | undefined) {
       return {
         ...data,
         flags: Array.isArray(data.flags) ? data.flags : [],
+        checklist: parseChecklist(data.checklist),
       } as EligibilityReview;
     },
     enabled: !!leadId,
@@ -99,7 +126,6 @@ export function useSubmitForReview() {
 
   return useMutation({
     mutationFn: async (leadId: string) => {
-      // Call the simulate-underwriting edge function
       const { data: fnData, error: fnError } = await supabase.functions.invoke(
         'simulate-underwriting',
         { body: { lead_id: leadId } }
@@ -108,7 +134,6 @@ export function useSubmitForReview() {
 
       const flags = fnData?.flags || [];
 
-      // Create the eligibility review record
       const { data, error } = await (supabase as any)
         .from('eligibility_reviews')
         .insert({
@@ -121,7 +146,6 @@ export function useSubmitForReview() {
         .single();
       if (error) throw error;
 
-      // Update lead status to eligibility_review
       const { error: statusError } = await supabase
         .from('leads')
         .update({ status: 'eligibility_review' as any })
@@ -184,6 +208,51 @@ export function useReviewDecision() {
     },
     onError: (error: Error) => {
       toast({ title: 'Failed to save decision', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useUpdateReviewChecklist() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { data: currentStaff } = useCurrentStaff();
+
+  return useMutation({
+    mutationFn: async ({
+      reviewId,
+      checklist,
+      toggleIndex,
+    }: {
+      reviewId: string;
+      checklist: ChecklistItem[];
+      toggleIndex: number;
+    }) => {
+      const updated = checklist.map((item, i) => {
+        if (i !== toggleIndex) return item;
+        const nowCompleted = !item.completed;
+        return {
+          ...item,
+          completed: nowCompleted,
+          completed_at: nowCompleted ? new Date().toISOString() : null,
+          completed_by: nowCompleted ? (currentStaff?.id || null) : null,
+        };
+      });
+
+      const { data, error } = await (supabase as any)
+        .from('eligibility_reviews')
+        .update({ checklist: updated })
+        .eq('id', reviewId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['eligibility-reviews'] });
+      toast({ title: 'Pipeline updated' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to update pipeline', description: error.message, variant: 'destructive' });
     },
   });
 }
