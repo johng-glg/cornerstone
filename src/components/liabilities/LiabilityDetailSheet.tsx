@@ -296,13 +296,24 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
                   <Label htmlFor="show-deleted" className="text-sm text-muted-foreground cursor-pointer">Show deleted offers</Label>
                 </div>
 
-                {settlements && settlements.filter(s => showDeleted || s.status !== 'cancelled').length > 0 ? (
+                {settlements && settlements.some(s => s.status !== 'cancelled') ? (
                   <div className="space-y-4">
                     {settlements
-                      .filter(s => showDeleted || s.status !== 'cancelled')
+                      .filter(s => s.status !== 'cancelled')
                       .map((settlement) => (
                         <SettlementCard key={settlement.id} settlement={settlement} />
                       ))}
+                    {showDeleted && settlements.some(s => s.status === 'cancelled') && (
+                      <>
+                        <Separator />
+                        <p className="text-xs text-muted-foreground font-medium">Deleted Offers</p>
+                        {settlements
+                          .filter(s => s.status === 'cancelled')
+                          .map((settlement) => (
+                            <SettlementCard key={settlement.id} settlement={settlement} />
+                          ))}
+                      </>
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-8">
