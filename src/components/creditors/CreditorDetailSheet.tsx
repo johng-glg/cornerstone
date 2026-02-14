@@ -59,10 +59,14 @@ export function CreditorDetailSheet({ creditorId, open, onOpenChange, onEdit }: 
   const [editingContact, setEditingContact] = useState<CreditorContact | null>(null);
   const [deletingContactId, setDeletingContactId] = useState<string | null>(null);
   
-  // Filter liabilities where this creditor is original or current
+  // Filter liabilities where this creditor is original, current, or servicing
   const relatedLiabilities = liabilitiesResult?.data?.filter(
-    l => l.original_creditor_id === creditorId || l.current_creditor_id === creditorId
+    l => l.original_creditor_id === creditorId || l.current_creditor_id === creditorId || (l as any).servicing_creditor_id === creditorId
   ) || [];
+
+  // Aggregate balances
+  const totalOriginalBalance = relatedLiabilities.reduce((sum, l) => sum + (l.original_balance || 0), 0);
+  const totalCurrentBalance = relatedLiabilities.reduce((sum, l) => sum + (l.current_balance || 0), 0);
 
   // Filter litigation matters where this creditor is opposing counsel
   const relatedMatters = allMatters?.filter(
@@ -293,6 +297,24 @@ export function CreditorDetailSheet({ creditorId, open, onOpenChange, onEdit }: 
                     <FileText className="h-4 w-4 text-muted-foreground" />
                     <h4 className="text-sm font-medium">Related Liabilities ({relatedLiabilities.length})</h4>
                   </div>
+
+                  {/* Aggregate Balance Summary */}
+                  {relatedLiabilities.length > 0 && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Card>
+                        <CardContent className="p-3 text-center">
+                          <p className="text-xs text-muted-foreground">Total Original</p>
+                          <p className="text-lg font-semibold">{formatCurrency(totalOriginalBalance)}</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-3 text-center">
+                          <p className="text-xs text-muted-foreground">Total Current</p>
+                          <p className="text-lg font-semibold">{formatCurrency(totalCurrentBalance)}</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
                   
                   {relatedLiabilities.length > 0 ? (
                     <Table>

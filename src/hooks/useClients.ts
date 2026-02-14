@@ -18,6 +18,7 @@ export type { ClientStatus };
 export interface UseClientsOptions {
   search?: string;
   status?: ClientStatus;
+  serviceId?: string;
   page?: number;
   pageSize?: number;
 }
@@ -28,13 +29,40 @@ export interface PaginatedResult<T> {
 }
 
 export function useClients(options: UseClientsOptions = {}) {
-  const { search, status, page = 1, pageSize = 25 } = options;
+  const { search, status, serviceId, page = 1, pageSize = 25 } = options;
   
   return useQuery({
-    queryKey: ['clients', { search, status, page, pageSize }],
+    queryKey: ['clients', { search, status, serviceId, page, pageSize }],
     queryFn: async (): Promise<PaginatedResult<Client>> => {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
+
+      // If filtering by service, we need to find client IDs first
+      let clientIds: string[] | null = null;
+      if (serviceId) {
+        const { data: serviceClients, error: scError } = await supabase
+          .from('client_service_clients')
+          .select('client_id, client_service_id')
+          .eq('is_primary', true);
+        if (scError) throw scError;
+
+        // Get client_services that have the target service type
+        const { data: serviceTypes, error: stError } = await supabase
+          .from('client_service_types')
+          .select('client_service_id')
+          .eq('service_id', serviceId)
+          .eq('is_active', true);
+        if (stError) throw stError;
+
+        const matchingServiceIds = new Set(serviceTypes?.map(st => st.client_service_id) || []);
+        clientIds = (serviceClients || [])
+          .filter(sc => matchingServiceIds.has(sc.client_service_id))
+          .map(sc => sc.client_id);
+        
+        if (clientIds.length === 0) {
+          return { data: [], count: 0 };
+        }
+      }
 
       let query = supabase
         .from('clients')
@@ -53,6 +81,10 @@ export function useClients(options: UseClientsOptions = {}) {
       
       if (status) {
         query = query.eq('status', status);
+      }
+
+      if (clientIds) {
+        query = query.in('id', clientIds);
       }
 
       const { data, error, count } = await query;

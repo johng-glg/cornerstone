@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useLeadDocuments, useDeleteLeadDocument, LEAD_DOCUMENT_TYPES } from '@/hooks/useLeadDocuments';
+import { useLeadDocuments, useDeleteLeadDocument, LEAD_DOCUMENT_TYPES, type LeadDocument } from '@/hooks/useLeadDocuments';
 import { LeadDocumentFormDialog } from './LeadDocumentFormDialog';
-import { Plus, FileText, Trash2, ExternalLink } from 'lucide-react';
+import { Plus, FileText, Trash2, ExternalLink, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface LeadDocumentsTabProps {
@@ -16,6 +16,7 @@ export function LeadDocumentsTab({ leadId }: LeadDocumentsTabProps) {
   const { data: documents, isLoading } = useLeadDocuments(leadId);
   const deleteDocument = useDeleteLeadDocument();
   const [showForm, setShowForm] = useState(false);
+  const [editingDoc, setEditingDoc] = useState<LeadDocument | undefined>(undefined);
 
   const getTypeLabel = (type: string) =>
     LEAD_DOCUMENT_TYPES.find(t => t.value === type)?.label || type;
@@ -34,7 +35,7 @@ export function LeadDocumentsTab({ leadId }: LeadDocumentsTabProps) {
         <h4 className="text-sm font-medium text-muted-foreground">
           {documents?.length || 0} document{documents?.length !== 1 ? 's' : ''}
         </h4>
-        <Button size="sm" onClick={() => setShowForm(true)}>
+        <Button size="sm" onClick={() => { setEditingDoc(undefined); setShowForm(true); }}>
           <Plus className="mr-1.5 h-4 w-4" />
           Add Document
         </Button>
@@ -81,6 +82,14 @@ export function LeadDocumentsTab({ leadId }: LeadDocumentsTabProps) {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="h-8 w-8"
+                      onClick={() => { setEditingDoc(doc); setShowForm(true); }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="h-8 w-8 text-destructive"
                       onClick={() => deleteDocument.mutate({ id: doc.id, leadId })}
                     >
@@ -96,8 +105,9 @@ export function LeadDocumentsTab({ leadId }: LeadDocumentsTabProps) {
 
       <LeadDocumentFormDialog
         open={showForm}
-        onOpenChange={setShowForm}
+        onOpenChange={(open) => { setShowForm(open); if (!open) setEditingDoc(undefined); }}
         leadId={leadId}
+        document={editingDoc}
       />
     </div>
   );
