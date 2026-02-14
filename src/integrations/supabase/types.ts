@@ -1096,6 +1096,7 @@ export type Database = {
       }
       eligibility_reviews: {
         Row: {
+          checklist: Json | null
           created_at: string
           decline_reason: string | null
           flags: Json | null
@@ -1110,6 +1111,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          checklist?: Json | null
           created_at?: string
           decline_reason?: string | null
           flags?: Json | null
@@ -1124,6 +1126,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          checklist?: Json | null
           created_at?: string
           decline_reason?: string | null
           flags?: Json | null
