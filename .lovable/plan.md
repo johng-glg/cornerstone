@@ -1,124 +1,152 @@
+# Plan: Eligibility Review Pipeline
 
-# Plan: Lead Document Uploads, Servicing Creditor, and Budget Analysis Tool
+## Overview
 
-This plan covers three feature requests ranked #2, #4, and #5 from the prioritized backlog.
-
----
-
-## Feature 1: Lead Document Uploads
-
-Sales reps need to attach documents (summons, credit reports, statements) directly to lead records during intake.
-
-### What gets built
-- A new "Documents" tab on the Lead Detail Sheet where reps can upload and view files
-- A new `lead_documents` database table (mirrors the existing `client_documents` pattern)
-- Files stored in a new `lead-documents` storage bucket
-- Document types tailored to intake: Summons, Credit Report, Statement, Pay Stub, ID, and Other
-- When a lead converts to a client, documents remain accessible via the lead reference
-
-### User experience
-- Open a lead, click the new "Documents" tab (added as a 5th tab alongside Details, Notes, Tasks, Activity)
-- Click "Add Document", pick a file, select a type (e.g., "Summons"), optionally add a title/notes
-- See a list of uploaded documents with download/view links and who uploaded them
+Add an eligibility review process that sits between lead qualification and conversion. When a lead's file is ready, it gets "submitted for underwriting." For now, the underwriting service is simulated -- every submission is automatically flagged for manual review by the eligibility department.
 
 ---
 
-## Feature 2: Servicing Creditor Field
+## How It Works
 
-Negotiators need to track which creditor they are actively negotiating with, separate from the original and current creditor.
-
-### What gets built
-- A new nullable `servicing_creditor_id` column on the `liabilities` table (FK to `creditors`)
-- Updated Liability Form to include a "Servicing Creditor" dropdown (same creditor list as Original/Current)
-- Updated Liability Detail Sheet to display the servicing creditor alongside the existing creditor fields
-- Updated query joins to fetch the servicing creditor name
-
-### User experience
-- When editing a liability, a new "Servicing Creditor" dropdown appears in the Creditors section
-- The Liability Detail Sheet shows it in the Creditors card as a third entry
-- This is the creditor the negotiator is actively working with for settlement discussions
+1. A sales rep clicks **"Submit for Review"** on a qualified lead
+2. The system creates an eligibility review record and sets the lead status to a new `eligibility_review` stage
+3. A simulated underwriting check runs (via edge function) and flags the file for manual review
+4. The eligibility team sees a queue of pending reviews on a new **Eligibility Reviews** tab/page
+5. A reviewer can **Approve** or **Decline** the review with notes
+6. On approval, the lead becomes eligible for conversion (the "Convert" button unlocked)
+7. On decline, the lead is flagged with a reason and can be resubmitted after corrections
 
 ---
 
-## Feature 3: Budget Analysis Tool
+## User Experience
 
-Sales reps need to document client income, expenses, and calculate an estimated available budget during intake. This helps determine program eligibility and draft amounts.
+### For Sales Reps
 
-### What gets built
-- A new `lead_budgets` table storing income/expense line items per lead
-- A "Budget" tab on the Lead Detail Sheet with an income/expense form and summary
-- Income categories: Employment, Self-Employment, Spouse/Partner, Social Security, Other
-- Expense categories: Rent/Mortgage, Utilities, Food, Transportation, Insurance, Childcare, Minimum Payments, Other
-- Auto-calculated fields: total income, total expenses, discretionary income (the difference)
-- Visual summary showing whether the lead can afford a program draft
+- On the Lead Detail Sheet, a new **"Submit for Review"** button appears when the lead is in `qualified` status (or later, once documents/budget are filled)
+- After submission, the lead moves to `eligibility_review` status and shows a review status card (Pending / Approved / Declined)
+- The "Convert" button is blocked until the review is approved
 
-### User experience
-- Open a lead, click the "Budget" tab
-- Enter income sources and monthly amounts
-- Enter fixed expense items and amounts
-- See a summary card showing Total Income, Total Expenses, and Discretionary Income
-- A visual indicator (green/yellow/red) shows affordability at a glance
+### For Eligibility Reviewers
+
+- A new **Eligibility Reviews** page (accessible from the sidebar) shows all pending reviews in a table
+- Each row shows the lead name, submission date, flags raised by underwriting, and assigned reviewer
+- Clicking a review opens a detail panel with the lead summary, documents, budget, and underwriting flags
+- Reviewer can approve or decline with notes
 
 ---
 
-## Technical Details
+## Database Changes
 
-### Database Changes
+### 1. New `lead_status` enum value
 
-**1. `lead_documents` table:**
 ```text
-id              UUID PK default gen_random_uuid()
-lead_id         UUID NOT NULL FK -> leads(id) ON DELETE CASCADE
-document_type   TEXT NOT NULL
-title           TEXT NOT NULL
-file_url        TEXT NOT NULL
-notes           TEXT nullable
-uploaded_by     UUID nullable FK -> staff(id)
-created_at      TIMESTAMPTZ default now()
-```
-- RLS: staff in same company can read/write (matching leads RLS pattern)
-
-**2. `lead-documents` storage bucket:**
-- Public bucket (matching existing pattern for litigation-documents/client-documents)
-- RLS policies for authenticated uploads
-
-**3. `servicing_creditor_id` column on `liabilities`:**
-```text
-ALTER TABLE liabilities ADD COLUMN servicing_creditor_id UUID REFERENCES creditors(id);
+ALTER TYPE lead_status ADD VALUE IF NOT EXISTS 'eligibility_review';
 ```
 
-**4. `lead_budgets` table:**
+### 2. New `eligibility_reviews` table
+
 ```text
-id              UUID PK default gen_random_uuid()
-lead_id         UUID NOT NULL FK -> leads(id) ON DELETE CASCADE
-category        TEXT NOT NULL (e.g., 'income_employment', 'expense_rent')
-label           TEXT NOT NULL (user-friendly name)
-amount          NUMERIC NOT NULL default 0
-created_at      TIMESTAMPTZ default now()
-updated_at      TIMESTAMPTZ default now()
+id                  UUID PK default gen_random_uuid()
+lead_id             UUID NOT NULL FK -> leads(id) ON DELETE CASCADE
+status              TEXT NOT NULL DEFAULT 'pending'  -- pending, approved, declined
+submitted_by        UUID FK -> staff(id)
+reviewed_by         UUID FK -> staff(id)
+submitted_at        TIMESTAMPTZ DEFAULT now()
+reviewed_at         TIMESTAMPTZ
+review_notes        TEXT
+decline_reason      TEXT
+flags               JSONB DEFAULT '[]'   -- array of flag objects from underwriting
+created_at          TIMESTAMPTZ DEFAULT now()
+updated_at          TIMESTAMPTZ DEFAULT now()
 ```
-- RLS: staff in same company can read/write
 
-### Frontend Changes
+- RLS: staff in same company can read/write (matching leads pattern)
 
-**Lead Document Uploads:**
-- New hook: `src/hooks/useLeadDocuments.ts` (follows `useClientDocuments` pattern)
-- New component: `src/components/leads/LeadDocumentFormDialog.tsx`
-- New component: `src/components/leads/LeadDocumentsTab.tsx`
-- Modified: `src/components/leads/LeadDetailSheet.tsx` (add Documents tab)
+### 3. New `eligibility_review_flags` (stored as JSONB array in `flags` column)
 
-**Servicing Creditor:**
-- Modified: `src/hooks/useLiabilities.ts` (add join for servicing_creditor)
-- Modified: `src/components/liabilities/LiabilityFormDialog.tsx` (add dropdown)
-- Modified: `src/components/liabilities/LiabilityDetailSheet.tsx` (display field)
+Each flag object:
 
-**Budget Analysis:**
-- New hook: `src/hooks/useLeadBudget.ts`
-- New component: `src/components/leads/BudgetAnalysisTab.tsx`
-- Modified: `src/components/leads/LeadDetailSheet.tsx` (add Budget tab)
-
-### Tab Layout Update
-The Lead Detail Sheet tabs change from 4 to 6:
 ```text
-Details | Notes | Tasks | Documents | Budget | Activity
+{
+  "code": "high_debt_ratio",
+  "label": "High Debt-to-Income Ratio",
+  "severity": "warning",    -- info | warning | critical
+  "details": "Debt exceeds 50% of monthly income"
+}
+```
+
+---
+
+## Edge Function: `simulate-underwriting`
+
+A new edge function that accepts a lead ID, pulls the lead data (debts, budget, documents, eligibility fields), and returns a set of flags. For now, it always returns at least one flag to force manual review.
+
+Simulated flag logic:
+
+- Always flag: "Manual Review Required" (ensures everything goes to eligibility team)
+- If estimated debt > $50,000: flag "High Debt Amount"
+- If no documents uploaded: flag "Missing Documentation"
+- If budget discretionary income < $200: flag "Low Discretionary Income"
+- If lead has active lawsuit: flag "Active Lawsuit"
+
+---
+
+## Frontend Changes
+
+### New Files
+
+- `src/hooks/useEligibilityReviews.ts` -- CRUD hook for eligibility_reviews table
+- `src/components/leads/EligibilityReviewCard.tsx` -- status card shown on Lead Detail Sheet
+- `src/components/leads/SubmitForReviewDialog.tsx` -- confirmation dialog before submitting
+- `src/pages/EligibilityReviews.tsx` -- queue page for eligibility team
+- `src/components/eligibility/EligibilityReviewDetailSheet.tsx` -- review detail panel with approve/decline actions
+- `src/components/eligibility/ReviewFlagsBadges.tsx` -- renders flag badges by severity
+
+### Modified Files
+
+- `src/components/leads/LeadDetailSheet.tsx` -- add "Submit for Review" button and EligibilityReviewCard; block "Convert" button until review is approved
+- `src/components/leads/LeadKanban.tsx` -- add `eligibility_review` column to the Kanban board
+- `src/components/layout/AppSidebar.tsx` -- add "Eligibility Reviews" link in sidebar
+- `src/App.tsx` -- add route for `/eligibility-reviews`
+- `src/lib/docs/roadmapData.ts` -- document the feature
+
+### Lead Detail Sheet Changes
+
+- When lead status is `eligibility_review`, show the EligibilityReviewCard with current review status, flags, and reviewer info
+- The "Convert" button only appears when the latest review has `status = 'approved'`
+- If declined, show decline reason and a "Resubmit for Review" button
+
+### Kanban Board Changes
+
+- Add `eligibility_review` as a new column between `qualified` and `converted`
+- Color: orange/amber to indicate "under review"
+
+---
+
+## Flow Summary
+
+```text
+Lead Created (new)
+    |
+    v
+Contacted -> Qualified
+    |
+    v
+[Sales Rep clicks "Submit for Review"]
+    |
+    v
+Edge function runs simulated underwriting
+    |
+    v
+eligibility_review (flags stored in review record)
+    |
+    v
+[Eligibility team reviews in queue]
+    |
+   / \
+  v   v
+Approved  Declined
+  |         |
+  v         v
+Convert   Fix issues & resubmit
 ```
