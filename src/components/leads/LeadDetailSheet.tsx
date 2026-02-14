@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { NotesPanel } from '@/components/notes/NotesPanel';
+import { LeadDocumentsTab } from './LeadDocumentsTab';
+import { BudgetAnalysisTab } from './BudgetAnalysisTab';
 import { useLead, useUpdateLeadStatus, type LeadStatus } from '@/hooks/useLeads';
 import { useLeadActivities, useCreateLeadActivity } from '@/hooks/useLeadActivities';
 import { useCurrentStaff } from '@/hooks/useStaff';
@@ -165,10 +167,12 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
             </SheetHeader>
 
             <Tabs defaultValue="details" className="mt-6">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="details">Details</TabsTrigger>
                 <TabsTrigger value="notes">Notes</TabsTrigger>
                 <TabsTrigger value="tasks">Tasks</TabsTrigger>
+                <TabsTrigger value="docs">Docs</TabsTrigger>
+                <TabsTrigger value="budget">Budget</TabsTrigger>
                 <TabsTrigger value="activity">Activity</TabsTrigger>
               </TabsList>
 
@@ -426,6 +430,14 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
                     ))}
                   </div>
                 )}
+              </TabsContent>
+
+              <TabsContent value="docs" className="mt-4">
+                {leadId && <LeadDocumentsTab leadId={leadId} />}
+              </TabsContent>
+
+              <TabsContent value="budget" className="mt-4">
+                {leadId && <BudgetAnalysisTab leadId={leadId} />}
               </TabsContent>
 
               <TabsContent value="activity" className="space-y-4 mt-4">

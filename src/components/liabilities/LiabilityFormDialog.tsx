@@ -18,6 +18,7 @@ const liabilitySchema = z.object({
   status: z.enum(['enrolled', 'in_negotiation', 'settled', 'in_litigation', 'dismissed', 'cancelled']),
   original_creditor_id: z.string().optional().nullable(),
   current_creditor_id: z.string().optional().nullable(),
+  servicing_creditor_id: z.string().optional().nullable(),
   debt_buyer_id: z.string().optional().nullable(),
   debt_buyer_other: z.string().max(255).optional().nullable(),
   law_firm_id: z.string().optional().nullable(),
@@ -84,6 +85,7 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
       status: 'enrolled',
       original_creditor_id: null,
       current_creditor_id: null,
+      servicing_creditor_id: null,
       debt_buyer_id: null,
       debt_buyer_other: null,
       law_firm_id: null,
@@ -111,6 +113,7 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
         status: liability.status,
         original_creditor_id: liability.original_creditor_id || null,
         current_creditor_id: liability.current_creditor_id || null,
+        servicing_creditor_id: (liability as any).servicing_creditor_id || null,
         debt_buyer_id: (liability as any).debt_buyer_other ? 'other' : ((liability as any).debt_buyer_id || null),
         debt_buyer_other: (liability as any).debt_buyer_other || null,
         law_firm_id: (liability as any).law_firm_other ? 'other' : ((liability as any).law_firm_id || null),
@@ -129,6 +132,7 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
         status: 'enrolled',
         original_creditor_id: null,
         current_creditor_id: null,
+        servicing_creditor_id: null,
         debt_buyer_id: null,
         debt_buyer_other: null,
         law_firm_id: null,
@@ -150,6 +154,7 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
       status: data.status,
       original_creditor_id: data.original_creditor_id || null,
       current_creditor_id: data.current_creditor_id || null,
+      servicing_creditor_id: data.servicing_creditor_id || null,
       debt_buyer_id: data.debt_buyer_id === 'other' ? null : (data.debt_buyer_id || null),
       debt_buyer_other: data.debt_buyer_id === 'other' ? (data.debt_buyer_other || null) : null,
       law_firm_id: data.law_firm_id === 'other' ? null : (data.law_firm_id || null),
@@ -307,6 +312,33 @@ export function LiabilityFormDialog({ open, onOpenChange, liability, defaultClie
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="servicing_creditor_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Servicing Creditor</FormLabel>
+                  <Select 
+                    onValueChange={(v) => field.onChange(v === 'none' ? null : v)} 
+                    value={field.value || 'none'}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select servicing creditor" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="bg-background border shadow-lg z-50">
+                      <SelectItem value="none">None</SelectItem>
+                      {creditors?.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {/* Debt Buyer Section */}
             <div className="grid grid-cols-2 gap-4">
