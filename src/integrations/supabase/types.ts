@@ -4410,6 +4410,7 @@ export type Database = {
         | "correspondent"
         | "viewer"
         | "of_counsel"
+        | "eligibility_reviewer"
       appearance_request_status:
         | "pending"
         | "approved"
@@ -4466,6 +4467,7 @@ export type Database = {
         | "sales"
         | "client_services"
         | "operations"
+        | "eligibility"
       employment_status:
         | "employed"
         | "unemployed"
@@ -4790,6 +4792,7 @@ export const Constants = {
         "correspondent",
         "viewer",
         "of_counsel",
+        "eligibility_reviewer",
       ],
       appearance_request_status: [
         "pending",
@@ -4854,6 +4857,7 @@ export const Constants = {
         "sales",
         "client_services",
         "operations",
+        "eligibility",
       ],
       employment_status: [
         "employed",
