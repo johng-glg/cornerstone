@@ -1,87 +1,124 @@
 
+# Plan: Lead Document Uploads, Servicing Creditor, and Budget Analysis Tool
 
-## Task System Enhancements
-
-### Overview
-Three improvements to the task system: (1) an entity search picker in the task form so tasks can be linked to any module item, (2) a task template system with department-based organization, and (3) "Add Task" buttons on the Client and Lead detail views.
+This plan covers three feature requests ranked #2, #4, and #5 from the prioritized backlog.
 
 ---
 
-### 1. Entity Linker with Search in Task Form
+## Feature 1: Lead Document Uploads
 
-**Problem:** When creating a task from the main Tasks page, there is no way to associate it with a client, lead, liability, or litigation matter.
+Sales reps need to attach documents (summons, credit reports, statements) directly to lead records during intake.
 
-**Solution:** Add an "Entity Link" section to `TaskFormDialog` that reuses the existing global search logic to let users search across leads, clients, liabilities, and litigation matters, then associate the selected item with the task.
+### What gets built
+- A new "Documents" tab on the Lead Detail Sheet where reps can upload and view files
+- A new `lead_documents` database table (mirrors the existing `client_documents` pattern)
+- Files stored in a new `lead-documents` storage bucket
+- Document types tailored to intake: Summons, Credit Report, Statement, Pay Stub, ID, and Other
+- When a lead converts to a client, documents remain accessible via the lead reference
 
-**Changes:**
-- **New component: `src/components/tasks/EntitySearchSelect.tsx`** -- A combo-box search field that queries the same data sources as global search (`useGlobalSearch`). When an item is selected, it maps the search result type to the corresponding `entity_type` enum value and stores the entity ID.
-- **Modified: `src/components/tasks/TaskFormDialog.tsx`** -- Add `entity_type` and `entity_id` fields to the form schema. Render the `EntitySearchSelect` component. When the form already has a `defaultEntityType`/`defaultEntityId`, show the linked entity as a read-only badge instead.
+### User experience
+- Open a lead, click the new "Documents" tab (added as a 5th tab alongside Details, Notes, Tasks, Activity)
+- Click "Add Document", pick a file, select a type (e.g., "Summons"), optionally add a title/notes
+- See a list of uploaded documents with download/view links and who uploaded them
 
-**Type mapping:**
+---
+
+## Feature 2: Servicing Creditor Field
+
+Negotiators need to track which creditor they are actively negotiating with, separate from the original and current creditor.
+
+### What gets built
+- A new nullable `servicing_creditor_id` column on the `liabilities` table (FK to `creditors`)
+- Updated Liability Form to include a "Servicing Creditor" dropdown (same creditor list as Original/Current)
+- Updated Liability Detail Sheet to display the servicing creditor alongside the existing creditor fields
+- Updated query joins to fetch the servicing creditor name
+
+### User experience
+- When editing a liability, a new "Servicing Creditor" dropdown appears in the Creditors section
+- The Liability Detail Sheet shows it in the Creditors card as a third entry
+- This is the creditor the negotiator is actively working with for settlement discussions
+
+---
+
+## Feature 3: Budget Analysis Tool
+
+Sales reps need to document client income, expenses, and calculate an estimated available budget during intake. This helps determine program eligibility and draft amounts.
+
+### What gets built
+- A new `lead_budgets` table storing income/expense line items per lead
+- A "Budget" tab on the Lead Detail Sheet with an income/expense form and summary
+- Income categories: Employment, Self-Employment, Spouse/Partner, Social Security, Other
+- Expense categories: Rent/Mortgage, Utilities, Food, Transportation, Insurance, Childcare, Minimum Payments, Other
+- Auto-calculated fields: total income, total expenses, discretionary income (the difference)
+- Visual summary showing whether the lead can afford a program draft
+
+### User experience
+- Open a lead, click the "Budget" tab
+- Enter income sources and monthly amounts
+- Enter fixed expense items and amounts
+- See a summary card showing Total Income, Total Expenses, and Discretionary Income
+- A visual indicator (green/yellow/red) shows affordability at a glance
+
+---
+
+## Technical Details
+
+### Database Changes
+
+**1. `lead_documents` table:**
 ```text
-search type "lead"       -> entity_type "lead"
-search type "client"     -> entity_type "engagement" (matches existing pattern)
-search type "liability"  -> entity_type "liability"
-search type "litigation" -> entity_type "litigation_matter"
+id              UUID PK default gen_random_uuid()
+lead_id         UUID NOT NULL FK -> leads(id) ON DELETE CASCADE
+document_type   TEXT NOT NULL
+title           TEXT NOT NULL
+file_url        TEXT NOT NULL
+notes           TEXT nullable
+uploaded_by     UUID nullable FK -> staff(id)
+created_at      TIMESTAMPTZ default now()
+```
+- RLS: staff in same company can read/write (matching leads RLS pattern)
+
+**2. `lead-documents` storage bucket:**
+- Public bucket (matching existing pattern for litigation-documents/client-documents)
+- RLS policies for authenticated uploads
+
+**3. `servicing_creditor_id` column on `liabilities`:**
+```text
+ALTER TABLE liabilities ADD COLUMN servicing_creditor_id UUID REFERENCES creditors(id);
 ```
 
----
+**4. `lead_budgets` table:**
+```text
+id              UUID PK default gen_random_uuid()
+lead_id         UUID NOT NULL FK -> leads(id) ON DELETE CASCADE
+category        TEXT NOT NULL (e.g., 'income_employment', 'expense_rent')
+label           TEXT NOT NULL (user-friendly name)
+amount          NUMERIC NOT NULL default 0
+created_at      TIMESTAMPTZ default now()
+updated_at      TIMESTAMPTZ default now()
+```
+- RLS: staff in same company can read/write
 
-### 2. Task Templates (Database + Builder + Picker)
+### Frontend Changes
 
-**Database changes (1 migration):**
+**Lead Document Uploads:**
+- New hook: `src/hooks/useLeadDocuments.ts` (follows `useClientDocuments` pattern)
+- New component: `src/components/leads/LeadDocumentFormDialog.tsx`
+- New component: `src/components/leads/LeadDocumentsTab.tsx`
+- Modified: `src/components/leads/LeadDetailSheet.tsx` (add Documents tab)
 
-**New table: `task_templates`**
+**Servicing Creditor:**
+- Modified: `src/hooks/useLiabilities.ts` (add join for servicing_creditor)
+- Modified: `src/components/liabilities/LiabilityFormDialog.tsx` (add dropdown)
+- Modified: `src/components/liabilities/LiabilityDetailSheet.tsx` (display field)
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID PK | Default gen_random_uuid() |
-| name | TEXT NOT NULL | Template display name |
-| description | TEXT | Optional longer description |
-| department | department_new (enum) | Which department this template belongs to |
-| task_type | task_type (enum) | Default task type |
-| priority | task_priority (enum) | Default priority |
-| default_title | TEXT NOT NULL | Pre-filled task title |
-| default_description | TEXT | Pre-filled task description |
-| default_due_days | INTEGER | Days from creation to auto-set due date |
-| company_id | UUID FK | Reference to companies table |
-| created_by | UUID FK | Staff who created the template |
-| is_active | BOOLEAN | Default true |
-| created_at | TIMESTAMPTZ | |
-| updated_at | TIMESTAMPTZ | |
+**Budget Analysis:**
+- New hook: `src/hooks/useLeadBudget.ts`
+- New component: `src/components/leads/BudgetAnalysisTab.tsx`
+- Modified: `src/components/leads/LeadDetailSheet.tsx` (add Budget tab)
 
-RLS: Authenticated users can read; admin-only write (using `has_role`).
-
-**New files:**
-- **`src/hooks/useTaskTemplates.ts`** -- CRUD hooks for `task_templates` table.
-- **`src/components/tasks/TaskTemplateFormDialog.tsx`** -- Form to create/edit a task template (name, department, default title, description, priority, type, due days).
-- **`src/components/tasks/TaskTemplateList.tsx`** -- List of all templates grouped by department with create/edit/delete actions.
-- **`src/components/settings/TaskTemplatesTab.tsx`** -- Settings tab wrapper for the template builder.
-
-**Modified files:**
-- **`src/pages/Settings.tsx`** -- Add "Task Templates" tab in the settings page.
-- **`src/components/tasks/TaskFormDialog.tsx`** -- Add a "Use Template" dropdown at the top of the form. When a template is selected, auto-fill the title, description, priority, type, and due date (calculated from `default_due_days`). Templates are grouped by department in the dropdown for easy browsing.
-
----
-
-### 3. "Add Task" Buttons on Client and Lead Detail Views
-
-**Modified: `src/components/clients/detail/ClientTasksTab.tsx`**
-- Add an "Add Task" button at the top of the tab.
-- Include the `TaskFormDialog` with `defaultEntityType="engagement"` and `defaultEntityId={clientId}` so the task auto-links to the client.
-- After creating, invalidate the client tasks query.
-
-**Modified: `src/components/leads/LeadDetailSheet.tsx`**
-- Add a "Tasks" tab (making the tabs grid 4 columns instead of 3).
-- Inside the new tab, show tasks filtered by `entity_type: 'lead'` and `entity_id: leadId` using the existing `useTasks` hook.
-- Include an "Add Task" button with `defaultEntityType="lead"` and `defaultEntityId={leadId}`.
-
----
-
-### Technical Notes
-
-- The `entity_type` enum already supports `engagement`, `case`, `liability`, `lead`, and `litigation_matter` -- no enum changes needed.
-- The `department_new` enum already exists with values matching the department system (`administration`, `legal`, `negotiations`, `sales`, `client_services`, `operations`).
-- Task template selection is additive -- it pre-fills fields but users can modify anything before saving.
-- The entity search select will debounce input and run parallel queries just like the existing global search.
-
+### Tab Layout Update
+The Lead Detail Sheet tabs change from 4 to 6:
+```text
+Details | Notes | Tasks | Documents | Budget | Activity
+```
