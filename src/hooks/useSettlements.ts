@@ -63,6 +63,35 @@ export function useCreateSettlement() {
   return useMutation({
     mutationFn: async (settlement: SettlementInsert & { staffId?: string }) => {
       const { staffId, ...settlementData } = settlement;
+
+      // Auto-cancel any pending "offered" settlements on this liability
+      // (preserves accepted, completed, defaulted, cancelled, rejected)
+      const { data: existingOffers } = await supabase
+        .from('settlements')
+        .select('id, offer_amount')
+        .eq('liability_id', settlementData.liability_id)
+        .eq('status', 'offered' as SettlementStatus);
+
+      if (existingOffers && existingOffers.length > 0) {
+        const existingIds = existingOffers.map((o) => o.id);
+        await supabase
+          .from('settlements')
+          .update({ status: 'cancelled' as SettlementStatus })
+          .in('id', existingIds);
+
+        // Log superseded offers
+        for (const old of existingOffers) {
+          const amt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(old.offer_amount);
+          await supabase.from('liability_actions').insert({
+            liability_id: settlementData.liability_id,
+            action_type: 'settlement',
+            description: `Previous offer of ${amt} was superseded by a new offer`,
+            amount: old.offer_amount,
+            staff_id: staffId || null,
+          });
+        }
+      }
+
       const { data, error } = await supabase
         .from('settlements')
         .insert([settlementData])
