@@ -400,6 +400,45 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     benefit: 4,
     notes: 'Added servicing_creditor_id column to liabilities table. Dropdown in Liability Form and display in Liability Detail Sheet Creditors card.',
   },
+
+  // Documents
+  {
+    id: 'document-data-update',
+    name: 'Document Data Update',
+    category: 'Documents',
+    priority: 'Medium',
+    description: 'Allow editing document metadata (title, type, notes) after upload on lead documents.',
+    status: 'Completed',
+    difficulty: 1,
+    benefit: 3,
+    notes: 'Added edit mode to LeadDocumentFormDialog and edit button to LeadDocumentsTab. Uses useUpdateLeadDocument mutation.',
+  },
+
+  // Creditors
+  {
+    id: 'creditor-aggregate-balances',
+    name: 'Creditor Aggregate Balances',
+    category: 'Creditors',
+    priority: 'Medium',
+    description: 'Show total original and current balances across all liabilities for a creditor on the detail sheet.',
+    status: 'Completed',
+    difficulty: 1,
+    benefit: 4,
+    notes: 'Added summary cards to CreditorDetailSheet showing total original balance and total current balance from linked liabilities.',
+  },
+
+  // Clients
+  {
+    id: 'client-service-filter',
+    name: 'Filter Clients by Service Type',
+    category: 'Clients',
+    priority: 'Medium',
+    description: 'Filter the clients list by enrolled service type using a dropdown selector.',
+    status: 'Completed',
+    difficulty: 2,
+    benefit: 3,
+    notes: 'Added service type dropdown to Clients page. useClients hook filters via client_service_clients and client_service_types join.',
+  },
 ];
 
 export const INTEGRATIONS: IntegrationItem[] = [
