@@ -17,6 +17,7 @@ const PIPELINE_STAGES: { status: LeadStatus; label: string; color: string }[] = 
   { status: 'new', label: 'New', color: 'bg-blue-500' },
   { status: 'contacted', label: 'Contacted', color: 'bg-yellow-500' },
   { status: 'qualified', label: 'Qualified', color: 'bg-green-500' },
+  { status: 'eligibility_review' as LeadStatus, label: 'Eligibility Review', color: 'bg-amber-500' },
   { status: 'converted', label: 'Converted', color: 'bg-primary' },
   { status: 'lost', label: 'Lost', color: 'bg-muted' },
 ];

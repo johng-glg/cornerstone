@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { NotesPanel } from '@/components/notes/NotesPanel';
 import { LeadDocumentsTab } from './LeadDocumentsTab';
 import { BudgetAnalysisTab } from './BudgetAnalysisTab';
+import { EligibilityReviewCard } from './EligibilityReviewCard';
+import { useEligibilityReviewForLead } from '@/hooks/useEligibilityReviews';
 import { useLead, useUpdateLeadStatus, type LeadStatus } from '@/hooks/useLeads';
 import { useLeadActivities, useCreateLeadActivity } from '@/hooks/useLeadActivities';
 import { useCurrentStaff } from '@/hooks/useStaff';
@@ -97,6 +99,8 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
     setOutcome('');
   };
 
+  const { data: eligibilityReview } = useEligibilityReviewForLead(leadId ?? undefined);
+
   const statusColors: Record<string, string> = {
     new: 'bg-blue-100 text-blue-800 border-blue-200',
     contacted: 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -106,6 +110,7 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
     qc_pending: 'bg-cyan-100 text-cyan-800 border-cyan-200',
     docs_pending: 'bg-amber-100 text-amber-800 border-amber-200',
     qualified: 'bg-green-100 text-green-800 border-green-200',
+    eligibility_review: 'bg-amber-100 text-amber-800 border-amber-200',
     converted: 'bg-primary/20 text-primary border-primary/30',
     lost: 'bg-muted text-muted-foreground border-muted',
   };
@@ -157,10 +162,17 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
                     <Pencil className="h-4 w-4" />
                   </Button>
                   {lead.status !== 'converted' && lead.status !== 'lost' && (
-                    <Button onClick={() => onConvert(lead.id)}>
-                      <ArrowRightCircle className="mr-2 h-4 w-4" />
-                      Convert
-                    </Button>
+                    eligibilityReview?.status === 'approved' ? (
+                      <Button onClick={() => onConvert(lead.id)}>
+                        <ArrowRightCircle className="mr-2 h-4 w-4" />
+                        Convert
+                      </Button>
+                    ) : lead.status !== 'eligibility_review' && lead.status !== 'qualified' ? (
+                      <Button onClick={() => onConvert(lead.id)}>
+                        <ArrowRightCircle className="mr-2 h-4 w-4" />
+                        Convert
+                      </Button>
+                    ) : null
                   )}
                 </div>
               </div>
@@ -177,6 +189,11 @@ export function LeadDetailSheet({ leadId, onClose, onConvert }: LeadDetailSheetP
               </TabsList>
 
               <TabsContent value="details" className="space-y-4 mt-4">
+                {/* Eligibility Review Card */}
+                {leadId && (lead.status === 'qualified' || lead.status === 'eligibility_review') && (
+                  <EligibilityReviewCard leadId={leadId} leadStatus={lead.status} />
+                )}
+
                 {/* Lead Score Card */}
                 {(lead.lead_score ?? 0) > 0 && (
                   <Card>

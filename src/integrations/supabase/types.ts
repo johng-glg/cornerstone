@@ -1094,6 +1094,73 @@ export type Database = {
           },
         ]
       }
+      eligibility_reviews: {
+        Row: {
+          created_at: string
+          decline_reason: string | null
+          flags: Json | null
+          id: string
+          lead_id: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          submitted_at: string | null
+          submitted_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decline_reason?: string | null
+          flags?: Json | null
+          id?: string
+          lead_id: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decline_reason?: string | null
+          flags?: Json | null
+          id?: string
+          lead_id?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eligibility_reviews_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eligibility_reviews_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eligibility_reviews_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feature_requests: {
         Row: {
           admin_notes: string | null
@@ -4461,6 +4528,7 @@ export type Database = {
         | "plan_selection"
         | "qc_pending"
         | "docs_pending"
+        | "eligibility_review"
       liability_status:
         | "enrolled"
         | "in_negotiation"
@@ -4856,6 +4924,7 @@ export const Constants = {
         "plan_selection",
         "qc_pending",
         "docs_pending",
+        "eligibility_review",
       ],
       liability_status: [
         "enrolled",
