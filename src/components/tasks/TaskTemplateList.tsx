@@ -14,6 +14,7 @@ const DEPT_LABELS: Record<string, string> = {
   sales: 'Sales',
   client_services: 'Client Services',
   operations: 'Operations',
+  eligibility: 'Eligibility',
 };
 
 export function TaskTemplateList() {
