@@ -363,6 +363,43 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     benefit: 3,
     status: 'Planned',
   },
+  
+  // Lead Enhancements
+  {
+    id: 'lead-document-uploads',
+    name: 'Lead Document Uploads',
+    category: 'Leads',
+    priority: 'High',
+    description: 'Attach documents (summons, credit reports, statements, pay stubs, IDs) directly to lead records during intake.',
+    status: 'Completed',
+    difficulty: 2,
+    benefit: 5,
+    notes: 'Implemented with lead_documents table and lead-documents storage bucket. Documents tab added to Lead Detail Sheet with file upload, type categorization, and delete capability.',
+  },
+  {
+    id: 'lead-budget-analysis',
+    name: 'Budget Analysis Tool',
+    category: 'Leads',
+    priority: 'High',
+    description: 'Document client income, expenses, and calculate estimated available budget during intake for program eligibility.',
+    status: 'Completed',
+    difficulty: 2,
+    benefit: 5,
+    notes: 'Implemented with lead_budgets table. Budget tab on Lead Detail Sheet with income/expense line items, auto-calculated totals, and color-coded affordability indicator.',
+  },
+  
+  // Liabilities
+  {
+    id: 'servicing-creditor',
+    name: 'Servicing Creditor Field',
+    category: 'Liabilities',
+    priority: 'High',
+    description: 'Track which creditor negotiators are actively working with, separate from original and current creditor.',
+    status: 'Completed',
+    difficulty: 1,
+    benefit: 4,
+    notes: 'Added servicing_creditor_id column to liabilities table. Dropdown in Liability Form and display in Liability Detail Sheet Creditors card.',
+  },
 ];
 
 export const INTEGRATIONS: IntegrationItem[] = [
