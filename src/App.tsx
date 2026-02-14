@@ -43,6 +43,7 @@ import IntegrationsPage from "./pages/docs/IntegrationsPage";
 import SecurityPage from "./pages/docs/SecurityPage";
 import ERDPage from "./pages/docs/ERDPage";
 import FeatureRequestsPage from "./pages/FeatureRequests";
+import EligibilityReviewsPage from "./pages/EligibilityReviews";
 
 const queryClient = new QueryClient();
 
@@ -85,6 +86,7 @@ const App = () => (
               <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
               <Route path="/leads" element={<AppLayout><LeadsPage /></AppLayout>} />
               <Route path="/leads/metrics" element={<AppLayout><LeadMetricsPage /></AppLayout>} />
+              <Route path="/eligibility-reviews" element={<AppLayout><EligibilityReviewsPage /></AppLayout>} />
               <Route path="/services" element={<AppLayout><ServicesPage /></AppLayout>} />
               <Route path="/clients" element={<AppLayout><ClientsPage /></AppLayout>} />
               <Route path="/clients/:id" element={<AppLayout><ClientDetailPage /></AppLayout>} />
