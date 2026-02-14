@@ -11,7 +11,7 @@ import { TemplatesTab } from '@/components/settings/TemplatesTab';
 import { LitigationTeamsSettingsTab } from '@/components/settings/LitigationTeamsSettingsTab';
 import { DocuSealTemplatesTab } from '@/components/settings/DocuSealTemplatesTab';
 import { RolesSettingsTab } from '@/components/settings/RolesSettingsTab';
-import { TaskTemplatesTab } from '@/components/settings/TaskTemplatesTab';
+
 
 export default function SettingsPage() {
   return (
@@ -28,7 +28,7 @@ export default function SettingsPage() {
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="reminders">Reminders</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
-            <TabsTrigger value="task-templates">Task Templates</TabsTrigger>
+            
             <TabsTrigger value="docuseal">eSign</TabsTrigger>
             <TabsTrigger value="scoring">Scoring</TabsTrigger>
             <TabsTrigger value="assignment">Assignment</TabsTrigger>
@@ -55,9 +55,6 @@ export default function SettingsPage() {
             <TemplatesTab />
           </TabsContent>
 
-          <TabsContent value="task-templates">
-            <TaskTemplatesTab />
-          </TabsContent>
 
           <TabsContent value="docuseal">
             <DocuSealTemplatesTab />
