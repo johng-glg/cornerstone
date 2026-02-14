@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Building2, FileText, Plus, Handshake, History, Calculator, Scale, MessageSquare, AlertTriangle } from 'lucide-react';
 import { NotesPanel } from '@/components/notes/NotesPanel';
@@ -78,6 +80,7 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
   const [showSettlementForm, setShowSettlementForm] = useState(false);
   const [showOfferBuilder, setShowOfferBuilder] = useState(false);
   const [showMatterForm, setShowMatterForm] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
   const [showVoidPrompt, setShowVoidPrompt] = useState(false);
   const { staff } = useAuth();
   const voidSettlement = useDeleteSettlement();
@@ -288,11 +291,18 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
                   </div>
                 </div>
 
-                {settlements && settlements.length > 0 ? (
+                <div className="flex items-center gap-2">
+                  <Switch id="show-deleted" checked={showDeleted} onCheckedChange={setShowDeleted} />
+                  <Label htmlFor="show-deleted" className="text-sm text-muted-foreground cursor-pointer">Show deleted offers</Label>
+                </div>
+
+                {settlements && settlements.filter(s => showDeleted || s.status !== 'cancelled').length > 0 ? (
                   <div className="space-y-4">
-                    {settlements.map((settlement) => (
-                      <SettlementCard key={settlement.id} settlement={settlement} />
-                    ))}
+                    {settlements
+                      .filter(s => showDeleted || s.status !== 'cancelled')
+                      .map((settlement) => (
+                        <SettlementCard key={settlement.id} settlement={settlement} />
+                      ))}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-8">
