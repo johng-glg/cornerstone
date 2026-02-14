@@ -38,12 +38,13 @@ const ALL_ROLES: { value: Enums<'app_role'>; label: string }[] = [
   { value: 'correspondent', label: 'Correspondent' },
   { value: 'of_counsel', label: 'Of Counsel' },
   { value: 'viewer', label: 'Viewer' },
+  { value: 'eligibility_reviewer', label: 'Eligibility Reviewer' },
 ];
 
 const MODULES = [
-  'Dashboard', 'Leads', 'Clients', 'Services', 'Liabilities',
+  'Dashboard', 'Leads', 'Eligibility Reviews', 'Clients', 'Services', 'Liabilities',
   'Settlements', 'Litigation', 'Tasks', 'Reports', 'Creditors',
-  'Companies', 'Staff', 'Payments', 'Settings',
+  'Companies', 'Staff', 'Payments', 'Settings', 'Billing',
 ];
 
 export function RolesSettingsTab() {

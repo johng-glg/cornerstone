@@ -2,7 +2,7 @@ import type { Enums } from '@/integrations/supabase/types';
 
 // Consolidated department type matching database enum 'department_new'
 // Valid values: administration, legal, negotiations, sales, client_services, operations
-export type Department = 'administration' | 'legal' | 'negotiations' | 'sales' | 'client_services' | 'operations';
+export type Department = 'administration' | 'legal' | 'negotiations' | 'sales' | 'client_services' | 'operations' | 'eligibility';
 
 // Map roles to their corresponding consolidated departments
 export const roleToDepartment: Record<Enums<'app_role'>, Department> = {
@@ -17,6 +17,7 @@ export const roleToDepartment: Record<Enums<'app_role'>, Department> = {
   client_services_rep: 'client_services',
   payment_processor: 'operations',
   correspondent: 'operations',
+  eligibility_reviewer: 'eligibility',
 };
 
 // Department display labels
@@ -27,6 +28,7 @@ export const DEPARTMENT_LABELS: Record<Department, string> = {
   sales: 'Sales',
   client_services: 'Client Services',
   operations: 'Operations',
+  eligibility: 'Eligibility',
 };
 
 // Department display order for grouped views
@@ -37,6 +39,7 @@ export const DEPARTMENT_ORDER: Department[] = [
   'sales',
   'client_services',
   'operations',
+  'eligibility',
 ];
 
 // Department colors for badges
@@ -47,6 +50,7 @@ export const DEPARTMENT_COLORS: Record<Department, string> = {
   sales: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
   client_services: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
   operations: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  eligibility: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
 };
 
 // Helper to get department from a role

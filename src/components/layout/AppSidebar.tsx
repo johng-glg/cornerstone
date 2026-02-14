@@ -16,10 +16,12 @@ import {
   TrendingUp,
   Clock,
   Lightbulb,
-  ShieldCheck
+  ShieldCheck,
+  ClipboardCheck
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/lib/auth';
+import { useMyPermissions } from '@/hooks/useMyPermissions';
 import {
   Sidebar,
   SidebarContent,
@@ -34,60 +36,55 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 
-const mainNavItems = [
-  { title: 'Dashboard', url: '/', icon: LayoutDashboard },
-  { title: 'Leads', url: '/leads', icon: UserPlus },
-  { title: 'Lead Metrics', url: '/leads/metrics', icon: TrendingUp },
-  { title: 'Eligibility Reviews', url: '/eligibility-reviews', icon: ShieldCheck },
-  { title: 'Services', url: '/services', icon: Briefcase },
-  { title: 'Clients', url: '/clients', icon: Users },
-  { title: 'Liabilities', url: '/liabilities', icon: DollarSign },
-  { title: 'Litigation', url: '/litigation', icon: Scale },
-  { title: 'Billing', url: '/billing', icon: Clock },
-  { title: 'Tasks', url: '/tasks', icon: CheckSquare },
+/** Map sidebar items to their permission module name */
+interface NavItem {
+  title: string;
+  url: string;
+  icon: any;
+  module: string; // maps to role_permissions.module
+  end?: boolean;  // exact match for NavLink
+}
+
+const allNavItems: NavItem[] = [
+  { title: 'Dashboard', url: '/', icon: LayoutDashboard, module: 'Dashboard', end: true },
+  { title: 'Leads', url: '/leads', icon: UserPlus, module: 'Leads' },
+  { title: 'Lead Metrics', url: '/leads/metrics', icon: TrendingUp, module: 'Leads' },
+  { title: 'Eligibility Reviews', url: '/eligibility-reviews', icon: ClipboardCheck, module: 'Eligibility Reviews' },
+  { title: 'Services', url: '/services', icon: Briefcase, module: 'Services' },
+  { title: 'Clients', url: '/clients', icon: Users, module: 'Clients' },
+  { title: 'Liabilities', url: '/liabilities', icon: DollarSign, module: 'Liabilities' },
+  { title: 'Litigation', url: '/litigation', icon: Scale, module: 'Litigation' },
+  { title: 'Billing', url: '/billing', icon: Clock, module: 'Billing' },
+  { title: 'Tasks', url: '/tasks', icon: CheckSquare, module: 'Tasks' },
 ];
 
-const adminNavItems = [
-  { title: 'Creditors', url: '/creditors', icon: Landmark },
-  { title: 'Reports', url: '/reports', icon: BarChart3 },
-  { title: 'Companies', url: '/companies', icon: Building2 },
-  { title: 'Staff', url: '/staff', icon: Users },
-  { title: 'Payments', url: '/payments', icon: CreditCard },
-  { title: 'Settings', url: '/settings', icon: Settings },
-  { title: 'Feature Requests', url: '/feature-requests', icon: Lightbulb },
-  { title: 'Documentation', url: '/docs', icon: BookOpen },
+const adminNavItems: NavItem[] = [
+  { title: 'Creditors', url: '/creditors', icon: Landmark, module: 'Creditors' },
+  { title: 'Reports', url: '/reports', icon: BarChart3, module: 'Reports' },
+  { title: 'Companies', url: '/companies', icon: Building2, module: 'Companies' },
+  { title: 'Staff', url: '/staff', icon: Users, module: 'Staff' },
+  { title: 'Payments', url: '/payments', icon: CreditCard, module: 'Payments' },
+  { title: 'Settings', url: '/settings', icon: Settings, module: 'Settings' },
+  { title: 'Feature Requests', url: '/feature-requests', icon: Lightbulb, module: 'Settings' },
+  { title: 'Documentation', url: '/docs', icon: BookOpen, module: 'Settings' },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
-  const { hasRole, isAdmin, staff } = useAuth();
+  const { isAdmin, staff } = useAuth();
+  const { data: permissions = [] } = useMyPermissions();
 
-  // Filter nav items based on role/department
-  const getVisibleItems = () => {
-    // All authenticated users see main nav
-    return mainNavItems;
+  const canRead = (module: string) => {
+    if (isAdmin()) return true;
+    const perm = permissions.find(p => p.module === module);
+    return perm?.can_read ?? false;
   };
 
-  const getAdminItems = () => {
-    if (isAdmin()) {
-      return adminNavItems;
-    }
-    // Show Reports and Creditors to attorneys and managers (in legal department)
-    if (hasRole('attorney') || hasRole('case_manager')) {
-      return adminNavItems.filter(item => 
-        item.title === 'Reports' || item.title === 'Creditors'
-      );
-    }
-    // Show Payments to payment processors (in operations department)
-    if (hasRole('payment_processor')) {
-      return adminNavItems.filter(item => item.title === 'Payments');
-    }
-    return [];
-  };
-
-  const visibleMainItems = getVisibleItems();
-  const visibleAdminItems = getAdminItems();
+  const visibleMainItems = allNavItems.filter(item => canRead(item.module));
+  const visibleAdminItems = isAdmin()
+    ? adminNavItems
+    : adminNavItems.filter(item => canRead(item.module));
 
   return (
     <Sidebar collapsible="icon">
@@ -121,7 +118,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild tooltip={item.title}>
                     <NavLink 
                       to={item.url} 
-                      end={item.url === '/'} 
+                      end={item.end} 
                       className="hover:bg-sidebar-accent"
                       activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                     >
