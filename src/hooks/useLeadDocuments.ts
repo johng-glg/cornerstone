@@ -77,6 +77,31 @@ export function useCreateLeadDocument() {
   });
 }
 
+export function useUpdateLeadDocument() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, leadId, ...updates }: { id: string; leadId: string; title?: string; document_type?: string; notes?: string | null }) => {
+      const { data, error } = await supabase
+        .from('lead_documents')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return { ...data, leadId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['lead-documents', data.leadId] });
+      toast({ title: 'Document updated successfully' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to update document', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
 export function useDeleteLeadDocument() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

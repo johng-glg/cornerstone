@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Mail, Phone, User } from 'lucide-react';
+import { Plus, Search, Mail, Phone, User, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PaginationControls } from '@/components/ui/pagination-controls';
 import { useClients, type Client } from '@/hooks/useClients';
+import { useServices } from '@/hooks/useServices';
 import { ClientFormDialog } from '@/components/clients/ClientFormDialog';
 import { format } from 'date-fns';
 import { clientStatusConfig, type ClientStatus } from '@/types/serviceStatus';
@@ -17,14 +18,18 @@ export default function ClientsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ClientStatus | 'all'>('all');
+  const [serviceFilter, setServiceFilter] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
+  const { data: services } = useServices();
+
   const { data: result, isLoading } = useClients({
     search: search || undefined,
     status: statusFilter === 'all' ? undefined : statusFilter,
+    serviceId: serviceFilter === 'all' ? undefined : serviceFilter,
     page,
     pageSize,
   });
@@ -35,7 +40,7 @@ export default function ClientsPage() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter]);
+  }, [search, statusFilter, serviceFilter]);
 
   const handleViewClient = (client: Client) => {
     navigate(`/clients/${client.id}`);
@@ -87,6 +92,18 @@ export default function ClientsPage() {
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={serviceFilter} onValueChange={setServiceFilter}>
+          <SelectTrigger className="w-48">
+            <Briefcase className="h-4 w-4 mr-1.5 text-muted-foreground" />
+            <SelectValue placeholder="Service Type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Services</SelectItem>
+            {services?.map((svc) => (
+              <SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
