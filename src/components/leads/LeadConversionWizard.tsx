@@ -84,7 +84,7 @@ interface LeadConversionWizardProps {
 
 const STEPS = [
   { id: 'client', label: 'Client Info', icon: User },
-  { id: 'services', label: 'Services', icon: Briefcase },
+  { id: 'services', label: 'Engagements', icon: Briefcase },
   { id: 'liabilities', label: 'Liabilities', icon: DollarSign },
   { id: 'confirm', label: 'Confirm', icon: CheckCircle },
 ];
@@ -613,7 +613,7 @@ export function LeadConversionWizard({ leadId, onClose, onSuccess }: LeadConvers
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm text-muted-foreground">Services</CardTitle>
+                  <CardTitle className="text-sm text-muted-foreground">Engagements</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">
                   {serviceData?.services.map((serviceId) => {
