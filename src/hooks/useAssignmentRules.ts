@@ -134,7 +134,7 @@ export function useUpdateAssignmentRule() {
       }
       const { data, error } = await supabase
         .from('lead_assignment_rules')
-        .update(updateData)
+        .update(updateData as never)
         .eq('id', id)
         .select()
         .single();

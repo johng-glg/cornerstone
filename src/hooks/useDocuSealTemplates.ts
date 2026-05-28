@@ -124,7 +124,7 @@ export function useUpdateDocuSealTemplate() {
 
       const { error } = await supabase
         .from('docuseal_templates')
-        .update(updateData)
+        .update(updateData as never)
         .eq('id', id);
 
       if (error) throw error;

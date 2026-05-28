@@ -161,7 +161,7 @@ export function useUpdateReportTemplate() {
 
       const { data, error } = await supabase
         .from('report_templates')
-        .update(updates)
+        .update(updates as never)
         .eq('id', id)
         .select()
         .single();

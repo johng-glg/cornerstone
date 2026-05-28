@@ -58,7 +58,7 @@ export function useUpdateFilingFee() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<FilingFee> & { id: string }) => {
-      const { data, error } = await supabase.from('filing_fees').update(updates).eq('id', id).select().single();
+      const { data, error } = await supabase.from('filing_fees').update(updates as never).eq('id', id).select().single();
       if (error) throw error;
       return data;
     },
