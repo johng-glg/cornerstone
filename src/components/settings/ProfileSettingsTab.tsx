@@ -27,6 +27,10 @@ const formSchema = z.object({
   job_title: z.string().optional(),
   screen_pop_preference: z.enum(['toast', 'auto_navigate', 'off']),
 });
+
+type FormData = z.infer<typeof formSchema>;
+
+export function ProfileSettingsTab() {
   const { data: staff, isLoading } = useCurrentStaff();
   const updateStaff = useUpdateCurrentStaff();
 
@@ -38,6 +42,7 @@ const formSchema = z.object({
       email: '',
       phone: '',
       job_title: '',
+      screen_pop_preference: 'toast',
     },
   });
 
@@ -49,6 +54,7 @@ const formSchema = z.object({
         email: staff.email,
         phone: staff.phone || '',
         job_title: staff.job_title || '',
+        screen_pop_preference: ((staff as any).screen_pop_preference ?? 'toast') as 'toast' | 'auto_navigate' | 'off',
       });
     }
   }, [staff, form]);
@@ -59,8 +65,10 @@ const formSchema = z.object({
       last_name: data.last_name,
       phone: data.phone || null,
       job_title: data.job_title || null,
+      screen_pop_preference: data.screen_pop_preference,
     });
   };
+
 
   if (isLoading) {
     return (
