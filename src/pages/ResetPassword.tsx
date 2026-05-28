@@ -108,18 +108,15 @@ export default function ResetPassword() {
         }
       }
 
-      if (!looksLikeRecoveryLink) {
-        markExpired();
-        return;
-      }
-
-      // The auth client may still be consuming the recovery URL. Poll briefly
-      // before calling the link expired; the provider also listens above.
+      // The auth client may still be consuming the recovery URL, and the global
+      // auth provider may receive PASSWORD_RECOVERY before this component does.
+      // Poll briefly before calling the link expired.
       let attempts = 0;
       const poll = window.setInterval(async () => {
         attempts += 1;
         const { data } = await supabase.auth.getSession();
-        if (data.session) {
+        const recoveryStored = sessionStorage.getItem(PASSWORD_RECOVERY_STORAGE_KEY) === 'true';
+        if (data.session && (looksLikeRecoveryLink || recoveryStored)) {
           window.clearInterval(poll);
           markReady();
         } else if (attempts >= 12) {
