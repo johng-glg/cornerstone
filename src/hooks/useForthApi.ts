@@ -18,7 +18,7 @@ import {
   sendForthPaymentToCreditor,
   type RegisterClientRequest,
   type ContactUpdatePayload,
-} from '@/lib/forthApi';
+} from '@/lib/plsaApi';
 
 // Push a transaction to Forth Pay as a draft
 export function usePushToForth() {
