@@ -940,7 +940,54 @@ export const EDGE_FUNCTIONS = [
     ],
     outputs: 'JSON with success flag, forth_crm_id, and optional warning',
   },
+  {
+    name: 'forth-test-connection',
+    path: 'supabase/functions/forth-test-connection',
+    description: 'Tests Forth OAuth credentials by clearing the token cache and forcing a fresh fetch. On success, stamps last_connected_at on both forth_pay and forth_crm rows in company_integrations; on failure, records last_connection_error. Powers the Test button on the Integrations admin page.',
+    authentication: 'Optional JWT (uses caller company when present; otherwise env-scoped)',
+    inputs: [],
+    outputs: 'JSON with success flag, message, issued_at, token_preview, company_scoped',
+  },
+  {
+    name: 'dialpad-test-connection',
+    path: 'supabase/functions/dialpad-test-connection',
+    description: 'Tests the configured Dialpad API token by calling the Dialpad users endpoint. On success, updates last_connected_at on the dialpad row in company_integrations; on failure, records last_connection_error.',
+    authentication: 'Optional JWT (uses caller company when present)',
+    inputs: [],
+    outputs: 'JSON with success flag and message',
+  },
+  {
+    name: 'dialpad-register-webhook',
+    path: 'supabase/functions/dialpad-register-webhook',
+    description: 'Registers or refreshes the Dialpad webhook subscription pointing at dialpad-webhook. Used during initial setup and when the webhook secret rotates.',
+    authentication: 'Service role',
+    inputs: [],
+    outputs: 'JSON with subscription id and target URL',
+  },
+  {
+    name: 'dialpad-webhook',
+    path: 'supabase/functions/dialpad-webhook',
+    description: 'Receives Dialpad call events (ringing, answered, ended, voicemail). Logs activity, triggers screen pops, and updates communication history.',
+    authentication: 'None (public webhook, signature-verified via DIALPAD_WEBHOOK_SECRET)',
+    inputs: [
+      { name: 'event_type', type: 'string', description: 'Dialpad event type' },
+      { name: 'call', type: 'object', description: 'Call payload with participants and direction' },
+    ],
+    outputs: 'Acknowledgment response',
+  },
+  {
+    name: 'dialpad-initiate',
+    path: 'supabase/functions/dialpad-initiate',
+    description: 'Initiates an outbound Dialpad call from a CRM contact action (click-to-call).',
+    authentication: 'JWT required',
+    inputs: [
+      { name: 'to', type: 'string', description: 'E.164 phone number to dial' },
+      { name: 'from_user_id', type: 'string?', description: 'Dialpad user id of the caller' },
+    ],
+    outputs: 'JSON with success flag and call_id',
+  },
 ];
+
 
 export const STORAGE_BUCKETS = [
   {
