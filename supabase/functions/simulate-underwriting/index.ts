@@ -22,6 +22,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const gate = await requireAuth(req);
+    if (gate instanceof Response) return gate;
+
     const { lead_id } = await req.json();
     if (!lead_id) {
       return new Response(JSON.stringify({ error: "lead_id is required" }), {
@@ -48,6 +51,17 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    if (!gate.isServiceRole && gate.userId) {
+      const ok = await requireCompanyAccess(gate.userId, lead.company_id);
+      if (!ok) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
 
     // Fetch lead documents count
     const { count: docCount } = await supabase
