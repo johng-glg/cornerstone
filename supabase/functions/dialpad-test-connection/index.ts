@@ -19,30 +19,32 @@ Deno.serve(async (req) => {
       status,
     });
 
+  const companyId = await resolveCompanyId(req.headers.get("Authorization"));
+
   try {
     const apiKey = Deno.env.get("DIALPAD_API_KEY");
     const webhookSecret = Deno.env.get("DIALPAD_WEBHOOK_SECRET");
 
     if (!apiKey) {
+      await markIntegration(["dialpad"], companyId, { success: false, error: "DIALPAD_API_KEY is not configured" });
       return json({ success: false, error: "DIALPAD_API_KEY is not configured" }, 400);
     }
 
-    // Hit a lightweight authenticated endpoint to verify the key.
     const resp = await fetch(`${DIALPAD_BASE}/company`, {
       headers: { Authorization: `Bearer ${apiKey}` },
     });
 
     const text = await resp.text();
     if (!resp.ok) {
-      return json({
-        success: false,
-        error: `Dialpad API error: ${resp.status}`,
-        details: text.slice(0, 500),
-      }, 400);
+      const err = `Dialpad API error: ${resp.status}`;
+      await markIntegration(["dialpad"], companyId, { success: false, error: err });
+      return json({ success: false, error: err, details: text.slice(0, 500) }, 400);
     }
 
     let company: { name?: string; id?: string | number } = {};
     try { company = JSON.parse(text); } catch { /* ignore */ }
+
+    await markIntegration(["dialpad"], companyId, { success: true });
 
     return json({
       success: true,
@@ -51,9 +53,9 @@ Deno.serve(async (req) => {
       webhook_secret_configured: Boolean(webhookSecret),
     });
   } catch (e) {
-    return json({
-      success: false,
-      error: e instanceof Error ? e.message : "Unknown error",
-    }, 500);
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    await markIntegration(["dialpad"], companyId, { success: false, error: msg });
+    return json({ success: false, error: msg }, 500);
   }
 });
+
