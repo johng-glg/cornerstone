@@ -8,6 +8,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { validateDocumentUpload, DOCUMENT_ACCEPT_ATTR } from '@/lib/storage';
+import { SignedDocumentLink } from '@/components/storage/SignedDocumentLink';
+import { useCurrentStaff } from '@/hooks/useStaff';
 import type { LitigationData } from '../LitigationWizard';
 
 interface LitigationDocumentsStepProps {
@@ -23,8 +25,10 @@ interface DocumentUploadProps {
   onUploadChange: (uploaded: boolean, url?: string) => void;
   uploadedUrl?: string;
   tempFolderId: string;
+  companyId: string | undefined;
   documentType: 'complaint' | 'summons';
 }
+
 
 function DocumentUploadCard({
   label,
