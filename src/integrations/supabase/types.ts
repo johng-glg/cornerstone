@@ -5121,6 +5121,10 @@ export type Database = {
           read_ct: number
         }[]
       }
+      resolve_entity_company_id: {
+        Args: { _entity_id: string; _entity_type: string }
+        Returns: string
+      }
       validate_status_transition: {
         Args: {
           _entity_id: string
