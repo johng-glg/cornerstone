@@ -75,6 +75,7 @@ export function AppSidebar() {
   const collapsed = state === 'collapsed';
   const { isAdmin, staff } = useAuth();
   const { data: permissions = [] } = useMyPermissions();
+  const showLeadsNav = useFeatureFlag('leads.show_in_navigation');
 
   const canRead = (module: string) => {
     if (isAdmin()) return true;
@@ -82,7 +83,10 @@ export function AppSidebar() {
     return perm?.can_read ?? false;
   };
 
-  const visibleMainItems = allNavItems.filter(item => canRead(item.module));
+  const visibleMainItems = allNavItems.filter(item => {
+    if (item.module === 'Leads' && !showLeadsNav) return false;
+    return canRead(item.module);
+  });
   const visibleAdminItems = isAdmin()
     ? adminNavItems
     : adminNavItems.filter(item => canRead(item.module));
