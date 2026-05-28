@@ -13,65 +13,48 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const companyId = await resolveCompanyId(req.headers.get("Authorization"));
+  const jsonResp = (b: unknown, status = 200) =>
+    new Response(JSON.stringify(b), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status,
+    });
+
   try {
     const docusealApiKey = Deno.env.get("DOCUSEAL_API_KEY");
     const docusealApiUrl = Deno.env.get("DOCUSEAL_API_URL") || "https://api.docuseal.com";
 
     if (!docusealApiKey) {
-      return new Response(
-        JSON.stringify({ success: false, error: "DOCUSEAL_API_KEY is not configured" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
+      await markIntegration(["docuseal"], companyId, { success: false, error: "DOCUSEAL_API_KEY is not configured" });
+      return jsonResp({ success: false, error: "DOCUSEAL_API_KEY is not configured" }, 400);
     }
 
-    console.log(`Testing DocuSeal API at: ${docusealApiUrl}`);
-
-    // Test API by fetching templates list
     const response = await fetch(`${docusealApiUrl}/templates?limit=5`, {
       method: "GET",
-      headers: {
-        "X-Auth-Token": docusealApiKey,
-        "Content-Type": "application/json",
-      },
+      headers: { "X-Auth-Token": docusealApiKey, "Content-Type": "application/json" },
     });
 
     const responseText = await response.text();
-    console.log(`DocuSeal response status: ${response.status}`);
-    console.log(`DocuSeal response: ${responseText}`);
 
     if (!response.ok) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `DocuSeal API error: ${response.status}`,
-          details: responseText,
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
+      const err = `DocuSeal API error: ${response.status}`;
+      await markIntegration(["docuseal"], companyId, { success: false, error: err });
+      return jsonResp({ success: false, error: err, details: responseText }, 400);
     }
 
     const templates = JSON.parse(responseText);
+    await markIntegration(["docuseal"], companyId, { success: true });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: "DocuSeal API connection verified",
-        api_url: docusealApiUrl,
-        templates_found: Array.isArray(templates) ? templates.length : templates.data?.length || 0,
-        templates: Array.isArray(templates) 
-          ? templates.map((t: { id: number; name: string }) => ({ id: t.id, name: t.name }))
-          : templates.data?.map((t: { id: number; name: string }) => ({ id: t.id, name: t.name })) || [],
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-    );
+    return jsonResp({
+      success: true,
+      message: "DocuSeal API connection verified",
+      api_url: docusealApiUrl,
+      templates_found: Array.isArray(templates) ? templates.length : templates.data?.length || 0,
+    });
   } catch (error) {
-    console.error("Error testing DocuSeal:", error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    await markIntegration(["docuseal"], companyId, { success: false, error: msg });
+    return jsonResp({ success: false, error: msg }, 500);
   }
+
 });
