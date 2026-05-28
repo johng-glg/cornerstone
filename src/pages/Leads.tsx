@@ -128,6 +128,24 @@ export default function LeadsPage() {
     lost: 'bg-muted text-muted-foreground',
   };
 
+  if (leadsGatedOff) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-heading font-bold tracking-tight">LEADS</h1>
+        </div>
+        <div className="rounded-lg border border-dashed border-border bg-muted/30 p-12 text-center">
+          <h2 className="text-lg font-semibold mb-2">Leads are not enabled for your role</h2>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Your administrator has not enabled paralegal access to the Lead Pipeline.
+            Ask an admin to turn on <span className="font-mono">leads.paralegal_visibility</span> in
+            Settings → Feature Flags if you need access.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
