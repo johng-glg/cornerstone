@@ -2,6 +2,14 @@
 
 All notable changes documented per cross-cutting rule: "Documentation by default".
 
+## Admin UX & Permissions Tightening (2026-05-28, PM)
+
+- **Role impersonation dropdown** added to the top bar for admins (view-only). Persists in `sessionStorage`; client-side only — database RLS still enforces real permissions. 11 preset views (Admin, Attorney, Case Manager, Paralegal, Sales Rep, Negotiator, Payment Processor, Correspondence, Client Services Rep, Eligibility Reviewer, Viewer).
+- **Leads access revoked** for `attorney` and `case_manager` roles in `role_permissions` (Client Services Rep was already off). Leads sidebar item and module now hidden for those roles. Admin / Sales Rep / Eligibility Reviewer / Negotiator (where granted) retain access. Pure paralegals still gated by `leads.paralegal_visibility` tenant flag.
+- **Department field hidden** from Staff create/edit dialog. Department remains in the database (still derived from Role on save) so dashboards, staff-page grouping, and badges continue to work — it's just no longer surfaced in the form since it was always read-only and redundant.
+- **Integration test connection** buttons confirmed working for DocuSeal, Forth (Pay + CRM), and Dialpad. Each stamps `last_connected_at` / `last_connection_error` via the shared `markIntegrationConnected` helper; UI invalidates the `company-integrations` query so the "Last connected" pill refreshes immediately. No new credentials needed for any provider.
+
+
 ## Phase 12 — Dialpad Integration (2026-05-28)
 
 - Registered `dialpad` in `integration_providers` (telephony; events `state_changed`, `recording`, `voicemail`). Ships disabled by default per company.
