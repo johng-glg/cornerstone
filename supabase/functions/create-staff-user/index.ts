@@ -94,8 +94,19 @@ Deno.serve(async (req) => {
       throw new Error('Missing required fields: email, first_name, last_name, department, company_id')
     }
 
-    // Default password if not provided
-    const password = body.password || 'TestPass123!'
+    // Generate a strong random temporary password if none provided.
+    // Returned to the admin in the success response so it can be communicated securely.
+    function generateTempPassword(len = 20): string {
+      const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';
+      const buf = new Uint8Array(len);
+      crypto.getRandomValues(buf);
+      let out = '';
+      for (let i = 0; i < len; i++) out += charset[buf[i] % charset.length];
+      return out;
+    }
+    const passwordWasGenerated = !body.password;
+    const password = body.password || generateTempPassword();
+
 
     // Create auth user with email auto-confirmed
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
