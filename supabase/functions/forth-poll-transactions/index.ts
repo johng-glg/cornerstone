@@ -78,14 +78,15 @@ serve(async (req) => {
           draft_ids: [parseInt(tx.external_id, 10)],
         };
 
-        const response = await fetch('https://api.forthpay.com/v1/reports/transactions', {
-          method: 'POST',
-          headers: {
-            'Api-Key': accessToken,
-            'Content-Type': 'application/json',
+        const response = await forthFetch(
+          'https://api.forthpay.com/v1/reports/transactions',
+          {
+            method: 'POST',
+            headers: buildForthHeaders(accessToken),
+            body: JSON.stringify(reportPayload),
           },
-          body: JSON.stringify(reportPayload),
-        });
+          { caller: 'forth-poll-transactions' },
+        );
 
         const result = await response.json();
         const transactions = result.response?.transactions || result.transactions || [];
