@@ -176,8 +176,10 @@ Deno.serve(async (req) => {
         success: true,
         staff: staffRecord,
         user_id: newUser.user.id,
+        temporary_password: passwordWasGenerated ? password : undefined,
         message: `Staff member ${body.first_name} ${body.last_name} created successfully`
       }),
+
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
