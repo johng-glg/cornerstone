@@ -13,6 +13,7 @@ import { DocuSealTemplatesTab } from '@/components/settings/DocuSealTemplatesTab
 import { RolesSettingsTab } from '@/components/settings/RolesSettingsTab';
 import { FeatureFlagsTab } from '@/components/settings/FeatureFlagsTab';
 import { NsfRetryPolicyTab } from '@/components/settings/NsfRetryPolicyTab';
+import { IntegrationsSettingsTab } from '@/components/settings/IntegrationsSettingsTab';
 
 
 export default function SettingsPage() {
@@ -39,6 +40,7 @@ export default function SettingsPage() {
             <TabsTrigger value="roles">Roles</TabsTrigger>
             <TabsTrigger value="feature-flags">Feature Flags</TabsTrigger>
             <TabsTrigger value="nsf-retry">NSF Retry</TabsTrigger>
+            <TabsTrigger value="integrations">Integrations</TabsTrigger>
             <TabsTrigger value="appearance">Appearance</TabsTrigger>
             <TabsTrigger value="company">Company</TabsTrigger>
           </TabsList>
@@ -91,6 +93,9 @@ export default function SettingsPage() {
 
           <TabsContent value="feature-flags">
             <FeatureFlagsTab />
+          </TabsContent>
+          <TabsContent value="integrations">
+            <IntegrationsSettingsTab />
           </TabsContent>
 
           <TabsContent value="appearance">

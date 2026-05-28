@@ -862,6 +862,59 @@ export type Database = {
           },
         ]
       }
+      company_integrations: {
+        Row: {
+          company_id: string
+          config: Json
+          created_at: string
+          created_by: string | null
+          credentials_vault_ref: string | null
+          id: string
+          is_enabled: boolean
+          last_connected_at: string | null
+          last_connection_error: string | null
+          provider_key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          credentials_vault_ref?: string | null
+          id?: string
+          is_enabled?: boolean
+          last_connected_at?: string | null
+          last_connection_error?: string | null
+          provider_key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          credentials_vault_ref?: string | null
+          id?: string
+          is_enabled?: boolean
+          last_connected_at?: string | null
+          last_connection_error?: string | null
+          provider_key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_integrations_provider_key_fkey"
+            columns: ["provider_key"]
+            isOneToOne: false
+            referencedRelation: "integration_providers"
+            referencedColumns: ["provider_key"]
+          },
+        ]
+      }
       company_processor_configs: {
         Row: {
           api_key_encrypted: string | null
@@ -1186,6 +1239,74 @@ export type Database = {
           {
             foreignKeyName: "deadline_reminders_staff_id_fkey"
             columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dialpad_calls: {
+        Row: {
+          company_id: string
+          created_at: string
+          dialpad_call_id: string
+          direction: string | null
+          duration_seconds: number | null
+          ended_at: string | null
+          id: string
+          initiated_by: string | null
+          raw: Json | null
+          recording_url: string | null
+          related_entity_id: string | null
+          related_entity_type: string | null
+          started_at: string | null
+          state: string | null
+          target_phone: string
+          voicemail_transcript: string | null
+          voicemail_url: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          dialpad_call_id: string
+          direction?: string | null
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          initiated_by?: string | null
+          raw?: Json | null
+          recording_url?: string | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          started_at?: string | null
+          state?: string | null
+          target_phone: string
+          voicemail_transcript?: string | null
+          voicemail_url?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          dialpad_call_id?: string
+          direction?: string | null
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          initiated_by?: string | null
+          raw?: Json | null
+          recording_url?: string | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          started_at?: string | null
+          state?: string | null
+          target_phone?: string
+          voicemail_transcript?: string | null
+          voicemail_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dialpad_calls_initiated_by_fkey"
+            columns: ["initiated_by"]
             isOneToOne: false
             referencedRelation: "staff"
             referencedColumns: ["id"]
@@ -1652,6 +1773,96 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      integration_event_log: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          direction: string | null
+          entity_id: string | null
+          entity_type: string | null
+          error_message: string | null
+          event_type: string
+          id: string
+          latency_ms: number | null
+          payload: Json | null
+          provider_key: string
+          success: boolean | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          direction?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          latency_ms?: number | null
+          payload?: Json | null
+          provider_key: string
+          success?: boolean | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          direction?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          latency_ms?: number | null
+          payload?: Json | null
+          provider_key?: string
+          success?: boolean | null
+        }
+        Relationships: []
+      }
+      integration_providers: {
+        Row: {
+          auth_method: string
+          category: string
+          created_at: string
+          default_event_subscriptions: string[]
+          description: string | null
+          display_name: string
+          docs_url: string | null
+          icon_key: string | null
+          id: string
+          is_active: boolean
+          provider_key: string
+          updated_at: string
+        }
+        Insert: {
+          auth_method?: string
+          category: string
+          created_at?: string
+          default_event_subscriptions?: string[]
+          description?: string | null
+          display_name: string
+          docs_url?: string | null
+          icon_key?: string | null
+          id?: string
+          is_active?: boolean
+          provider_key: string
+          updated_at?: string
+        }
+        Update: {
+          auth_method?: string
+          category?: string
+          created_at?: string
+          default_event_subscriptions?: string[]
+          description?: string | null
+          display_name?: string
+          docs_url?: string | null
+          icon_key?: string | null
+          id?: string
+          is_active?: boolean
+          provider_key?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       job_titles: {
         Row: {
@@ -4118,6 +4329,7 @@ export type Database = {
           company_id: string
           created_at: string
           department: Database["public"]["Enums"]["department_new"]
+          dialpad_user_id: number | null
           email: string
           first_name: string
           hourly_rate: number | null
@@ -4135,6 +4347,7 @@ export type Database = {
           company_id: string
           created_at?: string
           department: Database["public"]["Enums"]["department_new"]
+          dialpad_user_id?: number | null
           email: string
           first_name: string
           hourly_rate?: number | null
@@ -4152,6 +4365,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           department?: Database["public"]["Enums"]["department_new"]
+          dialpad_user_id?: number | null
           email?: string
           first_name?: string
           hourly_rate?: number | null
