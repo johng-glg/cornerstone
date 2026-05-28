@@ -844,6 +844,102 @@ export const EDGE_FUNCTIONS = [
     ],
     outputs: 'Success confirmation',
   },
+  {
+    name: 'simulate-underwriting',
+    path: 'supabase/functions/simulate-underwriting',
+    description: 'Runs the simulated underwriting engine for an eligibility review. Calculates affordability, debt ratios, and program fit then writes results back to the review record.',
+    authentication: 'JWT required (authenticated users)',
+    inputs: [
+      { name: 'eligibility_review_id', type: 'string', description: 'Eligibility review UUID to evaluate' },
+    ],
+    outputs: 'JSON with score, flags, recommended term, and decision payload',
+  },
+  {
+    name: 'forth-auth',
+    path: 'supabase/functions/forth-auth',
+    description: 'Authenticates with the Forth CRM OAuth endpoint and caches the access token (~9 day TTL). Shared helper used by all other forth-* functions.',
+    authentication: 'None (diagnostic endpoint); requires FORTH_CLIENT_ID and FORTH_API_KEY secrets',
+    inputs: [],
+    outputs: 'JSON with success flag and tokenPreview',
+  },
+  {
+    name: 'forth-create-draft',
+    path: 'supabase/functions/forth-create-draft',
+    description: 'Creates a payment draft in Forth Pay from a CRM transaction. Stores the returned Forth draft_id on the transaction record.',
+    authentication: 'Service role',
+    inputs: [
+      { name: 'transaction_id', type: 'string', description: 'CRM transaction UUID to push to Forth' },
+    ],
+    outputs: 'JSON with success flag and forth draft_id',
+  },
+  {
+    name: 'forth-cancel-draft',
+    path: 'supabase/functions/forth-cancel-draft',
+    description: 'Cancels an existing Forth Pay draft. Respects the 7-day lock window enforced upstream.',
+    authentication: 'Service role',
+    inputs: [
+      { name: 'transaction_id', type: 'string', description: 'CRM transaction UUID linked to the Forth draft' },
+    ],
+    outputs: 'JSON with success flag and message',
+  },
+  {
+    name: 'forth-update-draft',
+    path: 'supabase/functions/forth-update-draft',
+    description: 'Updates a Forth Pay draft (process date and/or amount). Blocked when the draft is inside the 7-day lock window.',
+    authentication: 'Service role',
+    inputs: [
+      { name: 'transaction_id', type: 'string', description: 'CRM transaction UUID' },
+      { name: 'process_date', type: 'string?', description: 'New process date (ISO)' },
+      { name: 'amount', type: 'number?', description: 'New draft amount' },
+    ],
+    outputs: 'JSON with success flag and updated draft fields',
+  },
+  {
+    name: 'forth-poll-transactions',
+    path: 'supabase/functions/forth-poll-transactions',
+    description: 'Polls Forth Pay for the status of all pending transactions and reconciles open/pending/cleared/cancelled state into the CRM ledger.',
+    authentication: 'Service role (scheduled)',
+    inputs: [],
+    outputs: 'JSON with polled, updated, and errors counts',
+  },
+  {
+    name: 'forth-sync-client',
+    path: 'supabase/functions/forth-sync-client',
+    description: 'Syncs a CRM client with Forth CRM. Supports fetch, link (by forth_crm_id), and post_note actions. Persists forth_crm_id on the client.',
+    authentication: 'Service role',
+    inputs: [
+      { name: 'client_id', type: 'string', description: 'CRM client UUID' },
+      { name: 'forth_crm_id', type: 'string?', description: 'Existing Forth contact id when linking' },
+      { name: 'action', type: 'string?', description: 'fetch | link | post_note' },
+      { name: 'note', type: 'string?', description: 'Note body when action=post_note' },
+    ],
+    outputs: 'JSON with success flag, forth_crm_id, and contact payload',
+  },
+  {
+    name: 'forth-pause-resume',
+    path: 'supabase/functions/forth-pause-resume',
+    description: 'Pauses or resumes all drafts for a client in Forth Pay. Used when a service goes on hold or returns to active.',
+    authentication: 'Service role',
+    inputs: [
+      { name: 'client_id', type: 'string', description: 'CRM client UUID' },
+      { name: 'action', type: 'string', description: 'pause | resume' },
+    ],
+    outputs: 'JSON with success flag and message',
+  },
+  {
+    name: 'forth-register-client',
+    path: 'supabase/functions/forth-register-client',
+    description: 'Registers a new client in Forth Pay during enrollment: creates the contact, bank account, debts, and enrolls the program in one call. Runs in the background from the Enrollment Wizard.',
+    authentication: 'Service role',
+    inputs: [
+      { name: 'client_id', type: 'string', description: 'CRM client UUID' },
+      { name: 'client_service_id', type: 'string', description: 'CRM client_service UUID' },
+      { name: 'client_data', type: 'object', description: 'Demographics, address, contact, DOB, SSN' },
+      { name: 'banking', type: 'object?', description: 'Routing/account/bank metadata' },
+      { name: 'debts', type: 'array', description: 'List of debts with creditor, balance, account info' },
+    ],
+    outputs: 'JSON with success flag, forth_crm_id, and optional warning',
+  },
 ];
 
 export const STORAGE_BUCKETS = [
