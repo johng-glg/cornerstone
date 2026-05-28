@@ -229,14 +229,14 @@ export function ClientDocumentFormDialog({
                       <p className="text-sm font-medium truncate">
                         {fileName || 'Uploaded document'}
                       </p>
-                      <a
-                        href={uploadedUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <SignedDocumentLink
+                        bucket="client-documents"
+                        urlOrPath={uploadedUrl}
                         className="text-xs text-primary hover:underline"
                       >
                         View file
-                      </a>
+                      </SignedDocumentLink>
+
                     </div>
                     <Button
                       type="button"
