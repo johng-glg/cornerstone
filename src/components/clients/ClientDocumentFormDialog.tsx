@@ -134,12 +134,10 @@ export function ClientDocumentFormDialog({
 
       if (error) throw error;
 
-      const { data: publicUrlData } = supabase.storage
-        .from('client-documents')
-        .getPublicUrl(data.path);
-
-      setUploadedUrl(publicUrlData.publicUrl);
+      // Phase 7: bucket is private — persist the path only; viewers resolve signed URLs.
+      setUploadedUrl(data.path);
       toast({ title: 'File uploaded successfully' });
+
     } catch (error) {
       console.error('Upload error:', error);
       toast({
