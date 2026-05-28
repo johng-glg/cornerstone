@@ -49,7 +49,7 @@ On inbound events the webhook normalizes `target_phone` to E.164 and looks up `c
 2. Staff with a linked `dialpad_user_id` see CallButtons; others see disabled state.
 3. Click-to-call rings the staff's Dialpad device; the live pill transitions through states.
 4. Webhook signature mismatches are rejected (401) and logged with `success = false`.
-5. Completed calls write to `client_communications` with duration and (where present) signed recording link.
+5. Completed calls write to `client_communications` (client surfaces) or `entity_communications` (litigation, creditor, lead, and other polymorphic surfaces) with duration and (where present) signed recording link.
 6. Inbound calls fire screen-pop per the staff member's preference.
 7. Disabling `dialpad` in `company_integrations` blocks `dialpad-initiate` immediately.
 8. `dialpad_calls` is admin-readable within company scope; service_role-only writes.
