@@ -81,3 +81,7 @@ verify_jwt = false
 [functions.dialpad-backfill-user]
 verify_jwt = false
 
+[functions.dialpad-register-webhook]
+verify_jwt = false
+
+
