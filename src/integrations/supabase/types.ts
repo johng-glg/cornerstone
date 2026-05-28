@@ -531,6 +531,8 @@ export type Database = {
           created_at: string
           enrolled_date: string | null
           escrow_balance: number | null
+          escrow_balance_synced: number | null
+          escrow_balance_synced_at: string | null
           estimated_completion_date: string | null
           estimated_settlement_percentage: number | null
           first_draft_date: string | null
@@ -578,6 +580,8 @@ export type Database = {
           created_at?: string
           enrolled_date?: string | null
           escrow_balance?: number | null
+          escrow_balance_synced?: number | null
+          escrow_balance_synced_at?: string | null
           estimated_completion_date?: string | null
           estimated_settlement_percentage?: number | null
           first_draft_date?: string | null
@@ -625,6 +629,8 @@ export type Database = {
           created_at?: string
           enrolled_date?: string | null
           escrow_balance?: number | null
+          escrow_balance_synced?: number | null
+          escrow_balance_synced_at?: string | null
           estimated_completion_date?: string | null
           estimated_settlement_percentage?: number | null
           first_draft_date?: string | null
@@ -701,6 +707,7 @@ export type Database = {
           email: string | null
           first_name: string
           forth_crm_id: string | null
+          forth_status: string | null
           id: string
           is_active: boolean
           last_name: string
@@ -724,6 +731,7 @@ export type Database = {
           email?: string | null
           first_name: string
           forth_crm_id?: string | null
+          forth_status?: string | null
           id?: string
           is_active?: boolean
           last_name: string
@@ -747,6 +755,7 @@ export type Database = {
           email?: string | null
           first_name?: string
           forth_crm_id?: string | null
+          forth_status?: string | null
           id?: string
           is_active?: boolean
           last_name?: string
@@ -3340,6 +3349,7 @@ export type Database = {
           attorney_approved_date: string | null
           completed_date: string | null
           created_at: string
+          external_payment_id: string | null
           fee_collection_method:
             | Database["public"]["Enums"]["fee_collection_method"]
             | null
@@ -3352,7 +3362,10 @@ export type Database = {
           offer_amount: number
           offer_percentage: number | null
           offered_date: string
+          payment_method: string | null
           payment_schedule: Json | null
+          payment_send_status: string | null
+          payment_sent_at: string | null
           payment_type: Database["public"]["Enums"]["payment_type"]
           status: Database["public"]["Enums"]["settlement_status"]
           updated_at: string
@@ -3364,6 +3377,7 @@ export type Database = {
           attorney_approved_date?: string | null
           completed_date?: string | null
           created_at?: string
+          external_payment_id?: string | null
           fee_collection_method?:
             | Database["public"]["Enums"]["fee_collection_method"]
             | null
@@ -3376,7 +3390,10 @@ export type Database = {
           offer_amount: number
           offer_percentage?: number | null
           offered_date?: string
+          payment_method?: string | null
           payment_schedule?: Json | null
+          payment_send_status?: string | null
+          payment_sent_at?: string | null
           payment_type?: Database["public"]["Enums"]["payment_type"]
           status?: Database["public"]["Enums"]["settlement_status"]
           updated_at?: string
@@ -3388,6 +3405,7 @@ export type Database = {
           attorney_approved_date?: string | null
           completed_date?: string | null
           created_at?: string
+          external_payment_id?: string | null
           fee_collection_method?:
             | Database["public"]["Enums"]["fee_collection_method"]
             | null
@@ -3400,7 +3418,10 @@ export type Database = {
           offer_amount?: number
           offer_percentage?: number | null
           offered_date?: string
+          payment_method?: string | null
           payment_schedule?: Json | null
+          payment_send_status?: string | null
+          payment_sent_at?: string | null
           payment_type?: Database["public"]["Enums"]["payment_type"]
           status?: Database["public"]["Enums"]["settlement_status"]
           updated_at?: string

@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Calendar, FileText, DollarSign, Briefcase, Edit2, ExternalLink, CloudUpload, Loader2, CheckCircle2, MessageSquare } from 'lucide-react';
+import { User, Calendar, FileText, DollarSign, Briefcase, Edit2, ExternalLink, CloudUpload, Loader2, CheckCircle2, MessageSquare, RefreshCw } from 'lucide-react';
 import { NotesPanel } from '@/components/notes/NotesPanel';
 import { useClientService, useUpdatePrimaryStatus, useUpdatePaymentStatus, useUpdateContactStatus, useUpdateRetention } from '@/hooks/useClientServices';
 import { useServiceStatusHistory } from '@/hooks/useServiceStatusHistory';
-import { useRegisterForthClient, usePauseForthClient, useResumeForthClient } from '@/hooks/useForthApi';
+import { useRegisterForthClient, usePauseForthClient, useResumeForthClient, useFetchForthBalance } from '@/hooks/useForthApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { ServiceStatusBadges, PrimaryStatusBadge, PaymentStatusBadge, ContactStatusBadge } from './ServiceStatusBadges';
@@ -40,6 +40,7 @@ export function ServiceDetailSheet({ serviceId, open, onOpenChange }: ServiceDet
   const registerForthClient = useRegisterForthClient();
   const pauseForthClient = usePauseForthClient();
   const resumeForthClient = useResumeForthClient();
+  const fetchForthBalance = useFetchForthBalance();
 
   const [statusModal, setStatusModal] = useState<{
     open: boolean;
@@ -475,7 +476,21 @@ export function ServiceDetailSheet({ serviceId, open, onOpenChange }: ServiceDet
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">PLSA Balance</p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-muted-foreground">PLSA Balance</p>
+                          {service.primary_client?.forth_crm_id && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2"
+                              disabled={fetchForthBalance.isPending}
+                              onClick={() => fetchForthBalance.mutate(service.primary_client!.id)}
+                              title="Refresh from Forth"
+                            >
+                              <RefreshCw className={`h-3 w-3 ${fetchForthBalance.isPending ? 'animate-spin' : ''}`} />
+                            </Button>
+                          )}
+                        </div>
                         <p className="text-lg font-semibold text-primary">{formatCurrency(service.escrow_balance)}</p>
                       </div>
                     </div>

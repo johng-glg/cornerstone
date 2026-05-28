@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, X, CheckCircle, Gavel, AlertCircle, Trash2 } from 'lucide-react';
+import { Check, X, CheckCircle, Gavel, AlertCircle, Trash2, Send } from 'lucide-react';
 import { 
   useApproveSettlement, 
   useAcceptSettlement, 
@@ -11,6 +11,7 @@ import {
   useDeleteSettlement,
   type Settlement 
 } from '@/hooks/useSettlements';
+import { useSendForthPaymentToCreditor } from '@/hooks/useForthApi';
 import { useAuth } from '@/lib/auth';
 import { format } from 'date-fns';
 import {
@@ -60,6 +61,14 @@ export function SettlementCard({ settlement }: SettlementCardProps) {
   const rejectSettlement = useRejectSettlement();
   const completeSettlement = useCompleteSettlement();
   const deleteSettlement = useDeleteSettlement();
+  const sendPayment = useSendForthPaymentToCreditor();
+
+  // Cornerstone Phase 3D: external_payment_id / payment_send_status are new columns;
+  // cast until types regenerate.
+  const settlementAny = settlement as unknown as Settlement & {
+    external_payment_id?: string | null;
+    payment_send_status?: string | null;
+  };
 
   const isDeleted = settlement.status === 'cancelled';
   const canApprove = hasRole('attorney') || hasRole('admin');
@@ -267,6 +276,25 @@ export function SettlementCard({ settlement }: SettlementCardProps) {
                   <CheckCircle className="h-4 w-4 mr-1" />
                   Mark Complete
                 </Button>
+              )}
+
+              {/* Cornerstone Phase 3D — Send disbursement to Forth Pay */}
+              {settlement.status === 'accepted' && settlement.attorney_approved && !settlementAny.external_payment_id && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => sendPayment.mutate({ settlementId: settlement.id, paymentMethod: 'ach' })}
+                  disabled={sendPayment.isPending || settlementAny.payment_send_status === 'sending'}
+                >
+                  <Send className="h-4 w-4 mr-1" />
+                  {sendPayment.isPending || settlementAny.payment_send_status === 'sending' ? 'Sending…' : 'Send Payment'}
+                </Button>
+              )}
+
+              {settlementAny.external_payment_id && (
+                <Badge variant="outline" className="self-center">
+                  Payment sent · {settlementAny.external_payment_id.slice(0, 12)}…
+                </Badge>
               )}
             </div>
           )}
