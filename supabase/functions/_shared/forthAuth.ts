@@ -186,12 +186,13 @@ async function logRetry(
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
     await supabase.from('forth_sync_log').insert({
-      company_id: companyId ?? null,
+      entity_type: 'forth_api',
       action: 'retry',
-      status: 'pending',
-      payload: { caller, url, attempt, wait_ms: waitMs },
+      success: false,
+      request_payload: { caller, url, attempt, wait_ms: waitMs, company_id: companyId ?? null },
     });
   } catch (e) {
     console.warn('[forthFetch] retry log insert failed:', e);
   }
 }
+
