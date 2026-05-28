@@ -29,11 +29,14 @@ import { Badge } from '@/components/ui/badge';
 import { useCreateTemplate, useUpdateTemplate } from '@/hooks/useTemplates';
 import { useTemplateCategories, useSeedDefaultCategories } from '@/hooks/useTemplateCategories';
 import { MergeFieldPalette } from './MergeFieldPalette';
-import { 
-  Template, 
-  TemplateType, 
+import { ConditionalBlockInserter } from './ConditionalBlockInserter';
+import { TemplateVersionHistory } from './TemplateVersionHistory';
+import { TemplateUsagePanel } from './TemplateUsagePanel';
+import {
+  Template,
+  TemplateType,
   TemplateLanguage,
-  templateTypeLabels, 
+  templateTypeLabels,
   templateLanguageLabels,
   TEMPLATE_CHAR_LIMITS,
   MergeFieldDefinition,
