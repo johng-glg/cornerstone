@@ -498,13 +498,8 @@ export function StaffFormDialog({ open, onOpenChange, staffMember }: StaffFormDi
                 )}
               />
 
-              {department && (
-                <div className="rounded-lg border p-3 bg-muted/50">
-                  <p className="text-sm text-muted-foreground">
-                    Department: <span className="font-medium text-foreground">{formatDepartment(department)}</span>
-                  </p>
-                </div>
-              )}
+
+
 
               <FormField
                 control={form.control}
