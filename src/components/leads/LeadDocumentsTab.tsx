@@ -77,10 +77,11 @@ export function LeadDocumentsTab({ leadId }: LeadDocumentsTabProps) {
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                      <SignedDocumentLink bucket="lead-documents" urlOrPath={doc.file_url}>
                         <ExternalLink className="h-4 w-4" />
-                      </a>
+                      </SignedDocumentLink>
                     </Button>
+
                     <Button
                       variant="ghost"
                       size="icon"
