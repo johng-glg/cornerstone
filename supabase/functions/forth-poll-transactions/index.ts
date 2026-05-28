@@ -138,7 +138,25 @@ serve(async (req) => {
 
             updatedCount++;
             console.log(`[forth-poll-transactions] Updated ${tx.id}: ${tx.status} -> ${newStatus}`);
+
+            // Phase 5A: schedule NSF retries when a draft fails due to insufficient funds.
+            if (newStatus === 'failed' && isNSF) {
+              try {
+                await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/plsa-nsf-retry`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                  },
+                  body: JSON.stringify({ mode: 'schedule', transaction_id: tx.id }),
+                });
+              } catch (nsfErr) {
+                console.error('[forth-poll-transactions] NSF schedule failed', nsfErr);
+              }
+            }
           }
+
+
 
           await supabase.from('transactions').update(updateData).eq('id', tx.id);
         } else {
