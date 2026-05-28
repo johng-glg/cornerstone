@@ -19,7 +19,7 @@ import { GlobalSearch } from '@/components/search/GlobalSearch';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { FeatureRequestDialog } from '@/components/features/FeatureRequestDialog';
 export function TopNav() {
-  const { user, staff, signOut } = useAuth();
+  const { user, staff, signOut, isRealAdmin, impersonatedView, setImpersonatedView } = useAuth();
   const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
   const [featureRequestOpen, setFeatureRequestOpen] = useState(false);
