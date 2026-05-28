@@ -38,6 +38,8 @@ export function ServiceDetailSheet({ serviceId, open, onOpenChange }: ServiceDet
   const updateContactStatus = useUpdateContactStatus();
   const updateRetention = useUpdateRetention();
   const registerForthClient = useRegisterForthClient();
+  const pauseForthClient = usePauseForthClient();
+  const resumeForthClient = useResumeForthClient();
 
   const [statusModal, setStatusModal] = useState<{
     open: boolean;
