@@ -6,6 +6,8 @@
 // Output: { success, provider_id, ...response }
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireAuth } from "../_shared/requireAuth.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -114,6 +116,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const gate = await requireAuth(req);
+    if (gate instanceof Response) return gate;
+
     const body = (await req.json()) as RouteRequest;
     if (!body?.operation) {
       return new Response(
@@ -144,19 +149,21 @@ Deno.serve(async (req) => {
       );
     }
 
-    const authHeader = req.headers.get("Authorization") ?? "";
+    // Forward the validated caller's auth header to the downstream function
+    // so it can apply its own auth gate. Never silently fall back to service-role
+    // for anonymous callers.
     const fnBody = route.buildBody(body);
 
-    // Invoke target edge function via internal HTTP call
     const url = `${Deno.env.get("SUPABASE_URL")}/functions/v1/${route.fn}`;
     const upstream = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: authHeader || `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        Authorization: gate.authHeader,
       },
       body: JSON.stringify(fnBody),
     });
+
 
     const text = await upstream.text();
     let parsed: Record<string, unknown> = {};

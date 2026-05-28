@@ -31,6 +31,8 @@ serve(async (req) => {
   );
 
   try {
+    const __gate = await (await import("../_shared/requireAuth.ts")).requireAuth(req);
+    if (__gate instanceof Response) return __gate;
     const { settlement_id, payment_method = 'ach' } = await req.json();
     if (!settlement_id) throw new Error('settlement_id is required');
 

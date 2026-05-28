@@ -30,6 +30,8 @@ serve(async (req) => {
   );
 
   try {
+    const __gate = await (await import("../_shared/requireAuth.ts")).requireAuth(req);
+    if (__gate instanceof Response) return __gate;
     const { transaction_id } = await req.json();
     
     if (!transaction_id) {

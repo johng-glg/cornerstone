@@ -69,8 +69,8 @@ const App = () => (
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               
-              {/* Documentation routes */}
-              <Route path="/docs" element={<DocsLayout />}>
+              {/* Documentation routes — gated behind app auth */}
+              <Route path="/docs" element={<AppLayout><DocsLayout /></AppLayout>}>
                 <Route index element={<DocsOverview />} />
                 <Route path="schema" element={<SchemaPage />} />
                 <Route path="erd" element={<ERDPage />} />
@@ -86,6 +86,7 @@ const App = () => (
                 <Route path="integrations" element={<IntegrationsPage />} />
                 <Route path="security-concerns" element={<SecurityPage />} />
               </Route>
+
               
               {/* Protected routes with layout */}
               <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />

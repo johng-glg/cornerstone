@@ -33,6 +33,8 @@ serve(async (req) => {
   );
 
   try {
+    const __gate = await (await import("../_shared/requireAuth.ts")).requireAuth(req);
+    if (__gate instanceof Response) return __gate;
     const { client_id } = await req.json();
     if (!client_id) throw new Error('client_id is required');
 

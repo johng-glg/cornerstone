@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.93.3";
+import { requireAuth, requireCompanyAccess } from "../_shared/requireAuth.ts";
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -261,6 +263,9 @@ serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
+    const gate = await requireAuth(req);
+    if (gate instanceof Response) return gate;
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -268,6 +273,7 @@ serve(async (req: Request) => {
 
     const body: RenderRequest = await req.json();
     const { template_id, template_content, template_subject, entity_type, entity_id, additional_data = {}, channel, log_usage } = body;
+
 
     if (!entity_type || !entity_id) {
       return new Response(JSON.stringify({ error: 'entity_type and entity_id are required' }),
@@ -354,11 +360,19 @@ serve(async (req: Request) => {
 
     let companyData: Record<string, unknown> = {};
     if (companyId) {
+      if (!gate.isServiceRole && gate.userId) {
+        const ok = await requireCompanyAccess(gate.userId, companyId);
+        if (!ok) {
+          return new Response(JSON.stringify({ error: 'Forbidden' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+      }
       const { data } = await supabase.from('companies').select('*').eq('id', companyId).single();
       if (data) companyData = data;
     }
 
     const authHeader = req.headers.get('Authorization');
+
     let staffData: Record<string, unknown> = {};
     let staffId: string | null = null;
     if (authHeader) {

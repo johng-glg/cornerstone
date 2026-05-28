@@ -39,12 +39,62 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const webhookSecret = Deno.env.get("DOCUSEAL_WEBHOOK_SECRET");
+
+    // Read raw body once so we can both verify the HMAC and parse JSON.
+    const rawBody = await req.text();
+
+    if (!webhookSecret) {
+      console.error("DOCUSEAL_WEBHOOK_SECRET not configured; rejecting webhook");
+      return new Response(JSON.stringify({ error: "Webhook not configured" }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const signatureHeader =
+      req.headers.get("X-DocuSeal-Signature") ||
+      req.headers.get("x-docuseal-signature") ||
+      req.headers.get("X-Signature") ||
+      "";
+    const provided = signatureHeader.replace(/^sha256=/i, "").trim().toLowerCase();
+
+    const keyData = new TextEncoder().encode(webhookSecret);
+    const key = await crypto.subtle.importKey(
+      "raw",
+      keyData,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const sigBuf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
+    const computed = Array.from(new Uint8Array(sigBuf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    // Constant-time-ish comparison
+    let ok = provided.length === computed.length && provided.length > 0;
+    if (ok) {
+      let diff = 0;
+      for (let i = 0; i < computed.length; i++) {
+        diff |= computed.charCodeAt(i) ^ provided.charCodeAt(i);
+      }
+      ok = diff === 0;
+    }
+    if (!ok) {
+      console.warn("DocuSeal webhook signature mismatch");
+      return new Response(JSON.stringify({ error: "Invalid signature" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const payload: DocuSealWebhookPayload = await req.json();
+    const payload: DocuSealWebhookPayload = JSON.parse(rawBody);
 
-    console.log(`Received DocuSeal webhook: ${payload.event_type}`, JSON.stringify(payload));
+    console.log(`Received DocuSeal webhook: ${payload.event_type}`);
+
 
     const { event_type, data } = payload;
     const submitterId = data.id;
