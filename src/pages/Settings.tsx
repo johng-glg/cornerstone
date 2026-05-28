@@ -11,6 +11,7 @@ import { TemplatesTab } from '@/components/settings/TemplatesTab';
 import { LitigationTeamsSettingsTab } from '@/components/settings/LitigationTeamsSettingsTab';
 import { DocuSealTemplatesTab } from '@/components/settings/DocuSealTemplatesTab';
 import { RolesSettingsTab } from '@/components/settings/RolesSettingsTab';
+import { FeatureFlagsTab } from '@/components/settings/FeatureFlagsTab';
 
 
 export default function SettingsPage() {
