@@ -171,7 +171,7 @@ export function ClientPaymentsTab({ clientId }: ClientPaymentsTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Escrow Balance Chart */}
+      {/* PLSA Balance Chart */}
       <EscrowBalanceChart transactions={transactions} />
 
       {/* Transactions Table */}

@@ -135,7 +135,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
   {
     role: 'attorney',
     title: 'Attorney Guide',
-    introduction: 'As an Attorney, you provide legal oversight for the firm\'s debt settlement and litigation activities. Your primary responsibilities include approving settlements, managing litigation matters, and ensuring legal compliance.',
+    introduction: 'As an Attorney, you provide legal oversight for the firm\'s consumer debt defense and litigation activities. Your primary responsibilities include approving settlements, managing litigation matters, and ensuring legal compliance.',
     gettingStarted: [
       { title: 'Review Pending Approvals', description: 'Check the Attorney Dashboard for settlements awaiting your approval.' },
       { title: 'Review Litigation Docket', description: 'Familiarize yourself with active litigation matters and upcoming deadlines.' },
@@ -323,7 +323,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
       { title: 'Review Negotiation Queue', description: 'Check liabilities ready for negotiation based on escrow balances.' },
       { title: 'Learn Creditor Patterns', description: 'Review creditor database for negotiation history and preferences.' },
       { title: 'Check Settlement Pipeline', description: 'Review active offers and pending responses.' },
-      { title: 'Review Escrow Projections', description: 'Understand when funds will be available for settlements.' },
+      { title: 'Review PLSA Projections', description: 'Understand when funds will be available for settlements.' },
     ],
     dailyWorkflow: [
       {
@@ -358,7 +358,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
     keyFeatures: [
       { feature: 'Negotiation Dashboard', description: 'View liabilities ready for negotiation', location: 'Dashboard' },
       { feature: 'Settlement Builder', description: 'Calculate and create settlement offers', location: 'Liability > Settlement Builder' },
-      { feature: 'Escrow Projection', description: 'View projected escrow balances', location: 'Service > Escrow' },
+      { feature: 'PLSA Projection', description: 'View projected PLSA balances', location: 'Engagement > PLSA' },
       { feature: 'Creditor Database', description: 'Access creditor contact info and history', location: 'Creditors' },
     ],
     bestPractices: [
@@ -636,7 +636,7 @@ export const ROLE_GUIDES: RoleGuide[] = [
       { feature: 'Payment Dashboard', description: 'Overview of all payment activity', location: 'Payments' },
       { feature: 'Transaction List', description: 'View and manage all transactions', location: 'Payments > Transactions' },
       { feature: 'Scheduled Payments', description: 'View upcoming scheduled payments', location: 'Payments > Scheduled' },
-      { feature: 'Escrow Balances', description: 'View client escrow account balances', location: 'Service > Escrow' },
+      { feature: 'PLSA Balances', description: 'View client PLSA account balances', location: 'Engagement > PLSA' },
     ],
     bestPractices: [
       'Process payments on schedule',

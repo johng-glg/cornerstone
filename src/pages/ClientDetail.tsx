@@ -75,7 +75,7 @@ export default function ClientDetailPage() {
           <div className="border-b px-6 sticky top-0 bg-background z-10">
             <TabsList className="h-12">
               <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="services">Services</TabsTrigger>
+              <TabsTrigger value="services">Engagements</TabsTrigger>
               <TabsTrigger value="liabilities">Liabilities</TabsTrigger>
               <TabsTrigger value="litigation">Litigation</TabsTrigger>
               <TabsTrigger value="payments">Payments</TabsTrigger>

@@ -82,7 +82,7 @@ export const DATABASE_SCHEMAS: TableSchema[] = [
   },
   {
     name: 'client_services',
-    description: 'Represents an active service engagement (debt settlement program). Links clients to their enrolled services with financial details.',
+    description: 'Represents an active client engagement (consumer debt defense program). Links clients to their enrolled engagements with financial details.',
     columns: [
       { name: 'id', type: 'uuid', nullable: false, default: 'gen_random_uuid()', description: 'Primary key' },
       { name: 'service_number', type: 'text', nullable: false, description: 'Auto-generated service identifier (SVC-YYYY-XXXX)' },
