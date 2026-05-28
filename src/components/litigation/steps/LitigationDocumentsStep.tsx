@@ -61,8 +61,11 @@ function DocumentUploadCard({
     setFileName(file.name);
 
     try {
+      if (!companyId) {
+        throw new Error('Company context missing; please reload.');
+      }
       const fileExt = file.name.split('.').pop();
-      const filePath = `temp/${tempFolderId}/${documentType}-${Date.now()}.${fileExt}`;
+      const filePath = `${companyId}/temp/${tempFolderId}/${documentType}-${Date.now()}.${fileExt}`;
 
       const { data, error } = await supabase.storage
         .from('litigation-documents')
@@ -73,12 +76,10 @@ function DocumentUploadCard({
 
       if (error) throw error;
 
-      const { data: publicUrlData } = supabase.storage
-        .from('litigation-documents')
-        .getPublicUrl(data.path);
-
-      onUploadChange(true, publicUrlData.publicUrl);
+      // Phase 7: bucket is private — persist the bucket-relative path; viewers resolve signed URLs.
+      onUploadChange(true, data.path);
       toast({ title: 'File uploaded successfully' });
+
     } catch (error) {
       console.error('Upload error:', error);
       toast({
