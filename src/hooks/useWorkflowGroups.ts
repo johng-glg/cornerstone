@@ -90,7 +90,7 @@ export function useUpdateWorkflowGroup() {
 
       const { data, error } = await supabase
         .from('workflow_groups')
-        .update(updateData)
+        .update(updateData as never)
         .eq('id', id)
         .select()
         .single();
