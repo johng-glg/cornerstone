@@ -170,7 +170,7 @@ function WizardContent({ onClose, onSuccess }: Omit<EnrollmentWizardProps, 'lead
           company_id: currentStaff.company_id,
           tcpa_consent: data.tcpa_consent,
           tcpa_consent_date: data.tcpa_consent ? new Date().toISOString() : null,
-          ssn_encrypted: data.ssn_last4 || null,
+          ssn_last4: data.ssn_last4 || null,
         }])
         .select()
         .single();
