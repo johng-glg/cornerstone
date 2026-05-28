@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { MfaCard } from '@/components/settings/MfaCard';
 import { useCurrentStaff, useUpdateCurrentStaff } from '@/hooks/useStaff';
 
 const formSchema = z.object({
@@ -90,6 +91,7 @@ export function ProfileSettingsTab() {
   }
 
   return (
+    <div className="space-y-6">
     <Card>
       <CardHeader>
         <CardTitle>Profile Information</CardTitle>
@@ -186,5 +188,7 @@ export function ProfileSettingsTab() {
         </Form>
       </CardContent>
     </Card>
+    <MfaCard />
+    </div>
   );
 }
