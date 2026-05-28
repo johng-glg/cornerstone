@@ -36,6 +36,7 @@ export default function SettingsPage() {
             <TabsTrigger value="workflows">Workflows</TabsTrigger>
             <TabsTrigger value="legal-teams">Legal Teams</TabsTrigger>
             <TabsTrigger value="roles">Roles</TabsTrigger>
+            <TabsTrigger value="feature-flags">Feature Flags</TabsTrigger>
             <TabsTrigger value="appearance">Appearance</TabsTrigger>
             <TabsTrigger value="company">Company</TabsTrigger>
           </TabsList>
