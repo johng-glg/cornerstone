@@ -2,6 +2,28 @@
 
 All notable changes documented per cross-cutting rule: "Documentation by default".
 
+## Phase 12 — Dialpad Integration (2026-05-28)
+
+- Registered `dialpad` in `integration_providers` (telephony; events `state_changed`, `recording`, `voicemail`). Ships disabled by default per company.
+- New `public.dialpad_calls` (company-scoped read, service_role writes). `staff` gains `dialpad_user_id` and `screen_pop_preference`.
+- Edge functions: `dialpad-initiate`, `dialpad-webhook` (HMAC-SHA256 signature verification on raw body), `dialpad-backfill-user`, `dialpad-register-webhook`, `dialpad-test-connection`. All registered in `supabase/config.toml`.
+- Frontend: `<CallButton>` wired into Client / Lead / Liability / Litigation / Creditor Contact surfaces; `useInitiateCall` hook; live call-state pill via realtime on `dialpad_calls`.
+- `ScreenPopProvider` subscribes to inbound calls per current staff and surfaces toast/auto-navigate/off per `screen_pop_preference`.
+- Webhook auto-links calls to `clients` / `leads` / `creditor_contacts` by E.164 match; completed calls append a `client_communications` row with duration and signed recording link.
+- Secrets added: `DIALPAD_API_TOKEN`, `DIALPAD_WEBHOOK_SECRET`, optional `DIALPAD_DEFAULT_USER_ID`.
+- See `phase_12_summary.md` for full schema, acceptance, and rollback.
+
+## Phase 11 — Integrations Management Hub (2026-05-28)
+
+- New tables: `integration_providers` (registry, seeded `docuseal`, `forth_pay`, `forth_crm`), `company_integrations` (per-tenant config, unique `(company_id, provider_key)`, admin-only mutate), `integration_event_log` (universal observability, admin SELECT scoped by company, service_role insert).
+- New admin nav item **Integrations** at `/integrations` (promoted out of Settings). Provider cards expose Configure / Test Connection / View Activity with a real-time "Last connected" pill.
+- Shared edge helpers (`supabase/functions/_shared/integrations.ts`): `getIntegrationConfig`, `logIntegrationEvent`, `requireIntegrationEnabled`. Existing DocuSeal/Forth functions refactored to log + short-circuit when disabled.
+- New `_shared/markIntegrationConnected.ts` stamps `last_connected_at` / `last_connection_error` on every matching provider row after a successful/failed test (handles shared-credential providers like `forth_pay` + `forth_crm`).
+- Test functions: `docuseal-test`, `forth-test-connection` (forces fresh OAuth, clears ~9 day cache, stamps both Forth rows), `dialpad-test-connection` (Phase 12). UI invalidates `company-integrations` query so pills refresh immediately.
+- Seed: existing tenants with DocuSeal/Forth secrets got `company_integrations` rows with `is_enabled = true` — no downtime.
+- No new credentials required for Forth or DocuSeal; both reuse existing secrets.
+- See `phase_11_summary.md` for full schema, acceptance, and rollback.
+
 ## Operation Cornerstone — Phase 7 (2026-05-28)
 
 ### 7 — Storage hardening + Realtime auth
