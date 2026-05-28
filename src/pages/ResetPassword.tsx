@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/lib/auth';
+import { PASSWORD_RECOVERY_STORAGE_KEY } from '@/lib/authRecovery';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,48 +56,84 @@ export default function ResetPassword() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // A recovery link arrives as either:
-    //   #access_token=...&type=recovery   (implicit flow)
-    //   ?code=...&type=recovery           (PKCE flow)
-    // or after Supabase's /verify redirect, simply as an active session.
-    const hash = window.location.hash || '';
-    const search = window.location.search || '';
-    const looksLikeRecoveryLink =
-      hash.includes('type=recovery') ||
-      search.includes('type=recovery') ||
-      hash.includes('access_token=') ||
-      search.includes('code=');
+    let isMounted = true;
+    const timers: number[] = [];
+    const markReady = () => isMounted && setHasRecoverySession(true);
+    const markExpired = () => isMounted && setHasRecoverySession(false);
 
-    // Supabase fires PASSWORD_RECOVERY when the recovery link is opened.
+    const url = new URL(window.location.href);
+    const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+    const searchParams = url.searchParams;
+      const storedRecovery = sessionStorage.getItem(PASSWORD_RECOVERY_STORAGE_KEY) === 'true';
+    const accessToken = hashParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token');
+    const code = searchParams.get('code');
+    const linkType = hashParams.get('type') ?? searchParams.get('type');
+    const looksLikeRecoveryLink =
+        storedRecovery ||
+      linkType === 'recovery' ||
+      Boolean(accessToken) ||
+      Boolean(refreshToken) ||
+      Boolean(code);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && looksLikeRecoveryLink)) {
-        setHasRecoverySession(true);
+      if (event === 'PASSWORD_RECOVERY' || (session && looksLikeRecoveryLink)) {
+        markReady();
       }
     });
 
-    // Give Supabase a moment to parse the URL hash / exchange the code before
-    // deciding the link is expired. Without this delay, getSession() resolves
-    // with `null` faster than the session is hydrated and we incorrectly
-    // show "Link Expired" for valid links.
-    const decide = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setHasRecoverySession(true);
+    const hydrateRecoverySession = async () => {
+      const { data: existing } = await supabase.auth.getSession();
+      if (existing.session && looksLikeRecoveryLink) {
+        markReady();
         return;
       }
-      if (looksLikeRecoveryLink) {
-        // Wait briefly for onAuthStateChange to fire, then re-check.
-        setTimeout(async () => {
-          const { data: { session: s2 } } = await supabase.auth.getSession();
-          setHasRecoverySession(!!s2);
-        }, 1500);
-        return;
-      }
-      setHasRecoverySession(false);
-    };
-    decide();
 
-    return () => subscription.unsubscribe();
+      if (accessToken && refreshToken) {
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (!error) {
+          markReady();
+          return;
+        }
+      }
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!error) {
+          markReady();
+          return;
+        }
+      }
+
+      // The auth client may still be consuming the recovery URL, and the global
+      // auth provider may receive PASSWORD_RECOVERY before this component does.
+      // Poll briefly before calling the link expired.
+      let attempts = 0;
+      const poll = window.setInterval(async () => {
+        attempts += 1;
+        const { data } = await supabase.auth.getSession();
+        const recoveryStored = sessionStorage.getItem(PASSWORD_RECOVERY_STORAGE_KEY) === 'true';
+        if (data.session && (looksLikeRecoveryLink || recoveryStored)) {
+          window.clearInterval(poll);
+          markReady();
+        } else if (attempts >= 12) {
+          window.clearInterval(poll);
+          markExpired();
+        }
+      }, 500);
+      timers.push(poll);
+    };
+
+    hydrateRecoverySession();
+
+    return () => {
+      isMounted = false;
+      timers.forEach((timer) => window.clearInterval(timer));
+      subscription.unsubscribe();
+    };
   }, []);
 
   const form = useForm<FormData>({
@@ -122,12 +159,28 @@ export default function ResetPassword() {
         description: 'Please sign in with your new password.',
       });
       // Force a clean sign-in cycle.
+      sessionStorage.removeItem(PASSWORD_RECOVERY_STORAGE_KEY);
       await signOut();
       navigate('/auth');
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (hasRecoverySession === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-8 bg-background">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Preparing Reset</CardTitle>
+            <CardDescription>
+              Verifying your password reset link…
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   if (hasRecoverySession === false) {
     return (

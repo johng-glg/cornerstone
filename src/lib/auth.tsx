@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { PASSWORD_RECOVERY_STORAGE_KEY } from '@/lib/authRecovery';
 
 interface StaffProfile {
   id: string;
@@ -76,6 +77,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (
+          event === 'PASSWORD_RECOVERY' ||
+          (session && window.location.pathname === '/reset-password')
+        ) {
+          sessionStorage.setItem(PASSWORD_RECOVERY_STORAGE_KEY, 'true');
+        }
+        if (event === 'SIGNED_OUT') {
+          sessionStorage.removeItem(PASSWORD_RECOVERY_STORAGE_KEY);
+        }
+
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -165,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const requestPasswordReset = async (email: string) => {
+    sessionStorage.removeItem(PASSWORD_RECOVERY_STORAGE_KEY);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
