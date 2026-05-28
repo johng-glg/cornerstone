@@ -241,7 +241,7 @@ export function useUpdateLitigationMatter() {
 
       const { data, error } = await supabase
         .from('litigation_matters')
-        .update(updates)
+        .update(updates as never)
         .eq('id', id)
         .select()
         .single();
