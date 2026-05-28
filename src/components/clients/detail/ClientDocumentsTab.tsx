@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Plus, FileText, Download, Trash2, ExternalLink } from 'lucide-react';
+import { SignedDocumentLink } from '@/components/storage/SignedDocumentLink';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -121,15 +123,15 @@ export function ClientDocumentsTab({ clientId }: ClientDocumentsTabProps) {
                           size="icon"
                           asChild
                         >
-                          <a
-                            href={doc.file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <SignedDocumentLink
+                            bucket="client-documents"
+                            urlOrPath={doc.file_url}
                             title="View document"
                           >
                             <ExternalLink className="h-4 w-4" />
-                          </a>
+                          </SignedDocumentLink>
                         </Button>
+
                         <Button
                           variant="ghost"
                           size="icon"

@@ -5032,6 +5032,10 @@ export type Database = {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
       }
+      can_access_storage_object: {
+        Args: { _bucket: string; _first_folder: string }
+        Returns: boolean
+      }
       can_view_leads: {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean

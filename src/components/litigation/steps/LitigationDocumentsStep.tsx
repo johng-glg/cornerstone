@@ -8,6 +8,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { validateDocumentUpload, DOCUMENT_ACCEPT_ATTR } from '@/lib/storage';
+import { SignedDocumentLink } from '@/components/storage/SignedDocumentLink';
+import { useCurrentStaff } from '@/hooks/useStaff';
 import type { LitigationData } from '../LitigationWizard';
 
 interface LitigationDocumentsStepProps {
@@ -23,8 +25,10 @@ interface DocumentUploadProps {
   onUploadChange: (uploaded: boolean, url?: string) => void;
   uploadedUrl?: string;
   tempFolderId: string;
+  companyId: string | undefined;
   documentType: 'complaint' | 'summons';
 }
+
 
 function DocumentUploadCard({
   label,
@@ -33,8 +37,10 @@ function DocumentUploadCard({
   onUploadChange,
   uploadedUrl,
   tempFolderId,
+  companyId,
   documentType,
 }: DocumentUploadProps) {
+
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,8 +61,11 @@ function DocumentUploadCard({
     setFileName(file.name);
 
     try {
+      if (!companyId) {
+        throw new Error('Company context missing; please reload.');
+      }
       const fileExt = file.name.split('.').pop();
-      const filePath = `temp/${tempFolderId}/${documentType}-${Date.now()}.${fileExt}`;
+      const filePath = `${companyId}/temp/${tempFolderId}/${documentType}-${Date.now()}.${fileExt}`;
 
       const { data, error } = await supabase.storage
         .from('litigation-documents')
@@ -67,12 +76,10 @@ function DocumentUploadCard({
 
       if (error) throw error;
 
-      const { data: publicUrlData } = supabase.storage
-        .from('litigation-documents')
-        .getPublicUrl(data.path);
-
-      onUploadChange(true, publicUrlData.publicUrl);
+      // Phase 7: bucket is private — persist the bucket-relative path; viewers resolve signed URLs.
+      onUploadChange(true, data.path);
       toast({ title: 'File uploaded successfully' });
+
     } catch (error) {
       console.error('Upload error:', error);
       toast({
@@ -140,14 +147,14 @@ function DocumentUploadCard({
               <p className="text-sm font-medium truncate">
                 {fileName || 'Uploaded document'}
               </p>
-              <a
-                href={uploadedUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+              <SignedDocumentLink
+                bucket="litigation-documents"
+                urlOrPath={uploadedUrl}
                 className="text-xs text-primary hover:underline truncate block"
               >
                 View file
-              </a>
+              </SignedDocumentLink>
+
             </div>
             <Button
               type="button"
@@ -196,6 +203,8 @@ export function LitigationDocumentsStep({
 }: LitigationDocumentsStepProps) {
   // Generate a temp folder ID if we don't have one
   const tempFolderId = data.lead_id || `temp-${Date.now()}`;
+  const { data: currentStaff } = useCurrentStaff();
+  const companyId = currentStaff?.company_id;
 
   useEffect(() => {
     const isValid = data.complaint_uploaded || data.summons_uploaded;
@@ -218,12 +227,13 @@ export function LitigationDocumentsStep({
           isUploaded={data.complaint_uploaded || false}
           uploadedUrl={data.complaint_url}
           onUploadChange={(uploaded, url) => {
-            updateData({ 
+            updateData({
               complaint_uploaded: uploaded,
-              complaint_url: url 
+              complaint_url: url,
             });
           }}
           tempFolderId={tempFolderId}
+          companyId={companyId}
           documentType="complaint"
         />
 
@@ -233,15 +243,17 @@ export function LitigationDocumentsStep({
           isUploaded={data.summons_uploaded || false}
           uploadedUrl={data.summons_url}
           onUploadChange={(uploaded, url) => {
-            updateData({ 
+            updateData({
               summons_uploaded: uploaded,
-              summons_url: url 
+              summons_url: url,
             });
           }}
           tempFolderId={tempFolderId}
+          companyId={companyId}
           documentType="summons"
         />
       </div>
+
 
       {!data.complaint_uploaded && !data.summons_uploaded && (
         <Alert>

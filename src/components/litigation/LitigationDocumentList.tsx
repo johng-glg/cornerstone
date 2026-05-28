@@ -1,5 +1,7 @@
 import { FileText, Calendar, Clock, Trash2, ExternalLink, Plus, AlertTriangle } from 'lucide-react';
 import { format, isPast, differenceInDays } from 'date-fns';
+import { SignedDocumentLink } from '@/components/storage/SignedDocumentLink';
+
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -164,11 +166,12 @@ function DocumentRow({ document, onDelete }: { document: LitigationDocument; onD
         <div className="flex gap-1">
           {document.file_url && (
             <Button variant="ghost" size="icon" asChild>
-              <a href={document.file_url} target="_blank" rel="noopener noreferrer">
+              <SignedDocumentLink bucket="litigation-documents" urlOrPath={document.file_url}>
                 <ExternalLink className="h-4 w-4" />
-              </a>
+              </SignedDocumentLink>
             </Button>
           )}
+
           <Button variant="ghost" size="icon" onClick={() => onDelete(document.id)}>
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>

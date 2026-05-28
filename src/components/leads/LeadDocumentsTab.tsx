@@ -7,6 +7,8 @@ import { useLeadDocuments, useDeleteLeadDocument, LEAD_DOCUMENT_TYPES, type Lead
 import { LeadDocumentFormDialog } from './LeadDocumentFormDialog';
 import { Plus, FileText, Trash2, ExternalLink, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
+import { SignedDocumentLink } from '@/components/storage/SignedDocumentLink';
+
 
 interface LeadDocumentsTabProps {
   leadId: string;
@@ -75,10 +77,11 @@ export function LeadDocumentsTab({ leadId }: LeadDocumentsTabProps) {
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                      <SignedDocumentLink bucket="lead-documents" urlOrPath={doc.file_url}>
                         <ExternalLink className="h-4 w-4" />
-                      </a>
+                      </SignedDocumentLink>
                     </Button>
+
                     <Button
                       variant="ghost"
                       size="icon"

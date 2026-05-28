@@ -2,6 +2,19 @@
 
 All notable changes documented per cross-cutting rule: "Documentation by default".
 
+## Operation Cornerstone — Phase 7 (2026-05-28)
+
+### 7 — Storage hardening + Realtime auth
+- `lead-documents`, `client-documents`, and `litigation-documents` buckets flipped to **private**. Anonymous internet read access is no longer possible.
+- New SECDEF helper `public.can_access_storage_object(bucket, first_folder)` resolves the owning company by joining the first path segment to `leads` / `clients` / `litigation_matters → client_services`, with a fallback that treats the first segment as a company id (used by wizard scratch uploads).
+- All 12 legacy `storage.objects` policies for the three buckets dropped and recreated as company-scoped `authenticated`-only policies (SELECT / INSERT / UPDATE / DELETE).
+- New frontend layer: `src/lib/storage.ts` adds `extractStoragePath()` + `getSignedDocumentUrl()`; new `<SignedDocumentLink>` component opens a short-lived signed URL on click. Old DB rows with legacy public URLs are handled — the helper parses the path out of them.
+- All four upload sites now persist the bucket-relative **path** instead of a public URL: `LeadDocumentFormDialog`, `ClientDocumentFormDialog`, `litigation/DocumentFileUpload`, and `litigation/steps/LitigationDocumentsStep` (the wizard now uploads under `{companyId}/temp/...` so RLS resolves before a matter exists).
+- All three viewer surfaces switched to `<SignedDocumentLink>`: `LeadDocumentsTab`, `ClientDocumentsTab`, `LitigationDocumentList`.
+- `realtime.messages`: RLS enabled with `authenticated`-only SELECT/INSERT policies. Anonymous clients can no longer subscribe to broadcast channels. Row-level filtering for `postgres_changes` continues to use the source-table RLS.
+
+
+
 ## Operation Cornerstone — Phase 2 (in progress, 2026-05-28)
 
 ### 2E — Storage hardening (part 1)

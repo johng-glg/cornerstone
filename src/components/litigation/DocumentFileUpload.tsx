@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { validateDocumentUpload, DOCUMENT_ACCEPT_ATTR } from '@/lib/storage';
+import { SignedDocumentLink } from '@/components/storage/SignedDocumentLink';
+
 
 interface DocumentFileUploadProps {
   matterId: string;
@@ -48,16 +50,12 @@ export function DocumentFileUpload({ matterId, onUploadComplete, currentUrl }: D
 
       if (error) throw error;
 
-      // Get public URL
-      const { data: publicUrlData } = supabase.storage
-        .from('litigation-documents')
-        .getPublicUrl(data.path);
-
-      const url = publicUrlData.publicUrl;
-      setUploadedUrl(url);
-      onUploadComplete(url);
+      // Phase 7: bucket is private — emit the bucket-relative path; viewers resolve signed URLs.
+      setUploadedUrl(data.path);
+      onUploadComplete(data.path);
 
       toast({ title: 'File uploaded successfully' });
+
     } catch (error) {
       console.error('Upload error:', error);
       toast({
@@ -97,14 +95,14 @@ export function DocumentFileUpload({ matterId, onUploadComplete, currentUrl }: D
             <p className="text-sm font-medium truncate">
               {fileName || 'Uploaded document'}
             </p>
-            <a
-              href={uploadedUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <SignedDocumentLink
+              bucket="litigation-documents"
+              urlOrPath={uploadedUrl}
               className="text-xs text-primary hover:underline truncate block"
             >
               View file
-            </a>
+            </SignedDocumentLink>
+
           </div>
           <Button
             type="button"
