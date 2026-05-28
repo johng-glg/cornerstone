@@ -360,11 +360,19 @@ serve(async (req: Request) => {
 
     let companyData: Record<string, unknown> = {};
     if (companyId) {
+      if (!gate.isServiceRole && gate.userId) {
+        const ok = await requireCompanyAccess(gate.userId, companyId);
+        if (!ok) {
+          return new Response(JSON.stringify({ error: 'Forbidden' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+      }
       const { data } = await supabase.from('companies').select('*').eq('id', companyId).single();
       if (data) companyData = data;
     }
 
     const authHeader = req.headers.get('Authorization');
+
     let staffData: Record<string, unknown> = {};
     let staffId: string | null = null;
     if (authHeader) {
