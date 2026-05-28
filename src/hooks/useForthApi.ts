@@ -366,3 +366,100 @@ export function useRegisterForthClient() {
     },
   });
 }
+
+// ============================================================
+// Cornerstone Phase 3 — new operations
+// ============================================================
+
+// 3A — Refresh canonical escrow balance from Forth
+export function useFetchForthBalance() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (clientId: string) => {
+      const result = await fetchForthBalance(clientId);
+      if (!result.success) throw new Error(result.error || 'Failed to fetch balance');
+      return result.data!;
+    },
+    onSuccess: (data, clientId) => {
+      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+      queryClient.invalidateQueries({ queryKey: ['client-services'] });
+      toast({
+        title: data.drift_detected ? 'Balance refreshed — drift detected' : 'Balance refreshed',
+        description: `Forth: $${data.balance.toFixed(2)} • Local: $${data.local_projection.toFixed(2)}`,
+        variant: data.drift_detected ? 'destructive' : 'default',
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to fetch balance', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+// 3B — Push contact field updates to Forth
+export function useUpdateForthContact() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ clientId, updates }: { clientId: string; updates: ContactUpdatePayload }) => {
+      const result = await updateForthContact(clientId, updates);
+      if (!result.success) throw new Error(result.error || 'Failed to update Forth contact');
+      return result.data!;
+    },
+    onSuccess: (data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['client', vars.clientId] });
+      if (!data.skipped) {
+        toast({ title: 'Forth contact updated', description: `${data.updated_fields.length} field(s) synced` });
+      }
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to update Forth contact', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+// 3C — Close a Forth contact
+export function useCloseForthContact() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ clientId, reason }: { clientId: string; reason: string }) => {
+      const result = await closeForthContact(clientId, reason);
+      if (!result.success) throw new Error(result.error || 'Failed to close Forth contact');
+      return result.data!;
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['client', vars.clientId] });
+      toast({ title: 'Forth contact closed' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to close Forth contact', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+// 3D — Send a settlement disbursement to Forth Pay
+export function useSendForthPaymentToCreditor() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (
+      { settlementId, paymentMethod = 'ach' }: { settlementId: string; paymentMethod?: 'ach' | 'rcc' },
+    ) => {
+      const result = await sendForthPaymentToCreditor(settlementId, paymentMethod);
+      if (!result.success) throw new Error(result.error || 'Failed to send payment');
+      return result.data!;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['settlements'] });
+      queryClient.invalidateQueries({ queryKey: ['liabilities'] });
+      toast({
+        title: 'Payment sent to creditor',
+        description: `Forth payment ${data.external_payment_id} scheduled ${data.scheduled_date}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Failed to send payment', description: error.message, variant: 'destructive' });
+    },
+  });
+}
