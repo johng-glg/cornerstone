@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAuth } from '@/lib/auth';
+import { PASSWORD_RECOVERY_STORAGE_KEY, useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,11 +63,13 @@ export default function ResetPassword() {
     const url = new URL(window.location.href);
     const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
     const searchParams = url.searchParams;
+      const storedRecovery = sessionStorage.getItem(PASSWORD_RECOVERY_STORAGE_KEY) === 'true';
     const accessToken = hashParams.get('access_token');
     const refreshToken = hashParams.get('refresh_token');
     const code = searchParams.get('code');
     const linkType = hashParams.get('type') ?? searchParams.get('type');
     const looksLikeRecoveryLink =
+        storedRecovery ||
       linkType === 'recovery' ||
       Boolean(accessToken) ||
       Boolean(refreshToken) ||
@@ -81,7 +83,7 @@ export default function ResetPassword() {
 
     const hydrateRecoverySession = async () => {
       const { data: existing } = await supabase.auth.getSession();
-      if (existing.session) {
+      if (existing.session && looksLikeRecoveryLink) {
         markReady();
         return;
       }
@@ -159,6 +161,7 @@ export default function ResetPassword() {
         description: 'Please sign in with your new password.',
       });
       // Force a clean sign-in cycle.
+      sessionStorage.removeItem(PASSWORD_RECOVERY_STORAGE_KEY);
       await signOut();
       navigate('/auth');
     } finally {
