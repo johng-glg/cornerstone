@@ -71,3 +71,53 @@ export function validateDocumentUpload(file: File): UploadValidationError | null
   }
   return null;
 }
+
+/**
+ * Phase 7 — private bucket helpers.
+ *
+ * The `lead-documents`, `client-documents`, and `litigation-documents` buckets
+ * are now private and gated by company-scoped RLS. To render a file in the UI
+ * we must resolve a short-lived signed URL. Existing rows in the DB still
+ * contain the legacy public URL (e.g. `.../storage/v1/object/public/<bucket>/<path>`),
+ * so we accept either a bare path or a legacy URL and extract the path.
+ */
+
+import { supabase } from '@/integrations/supabase/client';
+
+export type PrivateBucket = 'lead-documents' | 'client-documents' | 'litigation-documents';
+
+/** Strip the storage URL prefix so we always operate on bucket-relative paths. */
+export function extractStoragePath(bucket: PrivateBucket, urlOrPath: string): string {
+  if (!urlOrPath) return '';
+  // Already a path
+  if (!urlOrPath.startsWith('http')) return urlOrPath.replace(/^\/+/, '');
+  // Legacy public URL: .../object/public/<bucket>/<path>
+  const publicMarker = `/object/public/${bucket}/`;
+  const signMarker = `/object/sign/${bucket}/`;
+  for (const marker of [publicMarker, signMarker]) {
+    const idx = urlOrPath.indexOf(marker);
+    if (idx !== -1) {
+      const tail = urlOrPath.slice(idx + marker.length);
+      // strip query string if present
+      return tail.split('?')[0];
+    }
+  }
+  return urlOrPath;
+}
+
+/** Create a short-lived signed URL for a document. Returns null on error. */
+export async function getSignedDocumentUrl(
+  bucket: PrivateBucket,
+  urlOrPath: string,
+  ttlSeconds = 300,
+): Promise<string | null> {
+  const path = extractStoragePath(bucket, urlOrPath);
+  if (!path) return null;
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, ttlSeconds);
+  if (error) {
+    console.error('createSignedUrl failed', bucket, path, error);
+    return null;
+  }
+  return data.signedUrl;
+}
+
