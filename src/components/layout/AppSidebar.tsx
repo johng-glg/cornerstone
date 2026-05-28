@@ -22,6 +22,7 @@ import {
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/lib/auth';
 import { useMyPermissions } from '@/hooks/useMyPermissions';
+import { useFeatureFlag } from '@/hooks/useFeatureFlags';
 import {
   Sidebar,
   SidebarContent,
