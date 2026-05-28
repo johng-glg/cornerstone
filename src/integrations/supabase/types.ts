@@ -3580,6 +3580,51 @@ export type Database = {
           },
         ]
       }
+      system_audit_log: {
+        Row: {
+          action: string
+          actor_role: string | null
+          actor_user_id: string | null
+          company_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          ip_address: unknown
+          request_payload: Json | null
+          response_payload: Json | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_role?: string | null
+          actor_user_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: unknown
+          request_payload?: Json | null
+          response_payload?: Json | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_role?: string | null
+          actor_user_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: unknown
+          request_payload?: Json | null
+          response_payload?: Json | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       task_templates: {
         Row: {
           company_id: string | null
@@ -4434,6 +4479,19 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      log_audit_event: {
+        Args: {
+          _action: string
+          _company_id?: string
+          _entity_id?: string
+          _entity_type?: string
+          _ip_address?: unknown
+          _request_payload?: Json
+          _response_payload?: Json
+          _user_agent?: string
+        }
+        Returns: string
       }
       process_assignment_queue: { Args: never; Returns: number }
       validate_status_transition: {
