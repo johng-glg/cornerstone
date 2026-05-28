@@ -178,6 +178,30 @@ export function ProfileSettingsTab() {
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="screen_pop_preference"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Incoming call screen pop</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose behavior" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="toast">Toast notification (recommended)</SelectItem>
+                      <SelectItem value="auto_navigate">Auto-navigate to record</SelectItem>
+                      <SelectItem value="off">Off</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+
             <div className="flex justify-end pt-4">
               <Button type="submit" disabled={updateStaff.isPending}>
                 {updateStaff.isPending ? (
