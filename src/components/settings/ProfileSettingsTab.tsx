@@ -91,6 +91,7 @@ export function ProfileSettingsTab() {
   }
 
   return (
+    <div className="space-y-6">
     <Card>
       <CardHeader>
         <CardTitle>Profile Information</CardTitle>
