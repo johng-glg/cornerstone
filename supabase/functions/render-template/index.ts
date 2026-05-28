@@ -55,6 +55,21 @@ const MERGE_FIELD_MAP: Record<string, (data: Record<string, unknown>) => string 
   '{settlement.savings_amount}': (d) => d.savings_amount ? formatCurrency(d.savings_amount as number) : null,
   '{settlement.savings_percentage}': (d) => d.savings_percentage ? `${d.savings_percentage}%` : null,
   '{settlement.payment_schedule}': (d) => (d.payment_schedule as string) || null,
+  // Phase 5D: transaction merge fields
+  '{transaction.amount}': (d) => d.amount ? formatCurrency(d.amount as number) : null,
+  '{transaction.type}': (d) => (d.transaction_type as string) || null,
+  '{transaction.status}': (d) => (d.status as string) || null,
+  '{transaction.scheduled_date}': (d) => d.scheduled_date ? formatDate(d.scheduled_date as string) : null,
+  '{transaction.processed_date}': (d) => d.processed_at ? formatDate(d.processed_at as string) : null,
+  '{transaction.description}': (d) => (d.description as string) || null,
+  '{transaction.external_id}': (d) => (d.external_id as string) || null,
+  // Phase 5D: loan merge fields (placeholders for future ASAP loan entity)
+  '{loan.amount}': (d) => d.amount ? formatCurrency(d.amount as number) : null,
+  '{loan.term_months}': (d) => d.term_months ? String(d.term_months) : null,
+  '{loan.interest_rate}': (d) => d.interest_rate ? `${d.interest_rate}%` : null,
+  '{loan.monthly_payment}': (d) => d.monthly_payment ? formatCurrency(d.monthly_payment as number) : null,
+  '{loan.status}': (d) => (d.status as string) || null,
+  '{loan.disbursement_date}': (d) => d.disbursement_date ? formatDate(d.disbursement_date as string) : null,
   '{company.name}': (d) => (d.name as string) || null,
   '{company.phone}': (d) => (d.phone as string) || null,
   '{company.email}': (d) => (d.email as string) || null,
@@ -70,6 +85,7 @@ const MERGE_FIELD_MAP: Record<string, (data: Record<string, unknown>) => string 
   '{current_time}': () => formatTime(new Date().toISOString()),
   '{current_year}': () => new Date().getFullYear().toString(),
 };
+
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
