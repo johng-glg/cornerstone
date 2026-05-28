@@ -4046,6 +4046,50 @@ export type Database = {
           },
         ]
       }
+      tenant_feature_flags: {
+        Row: {
+          company_id: string
+          created_at: string
+          description: string | null
+          enabled: boolean
+          flag_key: string
+          id: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          flag_key: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          flag_key?: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_feature_flags_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount: number
@@ -4441,6 +4485,10 @@ export type Database = {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
       }
+      can_view_leads: {
+        Args: { _company_id: string; _user_id: string }
+        Returns: boolean
+      }
       check_trigger_match: {
         Args: { _trigger_config: Json; _trigger_data: Json }
         Returns: boolean
@@ -4478,6 +4526,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_feature_enabled: {
+        Args: { _company_id: string; _flag_key: string }
         Returns: boolean
       }
       log_audit_event: {
