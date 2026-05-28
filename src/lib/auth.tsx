@@ -176,7 +176,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  const hasRole = (role: string) => roles.includes(role);
+  const realRoles = roles;
+  const isRealAdmin = realRoles.includes('admin');
+
+  const [impersonatedView, setImpersonatedViewState] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return sessionStorage.getItem(IMPERSONATION_KEY);
+  });
+
+  const setImpersonatedView = (key: string | null) => {
+    if (key) sessionStorage.setItem(IMPERSONATION_KEY, key);
+    else sessionStorage.removeItem(IMPERSONATION_KEY);
+    setImpersonatedViewState(key);
+  };
+
+  // Only honor impersonation if the real user is an admin
+  const activeView = isRealAdmin
+    ? ROLE_VIEWS.find((v) => v.key === impersonatedView) ?? null
+    : null;
+
+  const effectiveRoles = activeView ? activeView.roles : roles;
+  const effectiveStaff = activeView && staff
+    ? { ...staff, department: activeView.department }
+    : staff;
+
+  const hasRole = (role: string) => effectiveRoles.includes(role);
   const isAdmin = () => hasRole('admin');
 
   return (
@@ -184,8 +208,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         session,
-        staff,
-        roles,
+        staff: effectiveStaff,
+        roles: effectiveRoles,
         loading,
         signIn,
         signUp,
@@ -194,11 +218,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updatePassword,
         hasRole,
         isAdmin,
+        impersonatedView: activeView?.key ?? null,
+        setImpersonatedView,
+        realRoles,
+        isRealAdmin,
       }}
     >
       {children}
     </AuthContext.Provider>
   );
+}
 }
 
 export function useAuth() {
