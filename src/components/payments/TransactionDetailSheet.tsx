@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { CreditCard, Calendar, Hash, AlertCircle, CheckCircle, Clock, FileText, Upload, XCircle, RefreshCw } from 'lucide-react';
 import { useTransaction } from '@/hooks/useTransactions';
 import { usePushToForth, useCancelForthDraft, usePollForthTransactions } from '@/hooks/useForthApi';
-import { canModifyDraft } from '@/lib/forthApi';
+import { canModifyDraft } from '@/lib/plsaApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { useState } from 'react';

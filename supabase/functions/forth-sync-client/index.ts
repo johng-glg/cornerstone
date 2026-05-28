@@ -65,7 +65,7 @@ serve(async (req) => {
       const noteResult = await noteResponse.json();
 
       // Log the action
-      await supabase.from('forth_sync_log').insert({
+      await supabase.from('plsa_sync_log').insert({
         entity_type: 'client',
         entity_id: client_id,
         action: 'sync',
@@ -104,7 +104,7 @@ serve(async (req) => {
       const contactResult = await contactResponse.json();
 
       // Log the sync
-      await supabase.from('forth_sync_log').insert({
+      await supabase.from('plsa_sync_log').insert({
         entity_type: 'client',
         entity_id: client_id,
         action: 'sync',

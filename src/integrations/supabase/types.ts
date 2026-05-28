@@ -529,6 +529,8 @@ export type Database = {
             | null
           contact_status_changed_at: string | null
           created_at: string
+          early_exit_eligible: boolean
+          early_exit_status: string
           enrolled_date: string | null
           escrow_balance: number | null
           escrow_balance_synced: number | null
@@ -540,6 +542,7 @@ export type Database = {
           id: string
           last_contact_attempt_date: string | null
           last_successful_contact_date: string | null
+          loan_provider_id: string | null
           monthly_payment: number | null
           monthly_service_fee: number | null
           notes: string | null
@@ -551,6 +554,7 @@ export type Database = {
             | null
           payment_status_changed_at: string | null
           plan_type: Database["public"]["Enums"]["plan_type"] | null
+          plsa_provider_id: string
           primary_client_id: string | null
           primary_status_changed_at: string | null
           program_start_date: string | null
@@ -578,6 +582,8 @@ export type Database = {
             | null
           contact_status_changed_at?: string | null
           created_at?: string
+          early_exit_eligible?: boolean
+          early_exit_status?: string
           enrolled_date?: string | null
           escrow_balance?: number | null
           escrow_balance_synced?: number | null
@@ -589,6 +595,7 @@ export type Database = {
           id?: string
           last_contact_attempt_date?: string | null
           last_successful_contact_date?: string | null
+          loan_provider_id?: string | null
           monthly_payment?: number | null
           monthly_service_fee?: number | null
           notes?: string | null
@@ -600,6 +607,7 @@ export type Database = {
             | null
           payment_status_changed_at?: string | null
           plan_type?: Database["public"]["Enums"]["plan_type"] | null
+          plsa_provider_id?: string
           primary_client_id?: string | null
           primary_status_changed_at?: string | null
           program_start_date?: string | null
@@ -627,6 +635,8 @@ export type Database = {
             | null
           contact_status_changed_at?: string | null
           created_at?: string
+          early_exit_eligible?: boolean
+          early_exit_status?: string
           enrolled_date?: string | null
           escrow_balance?: number | null
           escrow_balance_synced?: number | null
@@ -638,6 +648,7 @@ export type Database = {
           id?: string
           last_contact_attempt_date?: string | null
           last_successful_contact_date?: string | null
+          loan_provider_id?: string | null
           monthly_payment?: number | null
           monthly_service_fee?: number | null
           notes?: string | null
@@ -649,6 +660,7 @@ export type Database = {
             | null
           payment_status_changed_at?: string | null
           plan_type?: Database["public"]["Enums"]["plan_type"] | null
+          plsa_provider_id?: string
           primary_client_id?: string | null
           primary_status_changed_at?: string | null
           program_start_date?: string | null
@@ -1379,42 +1391,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      forth_sync_log: {
-        Row: {
-          action: string
-          created_at: string | null
-          entity_id: string
-          entity_type: string
-          error_message: string | null
-          id: string
-          request_payload: Json | null
-          response_payload: Json | null
-          success: boolean
-        }
-        Insert: {
-          action: string
-          created_at?: string | null
-          entity_id: string
-          entity_type: string
-          error_message?: string | null
-          id?: string
-          request_payload?: Json | null
-          response_payload?: Json | null
-          success: boolean
-        }
-        Update: {
-          action?: string
-          created_at?: string | null
-          entity_id?: string
-          entity_type?: string
-          error_message?: string | null
-          id?: string
-          request_payload?: Json | null
-          response_payload?: Json | null
-          success?: boolean
-        }
-        Relationships: []
       }
       job_titles: {
         Row: {
@@ -3105,6 +3081,45 @@ export type Database = {
           },
         ]
       }
+      plsa_sync_log: {
+        Row: {
+          action: string
+          created_at: string | null
+          entity_id: string
+          entity_type: string
+          error_message: string | null
+          id: string
+          provider_id: string
+          request_payload: Json | null
+          response_payload: Json | null
+          success: boolean
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          entity_id: string
+          entity_type: string
+          error_message?: string | null
+          id?: string
+          provider_id?: string
+          request_payload?: Json | null
+          response_payload?: Json | null
+          success: boolean
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          entity_id?: string
+          entity_type?: string
+          error_message?: string | null
+          id?: string
+          provider_id?: string
+          request_payload?: Json | null
+          response_payload?: Json | null
+          success?: boolean
+        }
+        Relationships: []
+      }
       reminder_settings: {
         Row: {
           company_id: string
@@ -4253,6 +4268,7 @@ export type Database = {
           last_sync_at: string | null
           liability_id: string | null
           parent_transaction_id: string | null
+          plsa_provider_id: string
           processed_at: string | null
           processor_id: string | null
           schedule_id: string | null
@@ -4276,6 +4292,7 @@ export type Database = {
           last_sync_at?: string | null
           liability_id?: string | null
           parent_transaction_id?: string | null
+          plsa_provider_id?: string
           processed_at?: string | null
           processor_id?: string | null
           schedule_id?: string | null
@@ -4299,6 +4316,7 @@ export type Database = {
           last_sync_at?: string | null
           liability_id?: string | null
           parent_transaction_id?: string | null
+          plsa_provider_id?: string
           processed_at?: string | null
           processor_id?: string | null
           schedule_id?: string | null
@@ -4977,6 +4995,9 @@ export type Database = {
         | "processor_fee"
         | "settlement_payment"
         | "contingency_fee"
+        | "loan_disbursement"
+        | "loan_settlement_payment"
+        | "loan_fee_collection"
       workflow_action_type:
         | "create_task"
         | "send_notification"
@@ -5386,6 +5407,9 @@ export const Constants = {
         "processor_fee",
         "settlement_payment",
         "contingency_fee",
+        "loan_disbursement",
+        "loan_settlement_payment",
+        "loan_fee_collection",
       ],
       workflow_action_type: [
         "create_task",

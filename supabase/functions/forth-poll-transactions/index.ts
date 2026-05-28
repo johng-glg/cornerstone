@@ -126,7 +126,7 @@ serve(async (req) => {
               updateData.sync_error = JSON.stringify(forthTx);
             }
 
-            await supabase.from('forth_sync_log').insert({
+            await supabase.from('plsa_sync_log').insert({
               entity_type: 'transaction',
               entity_id: tx.id,
               action: 'poll',
@@ -155,7 +155,7 @@ serve(async (req) => {
         const txErrorMessage = txError instanceof Error ? txError.message : 'Unknown error';
         
         // Log the error
-        await supabase.from('forth_sync_log').insert({
+        await supabase.from('plsa_sync_log').insert({
           entity_type: 'transaction',
           entity_id: tx.id,
           action: 'poll',

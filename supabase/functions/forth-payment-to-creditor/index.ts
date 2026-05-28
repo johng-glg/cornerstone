@@ -109,7 +109,7 @@ serve(async (req) => {
     let body: any;
     try { body = JSON.parse(text); } catch { body = { raw: text }; }
 
-    await supabase.from('forth_sync_log').insert({
+    await supabase.from('plsa_sync_log').insert({
       entity_type: 'settlement',
       entity_id: settlement_id,
       action: 'payment_to_creditor',

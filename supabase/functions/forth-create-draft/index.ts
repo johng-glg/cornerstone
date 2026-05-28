@@ -90,7 +90,7 @@ serve(async (req) => {
     const draftResult = await draftResponse.json();
 
     // Log the sync attempt
-    await supabase.from('forth_sync_log').insert({
+    await supabase.from('plsa_sync_log').insert({
       entity_type: 'transaction',
       entity_id: transaction_id,
       action: 'create',
