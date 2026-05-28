@@ -497,10 +497,11 @@ export const INTEGRATIONS: IntegrationItem[] = [
     name: 'Dialpad',
     purpose: 'Click-to-call, call pop, queues, dispositioning',
     priority: 'High',
-    status: 'Research',
-    notes: 'Research API architecture and webhooks. Key features: click-to-call buttons, incoming caller ID lookup (call pop), disposition codes, queue management.',
+    status: 'Completed',
+    notes: 'Edge functions deployed: dialpad-initiate (click-to-call), dialpad-webhook (inbound events), dialpad-register-webhook (subscription bootstrap), dialpad-test-connection (health check). DIALPAD_API_TOKEN and DIALPAD_WEBHOOK_SECRET configured. Surfaced on the Integrations admin page with Test button and Last-connected timestamp.',
     apiDocs: 'https://developers.dialpad.com/',
   },
+
   {
     id: 'amazon-s3',
     name: 'Amazon S3',
