@@ -5196,6 +5196,13 @@ export type Database = {
       communication_direction: "inbound" | "outbound"
       communication_type: "call" | "email" | "sms" | "meeting" | "note"
       company_type: "law_firm" | "affiliate" | "financing_company"
+      company_type_enum:
+        | "law_firm"
+        | "debt_relief"
+        | "debt_settlement"
+        | "legal_plan"
+        | "hybrid"
+        | "other"
       contact_status_enum:
         | "reachable"
         | "hard_to_reach"
@@ -5597,6 +5604,14 @@ export const Constants = {
       communication_direction: ["inbound", "outbound"],
       communication_type: ["call", "email", "sms", "meeting", "note"],
       company_type: ["law_firm", "affiliate", "financing_company"],
+      company_type_enum: [
+        "law_firm",
+        "debt_relief",
+        "debt_settlement",
+        "legal_plan",
+        "hybrid",
+        "other",
+      ],
       contact_status_enum: [
         "reachable",
         "hard_to_reach",
