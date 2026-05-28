@@ -97,6 +97,22 @@ export function useSetFeatureFlag() {
           { onConflict: 'company_id,flag_key' },
         );
       if (error) throw error;
+
+      // Best-effort audit log; never block the mutation on this.
+      try {
+        await supabase.rpc('log_audit_event', {
+          _action: 'feature_flag.changed',
+          _entity_type: 'tenant_feature_flag',
+          _entity_id: null,
+          _company_id: staff.company_id,
+          _request_payload: { flag_key: flagKey, enabled },
+          _response_payload: null,
+          _ip_address: null,
+          _user_agent: null,
+        });
+      } catch (auditErr) {
+        console.warn('Failed to log feature_flag audit event', auditErr);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tenant-feature-flags'] });

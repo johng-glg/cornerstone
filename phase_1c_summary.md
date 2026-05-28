@@ -39,3 +39,13 @@
 1. Wire `leads.show_in_navigation` into `AppSidebar` to hide Leads / Lead Metrics items at the UI layer.
 2. Add `feature-flag-changed` audit event via `log_audit_event()` from `useSetFeatureFlag`.
 3. Add a "Why is this off?" empty-state in `/leads` for pure paralegals when the flag is OFF.
+
+## Follow-up remediation (verification pass)
+
+All three previously-deferred follow-ups are now shipped:
+
+1. ✅ `leads.show_in_navigation` wired into `AppSidebar` — Leads + Lead Metrics nav items hide when the flag is OFF for the tenant.
+2. ✅ `useSetFeatureFlag` now emits a `feature_flag.changed` audit event via `log_audit_event()` (best-effort, non-blocking).
+3. ✅ `/leads` shows a "not enabled for your role" empty state for pure paralegals when `leads.paralegal_visibility` is OFF, instead of an empty Kanban.
+
+**Status:** Phase 1C fully complete. No outstanding items.

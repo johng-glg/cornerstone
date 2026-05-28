@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useLeads, useLead } from '@/hooks/useLeads';
 import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/lib/auth';
+import { useFeatureFlag } from '@/hooks/useFeatureFlags';
 import { LeadKanban } from '@/components/leads/LeadKanban';
 import { LeadFormDialog } from '@/components/leads/LeadFormDialog';
 import { LeadDetailSheet } from '@/components/leads/LeadDetailSheet';
@@ -46,6 +48,12 @@ export default function LeadsPage() {
   const [convertingLitigationLeadId, setConvertingLitigationLeadId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+
+  const { roles, isAdmin } = useAuth();
+  const paralegalVisibility = useFeatureFlag('leads.paralegal_visibility');
+  const isPureParalegal =
+    !isAdmin() && roles.length > 0 && roles.every((r) => r === 'paralegal');
+  const leadsGatedOff = isPureParalegal && !paralegalVisibility;
 
   // Handle ?action=new query param to auto-open dialog
   // Handle ?open=id query param to auto-open detail sheet
@@ -119,6 +127,24 @@ export default function LeadsPage() {
     converted: 'bg-primary/20 text-primary',
     lost: 'bg-muted text-muted-foreground',
   };
+
+  if (leadsGatedOff) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-heading font-bold tracking-tight">LEADS</h1>
+        </div>
+        <div className="rounded-lg border border-dashed border-border bg-muted/30 p-12 text-center">
+          <h2 className="text-lg font-semibold mb-2">Leads are not enabled for your role</h2>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Your administrator has not enabled paralegal access to the Lead Pipeline.
+            Ask an admin to turn on <span className="font-mono">leads.paralegal_visibility</span> in
+            Settings → Feature Flags if you need access.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
