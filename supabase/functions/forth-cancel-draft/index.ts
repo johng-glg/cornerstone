@@ -73,15 +73,10 @@ serve(async (req) => {
     // Cancel draft in Forth Pay
     console.log('[forth-cancel-draft] Cancelling draft:', transaction.external_id);
 
-    const cancelResponse = await fetch(
+    const cancelResponse = await forthFetch(
       `https://api.forthpay.com/v1/drafts/${transaction.external_id}/cancel`,
-      {
-        method: 'POST',
-        headers: {
-          'Api-Key': accessToken,
-          'Content-Type': 'application/json',
-        },
-      }
+      { method: 'POST', headers: buildForthHeaders(accessToken) },
+      { caller: 'forth-cancel-draft' },
     );
 
     const cancelResult = await cancelResponse.json();

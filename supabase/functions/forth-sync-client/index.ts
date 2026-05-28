@@ -52,16 +52,14 @@ serve(async (req) => {
         category: 'system',
       };
 
-      const noteResponse = await fetch(
+      const noteResponse = await forthFetch(
         `https://api.forthcrm.com/v1/contacts/${crmId}/notes`,
         {
           method: 'POST',
-          headers: {
-            'Api-Key': accessToken,
-            'Content-Type': 'application/json',
-          },
+          headers: buildForthHeaders(accessToken),
           body: JSON.stringify(notePayload),
-        }
+        },
+        { caller: 'forth-sync-client:note' },
       );
 
       const noteResult = await noteResponse.json();
@@ -94,15 +92,13 @@ serve(async (req) => {
     if (crmId) {
       console.log('[forth-sync-client] Fetching contact from CRM:', crmId);
       
-      const contactResponse = await fetch(
+      const contactResponse = await forthFetch(
         `https://api.forthcrm.com/v1/contacts/${crmId}`,
         {
           method: 'GET',
-          headers: {
-            'Api-Key': accessToken,
-            'Content-Type': 'application/json',
-          },
-        }
+          headers: buildForthHeaders(accessToken),
+        },
+        { caller: 'forth-sync-client:fetch' },
       );
 
       const contactResult = await contactResponse.json();

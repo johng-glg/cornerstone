@@ -43,11 +43,13 @@ serve(async (req) => {
     console.log('[forth-poll-transactions] Starting poll...');
 
     // Get all pending transactions with external IDs
+    // Phase 2C: prioritize never-polled rows, then oldest last_polled_at first.
     const { data: pendingTransactions, error: fetchError } = await supabase
       .from('transactions')
-      .select('id, external_id, status, amount')
+      .select('id, external_id, status, amount, last_polled_at')
       .eq('status', 'pending')
       .not('external_id', 'is', null)
+      .order('last_polled_at', { ascending: true, nullsFirst: true })
       .limit(100);
 
     if (fetchError) {
@@ -78,14 +80,15 @@ serve(async (req) => {
           draft_ids: [parseInt(tx.external_id, 10)],
         };
 
-        const response = await fetch('https://api.forthpay.com/v1/reports/transactions', {
-          method: 'POST',
-          headers: {
-            'Api-Key': accessToken,
-            'Content-Type': 'application/json',
+        const response = await forthFetch(
+          'https://api.forthpay.com/v1/reports/transactions',
+          {
+            method: 'POST',
+            headers: buildForthHeaders(accessToken),
+            body: JSON.stringify(reportPayload),
           },
-          body: JSON.stringify(reportPayload),
-        });
+          { caller: 'forth-poll-transactions' },
+        );
 
         const result = await response.json();
         const transactions = result.response?.transactions || result.transactions || [];
@@ -95,38 +98,34 @@ serve(async (req) => {
           String(t.id) === tx.external_id || String(t.draft_id) === tx.external_id
         );
 
+        // Phase 2C: stamp last_polled_at on every successful fetch so the cron
+        // round-robins through the queue even when status hasn't changed.
+        const nowIso = new Date().toISOString();
+
         if (forthTx) {
           const newStatus = mapForthStatus(forthTx.status);
           const isNSF = forthTx.status?.toLowerCase() === 'nsf' || 
                         forthTx.return_code === 'R01' ||
                         forthTx.error_message?.toLowerCase()?.includes('insufficient');
-          
-          // Only update if status changed
+
+          const updateData: any = {
+            last_polled_at: nowIso,
+            last_sync_at: nowIso,
+          };
+
           if (newStatus !== tx.status) {
-            const updateData: any = {
-              status: newStatus,
-              last_sync_at: new Date().toISOString(),
-              sync_error: null,
-            };
+            updateData.status = newStatus;
+            updateData.sync_error = null;
 
-            // Set processed_at for cleared transactions
             if (newStatus === 'cleared') {
-              updateData.processed_at = forthTx.cleared_at || forthTx.processed_at || new Date().toISOString();
+              updateData.processed_at = forthTx.cleared_at || forthTx.processed_at || nowIso;
             }
-
-            // Set error message for failed transactions
             if (newStatus === 'failed') {
-              updateData.error_message = forthTx.error_message || 
+              updateData.error_message = forthTx.error_message ||
                 (isNSF ? 'NSF - Insufficient Funds' : 'Transaction failed');
               updateData.sync_error = JSON.stringify(forthTx);
             }
 
-            await supabase
-              .from('transactions')
-              .update(updateData)
-              .eq('id', tx.id);
-
-            // Log the status change
             await supabase.from('forth_sync_log').insert({
               entity_type: 'transaction',
               entity_id: tx.id,
@@ -140,6 +139,13 @@ serve(async (req) => {
             updatedCount++;
             console.log(`[forth-poll-transactions] Updated ${tx.id}: ${tx.status} -> ${newStatus}`);
           }
+
+          await supabase.from('transactions').update(updateData).eq('id', tx.id);
+        } else {
+          // No matching record in Forth — still mark as polled so we rotate.
+          await supabase.from('transactions')
+            .update({ last_polled_at: nowIso })
+            .eq('id', tx.id);
         }
 
       } catch (txError: unknown) {

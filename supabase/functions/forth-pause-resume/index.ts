@@ -56,13 +56,11 @@ serve(async (req) => {
 
     console.log(`[forth-pause-resume] Calling ${action} endpoint:`, endpoint);
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Api-Key': accessToken,
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await forthFetch(
+      endpoint,
+      { method: 'POST', headers: buildForthHeaders(accessToken) },
+      { caller: 'forth-pause-resume' },
+    );
 
     const result = await response.json();
 

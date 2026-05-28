@@ -39,7 +39,6 @@ interface RegisterClientRequest {
 
 const FORTH_API_BASE = 'https://api.forthcrm.com/v1';
 
-
 // deno-lint-ignore no-explicit-any
 async function logOperation(
   supabase: any,
@@ -88,10 +87,8 @@ Deno.serve(async (req) => {
     }
 
     console.log(`Registering client ${client_id} with Forth Pay...`);
-
-    // Get access token
     const accessToken = await getAccessToken();
-    
+
     // Step 1: Create client in Forth CRM
     const clientPayload = {
       first_name: client_data.first_name,
@@ -108,39 +105,31 @@ Deno.serve(async (req) => {
       file_type: 'DEBT SETTLEMENT',
     };
 
-    console.log('Creating Forth client with payload:', JSON.stringify(clientPayload, null, 2));
-    const createClientResponse = await fetch(`${FORTH_API_BASE}/clients`, {
-      method: 'POST',
-      headers: buildForthHeaders(accessToken),
-      body: JSON.stringify(clientPayload),
-    });
+    const createClientResponse = await forthFetch(
+      `${FORTH_API_BASE}/clients`,
+      {
+        method: 'POST',
+        headers: buildForthHeaders(accessToken),
+        body: JSON.stringify(clientPayload),
+      },
+      { caller: 'forth-register-client:create' },
+    );
 
     const createClientText = await createClientResponse.text();
-    console.log(`Forth create-client response status: ${createClientResponse.status}`);
-    console.log('Forth create-client response body:', createClientText);
+    let createClientResult: any;
+    try { createClientResult = JSON.parse(createClientText); }
+    catch { createClientResult = { raw: createClientText }; }
 
-    let createClientResult;
-    try {
-      createClientResult = JSON.parse(createClientText);
-    } catch {
-      createClientResult = { raw: createClientText };
-    }
-    
     await logOperation(
-      supabase,
-      'client',
-      client_id,
-      'create_forth_client',
-      createClientResponse.ok,
-      clientPayload,
-      createClientResult,
-      !createClientResponse.ok ? `HTTP ${createClientResponse.status}: ${createClientText}` : undefined
+      supabase, 'client', client_id, 'create_forth_client',
+      createClientResponse.ok, clientPayload, createClientResult,
+      !createClientResponse.ok ? `HTTP ${createClientResponse.status}: ${createClientText}` : undefined,
     );
 
     if (!createClientResponse.ok) {
       return new Response(
-        JSON.stringify({ 
-          success: false, 
+        JSON.stringify({
+          success: false,
           error: `Forth API returned HTTP ${createClientResponse.status}`,
           details: createClientResult,
           sent_payload: { ...clientPayload, ssn: clientPayload.ssn ? '***' : '' },
@@ -149,26 +138,49 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Extract the Forth client ID (10-digit numeric)
-    const forthCrmId = createClientResult.response?.id || 
-                       createClientResult.id || 
-                       createClientResult.data?.id;
+    const forthCrmId =
+      createClientResult.response?.id ||
+      createClientResult.id ||
+      createClientResult.data?.id;
 
     if (!forthCrmId) {
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'No client ID returned from Forth API' 
-        }),
+        JSON.stringify({ success: false, error: 'No client ID returned from Forth API' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log(`Forth client created with ID: ${forthCrmId}`);
 
-    // Step 2: Add bank account if provided
+    /**
+     * Cornerstone Phase 2F — rollback helper.
+     * Best-effort DELETE of the Forth contact when any downstream step fails so
+     * retries don't strand orphan records. Logged either way.
+     */
+    const rollbackForthContact = async (reason: string) => {
+      console.warn(`[forth-register-client] Rolling back Forth contact ${forthCrmId}: ${reason}`);
+      try {
+        const delResp = await forthFetch(
+          `${FORTH_API_BASE}/contacts/${forthCrmId}`,
+          { method: 'DELETE', headers: buildForthHeaders(accessToken) },
+          { caller: 'forth-register-client:rollback' },
+        );
+        await logOperation(
+          supabase, 'client', client_id, 'rollback_forth_client',
+          delResp.ok, { forth_crm_id: forthCrmId, reason }, null,
+          delResp.ok ? undefined : `Rollback DELETE returned HTTP ${delResp.status}`,
+        );
+      } catch (e) {
+        await logOperation(
+          supabase, 'client', client_id, 'rollback_forth_client',
+          false, { forth_crm_id: forthCrmId, reason }, null,
+          e instanceof Error ? e.message : String(e),
+        );
+      }
+    };
+
+    // Step 2: Bank account (BLOCKING — required for drafts)
     if (banking) {
-      console.log('Adding bank account...');
       const bankPayload = {
         client_id: Number(forthCrmId),
         bank_name: banking.bank_name,
@@ -177,34 +189,43 @@ Deno.serve(async (req) => {
         account_type: banking.account_type.toUpperCase(),
       };
 
-      const bankResponse = await fetch(`${FORTH_API_BASE}/bank-accounts`, {
-        method: 'POST',
-        headers: buildForthHeaders(accessToken),
-        body: JSON.stringify(bankPayload),
-      });
+      const bankResponse = await forthFetch(
+        `${FORTH_API_BASE}/bank-accounts`,
+        {
+          method: 'POST',
+          headers: buildForthHeaders(accessToken),
+          body: JSON.stringify(bankPayload),
+        },
+        { caller: 'forth-register-client:bank' },
+      );
 
       const bankResult = await bankResponse.json();
-      
+
       await logOperation(
-        supabase,
-        'client',
-        client_id,
-        'add_bank_account',
+        supabase, 'client', client_id, 'add_bank_account',
         bankResponse.ok,
-        { ...bankPayload, account_number: '****', routing_number: '****' }, // Mask sensitive data
+        { ...bankPayload, account_number: '****', routing_number: '****' },
         bankResult,
-        !bankResponse.ok ? JSON.stringify(bankResult) : undefined
+        !bankResponse.ok ? JSON.stringify(bankResult) : undefined,
       );
 
       if (!bankResponse.ok) {
-        console.warn('Failed to add bank account:', bankResult);
-        // Continue - this is not a blocking error
+        await rollbackForthContact(`bank account creation failed: HTTP ${bankResponse.status}`);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `Failed to add bank account (HTTP ${bankResponse.status})`,
+            details: bankResult,
+            rolled_back: true,
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
     }
 
-    // Step 3: Add debts
+    // Step 3: Debts (BLOCKING — collect failures, rollback if any fail)
+    const debtFailures: Array<{ creditor: string; error: unknown }> = [];
     for (const debt of debts) {
-      console.log(`Adding debt: ${debt.creditor_name}...`);
       const debtPayload = {
         client_id: Number(forthCrmId),
         creditor_name: debt.creditor_name,
@@ -214,58 +235,76 @@ Deno.serve(async (req) => {
         account_number: debt.account_number || '',
       };
 
-      const debtResponse = await fetch(`${FORTH_API_BASE}/debts`, {
-        method: 'POST',
-        headers: buildForthHeaders(accessToken),
-        body: JSON.stringify(debtPayload),
-      });
+      const debtResponse = await forthFetch(
+        `${FORTH_API_BASE}/debts`,
+        {
+          method: 'POST',
+          headers: buildForthHeaders(accessToken),
+          body: JSON.stringify(debtPayload),
+        },
+        { caller: 'forth-register-client:debt' },
+      );
 
       const debtResult = await debtResponse.json();
-      
+
       await logOperation(
-        supabase,
-        'client_service',
-        client_service_id,
-        'add_debt',
-        debtResponse.ok,
-        debtPayload,
-        debtResult,
-        !debtResponse.ok ? JSON.stringify(debtResult) : undefined
+        supabase, 'client_service', client_service_id, 'add_debt',
+        debtResponse.ok, debtPayload, debtResult,
+        !debtResponse.ok ? JSON.stringify(debtResult) : undefined,
       );
 
       if (!debtResponse.ok) {
-        console.warn('Failed to add debt:', debtResult);
-        // Continue - this is not a blocking error
+        debtFailures.push({ creditor: debt.creditor_name, error: debtResult });
       }
     }
 
-    // Step 4: Enroll the client
-    console.log('Enrolling client...');
-    const enrollResponse = await fetch(`${FORTH_API_BASE}/clients/${forthCrmId}/enroll`, {
-      method: 'POST',
-      headers: buildForthHeaders(accessToken),
-      body: JSON.stringify({}),
-    });
+    if (debtFailures.length > 0) {
+      await rollbackForthContact(`${debtFailures.length} debt(s) failed to register`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Failed to register ${debtFailures.length} debt(s)`,
+          failures: debtFailures,
+          rolled_back: true,
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Step 4: Enroll (BLOCKING — no enrollment = no drafts)
+    const enrollResponse = await forthFetch(
+      `${FORTH_API_BASE}/clients/${forthCrmId}/enroll`,
+      {
+        method: 'POST',
+        headers: buildForthHeaders(accessToken),
+        body: JSON.stringify({}),
+      },
+      { caller: 'forth-register-client:enroll' },
+    );
 
     const enrollResult = await enrollResponse.json();
-    
+
     await logOperation(
-      supabase,
-      'client',
-      client_id,
-      'enroll_client',
-      enrollResponse.ok,
-      { forth_crm_id: forthCrmId },
-      enrollResult,
-      !enrollResponse.ok ? JSON.stringify(enrollResult) : undefined
+      supabase, 'client', client_id, 'enroll_client',
+      enrollResponse.ok, { forth_crm_id: forthCrmId }, enrollResult,
+      !enrollResponse.ok ? JSON.stringify(enrollResult) : undefined,
     );
 
     if (!enrollResponse.ok) {
-      console.warn('Failed to enroll client:', enrollResult);
-      // Continue - we still want to store the forth_crm_id
+      await rollbackForthContact(`enrollment failed: HTTP ${enrollResponse.status}`);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Failed to enroll client (HTTP ${enrollResponse.status})`,
+          details: enrollResult,
+          rolled_back: true,
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Step 5: Update local client record with forth_crm_id
+    // Step 5: Persist forth_crm_id locally. If this fails the Forth side is
+    // valid — surface the ID so an operator can paste it manually.
     const { error: updateError } = await supabase
       .from('clients')
       .update({ forth_crm_id: String(forthCrmId) })
@@ -274,10 +313,10 @@ Deno.serve(async (req) => {
     if (updateError) {
       console.error('Failed to update client with forth_crm_id:', updateError);
       return new Response(
-        JSON.stringify({ 
-          success: true, 
+        JSON.stringify({
+          success: true,
           forth_crm_id: String(forthCrmId),
-          warning: 'Client registered but failed to save forth_crm_id locally'
+          warning: 'Client registered with Forth but failed to save forth_crm_id locally — paste manually to link.',
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -286,10 +325,10 @@ Deno.serve(async (req) => {
     console.log(`Successfully registered client ${client_id} with Forth ID ${forthCrmId}`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         forth_crm_id: String(forthCrmId),
-        message: 'Client successfully registered with Forth Pay'
+        message: 'Client successfully registered with Forth Pay',
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -297,9 +336,9 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Forth registration error:', error);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
