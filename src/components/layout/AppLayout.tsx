@@ -89,6 +89,9 @@ export function AppLayout({ children }: AppLayoutProps) {
         onStay={reset}
         onSignOut={handleTimeout}
       />
+      <ScreenPopProvider />
     </SidebarProvider>
+  );
+}
   );
 }
