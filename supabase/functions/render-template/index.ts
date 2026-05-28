@@ -333,7 +333,24 @@ serve(async (req: Request) => {
         if (!error && data) entityData = data;
         break;
       }
+      case 'transaction': {
+        const { data, error } = await supabase.from('transactions')
+          .select('*, client_services:client_service_id(owning_company_id)')
+          .eq('id', entity_id).single();
+        if (!error && data) {
+          entityData = data;
+          companyId = (data.client_services as Record<string, unknown>)?.owning_company_id as string ?? null;
+        }
+        break;
+      }
+      case 'loan': {
+        // Future ASAP loan entity. Currently no loans table — entityData stays empty
+        // so merge fields fall through to additional_data overrides.
+        entityData = {};
+        break;
+      }
     }
+
 
     let companyData: Record<string, unknown> = {};
     if (companyId) {
