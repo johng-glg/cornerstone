@@ -4228,6 +4228,7 @@ export type Database = {
           error_message: string | null
           external_id: string | null
           id: string
+          last_polled_at: string | null
           last_sync_at: string | null
           liability_id: string | null
           parent_transaction_id: string | null
@@ -4250,6 +4251,7 @@ export type Database = {
           error_message?: string | null
           external_id?: string | null
           id?: string
+          last_polled_at?: string | null
           last_sync_at?: string | null
           liability_id?: string | null
           parent_transaction_id?: string | null
@@ -4272,6 +4274,7 @@ export type Database = {
           error_message?: string | null
           external_id?: string | null
           id?: string
+          last_polled_at?: string | null
           last_sync_at?: string | null
           liability_id?: string | null
           parent_transaction_id?: string | null
