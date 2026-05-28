@@ -112,7 +112,6 @@ const App = () => (
               {/* opposing-counsel route removed - consolidated into creditors */}
               <Route path="/feature-requests" element={<AppLayout><FeatureRequestsPage /></AppLayout>} />
               <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
-              <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
               <Route path="/integrations" element={<AppLayout><IntegrationsAdminPage /></AppLayout>} />
 
               {/* Catch-all */}
