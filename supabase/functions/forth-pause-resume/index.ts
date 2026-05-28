@@ -1,54 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getAccessToken, buildForthHeaders, forthFetch } from "../_shared/forthAuth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Token cache
-let cachedToken: { token: string; expiresAt: number } | null = null;
-
-function normalize(s: string): string {
-  return s.replace(/[\r\n\s]+/g, '');
-}
-
-async function getAccessToken(): Promise<string> {
-  const now = Date.now();
-  if (cachedToken && cachedToken.expiresAt > now + 300000) {
-    return cachedToken.token;
-  }
-
-  const clientId = Deno.env.get('FORTH_CLIENT_ID');
-  const clientSecret = Deno.env.get('FORTH_API_KEY');
-
-  if (!clientId || !clientSecret) {
-    throw new Error('Missing FORTH_CLIENT_ID or FORTH_API_KEY');
-  }
-
-  const tokenResponse = await fetch('https://api.forthcrm.com/v1/auth/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      client_id: clientId,
-      client_secret: normalize(clientSecret),
-    }),
-  });
-
-  if (!tokenResponse.ok) {
-    throw new Error(`OAuth failed: ${tokenResponse.status}`);
-  }
-
-  const tokenData = await tokenResponse.json();
-  const accessToken = tokenData.response?.access_token || tokenData.response?.api_key || tokenData.access_token || tokenData.api_key;
-  
-  cachedToken = {
-    token: accessToken,
-    expiresAt: now + (9 * 24 * 60 * 60 * 1000),
-  };
-
-  return accessToken;
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
