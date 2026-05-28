@@ -43,7 +43,7 @@ export function useUpdateNotificationPreference() {
             user_id: user.id,
             notification_type: notificationType,
             [field]: value,
-          },
+          } as never,
           {
             onConflict: 'user_id,notification_type',
           }
