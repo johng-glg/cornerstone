@@ -203,6 +203,8 @@ export function LitigationDocumentsStep({
 }: LitigationDocumentsStepProps) {
   // Generate a temp folder ID if we don't have one
   const tempFolderId = data.lead_id || `temp-${Date.now()}`;
+  const { data: currentStaff } = useCurrentStaff();
+  const companyId = currentStaff?.company_id;
 
   useEffect(() => {
     const isValid = data.complaint_uploaded || data.summons_uploaded;
@@ -225,12 +227,13 @@ export function LitigationDocumentsStep({
           isUploaded={data.complaint_uploaded || false}
           uploadedUrl={data.complaint_url}
           onUploadChange={(uploaded, url) => {
-            updateData({ 
+            updateData({
               complaint_uploaded: uploaded,
-              complaint_url: url 
+              complaint_url: url,
             });
           }}
           tempFolderId={tempFolderId}
+          companyId={companyId}
           documentType="complaint"
         />
 
@@ -240,15 +243,17 @@ export function LitigationDocumentsStep({
           isUploaded={data.summons_uploaded || false}
           uploadedUrl={data.summons_url}
           onUploadChange={(uploaded, url) => {
-            updateData({ 
+            updateData({
               summons_uploaded: uploaded,
-              summons_url: url 
+              summons_url: url,
             });
           }}
           tempFolderId={tempFolderId}
+          companyId={companyId}
           documentType="summons"
         />
       </div>
+
 
       {!data.complaint_uploaded && !data.summons_uploaded && (
         <Alert>
