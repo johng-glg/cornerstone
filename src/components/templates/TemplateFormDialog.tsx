@@ -305,8 +305,9 @@ export function TemplateFormDialog({ open, onOpenChange, template }: TemplateFor
                       )}
                     </div>
 
-                    <div>
+                    <div className="space-y-3">
                       <MergeFieldPalette onInsert={handleMergeFieldInsert} />
+                      <ConditionalBlockInserter onInsert={handleMergeFieldInsert} />
                     </div>
                   </div>
                 </TabsContent>
