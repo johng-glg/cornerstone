@@ -77,14 +77,15 @@ serve(async (req) => {
 
     console.log('[forth-create-draft] Creating draft:', draftPayload);
 
-    const draftResponse = await fetch('https://api.forthpay.com/v1/drafts', {
-      method: 'POST',
-      headers: {
-        'Api-Key': accessToken,
-        'Content-Type': 'application/json',
+    const draftResponse = await forthFetch(
+      'https://api.forthpay.com/v1/drafts',
+      {
+        method: 'POST',
+        headers: buildForthHeaders(accessToken),
+        body: JSON.stringify(draftPayload),
       },
-      body: JSON.stringify(draftPayload),
-    });
+      { caller: 'forth-create-draft' },
+    );
 
     const draftResult = await draftResponse.json();
 
