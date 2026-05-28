@@ -527,6 +527,7 @@ export const INTEGRATIONS: IntegrationItem[] = [
     priority: 'Medium',
     status: 'Research',
     notes: 'JSON file ingestion for credit reports. Parse and store credit data for leads/clients.',
+  },
   {
     id: 'forth-pay',
     name: 'Forth Pay',
@@ -536,7 +537,6 @@ export const INTEGRATIONS: IntegrationItem[] = [
     notes: '9 edge functions deployed (auth, register-client, sync-client, create/update/cancel-draft, pause-resume, poll-transactions, test-connection). Forth Pay and Forth CRM share FORTH_CLIENT_ID / FORTH_API_KEY; forth-test-connection refreshes the OAuth token (~9 day cache) and stamps health on both rows in company_integrations. Outbound polling only — no inbound webhook receiver yet.',
   },
 
-  },
   {
     id: 'entrust-united',
     name: 'Entrust United',
