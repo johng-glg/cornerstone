@@ -37,8 +37,10 @@ function DocumentUploadCard({
   onUploadChange,
   uploadedUrl,
   tempFolderId,
+  companyId,
   documentType,
 }: DocumentUploadProps) {
+
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
