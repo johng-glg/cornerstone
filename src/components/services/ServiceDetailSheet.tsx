@@ -283,12 +283,37 @@ export function ServiceDetailSheet({ serviceId, open, onOpenChange }: ServiceDet
                   </CardHeader>
                   <CardContent>
                     {hasForthId ? (
-                      <div className="flex items-center gap-2 text-sm">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span className="text-muted-foreground">Registered with Forth Pay</span>
-                        <Badge variant="outline" className="ml-auto">
-                          ID: {service.primary_client?.forth_crm_id}
-                        </Badge>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-sm">
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <span className="text-muted-foreground">Registered with Forth Pay</span>
+                          <Badge variant="outline" className="ml-auto">
+                            ID: {service.primary_client?.forth_crm_id}
+                          </Badge>
+                        </div>
+                        {/* Phase 2D: pause/resume mirroring */}
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => service?.primary_client && pauseForthClient.mutate(service.primary_client.id)}
+                            disabled={pauseForthClient.isPending || resumeForthClient.isPending}
+                          >
+                            {pauseForthClient.isPending ? (
+                              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Pausing…</>
+                            ) : 'Pause drafts'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => service?.primary_client && resumeForthClient.mutate(service.primary_client.id)}
+                            disabled={pauseForthClient.isPending || resumeForthClient.isPending}
+                          >
+                            {resumeForthClient.isPending ? (
+                              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Resuming…</>
+                            ) : 'Resume drafts'}
+                          </Button>
+                        </div>
                       </div>
                     ) : (
                       <div className="space-y-2">
