@@ -52,6 +52,8 @@ export default function ResetPassword() {
   const [hasRecoverySession, setHasRecoverySession] = useState<boolean | null>(null);
   const { updatePassword, signOut } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+
   useEffect(() => {
     // A recovery link arrives as either:
     //   #access_token=...&type=recovery   (implicit flow)
