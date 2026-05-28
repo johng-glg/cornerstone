@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useLeads, useLead } from '@/hooks/useLeads';
 import { useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/lib/auth';
+import { useFeatureFlag } from '@/hooks/useFeatureFlags';
 import { LeadKanban } from '@/components/leads/LeadKanban';
 import { LeadFormDialog } from '@/components/leads/LeadFormDialog';
 import { LeadDetailSheet } from '@/components/leads/LeadDetailSheet';
