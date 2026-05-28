@@ -64,7 +64,7 @@ export function ClientServicesTab({ clientId }: ClientServicesTabProps) {
                         {service.service_number}
                       </CardTitle>
                       <p className="text-sm text-muted-foreground">
-                        {service.program_type?.replace('_', ' ') || 'Debt Settlement'}
+                        {service.program_type === 'debt_settlement' ? 'Consumer Debt Defense' : (service.program_type?.replace('_', ' ') || 'Consumer Debt Defense')}
                       </p>
                     </div>
                   </div>
@@ -88,7 +88,7 @@ export function ClientServicesTab({ clientId }: ClientServicesTabProps) {
                     <p className="font-semibold">{formatCurrency(service.total_enrolled_debt)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Escrow Balance</p>
+                    <p className="text-xs text-muted-foreground">PLSA Balance</p>
                     <p className="font-semibold text-primary">{formatCurrency(service.escrow_balance)}</p>
                   </div>
                   <div>

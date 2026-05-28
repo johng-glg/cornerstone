@@ -51,7 +51,7 @@ const allNavItems: NavItem[] = [
   { title: 'Leads', url: '/leads', icon: UserPlus, module: 'Leads' },
   { title: 'Lead Metrics', url: '/leads/metrics', icon: TrendingUp, module: 'Leads' },
   { title: 'Eligibility Reviews', url: '/eligibility-reviews', icon: ClipboardCheck, module: 'Eligibility Reviews' },
-  { title: 'Services', url: '/services', icon: Briefcase, module: 'Services' },
+  { title: 'Engagements', url: '/services', icon: Briefcase, module: 'Services' },
   { title: 'Clients', url: '/clients', icon: Users, module: 'Clients' },
   { title: 'Liabilities', url: '/liabilities', icon: DollarSign, module: 'Liabilities' },
   { title: 'Litigation', url: '/litigation', icon: Scale, module: 'Litigation' },

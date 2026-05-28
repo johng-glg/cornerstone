@@ -348,7 +348,7 @@ export function ServiceDetailSheet({ serviceId, open, onOpenChange }: ServiceDet
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-muted-foreground">Program Type</p>
-                        <p className="font-medium capitalize">{service.program_type?.replace('_', ' ') || 'Debt Settlement'}</p>
+                        <p className="font-medium capitalize">{service.program_type === 'debt_settlement' ? 'Consumer Debt Defense' : (service.program_type?.replace('_', ' ') || 'Consumer Debt Defense')}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Term</p>
@@ -448,7 +448,7 @@ export function ServiceDetailSheet({ serviceId, open, onOpenChange }: ServiceDet
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Escrow Balance</p>
+                        <p className="text-sm text-muted-foreground">PLSA Balance</p>
                         <p className="text-lg font-semibold text-primary">{formatCurrency(service.escrow_balance)}</p>
                       </div>
                     </div>

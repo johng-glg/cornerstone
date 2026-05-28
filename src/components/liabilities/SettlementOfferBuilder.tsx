@@ -183,7 +183,7 @@ export function SettlementOfferBuilder({
                 <TabsTrigger value="offer">Offer Details</TabsTrigger>
                 <TabsTrigger value="fees">Fee Structure</TabsTrigger>
                 <TabsTrigger value="projection" className="relative">
-                  Escrow Projection
+                  PLSA Projection
                   {!escrowProjection.isViable && (
                     <Badge variant="destructive" className="ml-2 h-5 px-1">!</Badge>
                   )}

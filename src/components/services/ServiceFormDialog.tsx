@@ -150,7 +150,7 @@ export function ServiceFormDialog({ open, onOpenChange }: ServiceFormDialogProps
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="debt_settlement">Debt Settlement</SelectItem>
+                      <SelectItem value="debt_settlement">Consumer Debt Defense</SelectItem>
                       <SelectItem value="debt_defense">Debt Defense</SelectItem>
                     </SelectContent>
                   </Select>
