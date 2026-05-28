@@ -16,7 +16,10 @@ Phase 12 registers Dialpad into the Phase 11 hub and adds click-to-call, signed-
   - Columns: `company_id`, `dialpad_call_id` (unique), `related_entity_type`, `related_entity_id`, `initiated_by` (FK → staff), `target_phone`, `direction`, `state`, `duration_seconds`, `recording_url`, `voicemail_url`, `voicemail_transcript`, `started_at`, `ended_at`, `raw jsonb`, `created_at`.
   - Indexes: `(related_entity_type, related_entity_id)`, `(initiated_by, created_at DESC)`, `(company_id, created_at DESC)`.
   - RLS: SELECT via `can_access_company`; INSERT/UPDATE service_role only.
-- Communication log target: reuse `client_communications` for `client` / `lead`; write `litigation_matter` / `creditor_contact` calls to `system_audit_log` via `log_audit_event` until a dedicated table is built (tracked as a follow-up).
+- Communication log targets (dual-table, by entity type):
+  - `client` surfaces → append to `client_communications` (legacy client-only table).
+  - All other polymorphic surfaces (`litigation_matter`, `creditor_contact`, `lead`, etc.) → append to `entity_communications` (polymorphic `entity_type` / `entity_id` / `related_record_id`, full RLS + grants, added in migration `20260528163538`).
+  - `dialpad_calls` is always the source-of-truth row; the `*_communications` insert is the per-surface activity log.
 
 ## Edge functions
 - **`dialpad-initiate`** (POST) — validates JWT in code via `requireAuth`, checks `requireIntegrationEnabled('dialpad')`, requires `staff.dialpad_user_id`. Calls `POST https://dialpad.com/api/v2/call` with `custom_data: { related_entity_type, related_entity_id, company_id }`, inserts `dialpad_calls` row (state `queued`), logs `outbound_call_initiated`, returns `{ dialpad_call_id }`.
@@ -46,7 +49,7 @@ On inbound events the webhook normalizes `target_phone` to E.164 and looks up `c
 2. Staff with a linked `dialpad_user_id` see CallButtons; others see disabled state.
 3. Click-to-call rings the staff's Dialpad device; the live pill transitions through states.
 4. Webhook signature mismatches are rejected (401) and logged with `success = false`.
-5. Completed calls write to `client_communications` with duration and (where present) signed recording link.
+5. Completed calls write to `client_communications` (client surfaces) or `entity_communications` (litigation, creditor, lead, and other polymorphic surfaces) with duration and (where present) signed recording link.
 6. Inbound calls fire screen-pop per the staff member's preference.
 7. Disabling `dialpad` in `company_integrations` blocks `dialpad-initiate` immediately.
 8. `dialpad_calls` is admin-readable within company scope; service_role-only writes.
@@ -62,5 +65,4 @@ DELETE FROM public.company_integrations WHERE provider_key = 'dialpad';
 Edge functions can be left deployed — they no-op once the registry row is gone.
 
 ## Follow-ups
-- Dedicated `contact_call_activity` table so litigation / creditor calls don't ride on `system_audit_log`.
 - Recording durability: currently we store the Dialpad URL and proxy via signed-link UI; option (b) — downloading into `client-documents` on webhook receipt — left as a future toggle.
