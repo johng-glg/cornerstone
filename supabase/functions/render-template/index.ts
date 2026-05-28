@@ -247,8 +247,10 @@ function renderContent(
   const contexts: Record<string, Record<string, unknown>> = {
     lead: entityData, client: entityData, service: entityData,
     liability: entityData, settlement: entityData,
+    transaction: entityData, loan: entityData,
     company: companyData, staff: staffData,
   };
+
   // Process blocks before merge fields so inner fields get filled.
   let processed = processEachBlocks(content, contexts);
   processed = processIfBlocks(processed, contexts);
