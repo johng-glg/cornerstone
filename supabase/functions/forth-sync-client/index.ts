@@ -52,16 +52,14 @@ serve(async (req) => {
         category: 'system',
       };
 
-      const noteResponse = await fetch(
+      const noteResponse = await forthFetch(
         `https://api.forthcrm.com/v1/contacts/${crmId}/notes`,
         {
           method: 'POST',
-          headers: {
-            'Api-Key': accessToken,
-            'Content-Type': 'application/json',
-          },
+          headers: buildForthHeaders(accessToken),
           body: JSON.stringify(notePayload),
-        }
+        },
+        { caller: 'forth-sync-client:note' },
       );
 
       const noteResult = await noteResponse.json();
