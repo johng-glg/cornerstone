@@ -20,6 +20,27 @@ interface UserRole {
   role: string;
 }
 
+export interface RoleView {
+  key: string;
+  label: string;
+  roles: string[];
+  department: string;
+}
+
+export const ROLE_VIEWS: RoleView[] = [
+  { key: 'admin', label: 'Admin', roles: ['admin'], department: 'administration' },
+  { key: 'attorney', label: 'Attorney', roles: ['attorney'], department: 'legal' },
+  { key: 'case_manager', label: 'Case Manager', roles: ['case_manager'], department: 'legal' },
+  { key: 'paralegal', label: 'Paralegal / Legal Staff', roles: ['paralegal'], department: 'legal' },
+  { key: 'sales_rep', label: 'Sales Rep', roles: ['sales_rep'], department: 'sales' },
+  { key: 'negotiator', label: 'Negotiator', roles: ['negotiator'], department: 'negotiations' },
+  { key: 'payment_processor', label: 'Payment Processor', roles: ['payment_processor'], department: 'operations' },
+  { key: 'correspondent', label: 'Correspondence', roles: ['correspondent'], department: 'operations' },
+  { key: 'client_services_rep', label: 'Client Services Rep', roles: ['client_services_rep'], department: 'client_services' },
+  { key: 'eligibility_reviewer', label: 'Eligibility Reviewer', roles: ['eligibility_reviewer'], department: 'eligibility' },
+  { key: 'viewer', label: 'Viewer', roles: ['viewer'], department: 'administration' },
+];
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -33,9 +54,16 @@ interface AuthContextType {
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
   hasRole: (role: string) => boolean;
   isAdmin: () => boolean;
+  // Role impersonation (admin only, view-only)
+  impersonatedView: string | null;
+  setImpersonatedView: (key: string | null) => void;
+  realRoles: string[];
+  isRealAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const IMPERSONATION_KEY = 'lovable.impersonatedRoleView';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -148,7 +176,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  const hasRole = (role: string) => roles.includes(role);
+  const realRoles = roles;
+  const isRealAdmin = realRoles.includes('admin');
+
+  const [impersonatedView, setImpersonatedViewState] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return sessionStorage.getItem(IMPERSONATION_KEY);
+  });
+
+  const setImpersonatedView = (key: string | null) => {
+    if (key) sessionStorage.setItem(IMPERSONATION_KEY, key);
+    else sessionStorage.removeItem(IMPERSONATION_KEY);
+    setImpersonatedViewState(key);
+  };
+
+  // Only honor impersonation if the real user is an admin
+  const activeView = isRealAdmin
+    ? ROLE_VIEWS.find((v) => v.key === impersonatedView) ?? null
+    : null;
+
+  const effectiveRoles = activeView ? activeView.roles : roles;
+  const effectiveStaff = activeView && staff
+    ? { ...staff, department: activeView.department }
+    : staff;
+
+  const hasRole = (role: string) => effectiveRoles.includes(role);
   const isAdmin = () => hasRole('admin');
 
   return (
@@ -156,8 +208,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         session,
-        staff,
-        roles,
+        staff: effectiveStaff,
+        roles: effectiveRoles,
         loading,
         signIn,
         signUp,
@@ -166,6 +218,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updatePassword,
         hasRole,
         isAdmin,
+        impersonatedView: activeView?.key ?? null,
+        setImpersonatedView,
+        realRoles,
+        isRealAdmin,
       }}
     >
       {children}
