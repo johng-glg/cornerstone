@@ -17,7 +17,8 @@ import {
   Clock,
   Lightbulb,
   ShieldCheck,
-  ClipboardCheck
+  ClipboardCheck,
+  Plug
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/lib/auth';
@@ -65,6 +66,7 @@ const adminNavItems: NavItem[] = [
   { title: 'Companies', url: '/companies', icon: Building2, module: 'Companies' },
   { title: 'Staff', url: '/staff', icon: Users, module: 'Staff' },
   { title: 'Payments', url: '/payments', icon: CreditCard, module: 'Payments' },
+  { title: 'Integrations', url: '/integrations', icon: Plug, module: 'Settings' },
   { title: 'Settings', url: '/settings', icon: Settings, module: 'Settings' },
   { title: 'Feature Requests', url: '/feature-requests', icon: Lightbulb, module: 'Settings' },
   { title: 'Documentation', url: '/docs', icon: BookOpen, module: 'Settings' },

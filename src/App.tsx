@@ -25,6 +25,7 @@ import NotFound from "./pages/NotFound";
 import CompaniesPage from "./pages/Companies";
 import StaffPage from "./pages/Staff";
 import SettingsPage from "./pages/Settings";
+import IntegrationsAdminPage from "./pages/Integrations";
 import ReportsPage from "./pages/Reports";
 import ReconciliationDashboard from "./pages/ReconciliationDashboard";
 // OpposingCounsel removed - consolidated into Creditors
@@ -111,7 +112,8 @@ const App = () => (
               {/* opposing-counsel route removed - consolidated into creditors */}
               <Route path="/feature-requests" element={<AppLayout><FeatureRequestsPage /></AppLayout>} />
               <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
-              
+              <Route path="/integrations" element={<AppLayout><IntegrationsAdminPage /></AppLayout>} />
+
               {/* Catch-all */}
               <Route path="*" element={<NotFound />} />
             </Routes>
