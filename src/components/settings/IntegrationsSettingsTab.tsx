@@ -44,6 +44,8 @@ const PROVIDER_CREDENTIAL_FIELDS: Record<string, { label: string; env: string }[
 const TEST_FUNCTIONS: Record<string, string> = {
   docuseal: "docuseal-test",
   dialpad: "dialpad-test-connection",
+  forth_pay: "forth-test-connection",
+  forth_crm: "forth-test-connection",
 };
 
 function StatusPill({ ci }: { ci?: CompanyIntegration }) {
