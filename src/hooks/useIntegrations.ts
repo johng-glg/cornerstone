@@ -124,9 +124,6 @@ export function useUpsertCompanyIntegration() {
 
 export function useIntegrationEvents(providerKey?: string, limit = 50) {
   const companyId = useCompanyId();
-
-export function useIntegrationEvents(providerKey?: string, limit = 50) {
-  const { companyId } = useCompanyType();
   return useQuery({
     queryKey: ["integration-events", companyId, providerKey, limit],
     enabled: !!companyId,
