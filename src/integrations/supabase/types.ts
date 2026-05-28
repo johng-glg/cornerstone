@@ -1245,6 +1245,74 @@ export type Database = {
           },
         ]
       }
+      dialpad_calls: {
+        Row: {
+          company_id: string
+          created_at: string
+          dialpad_call_id: string
+          direction: string | null
+          duration_seconds: number | null
+          ended_at: string | null
+          id: string
+          initiated_by: string | null
+          raw: Json | null
+          recording_url: string | null
+          related_entity_id: string | null
+          related_entity_type: string | null
+          started_at: string | null
+          state: string | null
+          target_phone: string
+          voicemail_transcript: string | null
+          voicemail_url: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          dialpad_call_id: string
+          direction?: string | null
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          initiated_by?: string | null
+          raw?: Json | null
+          recording_url?: string | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          started_at?: string | null
+          state?: string | null
+          target_phone: string
+          voicemail_transcript?: string | null
+          voicemail_url?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          dialpad_call_id?: string
+          direction?: string | null
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          initiated_by?: string | null
+          raw?: Json | null
+          recording_url?: string | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          started_at?: string | null
+          state?: string | null
+          target_phone?: string
+          voicemail_transcript?: string | null
+          voicemail_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dialpad_calls_initiated_by_fkey"
+            columns: ["initiated_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       docuseal_templates: {
         Row: {
           company_id: string
@@ -4261,6 +4329,7 @@ export type Database = {
           company_id: string
           created_at: string
           department: Database["public"]["Enums"]["department_new"]
+          dialpad_user_id: number | null
           email: string
           first_name: string
           hourly_rate: number | null
@@ -4278,6 +4347,7 @@ export type Database = {
           company_id: string
           created_at?: string
           department: Database["public"]["Enums"]["department_new"]
+          dialpad_user_id?: number | null
           email: string
           first_name: string
           hourly_rate?: number | null
@@ -4295,6 +4365,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           department?: Database["public"]["Enums"]["department_new"]
+          dialpad_user_id?: number | null
           email?: string
           first_name?: string
           hourly_rate?: number | null
