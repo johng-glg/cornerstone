@@ -48,16 +48,12 @@ export function DocumentFileUpload({ matterId, onUploadComplete, currentUrl }: D
 
       if (error) throw error;
 
-      // Get public URL
-      const { data: publicUrlData } = supabase.storage
-        .from('litigation-documents')
-        .getPublicUrl(data.path);
-
-      const url = publicUrlData.publicUrl;
-      setUploadedUrl(url);
-      onUploadComplete(url);
+      // Phase 7: bucket is private — emit the bucket-relative path; viewers resolve signed URLs.
+      setUploadedUrl(data.path);
+      onUploadComplete(data.path);
 
       toast({ title: 'File uploaded successfully' });
+
     } catch (error) {
       console.error('Upload error:', error);
       toast({
