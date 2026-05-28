@@ -192,6 +192,8 @@ export function TemplateFormDialog({ open, onOpenChange, template }: TemplateFor
               <TabsList>
                 <TabsTrigger value="content">Content</TabsTrigger>
                 <TabsTrigger value="settings">Settings</TabsTrigger>
+                {template && <TabsTrigger value="history">History</TabsTrigger>}
+                {template && <TabsTrigger value="usage">Usage</TabsTrigger>}
               </TabsList>
 
               <div className="flex-1 overflow-auto">
