@@ -100,19 +100,6 @@ Deno.serve(async (req) => {
       row.initiated_by = staffId;
       await admin.from("dialpad_calls").insert(row);
     } else {
-      if (!existing.data.related_entity_type && entityType) row.related_entity_type = entityType;
-      if (!existing.data.related_entity_id && entityId) row.related_entity_id = entityId;
-      await admin.from("dialpad_calls").update(row).eq("dialpad_call_id", callId);
-
-      target_phone: targetPhone || existing.data?.related_entity_id || "",
-    };
-    if (!existing.data) {
-      row.company_id = companyId;
-      row.related_entity_type = entityType;
-      row.related_entity_id = entityId;
-      row.initiated_by = staffId;
-      await admin.from("dialpad_calls").insert(row);
-    } else {
       // Preserve existing entity mapping unless empty.
       if (!existing.data.related_entity_type && entityType) row.related_entity_type = entityType;
       if (!existing.data.related_entity_id && entityId) row.related_entity_id = entityId;
@@ -122,6 +109,7 @@ Deno.serve(async (req) => {
       entityId = existing.data.related_entity_id ?? entityId;
       staffId = staffId ?? existing.data.initiated_by;
     }
+
 
     // On terminal states, write to communications tables.
     const terminal = ["hangup", "ended", "completed", "missed", "voicemail"].includes(String(state ?? "").toLowerCase());
