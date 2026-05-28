@@ -45,6 +45,18 @@ verify_jwt = false
 [functions.forth-register-client]
 verify_jwt = false
 
+[functions.forth-fetch-balance]
+verify_jwt = false
+
+[functions.forth-contact-update]
+verify_jwt = false
+
+[functions.forth-contact-close]
+verify_jwt = false
+
+[functions.forth-payment-to-creditor]
+verify_jwt = false
+
 [functions.simulate-underwriting]
 verify_jwt = false
 

@@ -278,3 +278,113 @@ export async function registerForthClient(
     return { success: false, error: message };
   }
 }
+
+// ============================================================
+// Cornerstone Phase 3 — new Forth operations
+// ============================================================
+
+export interface ForthBalanceResult {
+  balance: number;
+  balance_cents: number;
+  as_of_timestamp: string;
+  source: 'forth';
+  local_projection: number;
+  drift_detected: boolean;
+}
+
+// 3A — fetch canonical escrow balance from Forth
+export async function fetchForthBalance(
+  clientId: string
+): Promise<ForthApiResponse<ForthBalanceResult>> {
+  try {
+    const { data, error } = await supabase.functions.invoke('forth-fetch-balance', {
+      body: { client_id: clientId },
+    });
+    if (error) return { success: false, error: error.message };
+    return {
+      success: data?.success ?? false,
+      data: data?.success ? (data as ForthBalanceResult) : undefined,
+      error: data?.error,
+    };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+export interface ContactUpdatePayload {
+  first_name?: string;
+  middle_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+}
+
+// 3B — push contact field updates to Forth
+export async function updateForthContact(
+  clientId: string,
+  updates: ContactUpdatePayload
+): Promise<ForthApiResponse<{ updated_fields: string[]; skipped?: boolean }>> {
+  try {
+    const { data, error } = await supabase.functions.invoke('forth-contact-update', {
+      body: { client_id: clientId, updates },
+    });
+    if (error) return { success: false, error: error.message };
+    return {
+      success: data?.success ?? false,
+      data: { updated_fields: data?.updated_fields ?? [], skipped: data?.skipped },
+      error: data?.error,
+    };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+// 3C — close a Forth contact
+export async function closeForthContact(
+  clientId: string,
+  closeReason: 'graduated' | 'cancelled' | 'terminated' | string
+): Promise<ForthApiResponse<{ forth_status: string }>> {
+  try {
+    const { data, error } = await supabase.functions.invoke('forth-contact-close', {
+      body: { client_id: clientId, close_reason: closeReason },
+    });
+    if (error) return { success: false, error: error.message };
+    return {
+      success: data?.success ?? false,
+      data: { forth_status: data?.forth_status ?? 'closed' },
+      error: data?.error,
+    };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+// 3D — send a settlement disbursement to Forth Pay
+export async function sendForthPaymentToCreditor(
+  settlementId: string,
+  paymentMethod: 'ach' | 'rcc' = 'ach'
+): Promise<ForthApiResponse<{ external_payment_id: string; scheduled_date: string; status: string }>> {
+  try {
+    const { data, error } = await supabase.functions.invoke('forth-payment-to-creditor', {
+      body: { settlement_id: settlementId, payment_method: paymentMethod },
+    });
+    if (error) return { success: false, error: error.message };
+    return {
+      success: data?.success ?? false,
+      data: data?.success
+        ? {
+            external_payment_id: data.external_payment_id,
+            scheduled_date: data.scheduled_date,
+            status: data.status,
+          }
+        : undefined,
+      error: data?.error,
+    };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}

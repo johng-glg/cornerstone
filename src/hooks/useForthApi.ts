@@ -12,7 +12,12 @@ import {
   pollForthTransactions,
   testForthAuth,
   registerForthClient,
+  fetchForthBalance,
+  updateForthContact,
+  closeForthContact,
+  sendForthPaymentToCreditor,
   type RegisterClientRequest,
+  type ContactUpdatePayload,
 } from '@/lib/forthApi';
 
 // Push a transaction to Forth Pay as a draft
