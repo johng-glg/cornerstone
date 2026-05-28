@@ -64,6 +64,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const IMPERSONATION_KEY = 'lovable.impersonatedRoleView';
+export const PASSWORD_RECOVERY_STORAGE_KEY = 'lovable.passwordRecoveryActive';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -76,6 +77,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          sessionStorage.setItem(PASSWORD_RECOVERY_STORAGE_KEY, 'true');
+        }
+        if (event === 'SIGNED_OUT') {
+          sessionStorage.removeItem(PASSWORD_RECOVERY_STORAGE_KEY);
+        }
+
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -165,6 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const requestPasswordReset = async (email: string) => {
+    sessionStorage.removeItem(PASSWORD_RECOVERY_STORAGE_KEY);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
