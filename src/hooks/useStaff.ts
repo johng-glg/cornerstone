@@ -52,6 +52,7 @@ interface UpdateStaffInput {
   phone?: string | null;
   job_title?: string | null;
   avatar_url?: string | null;
+  screen_pop_preference?: 'toast' | 'auto_navigate' | 'off';
 }
 
 export function useUpdateCurrentStaff() {

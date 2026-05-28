@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useInactivityTimeout } from '@/hooks/useInactivityTimeout';
 import { InactivityTimeoutDialog } from '@/components/auth/InactivityTimeoutDialog';
 import { useToast } from '@/hooks/use-toast';
+import { ScreenPopProvider } from '@/components/dialpad/ScreenPopProvider';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -88,6 +89,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         onStay={reset}
         onSignOut={handleTimeout}
       />
+      <ScreenPopProvider />
     </SidebarProvider>
   );
 }
+

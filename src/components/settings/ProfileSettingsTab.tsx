@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MfaCard } from '@/components/settings/MfaCard';
 import { useCurrentStaff, useUpdateCurrentStaff } from '@/hooks/useStaff';
 
@@ -24,6 +25,7 @@ const formSchema = z.object({
   email: z.string().email('Invalid email address'),
   phone: z.string().optional(),
   job_title: z.string().optional(),
+  screen_pop_preference: z.enum(['toast', 'auto_navigate', 'off']),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -40,6 +42,7 @@ export function ProfileSettingsTab() {
       email: '',
       phone: '',
       job_title: '',
+      screen_pop_preference: 'toast',
     },
   });
 
@@ -51,6 +54,7 @@ export function ProfileSettingsTab() {
         email: staff.email,
         phone: staff.phone || '',
         job_title: staff.job_title || '',
+        screen_pop_preference: ((staff as any).screen_pop_preference ?? 'toast') as 'toast' | 'auto_navigate' | 'off',
       });
     }
   }, [staff, form]);
@@ -61,8 +65,10 @@ export function ProfileSettingsTab() {
       last_name: data.last_name,
       phone: data.phone || null,
       job_title: data.job_title || null,
+      screen_pop_preference: data.screen_pop_preference,
     });
   };
+
 
   if (isLoading) {
     return (
@@ -171,6 +177,30 @@ export function ProfileSettingsTab() {
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="screen_pop_preference"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Incoming call screen pop</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose behavior" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="toast">Toast notification (recommended)</SelectItem>
+                      <SelectItem value="auto_navigate">Auto-navigate to record</SelectItem>
+                      <SelectItem value="off">Off</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
 
             <div className="flex justify-end pt-4">
               <Button type="submit" disabled={updateStaff.isPending}>
