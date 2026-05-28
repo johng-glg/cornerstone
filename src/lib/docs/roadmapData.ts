@@ -177,10 +177,10 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
   },
   {
     id: 'escrow-automation',
-    name: 'Escrow Balance Automation',
+    name: 'PLSA Balance Automation',
     category: 'Payments',
     priority: 'Medium',
-    description: 'Auto-update escrow balance from transaction history.',
+    description: 'Auto-update PLSA balance from transaction history.',
     difficulty: 2,
     benefit: 4,
     status: 'Planned',

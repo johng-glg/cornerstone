@@ -104,7 +104,7 @@ export const FEATURE_GUIDES: FeatureGuide[] = [
     sections: [
       {
         title: 'Overview',
-        content: 'Services represent active client engagements in a debt settlement program. Each service has a primary client, enrolled debts, and tracks financial progress through the program.',
+        content: 'Engagements represent active client engagements in a consumer debt defense program. Each engagement has a primary client, enrolled liabilities, and tracks financial progress through the program.',
       },
       {
         title: 'Service Statuses',
@@ -139,8 +139,8 @@ export const FEATURE_GUIDES: FeatureGuide[] = [
         content: 'Each service tracks key financial metrics:',
         steps: [
           'Total Enrolled Debt - Sum of all enrolled liabilities',
-          'Monthly Payment - Regular escrow deposit amount',
-          'Escrow Balance - Current funds available for settlements',
+          'Monthly Payment - Regular PLSA deposit amount',
+          'PLSA Balance - Current funds available for settlements',
           'Settlement Fee Percentage - Fee charged on settlements',
           'Estimated Settlement Percentage - Target settlement rate',
         ],
@@ -529,7 +529,7 @@ export const FEATURE_GUIDES: FeatureGuide[] = [
         title: 'Transaction Types',
         content: 'Different types of transactions in the system:',
         steps: [
-          'Escrow Deposit - Client monthly payment into escrow',
+          'PLSA Deposit - Client monthly payment into PLSA',
           'Settlement Payment - Payment to creditor for settlement',
           'Contingency Fee - Performance fee on settlements',
           'Service Fee - Monthly service fee',
@@ -537,7 +537,7 @@ export const FEATURE_GUIDES: FeatureGuide[] = [
         ],
       },
       {
-        title: 'Processing Escrow Deposits',
+        title: 'Processing PLSA Deposits',
         content: 'Handle incoming client payments.',
         steps: [
           'View scheduled deposits on the dashboard',
