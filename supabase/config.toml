@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.plsa-adapter-mock]
 verify_jwt = false
+
+[functions.service-graduation-check]
+verify_jwt = false

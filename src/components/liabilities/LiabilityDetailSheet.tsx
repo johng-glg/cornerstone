@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SettlementFormDialog } from './SettlementFormDialog';
 import { SettlementCard } from './SettlementCard';
 import { LiabilityActionsTimeline } from './LiabilityActionsTimeline';
+import { CreditorResponsesPanel } from '@/components/creditors/CreditorResponsesPanel';
 import { SettlementOfferBuilder } from './SettlementOfferBuilder';
 import { LitigationMatterFormDialog } from '@/components/litigation/LitigationMatterFormDialog';
 import { useAuth } from '@/lib/auth';
@@ -169,13 +170,14 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
             <Separator className="my-4" />
 
             <Tabs defaultValue="details" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="details">Details</TabsTrigger>
                 <TabsTrigger value="notes">
                   <MessageSquare className="h-3.5 w-3.5 mr-1" />
                   Notes
                 </TabsTrigger>
                 <TabsTrigger value="settlements">Settlements</TabsTrigger>
+                <TabsTrigger value="comms">Comms</TabsTrigger>
                 <TabsTrigger value="history">History</TabsTrigger>
               </TabsList>
 
@@ -321,6 +323,16 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
                   </p>
                 )}
               </TabsContent>
+
+              <TabsContent value="comms" className="space-y-4 mt-4">
+                <CreditorResponsesPanel
+                  liabilityId={liabilityId}
+                  defaultCreditorId={liability?.current_creditor_id || liability?.original_creditor_id || null}
+                  serviceId={liability?.client_service_id || null}
+                />
+              </TabsContent>
+
+
 
               <TabsContent value="history" className="space-y-4 mt-4">
                 <div className="flex items-center gap-2 mb-4">

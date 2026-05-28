@@ -960,6 +960,121 @@ export type Database = {
           },
         ]
       }
+      creditor_responses: {
+        Row: {
+          attachments: Json
+          body: string | null
+          channel: Database["public"]["Enums"]["creditor_response_channel"]
+          client_service_id: string | null
+          company_id: string
+          created_at: string
+          creditor_id: string
+          direction: Database["public"]["Enums"]["creditor_response_direction"]
+          id: string
+          liability_id: string | null
+          logged_by: string | null
+          metadata: Json
+          outbound_reference_id: string | null
+          received_at: string
+          response_time_hours: number | null
+          sentiment:
+            | Database["public"]["Enums"]["creditor_response_sentiment"]
+            | null
+          subject: string | null
+          summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          attachments?: Json
+          body?: string | null
+          channel?: Database["public"]["Enums"]["creditor_response_channel"]
+          client_service_id?: string | null
+          company_id: string
+          created_at?: string
+          creditor_id: string
+          direction?: Database["public"]["Enums"]["creditor_response_direction"]
+          id?: string
+          liability_id?: string | null
+          logged_by?: string | null
+          metadata?: Json
+          outbound_reference_id?: string | null
+          received_at?: string
+          response_time_hours?: number | null
+          sentiment?:
+            | Database["public"]["Enums"]["creditor_response_sentiment"]
+            | null
+          subject?: string | null
+          summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attachments?: Json
+          body?: string | null
+          channel?: Database["public"]["Enums"]["creditor_response_channel"]
+          client_service_id?: string | null
+          company_id?: string
+          created_at?: string
+          creditor_id?: string
+          direction?: Database["public"]["Enums"]["creditor_response_direction"]
+          id?: string
+          liability_id?: string | null
+          logged_by?: string | null
+          metadata?: Json
+          outbound_reference_id?: string | null
+          received_at?: string
+          response_time_hours?: number | null
+          sentiment?:
+            | Database["public"]["Enums"]["creditor_response_sentiment"]
+            | null
+          subject?: string | null
+          summary?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creditor_responses_client_service_id_fkey"
+            columns: ["client_service_id"]
+            isOneToOne: false
+            referencedRelation: "client_services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creditor_responses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creditor_responses_creditor_id_fkey"
+            columns: ["creditor_id"]
+            isOneToOne: false
+            referencedRelation: "creditors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creditor_responses_liability_id_fkey"
+            columns: ["liability_id"]
+            isOneToOne: false
+            referencedRelation: "liabilities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creditor_responses_logged_by_fkey"
+            columns: ["logged_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creditor_responses_outbound_reference_id_fkey"
+            columns: ["outbound_reference_id"]
+            isOneToOne: false
+            referencedRelation: "creditor_responses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creditors: {
         Row: {
           address_line1: string | null
@@ -1388,6 +1503,105 @@ export type Database = {
             columns: ["matter_id"]
             isOneToOne: false
             referencedRelation: "litigation_matters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduation_automation_config: {
+        Row: {
+          company_id: string
+          created_at: string
+          enabled: boolean
+          fire_contact_close: boolean
+          id: string
+          notification_template_id: string | null
+          require_all_liabilities_resolved: boolean
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          enabled?: boolean
+          fire_contact_close?: boolean
+          id?: string
+          notification_template_id?: string | null
+          require_all_liabilities_resolved?: boolean
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          enabled?: boolean
+          fire_contact_close?: boolean
+          id?: string
+          notification_template_id?: string | null
+          require_all_liabilities_resolved?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduation_automation_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graduation_events: {
+        Row: {
+          client_service_id: string
+          company_id: string
+          contact_close_status: string | null
+          created_at: string
+          details: Json
+          id: string
+          notification_sent: boolean
+          previous_status: string | null
+          triggered_by_liability_id: string | null
+        }
+        Insert: {
+          client_service_id: string
+          company_id: string
+          contact_close_status?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          notification_sent?: boolean
+          previous_status?: string | null
+          triggered_by_liability_id?: string | null
+        }
+        Update: {
+          client_service_id?: string
+          company_id?: string
+          contact_close_status?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          notification_sent?: boolean
+          previous_status?: string | null
+          triggered_by_liability_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graduation_events_client_service_id_fkey"
+            columns: ["client_service_id"]
+            isOneToOne: false
+            referencedRelation: "client_services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduation_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "graduation_events_triggered_by_liability_id_fkey"
+            columns: ["triggered_by_liability_id"]
+            isOneToOne: false
+            referencedRelation: "liabilities"
             referencedColumns: ["id"]
           },
         ]
@@ -4979,6 +5193,15 @@ export type Database = {
         | "hard_to_reach"
         | "unreachable"
         | "no_contact_allowed"
+      creditor_response_channel:
+        | "email"
+        | "phone"
+        | "letter"
+        | "fax"
+        | "portal"
+        | "other"
+      creditor_response_direction: "inbound" | "outbound"
+      creditor_response_sentiment: "positive" | "neutral" | "negative"
       creditor_type:
         | "original_creditor"
         | "collection_agency"
@@ -5166,6 +5389,7 @@ export type Database = {
         | "update_field"
         | "block_transition"
         | "trigger_webhook"
+        | "auto_graduate"
       workflow_entity_type:
         | "leads"
         | "client_services"
@@ -5371,6 +5595,16 @@ export const Constants = {
         "unreachable",
         "no_contact_allowed",
       ],
+      creditor_response_channel: [
+        "email",
+        "phone",
+        "letter",
+        "fax",
+        "portal",
+        "other",
+      ],
+      creditor_response_direction: ["inbound", "outbound"],
+      creditor_response_sentiment: ["positive", "neutral", "negative"],
       creditor_type: [
         "original_creditor",
         "collection_agency",
@@ -5579,6 +5813,7 @@ export const Constants = {
         "update_field",
         "block_transition",
         "trigger_webhook",
+        "auto_graduate",
       ],
       workflow_entity_type: [
         "leads",
