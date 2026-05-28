@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -64,6 +66,8 @@ export function IntegrationsSettingsTab() {
   const [configureOpen, setConfigureOpen] = useState<IntegrationProvider | null>(null);
   const [activityOpen, setActivityOpen] = useState<IntegrationProvider | null>(null);
   const [testingKey, setTestingKey] = useState<string | null>(null);
+  const qc = useQueryClient();
+
 
   const byKey = useMemo(() => {
     const m = new Map<string, CompanyIntegration>();
@@ -107,6 +111,8 @@ export function IntegrationsSettingsTab() {
       toast({ title: "Test failed", description: e instanceof Error ? e.message : "Unknown", variant: "destructive" });
     } finally {
       setTestingKey(null);
+      qc.invalidateQueries({ queryKey: ["company-integrations"] });
+
     }
   };
 
