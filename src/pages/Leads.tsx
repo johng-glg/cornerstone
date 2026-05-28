@@ -49,6 +49,12 @@ export default function LeadsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
+  const { roles, isAdmin } = useAuth();
+  const paralegalVisibility = useFeatureFlag('leads.paralegal_visibility');
+  const isPureParalegal =
+    !isAdmin() && roles.length > 0 && roles.every((r) => r === 'paralegal');
+  const leadsGatedOff = isPureParalegal && !paralegalVisibility;
+
   // Handle ?action=new query param to auto-open dialog
   // Handle ?open=id query param to auto-open detail sheet
   useEffect(() => {
