@@ -1561,6 +1561,65 @@ export type Database = {
         }
         Relationships: []
       }
+      entity_communications: {
+        Row: {
+          body: string | null
+          channel: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          direction: string | null
+          duration_seconds: number | null
+          entity_id: string
+          entity_type: string
+          id: string
+          recording_url: string | null
+          related_record_id: string | null
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          body?: string | null
+          channel: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          direction?: string | null
+          duration_seconds?: number | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          recording_url?: string | null
+          related_record_id?: string | null
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body?: string | null
+          channel?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          direction?: string | null
+          duration_seconds?: number | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          recording_url?: string | null
+          related_record_id?: string | null
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entity_communications_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feature_requests: {
         Row: {
           admin_notes: string | null
@@ -4339,6 +4398,7 @@ export type Database = {
           last_login_at: string | null
           last_name: string
           phone: string | null
+          screen_pop_preference: Database["public"]["Enums"]["screen_pop_preference_enum"]
           updated_at: string
           user_id: string
         }
@@ -4357,6 +4417,7 @@ export type Database = {
           last_login_at?: string | null
           last_name: string
           phone?: string | null
+          screen_pop_preference?: Database["public"]["Enums"]["screen_pop_preference_enum"]
           updated_at?: string
           user_id: string
         }
@@ -4375,6 +4436,7 @@ export type Database = {
           last_login_at?: string | null
           last_name?: string
           phone?: string | null
+          screen_pop_preference?: Database["public"]["Enums"]["screen_pop_preference_enum"]
           updated_at?: string
           user_id?: string
         }
@@ -5795,6 +5857,7 @@ export type Database = {
         | "churn_risk"
         | "complaint"
       schedule_status_enum: "active" | "paused" | "completed" | "cancelled"
+      screen_pop_preference_enum: "toast" | "auto_navigate" | "off"
       service_status:
         | "prospect"
         | "active"
@@ -6222,6 +6285,7 @@ export const Constants = {
         "complaint",
       ],
       schedule_status_enum: ["active", "paused", "completed", "cancelled"],
+      screen_pop_preference_enum: ["toast", "auto_navigate", "off"],
       service_status: [
         "prospect",
         "active",
