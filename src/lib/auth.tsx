@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { PASSWORD_RECOVERY_STORAGE_KEY } from '@/lib/authRecovery';
 
 interface StaffProfile {
   id: string;
@@ -64,7 +65,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const IMPERSONATION_KEY = 'lovable.impersonatedRoleView';
-export const PASSWORD_RECOVERY_STORAGE_KEY = 'lovable.passwordRecoveryActive';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);

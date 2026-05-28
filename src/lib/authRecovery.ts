@@ -1,0 +1,1 @@
+export const PASSWORD_RECOVERY_STORAGE_KEY = 'lovable.passwordRecoveryActive';
