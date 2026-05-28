@@ -119,7 +119,7 @@ export const MERGE_FIELD_REGISTRY: Record<string, MergeFieldDefinition[]> = {
     { entity: 'service', field: 'plan_type', label: 'Plan Type', sampleValue: 'Standard' },
     { entity: 'service', field: 'enrolled_date', label: 'Enrolled Date', sampleValue: '01/01/2026' },
     { entity: 'service', field: 'monthly_payment', label: 'Monthly Payment', sampleValue: '$350.00' },
-    { entity: 'service', field: 'escrow_balance', label: 'Escrow Balance', sampleValue: '$1,500.00' },
+    { entity: 'service', field: 'escrow_balance', label: 'PLSA Balance', sampleValue: '$1,500.00' },
     { entity: 'service', field: 'total_enrolled_debt', label: 'Total Enrolled Debt', sampleValue: '$45,000.00' },
   ],
   liability: [

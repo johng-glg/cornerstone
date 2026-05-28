@@ -59,12 +59,12 @@ export default function ServicesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Services</h1>
-          <p className="text-muted-foreground">Manage client services and debt settlement programs</p>
+          <h1 className="text-2xl font-bold">Engagements</h1>
+          <p className="text-muted-foreground">Manage client engagements and consumer debt defense programs</p>
         </div>
         <Button onClick={() => setShowForm(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          New Service
+          New Engagement
         </Button>
       </div>
 
@@ -214,7 +214,7 @@ export default function ServicesPage() {
                   </TableCell>
                   <TableCell>
                     <span className="text-sm capitalize">
-                      {service.program_type?.replace('_', ' ') || 'Debt Settlement'}
+                      {service.program_type === 'debt_settlement' ? 'Consumer Debt Defense' : (service.program_type?.replace('_', ' ') || 'Consumer Debt Defense')}
                     </span>
                   </TableCell>
                   <TableCell>

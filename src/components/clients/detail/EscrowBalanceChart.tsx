@@ -157,7 +157,7 @@ export function EscrowBalanceChart({ transactions }: EscrowBalanceChartProps) {
       {/* Line Chart */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Projected Escrow Balance</CardTitle>
+          <CardTitle className="text-base">Projected PLSA Balance</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[300px]">
