@@ -1236,6 +1236,53 @@ export type Database = {
           },
         ]
       }
+      domain_events: {
+        Row: {
+          attempt_count: number
+          company_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          event: string
+          id: string
+          last_error: string | null
+          payload: Json
+          processed_at: string | null
+        }
+        Insert: {
+          attempt_count?: number
+          company_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event: string
+          id?: string
+          last_error?: string | null
+          payload?: Json
+          processed_at?: string | null
+        }
+        Update: {
+          attempt_count?: number
+          company_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event?: string
+          id?: string
+          last_error?: string | null
+          payload?: Json
+          processed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "domain_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       eligibility_reviews: {
         Row: {
           checklist: Json | null
@@ -2574,8 +2621,12 @@ export type Database = {
           original_balance: number | null
           original_creditor_id: string | null
           priority: number | null
+          referred_to_law_firm_at: string | null
+          referred_to_law_firm_company_id: string | null
           servicing_creditor_id: string | null
           status: Database["public"]["Enums"]["liability_status"]
+          summons_notes: string | null
+          summons_received_at: string | null
           updated_at: string
         }
         Insert: {
@@ -2595,8 +2646,12 @@ export type Database = {
           original_balance?: number | null
           original_creditor_id?: string | null
           priority?: number | null
+          referred_to_law_firm_at?: string | null
+          referred_to_law_firm_company_id?: string | null
           servicing_creditor_id?: string | null
           status?: Database["public"]["Enums"]["liability_status"]
+          summons_notes?: string | null
+          summons_received_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -2616,8 +2671,12 @@ export type Database = {
           original_balance?: number | null
           original_creditor_id?: string | null
           priority?: number | null
+          referred_to_law_firm_at?: string | null
+          referred_to_law_firm_company_id?: string | null
           servicing_creditor_id?: string | null
           status?: Database["public"]["Enums"]["liability_status"]
+          summons_notes?: string | null
+          summons_received_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2654,6 +2713,13 @@ export type Database = {
             columns: ["original_creditor_id"]
             isOneToOne: false
             referencedRelation: "creditors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liabilities_referred_to_law_firm_company_id_fkey"
+            columns: ["referred_to_law_firm_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
@@ -3255,6 +3321,78 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outbound_webhook_log: {
+        Row: {
+          attempt_n: number
+          company_id: string | null
+          created_at: string
+          endpoint_id: string | null
+          error_message: string | null
+          id: string
+          method: string
+          request_headers: Json | null
+          request_payload: Json | null
+          response_body: string | null
+          response_status: number | null
+          response_time_ms: number | null
+          source_entity_id: string | null
+          source_entity_type: string | null
+          source_event: string
+          target_url: string
+        }
+        Insert: {
+          attempt_n?: number
+          company_id?: string | null
+          created_at?: string
+          endpoint_id?: string | null
+          error_message?: string | null
+          id?: string
+          method?: string
+          request_headers?: Json | null
+          request_payload?: Json | null
+          response_body?: string | null
+          response_status?: number | null
+          response_time_ms?: number | null
+          source_entity_id?: string | null
+          source_entity_type?: string | null
+          source_event: string
+          target_url: string
+        }
+        Update: {
+          attempt_n?: number
+          company_id?: string | null
+          created_at?: string
+          endpoint_id?: string | null
+          error_message?: string | null
+          id?: string
+          method?: string
+          request_headers?: Json | null
+          request_payload?: Json | null
+          response_body?: string | null
+          response_status?: number | null
+          response_time_ms?: number | null
+          source_entity_id?: string | null
+          source_entity_type?: string | null
+          source_event?: string
+          target_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outbound_webhook_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outbound_webhook_log_endpoint_id_fkey"
+            columns: ["endpoint_id"]
+            isOneToOne: false
+            referencedRelation: "webhook_endpoints"
             referencedColumns: ["id"]
           },
         ]
@@ -4570,6 +4708,27 @@ export type Database = {
           },
         ]
       }
+      terminology_presets: {
+        Row: {
+          created_at: string
+          label_map: Json
+          preset_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          label_map: Json
+          preset_key: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          label_map?: Json
+          preset_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       transaction_retry_attempts: {
         Row: {
           attempt_number: number
@@ -4769,6 +4928,68 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      webhook_endpoints: {
+        Row: {
+          auth_method: string
+          auth_secret_last4: string | null
+          auth_secret_ref: string | null
+          body_template: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          custom_headers: Json
+          event_subscriptions: string[]
+          id: string
+          is_active: boolean
+          last_fired_at: string | null
+          name: string
+          target_url: string
+          updated_at: string
+        }
+        Insert: {
+          auth_method?: string
+          auth_secret_last4?: string | null
+          auth_secret_ref?: string | null
+          body_template?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          custom_headers?: Json
+          event_subscriptions?: string[]
+          id?: string
+          is_active?: boolean
+          last_fired_at?: string | null
+          name: string
+          target_url: string
+          updated_at?: string
+        }
+        Update: {
+          auth_method?: string
+          auth_secret_last4?: string | null
+          auth_secret_ref?: string | null
+          body_template?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          custom_headers?: Json
+          event_subscriptions?: string[]
+          id?: string
+          is_active?: boolean
+          last_fired_at?: string | null
+          name?: string
+          target_url?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_endpoints_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workflow_executions: {
         Row: {
@@ -5062,6 +5283,16 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      emit_domain_event: {
+        Args: {
+          _company_id: string
+          _entity_id: string
+          _entity_type: string
+          _event: string
+          _payload?: Json
+        }
+        Returns: string
+      }
       encrypt_pii: { Args: { _plaintext: string }; Returns: string }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
@@ -5082,6 +5313,7 @@ export type Database = {
           reminders_created: number
         }[]
       }
+      get_company_terminology: { Args: { _company_id: string }; Returns: Json }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
