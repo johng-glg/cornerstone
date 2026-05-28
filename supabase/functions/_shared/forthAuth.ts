@@ -144,7 +144,7 @@ const BACKOFF_MS = [1000, 4000, 16000];
 export interface ForthFetchOptions {
   /** Forth function name (e.g. 'forth-poll-transactions') — used in retry logs. */
   caller?: string;
-  /** Optional company UUID — written to forth_sync_log on retry. */
+  /** Optional company UUID — written to plsa_sync_log on retry. */
   companyId?: string;
 }
 
@@ -185,7 +185,7 @@ async function logRetry(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
-    await supabase.from('forth_sync_log').insert({
+    await supabase.from('plsa_sync_log').insert({
       entity_type: 'forth_api',
       action: 'retry',
       success: false,

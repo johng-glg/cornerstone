@@ -51,7 +51,7 @@ async function logOperation(
   errorMessage?: string
 ) {
   try {
-    await supabase.from('forth_sync_log').insert({
+    await supabase.from('plsa_sync_log').insert({
       entity_type: entityType,
       entity_id: entityId,
       action,
