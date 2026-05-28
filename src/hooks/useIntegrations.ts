@@ -81,7 +81,7 @@ export function useCompanyIntegrations() {
 
 export function useUpsertCompanyIntegration() {
   const qc = useQueryClient();
-  const { companyId } = useCompanyType();
+  const companyId = useCompanyId();
   return useMutation({
     mutationFn: async (input: {
       provider_key: string;
@@ -102,7 +102,7 @@ export function useUpsertCompanyIntegration() {
         provider_key: input.provider_key,
         is_enabled: input.is_enabled ?? false,
         credentials_vault_ref: input.credentials_vault_ref ?? null,
-        config: input.config ?? {},
+        config: (input.config ?? {}) as Json,
       };
 
       if (existing) {
@@ -121,6 +121,9 @@ export function useUpsertCompanyIntegration() {
     },
   });
 }
+
+export function useIntegrationEvents(providerKey?: string, limit = 50) {
+  const companyId = useCompanyId();
 
 export function useIntegrationEvents(providerKey?: string, limit = 50) {
   const { companyId } = useCompanyType();
