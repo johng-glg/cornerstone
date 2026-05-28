@@ -970,4 +970,13 @@ export const STORAGE_BUCKETS = [
       'System can upload via service role (webhook)',
     ],
   },
+  {
+    name: 'lead-documents',
+    isPublic: false,
+    description: 'Stores lead intake documents: budgets, IDs, statements uploaded during the lead/eligibility phase.',
+    policies: [
+      'Authenticated staff can upload to their company folder',
+      'Staff can view documents for leads in their company',
+    ],
+  },
 ];
