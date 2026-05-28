@@ -4524,10 +4524,7 @@ export type Database = {
         Returns: string
       }
       decrypt_client_ssn: { Args: { _client_id: string }; Returns: string }
-      decrypt_lead_banking: {
-        Args: { _lead_banking_id: string }
-        Returns: Json
-      }
+      decrypt_lead_banking: { Args: { _lead_id: string }; Returns: Json }
       encrypt_pii: { Args: { _plaintext: string }; Returns: string }
       evaluate_workflow_conditions: {
         Args: {
