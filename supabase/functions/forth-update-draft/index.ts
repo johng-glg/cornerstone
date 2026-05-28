@@ -102,16 +102,14 @@ serve(async (req) => {
 
     console.log('[forth-update-draft] Updating draft:', transaction.external_id, updatePayload);
 
-    const updateResponse = await fetch(
+    const updateResponse = await forthFetch(
       `https://api.forthpay.com/v1/drafts/${transaction.external_id}`,
       {
         method: 'PUT',
-        headers: {
-          'Api-Key': accessToken,
-          'Content-Type': 'application/json',
-        },
+        headers: buildForthHeaders(accessToken),
         body: JSON.stringify(updatePayload),
-      }
+      },
+      { caller: 'forth-update-draft' },
     );
 
     const updateResult = await updateResponse.json();
