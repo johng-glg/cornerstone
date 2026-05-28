@@ -324,6 +324,16 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
                 )}
               </TabsContent>
 
+              <TabsContent value="comms" className="space-y-4 mt-4">
+                <CreditorResponsesPanel
+                  liabilityId={liabilityId}
+                  defaultCreditorId={liability?.current_creditor_id || liability?.original_creditor_id || null}
+                  serviceId={liability?.client_service_id || null}
+                />
+              </TabsContent>
+
+
+
               <TabsContent value="history" className="space-y-4 mt-4">
                 <div className="flex items-center gap-2 mb-4">
                   <History className="h-4 w-4 text-muted-foreground" />
