@@ -71,18 +71,16 @@ export function LeadDocumentFormDialog({ open, onOpenChange, leadId, document }:
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('lead-documents')
-        .getPublicUrl(filePath);
-
+      // Phase 7: bucket is private — store the bucket-relative path; viewers resolve signed URLs.
       await createDocument.mutateAsync({
         lead_id: leadId,
         document_type: documentType,
         title,
-        file_url: publicUrl,
+        file_url: filePath,
         notes: notes || undefined,
         uploaded_by: currentStaff?.id,
       });
+
 
       setTitle('');
       setDocumentType('other');
