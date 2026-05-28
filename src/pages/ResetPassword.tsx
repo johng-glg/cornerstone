@@ -97,6 +97,8 @@ export default function ResetPassword() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const form = useForm<FormData>({
+
     resolver: zodResolver(schema),
     defaultValues: { password: '', confirm: '' },
   });
