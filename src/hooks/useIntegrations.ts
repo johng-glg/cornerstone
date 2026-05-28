@@ -1,6 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useCompanyType } from "@/hooks/useCompanyType";
+import { useAuth } from "@/lib/auth";
+import type { Json } from "@/integrations/supabase/types";
+
+function useCompanyId(): string | null {
+  const { staff } = useAuth();
+  return staff?.company_id ?? null;
+}
 
 export interface IntegrationProvider {
   id: string;
