@@ -455,6 +455,18 @@ export function TemplateFormDialog({ open, onOpenChange, template }: TemplateFor
                     </div>
                   )}
                 </TabsContent>
+
+                {template && (
+                  <TabsContent value="history" className="mt-4">
+                    <TemplateVersionHistory templateId={template.id} currentVersion={template.current_version} />
+                  </TabsContent>
+                )}
+
+                {template && (
+                  <TabsContent value="usage" className="mt-4">
+                    <TemplateUsagePanel templateId={template.id} />
+                  </TabsContent>
+                )}
               </div>
             </Tabs>
 
