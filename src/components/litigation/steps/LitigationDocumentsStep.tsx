@@ -147,14 +147,14 @@ function DocumentUploadCard({
               <p className="text-sm font-medium truncate">
                 {fileName || 'Uploaded document'}
               </p>
-              <a
-                href={uploadedUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+              <SignedDocumentLink
+                bucket="litigation-documents"
+                urlOrPath={uploadedUrl}
                 className="text-xs text-primary hover:underline truncate block"
               >
                 View file
-              </a>
+              </SignedDocumentLink>
+
             </div>
             <Button
               type="button"
