@@ -72,6 +72,54 @@ export function TopNav() {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Admin: View As Role */}
+        {isRealAdmin && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={impersonatedView ? 'default' : 'outline'}
+                size="sm"
+                className="items-center gap-1.5"
+              >
+                <Eye className="h-4 w-4" />
+                <span className="hidden md:inline">
+                  {impersonatedView
+                    ? `Viewing as: ${ROLE_VIEWS.find((v) => v.key === impersonatedView)?.label ?? impersonatedView}`
+                    : 'View as'}
+                </span>
+                {impersonatedView && (
+                  <Badge variant="secondary" className="md:hidden">on</Badge>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64 max-h-[70vh] overflow-y-auto">
+              <DropdownMenuLabel>View app as role</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={!impersonatedView}
+                onCheckedChange={() => setImpersonatedView(null)}
+              >
+                My real account (Admin)
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator />
+              {ROLE_VIEWS.map((view) => (
+                <DropdownMenuCheckboxItem
+                  key={view.key}
+                  checked={impersonatedView === view.key}
+                  onCheckedChange={() => setImpersonatedView(view.key)}
+                >
+                  {view.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                UI preview only. Database permissions still follow your real account.
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+
         {/* Feature Request Button */}
         <Button
           variant="outline"
