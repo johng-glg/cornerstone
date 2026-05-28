@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MfaCard } from '@/components/settings/MfaCard';
 import { useCurrentStaff, useUpdateCurrentStaff } from '@/hooks/useStaff';
 
@@ -24,11 +25,8 @@ const formSchema = z.object({
   email: z.string().email('Invalid email address'),
   phone: z.string().optional(),
   job_title: z.string().optional(),
+  screen_pop_preference: z.enum(['toast', 'auto_navigate', 'off']),
 });
-
-type FormData = z.infer<typeof formSchema>;
-
-export function ProfileSettingsTab() {
   const { data: staff, isLoading } = useCurrentStaff();
   const updateStaff = useUpdateCurrentStaff();
 
