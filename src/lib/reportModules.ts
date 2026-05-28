@@ -149,7 +149,7 @@ export const REPORT_MODULES: ModuleConfig[] = [
       { key: 'plan_type', label: 'Plan Type', type: 'enum' },
       { key: 'total_enrolled_debt', label: 'Enrolled Debt', type: 'currency', sortable: true },
       { key: 'monthly_payment', label: 'Monthly Payment', type: 'currency' },
-      { key: 'escrow_balance', label: 'Escrow Balance', type: 'currency' },
+      { key: 'escrow_balance', label: 'PLSA Balance', type: 'currency' },
       { key: 'term_months', label: 'Term (Months)', type: 'number' },
       { key: 'settlement_fee_percentage', label: 'Fee %', type: 'number' },
       { key: 'enrolled_date', label: 'Enrolled', type: 'date', sortable: true },

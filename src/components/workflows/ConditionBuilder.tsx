@@ -33,7 +33,7 @@ const relatedEntities: Record<WorkflowEntityType, string[]> = {
 const entityFields: Record<WorkflowEntityType, { value: string; label: string }[]> = {
   client_services: [
     { value: 'status', label: 'Status' },
-    { value: 'escrow_balance', label: 'Escrow Balance' },
+    { value: 'escrow_balance', label: 'PLSA Balance' },
     { value: 'monthly_payment', label: 'Monthly Payment' },
     { value: 'total_enrolled_debt', label: 'Total Enrolled Debt' },
     { value: 'payment_status', label: 'Payment Status' },
