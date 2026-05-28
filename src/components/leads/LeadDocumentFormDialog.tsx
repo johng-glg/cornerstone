@@ -9,6 +9,8 @@ import { useCreateLeadDocument, useUpdateLeadDocument, LEAD_DOCUMENT_TYPES, type
 import { useCurrentStaff } from '@/hooks/useStaff';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { validateDocumentUpload, DOCUMENT_ACCEPT_ATTR } from '@/lib/storage';
 
 interface LeadDocumentFormDialogProps {
   open: boolean;
@@ -21,6 +23,7 @@ export function LeadDocumentFormDialog({ open, onOpenChange, leadId, document }:
   const createDocument = useCreateLeadDocument();
   const updateDocument = useUpdateLeadDocument();
   const { data: currentStaff } = useCurrentStaff();
+  const { toast } = useToast();
   const [title, setTitle] = useState('');
   const [documentType, setDocumentType] = useState('other');
   const [notes, setNotes] = useState('');
@@ -107,15 +110,24 @@ export function LeadDocumentFormDialog({ open, onOpenChange, leadId, document }:
               <Label>File *</Label>
               <Input
                 type="file"
+                accept={DOCUMENT_ACCEPT_ATTR}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) {
-                    setFile(f);
-                    if (!title) setTitle(f.name.replace(/\.[^/.]+$/, ''));
+                  if (!f) return;
+                  const err = validateDocumentUpload(f);
+                  if (err) {
+                    toast({ title: 'File rejected', description: err.message, variant: 'destructive' });
+                    e.target.value = '';
+                    return;
                   }
+                  setFile(f);
+                  if (!title) setTitle(f.name.replace(/\.[^/.]+$/, ''));
                 }}
                 className="mt-1"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                PDF, Office docs, images, .eml/.msg (max 25 MB).
+              </p>
             </div>
           )}
           <div>

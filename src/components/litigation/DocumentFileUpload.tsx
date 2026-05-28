@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { validateDocumentUpload, DOCUMENT_ACCEPT_ATTR } from '@/lib/storage';
 
 interface DocumentFileUploadProps {
   matterId: string;
@@ -22,13 +23,10 @@ export function DocumentFileUpload({ matterId, onUploadComplete, currentUrl }: D
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Maximum file size is 10MB',
-        variant: 'destructive',
-      });
+    const err = validateDocumentUpload(file);
+    if (err) {
+      toast({ title: 'File rejected', description: err.message, variant: 'destructive' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
@@ -89,7 +87,7 @@ export function DocumentFileUpload({ matterId, onUploadComplete, currentUrl }: D
         type="file"
         className="hidden"
         onChange={handleFileSelect}
-        accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+        accept={DOCUMENT_ACCEPT_ATTR}
       />
 
       {uploadedUrl ? (
@@ -141,7 +139,7 @@ export function DocumentFileUpload({ matterId, onUploadComplete, currentUrl }: D
       )}
       
       <p className="text-xs text-muted-foreground">
-        Supported: PDF, DOC, DOCX, TXT, JPG, PNG (max 10MB)
+        Supported: PDF, Office docs, images, .eml/.msg (max 25 MB)
       </p>
     </div>
   );

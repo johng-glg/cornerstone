@@ -4,6 +4,12 @@ All notable changes documented per cross-cutting rule: "Documentation by default
 
 ## Operation Cornerstone — Phase 2 (in progress, 2026-05-28)
 
+### 2E — Storage hardening (part 1)
+- Bucket configs on all 4 doc buckets: 25 MB size cap + MIME allowlist (PDF, Office, images, .eml/.msg). Executables, scripts, archives, etc. rejected server-side.
+- New `src/lib/storage.ts` — shared `validateDocumentUpload()` + constants wired into all 4 upload dialogs.
+- 2E-2 deferred: flip public buckets to private + signed-URL read layer; virus scanning. See `phase_2e_summary.md`.
+
+
 ### 2D — Inactivity session timeout
 - 30-min idle threshold with 2-min warning dialog (countdown + Stay/Sign-out actions).
 - Cross-tab activity sync via `localStorage` (`glg.lastActivityAt`).
