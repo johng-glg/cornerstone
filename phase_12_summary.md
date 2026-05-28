@@ -16,7 +16,10 @@ Phase 12 registers Dialpad into the Phase 11 hub and adds click-to-call, signed-
   - Columns: `company_id`, `dialpad_call_id` (unique), `related_entity_type`, `related_entity_id`, `initiated_by` (FK → staff), `target_phone`, `direction`, `state`, `duration_seconds`, `recording_url`, `voicemail_url`, `voicemail_transcript`, `started_at`, `ended_at`, `raw jsonb`, `created_at`.
   - Indexes: `(related_entity_type, related_entity_id)`, `(initiated_by, created_at DESC)`, `(company_id, created_at DESC)`.
   - RLS: SELECT via `can_access_company`; INSERT/UPDATE service_role only.
-- Communication log target: reuse `client_communications` for `client` / `lead`; write `litigation_matter` / `creditor_contact` calls to `system_audit_log` via `log_audit_event` until a dedicated table is built (tracked as a follow-up).
+- Communication log targets (dual-table, by entity type):
+  - `client` surfaces → append to `client_communications` (legacy client-only table).
+  - All other polymorphic surfaces (`litigation_matter`, `creditor_contact`, `lead`, etc.) → append to `entity_communications` (polymorphic `entity_type` / `entity_id` / `related_record_id`, full RLS + grants, added in migration `20260528163538`).
+  - `dialpad_calls` is always the source-of-truth row; the `*_communications` insert is the per-surface activity log.
 
 ## Edge functions
 - **`dialpad-initiate`** (POST) — validates JWT in code via `requireAuth`, checks `requireIntegrationEnabled('dialpad')`, requires `staff.dialpad_user_id`. Calls `POST https://dialpad.com/api/v2/call` with `custom_data: { related_entity_type, related_entity_id, company_id }`, inserts `dialpad_calls` row (state `queued`), logs `outbound_call_initiated`, returns `{ dialpad_call_id }`.
