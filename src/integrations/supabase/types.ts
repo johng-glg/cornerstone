@@ -3763,6 +3763,57 @@ export type Database = {
           },
         ]
       }
+      template_usage: {
+        Row: {
+          channel: string | null
+          entity_id: string
+          entity_type: string
+          error_message: string | null
+          id: string
+          success: boolean
+          template_id: string
+          used_at: string
+          used_by: string | null
+        }
+        Insert: {
+          channel?: string | null
+          entity_id: string
+          entity_type: string
+          error_message?: string | null
+          id?: string
+          success?: boolean
+          template_id: string
+          used_at?: string
+          used_by?: string | null
+        }
+        Update: {
+          channel?: string | null
+          entity_id?: string
+          entity_type?: string
+          error_message?: string | null
+          id?: string
+          success?: boolean
+          template_id?: string
+          used_at?: string
+          used_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_usage_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_usage_used_by_fkey"
+            columns: ["used_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       template_usages: {
         Row: {
           channel: string | null

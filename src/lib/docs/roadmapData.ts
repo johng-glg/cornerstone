@@ -207,8 +207,8 @@ export const FUTURE_BUILDS: RoadmapItem[] = [
     description: 'Email, SMS, and document templates with merge fields.',
     difficulty: 3,
     benefit: 4,
-    status: 'In Progress',
-    notes: 'Phase 1-3 complete: Database schema, types/hooks, template management UI, merge field palette. Templates tab added to Settings. render-template edge function deployed.',
+    status: 'Completed',
+    notes: 'All phases complete: schema, hooks, management UI, merge field palette, render-template edge function with {#if}/{#each} support and usage logging, version history with restore, conditional block inserter, and usage analytics. Template picker component available for send flows.',
   },
   {
     id: 'esign-system',

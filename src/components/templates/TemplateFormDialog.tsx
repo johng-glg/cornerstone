@@ -29,11 +29,14 @@ import { Badge } from '@/components/ui/badge';
 import { useCreateTemplate, useUpdateTemplate } from '@/hooks/useTemplates';
 import { useTemplateCategories, useSeedDefaultCategories } from '@/hooks/useTemplateCategories';
 import { MergeFieldPalette } from './MergeFieldPalette';
-import { 
-  Template, 
-  TemplateType, 
+import { ConditionalBlockInserter } from './ConditionalBlockInserter';
+import { TemplateVersionHistory } from './TemplateVersionHistory';
+import { TemplateUsagePanel } from './TemplateUsagePanel';
+import {
+  Template,
+  TemplateType,
   TemplateLanguage,
-  templateTypeLabels, 
+  templateTypeLabels,
   templateLanguageLabels,
   TEMPLATE_CHAR_LIMITS,
   MergeFieldDefinition,
@@ -189,6 +192,8 @@ export function TemplateFormDialog({ open, onOpenChange, template }: TemplateFor
               <TabsList>
                 <TabsTrigger value="content">Content</TabsTrigger>
                 <TabsTrigger value="settings">Settings</TabsTrigger>
+                {template && <TabsTrigger value="history">History</TabsTrigger>}
+                {template && <TabsTrigger value="usage">Usage</TabsTrigger>}
               </TabsList>
 
               <div className="flex-1 overflow-auto">
@@ -300,8 +305,9 @@ export function TemplateFormDialog({ open, onOpenChange, template }: TemplateFor
                       )}
                     </div>
 
-                    <div>
+                    <div className="space-y-3">
                       <MergeFieldPalette onInsert={handleMergeFieldInsert} />
+                      <ConditionalBlockInserter onInsert={handleMergeFieldInsert} />
                     </div>
                   </div>
                 </TabsContent>
@@ -449,6 +455,18 @@ export function TemplateFormDialog({ open, onOpenChange, template }: TemplateFor
                     </div>
                   )}
                 </TabsContent>
+
+                {template && (
+                  <TabsContent value="history" className="mt-4">
+                    <TemplateVersionHistory templateId={template.id} currentVersion={template.current_version} />
+                  </TabsContent>
+                )}
+
+                {template && (
+                  <TabsContent value="usage" className="mt-4">
+                    <TemplateUsagePanel templateId={template.id} />
+                  </TabsContent>
+                )}
               </div>
             </Tabs>
 
