@@ -64,7 +64,7 @@ export function useUpdateAppearanceRequest() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<AppearanceRequest> & { id: string }) => {
-      const { data, error } = await supabase.from('appearance_requests').update(updates).eq('id', id).select().single();
+      const { data, error } = await supabase.from('appearance_requests').update(updates as never).eq('id', id).select().single();
       if (error) throw error;
       return data;
     },
