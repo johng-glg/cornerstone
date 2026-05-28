@@ -51,13 +51,14 @@ interface UpdateStaffInput {
   last_name?: string;
   phone?: string | null;
   job_title?: string | null;
+interface UpdateStaffInput {
+  first_name?: string;
+  last_name?: string;
+  phone?: string | null;
+  job_title?: string | null;
   avatar_url?: string | null;
+  screen_pop_preference?: 'toast' | 'auto_navigate' | 'off';
 }
-
-export function useUpdateCurrentStaff() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
   return useMutation({
     mutationFn: async (updates: UpdateStaffInput) => {
       const { data: { user } } = await supabase.auth.getUser();
