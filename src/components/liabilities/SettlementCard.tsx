@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, X, CheckCircle, Gavel, AlertCircle, Trash2 } from 'lucide-react';
+import { Check, X, CheckCircle, Gavel, AlertCircle, Trash2, Send } from 'lucide-react';
 import { 
   useApproveSettlement, 
   useAcceptSettlement, 
@@ -11,6 +11,7 @@ import {
   useDeleteSettlement,
   type Settlement 
 } from '@/hooks/useSettlements';
+import { useSendForthPaymentToCreditor } from '@/hooks/useForthApi';
 import { useAuth } from '@/lib/auth';
 import { format } from 'date-fns';
 import {
