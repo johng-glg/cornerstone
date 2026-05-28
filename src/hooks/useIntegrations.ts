@@ -64,7 +64,7 @@ export function useIntegrationProviders() {
 }
 
 export function useCompanyIntegrations() {
-  const { companyId } = useCompanyType();
+  const companyId = useCompanyId();
   return useQuery({
     queryKey: ["company-integrations", companyId],
     enabled: !!companyId,
