@@ -26,6 +26,7 @@ import CompaniesPage from "./pages/Companies";
 import StaffPage from "./pages/Staff";
 import SettingsPage from "./pages/Settings";
 import ReportsPage from "./pages/Reports";
+import ReconciliationDashboard from "./pages/ReconciliationDashboard";
 // OpposingCounsel removed - consolidated into Creditors
 import LeadMetricsPage from "./pages/LeadMetrics";
 import BillingPage from "./pages/Billing";
@@ -102,6 +103,7 @@ const App = () => (
               <Route path="/tasks" element={<AppLayout><TasksPage /></AppLayout>} />
               <Route path="/creditors" element={<AppLayout><CreditorsPage /></AppLayout>} />
               <Route path="/reports" element={<AppLayout><ReportsPage /></AppLayout>} />
+              <Route path="/reports/reconciliation" element={<AppLayout><ReconciliationDashboard /></AppLayout>} />
               <Route path="/companies" element={<AppLayout><CompaniesPage /></AppLayout>} />
               <Route path="/staff" element={<AppLayout><StaffPage /></AppLayout>} />
               <Route path="/payments" element={<AppLayout><PaymentsPage /></AppLayout>} />
