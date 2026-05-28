@@ -40,6 +40,7 @@ export default function SettingsPage() {
             <TabsTrigger value="roles">Roles</TabsTrigger>
             <TabsTrigger value="feature-flags">Feature Flags</TabsTrigger>
             <TabsTrigger value="nsf-retry">NSF Retry</TabsTrigger>
+            <TabsTrigger value="integrations">Integrations</TabsTrigger>
             <TabsTrigger value="appearance">Appearance</TabsTrigger>
             <TabsTrigger value="company">Company</TabsTrigger>
           </TabsList>
