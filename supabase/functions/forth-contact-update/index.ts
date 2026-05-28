@@ -35,6 +35,8 @@ serve(async (req) => {
   );
 
   try {
+    const __gate = await (await import("../_shared/requireAuth.ts")).requireAuth(req);
+    if (__gate instanceof Response) return __gate;
     const { client_id, updates } = await req.json() as { client_id: string; updates: ContactUpdates };
     if (!client_id) throw new Error('client_id is required');
     if (!updates || Object.keys(updates).length === 0) {

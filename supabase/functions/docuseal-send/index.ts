@@ -42,6 +42,8 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const __gate = await (await import("../_shared/requireAuth.ts")).requireAuth(req);
+    if (__gate instanceof Response) return __gate;
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const docusealApiKey = Deno.env.get("DOCUSEAL_API_KEY");

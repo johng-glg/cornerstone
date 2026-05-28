@@ -19,6 +19,8 @@ serve(async (req) => {
   );
 
   try {
+    const __gate = await (await import("../_shared/requireAuth.ts")).requireAuth(req);
+    if (__gate instanceof Response) return __gate;
     const { client_id, forth_crm_id, action, note } = await req.json();
     
     if (!client_id) {

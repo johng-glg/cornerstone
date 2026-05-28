@@ -30,6 +30,8 @@ serve(async (req) => {
   );
 
   try {
+    const __gate = await (await import("../_shared/requireAuth.ts")).requireAuth(req);
+    if (__gate instanceof Response) return __gate;
     const { client_service_id, triggered_by_liability_id } = await req.json();
     if (!client_service_id) throw new Error('client_service_id is required');
 

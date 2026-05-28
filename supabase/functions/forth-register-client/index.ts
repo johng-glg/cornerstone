@@ -51,6 +51,8 @@ async function logOperation(
   errorMessage?: string
 ) {
   try {
+    const __gate = await (await import("../_shared/requireAuth.ts")).requireAuth(req);
+    if (__gate instanceof Response) return __gate;
     await supabase.from('plsa_sync_log').insert({
       entity_type: entityType,
       entity_id: entityId,
