@@ -166,14 +166,30 @@ export function useUpdateLiabilityStatus() {
         .select()
         .single();
       if (error) throw error;
+
+      // Phase 6B: fire-and-forget graduation eligibility check on terminal status
+      const TERMINAL: LiabilityStatus[] = ['settled', 'dismissed', 'cancelled'] as LiabilityStatus[];
+      if (TERMINAL.includes(status) && (data as any)?.engagement_id) {
+        supabase.functions
+          .invoke('service-graduation-check', {
+            body: {
+              client_service_id: (data as any).engagement_id,
+              triggered_by_liability_id: id,
+            },
+          })
+          .catch((e) => console.warn('graduation-check failed (non-blocking):', e?.message));
+      }
+
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['liabilities'] });
       queryClient.invalidateQueries({ queryKey: ['liability', data.id] });
+      queryClient.invalidateQueries({ queryKey: ['client-services'] });
     },
     onError: (error: Error) => {
       toast({ title: 'Failed to update status', description: error.message, variant: 'destructive' });
     },
   });
 }
+
