@@ -91,29 +91,9 @@ Deno.serve(async (req) => {
           // Subscribe to all call lifecycle events; Dialpad will deliver
           // ringing, connected, hangup, voicemail, etc.
           enabled: true,
-          call_states: [
-            "preanswer",
-            "calling",
-            "ringing",
-            "connected",
-            "merged",
-            "hold",
-            "queued",
-            "voicemail",
-            "voicemail_uploaded",
-            "eavesdrop",
-            "monitor",
-            "barge",
-            "hangup",
-            "blocked",
-            "admin",
-            "parked",
-            "takeover",
-            "all",
-            "postcall",
-            "transcription",
-            "recording",
-          ],
+          call_states: ["all"],
+        }),
+
         }),
       });
       const subJson = await subResp.json().catch(() => ({}));
