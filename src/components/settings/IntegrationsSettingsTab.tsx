@@ -64,7 +64,9 @@ export function IntegrationsSettingsTab() {
   const upsert = useUpsertCompanyIntegration();
 
   const [configureOpen, setConfigureOpen] = useState<IntegrationProvider | null>(null);
-  const [activityOpen, setActivityOpen] = useState<IntegrationProvider | null>(null);
+  const [testingKey, setTestingKey] = useState<string | null>(null);
+  const qc = useQueryClient();
+
   const [testingKey, setTestingKey] = useState<string | null>(null);
 
   const byKey = useMemo(() => {
