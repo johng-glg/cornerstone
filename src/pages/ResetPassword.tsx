@@ -55,25 +55,52 @@ export default function ResetPassword() {
   const { toast } = useToast();
 
   useEffect(() => {
+    // A recovery link arrives as either:
+    //   #access_token=...&type=recovery   (implicit flow)
+    //   ?code=...&type=recovery           (PKCE flow)
+    // or after Supabase's /verify redirect, simply as an active session.
+    const hash = window.location.hash || '';
+    const search = window.location.search || '';
+    const looksLikeRecoveryLink =
+      hash.includes('type=recovery') ||
+      search.includes('type=recovery') ||
+      hash.includes('access_token=') ||
+      search.includes('code=');
+
     // Supabase fires PASSWORD_RECOVERY when the recovery link is opened.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') setHasRecoverySession(true);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && looksLikeRecoveryLink)) {
+        setHasRecoverySession(true);
+      }
     });
 
-    // Also check existing session (handles refresh after link click).
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      // We can't directly inspect "recovery" status from session, but the
-      // presence of a session immediately after navigation here is the
-      // expected state for a freshly-clicked recovery link.
-      if (session) setHasRecoverySession(true);
-      else if (hasRecoverySession === null) setHasRecoverySession(false);
-    });
+    // Give Supabase a moment to parse the URL hash / exchange the code before
+    // deciding the link is expired. Without this delay, getSession() resolves
+    // with `null` faster than the session is hydrated and we incorrectly
+    // show "Link Expired" for valid links.
+    const decide = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setHasRecoverySession(true);
+        return;
+      }
+      if (looksLikeRecoveryLink) {
+        // Wait briefly for onAuthStateChange to fire, then re-check.
+        setTimeout(async () => {
+          const { data: { session: s2 } } = await supabase.auth.getSession();
+          setHasRecoverySession(!!s2);
+        }, 1500);
+        return;
+      }
+      setHasRecoverySession(false);
+    };
+    decide();
 
     return () => subscription.unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const form = useForm<FormData>({
+
     resolver: zodResolver(schema),
     defaultValues: { password: '', confirm: '' },
   });
