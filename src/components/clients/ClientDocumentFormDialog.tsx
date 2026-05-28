@@ -38,6 +38,7 @@ import {
   DOCUMENT_TYPES,
   type ClientDocument,
 } from '@/hooks/useClientDocuments';
+import { validateDocumentUpload, DOCUMENT_ACCEPT_ATTR } from '@/lib/storage';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -104,12 +105,10 @@ export function ClientDocumentFormDialog({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Maximum file size is 10MB',
-        variant: 'destructive',
-      });
+    const err = validateDocumentUpload(file);
+    if (err) {
+      toast({ title: 'File rejected', description: err.message, variant: 'destructive' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
@@ -222,7 +221,7 @@ export function ClientDocumentFormDialog({
                   type="file"
                   className="hidden"
                   onChange={handleFileSelect}
-                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                  accept={DOCUMENT_ACCEPT_ATTR}
                 />
 
                 {uploadedUrl ? (
@@ -272,7 +271,7 @@ export function ClientDocumentFormDialog({
                   </Button>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  PDF, DOC, DOCX, TXT, JPG, PNG (max 10MB)
+                  PDF, Office docs, images, .eml/.msg (max 25 MB)
                 </p>
               </div>
             )}

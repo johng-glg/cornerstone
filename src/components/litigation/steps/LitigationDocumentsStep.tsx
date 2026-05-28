@@ -7,6 +7,7 @@ import { FileText, Upload, AlertCircle, X, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { validateDocumentUpload, DOCUMENT_ACCEPT_ATTR } from '@/lib/storage';
 import type { LitigationData } from '../LitigationWizard';
 
 interface LitigationDocumentsStepProps {
@@ -43,12 +44,10 @@ function DocumentUploadCard({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Maximum file size is 10MB',
-        variant: 'destructive',
-      });
+    const err = validateDocumentUpload(file);
+    if (err) {
+      toast({ title: 'File rejected', description: err.message, variant: 'destructive' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
@@ -131,7 +130,7 @@ function DocumentUploadCard({
           type="file"
           className="hidden"
           onChange={handleFileSelect}
-          accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+          accept={DOCUMENT_ACCEPT_ATTR}
         />
 
         {uploadedUrl ? (
@@ -183,7 +182,7 @@ function DocumentUploadCard({
         )}
 
         <p className="text-xs text-muted-foreground">
-          PDF, DOC, DOCX, TXT, JPG, PNG (max 10MB)
+          PDF, Office docs, images, .eml/.msg (max 25 MB)
         </p>
       </CardContent>
     </Card>
