@@ -122,8 +122,7 @@ export default function DocsOverview() {
         </CardHeader>
         <CardContent className="prose prose-sm dark:prose-invert max-w-none">
           <p>
-            This case management system is designed for consumer debt defense law firms. It provides comprehensive 
-
+            This case management system is designed for consumer debt defense law firms. It provides comprehensive
             tools for managing the entire client lifecycle from lead intake through settlement completion.
           </p>
           
@@ -131,7 +130,7 @@ export default function DocsOverview() {
           <ul>
             <li><strong>Leads</strong> - Intake and qualification of potential clients</li>
             <li><strong>Clients</strong> - Client records and contact management</li>
-            <li><strong>Services</strong> - Active debt settlement programs</li>
+            <li><strong>Engagements</strong> - Active consumer debt defense programs</li>
             <li><strong>Liabilities</strong> - Individual debt accounts enrolled in programs</li>
             <li><strong>Settlements</strong> - Negotiated settlement offers and payments</li>
             <li><strong>Litigation</strong> - Legal cases and court proceedings</li>
