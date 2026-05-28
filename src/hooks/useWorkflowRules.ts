@@ -104,7 +104,7 @@ export function useUpdateWorkflowRule() {
 
       const { data, error } = await supabase
         .from('workflow_rules')
-        .update(updateData)
+        .update(updateData as never)
         .eq('id', id)
         .select()
         .single();
