@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { MfaCard } from '@/components/settings/MfaCard';
 import { useCurrentStaff, useUpdateCurrentStaff } from '@/hooks/useStaff';
 
 const formSchema = z.object({
