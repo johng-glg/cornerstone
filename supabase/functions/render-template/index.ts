@@ -217,11 +217,13 @@ function renderMergeFields(
       let dataSource: Record<string, unknown> = {};
       if (field.startsWith('{lead.') || field.startsWith('{client.') ||
           field.startsWith('{service.') || field.startsWith('{liability.') ||
-          field.startsWith('{settlement.')) {
+          field.startsWith('{settlement.') || field.startsWith('{transaction.') ||
+          field.startsWith('{loan.')) {
         dataSource = entityData;
       } else if (field.startsWith('{company.')) dataSource = companyData;
       else if (field.startsWith('{staff.')) dataSource = staffData;
       value = MERGE_FIELD_MAP[field](dataSource);
+
     } else {
       // Try generic resolution (e.g. {this.amount} in an each loop)
       const inner = field.slice(1, -1);
