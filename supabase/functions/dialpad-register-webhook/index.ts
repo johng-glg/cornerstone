@@ -93,9 +93,8 @@ Deno.serve(async (req) => {
           enabled: true,
           call_states: ["all"],
         }),
-
-        }),
       });
+
       const subJson = await subResp.json().catch(() => ({}));
       if (!subResp.ok) {
         return j({
