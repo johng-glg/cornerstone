@@ -87,3 +87,5 @@ verify_jwt = false
 [functions.dialpad-test-connection]
 verify_jwt = false
 
+[functions.forth-test-connection]
+verify_jwt = false
