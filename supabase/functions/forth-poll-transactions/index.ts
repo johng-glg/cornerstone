@@ -98,38 +98,34 @@ serve(async (req) => {
           String(t.id) === tx.external_id || String(t.draft_id) === tx.external_id
         );
 
+        // Phase 2C: stamp last_polled_at on every successful fetch so the cron
+        // round-robins through the queue even when status hasn't changed.
+        const nowIso = new Date().toISOString();
+
         if (forthTx) {
           const newStatus = mapForthStatus(forthTx.status);
           const isNSF = forthTx.status?.toLowerCase() === 'nsf' || 
                         forthTx.return_code === 'R01' ||
                         forthTx.error_message?.toLowerCase()?.includes('insufficient');
-          
-          // Only update if status changed
+
+          const updateData: any = {
+            last_polled_at: nowIso,
+            last_sync_at: nowIso,
+          };
+
           if (newStatus !== tx.status) {
-            const updateData: any = {
-              status: newStatus,
-              last_sync_at: new Date().toISOString(),
-              sync_error: null,
-            };
+            updateData.status = newStatus;
+            updateData.sync_error = null;
 
-            // Set processed_at for cleared transactions
             if (newStatus === 'cleared') {
-              updateData.processed_at = forthTx.cleared_at || forthTx.processed_at || new Date().toISOString();
+              updateData.processed_at = forthTx.cleared_at || forthTx.processed_at || nowIso;
             }
-
-            // Set error message for failed transactions
             if (newStatus === 'failed') {
-              updateData.error_message = forthTx.error_message || 
+              updateData.error_message = forthTx.error_message ||
                 (isNSF ? 'NSF - Insufficient Funds' : 'Transaction failed');
               updateData.sync_error = JSON.stringify(forthTx);
             }
 
-            await supabase
-              .from('transactions')
-              .update(updateData)
-              .eq('id', tx.id);
-
-            // Log the status change
             await supabase.from('forth_sync_log').insert({
               entity_type: 'transaction',
               entity_id: tx.id,
@@ -143,6 +139,13 @@ serve(async (req) => {
             updatedCount++;
             console.log(`[forth-poll-transactions] Updated ${tx.id}: ${tx.status} -> ${newStatus}`);
           }
+
+          await supabase.from('transactions').update(updateData).eq('id', tx.id);
+        } else {
+          // No matching record in Forth — still mark as polled so we rotate.
+          await supabase.from('transactions')
+            .update({ last_polled_at: nowIso })
+            .eq('id', tx.id);
         }
 
       } catch (txError: unknown) {
