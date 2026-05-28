@@ -13,6 +13,7 @@ import { DocuSealTemplatesTab } from '@/components/settings/DocuSealTemplatesTab
 import { RolesSettingsTab } from '@/components/settings/RolesSettingsTab';
 import { FeatureFlagsTab } from '@/components/settings/FeatureFlagsTab';
 import { NsfRetryPolicyTab } from '@/components/settings/NsfRetryPolicyTab';
+import { IntegrationsSettingsTab } from '@/components/settings/IntegrationsSettingsTab';
 
 
 export default function SettingsPage() {
