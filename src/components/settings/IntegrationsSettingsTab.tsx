@@ -111,6 +111,8 @@ export function IntegrationsSettingsTab() {
       toast({ title: "Test failed", description: e instanceof Error ? e.message : "Unknown", variant: "destructive" });
     } finally {
       setTestingKey(null);
+      qc.invalidateQueries({ queryKey: ["company-integrations"] });
+
     }
   };
 
