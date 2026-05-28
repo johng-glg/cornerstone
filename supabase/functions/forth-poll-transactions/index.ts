@@ -43,11 +43,13 @@ serve(async (req) => {
     console.log('[forth-poll-transactions] Starting poll...');
 
     // Get all pending transactions with external IDs
+    // Phase 2C: prioritize never-polled rows, then oldest last_polled_at first.
     const { data: pendingTransactions, error: fetchError } = await supabase
       .from('transactions')
-      .select('id, external_id, status, amount')
+      .select('id, external_id, status, amount, last_polled_at')
       .eq('status', 'pending')
       .not('external_id', 'is', null)
+      .order('last_polled_at', { ascending: true, nullsFirst: true })
       .limit(100);
 
     if (fetchError) {
