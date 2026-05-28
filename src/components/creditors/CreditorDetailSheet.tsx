@@ -11,6 +11,7 @@ import { useLiabilities } from '@/hooks/useLiabilities';
 import { useCreditorContacts, useDeleteCreditorContact, type CreditorContact } from '@/hooks/useCreditorContacts';
 import { useLitigationMatters } from '@/hooks/useLitigationMatters';
 import { CreditorContactFormDialog } from './CreditorContactFormDialog';
+import { CreditorResponsesPanel } from './CreditorResponsesPanel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
@@ -356,7 +357,11 @@ export function CreditorDetailSheet({ creditorId, open, onOpenChange, onEdit }: 
                   )}
                 </div>
               </div>
+
+              {/* Phase 6A — Creditor Communications */}
+              <CreditorResponsesPanel creditorId={creditorId} />
             </>
+
           ) : (
             <p className="text-muted-foreground">Creditor not found</p>
           )}
