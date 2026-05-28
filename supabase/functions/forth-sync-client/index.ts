@@ -92,15 +92,13 @@ serve(async (req) => {
     if (crmId) {
       console.log('[forth-sync-client] Fetching contact from CRM:', crmId);
       
-      const contactResponse = await fetch(
+      const contactResponse = await forthFetch(
         `https://api.forthcrm.com/v1/contacts/${crmId}`,
         {
           method: 'GET',
-          headers: {
-            'Api-Key': accessToken,
-            'Content-Type': 'application/json',
-          },
-        }
+          headers: buildForthHeaders(accessToken),
+        },
+        { caller: 'forth-sync-client:fetch' },
       );
 
       const contactResult = await contactResponse.json();
