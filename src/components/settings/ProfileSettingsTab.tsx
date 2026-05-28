@@ -188,5 +188,7 @@ export function ProfileSettingsTab() {
         </Form>
       </CardContent>
     </Card>
+    <MfaCard />
+    </div>
   );
 }
