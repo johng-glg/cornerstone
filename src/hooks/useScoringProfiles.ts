@@ -102,7 +102,7 @@ export function useUpdateScoringProfile() {
       
       const { data, error } = await supabase
         .from('lead_scoring_profiles')
-        .update(updateData)
+        .update(updateData as never)
         .eq('id', id)
         .select()
         .single();
