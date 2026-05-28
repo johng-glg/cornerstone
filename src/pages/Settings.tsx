@@ -94,6 +94,9 @@ export default function SettingsPage() {
           <TabsContent value="feature-flags">
             <FeatureFlagsTab />
           </TabsContent>
+          <TabsContent value="integrations">
+            <IntegrationsSettingsTab />
+          </TabsContent>
 
           <TabsContent value="appearance">
             <AppearanceSettingsTab />
