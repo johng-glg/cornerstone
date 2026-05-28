@@ -497,10 +497,11 @@ export const INTEGRATIONS: IntegrationItem[] = [
     name: 'Dialpad',
     purpose: 'Click-to-call, call pop, queues, dispositioning',
     priority: 'High',
-    status: 'Research',
-    notes: 'Research API architecture and webhooks. Key features: click-to-call buttons, incoming caller ID lookup (call pop), disposition codes, queue management.',
+    status: 'Completed',
+    notes: 'Edge functions deployed: dialpad-initiate (click-to-call), dialpad-webhook (inbound events), dialpad-register-webhook (subscription bootstrap), dialpad-test-connection (health check). DIALPAD_API_TOKEN and DIALPAD_WEBHOOK_SECRET configured. Surfaced on the Integrations admin page with Test button and Last-connected timestamp.',
     apiDocs: 'https://developers.dialpad.com/',
   },
+
   {
     id: 'amazon-s3',
     name: 'Amazon S3',
@@ -533,8 +534,9 @@ export const INTEGRATIONS: IntegrationItem[] = [
     purpose: 'Payment processor (primary)',
     priority: 'High',
     status: 'Completed',
-    notes: '8 edge functions deployed (auth, register-client, sync-client, create/update/cancel-draft, pause-resume, poll-transactions). forth_crm_id linkage on clients/services. Outbound polling only — no inbound webhook receiver yet.',
+    notes: '9 edge functions deployed (auth, register-client, sync-client, create/update/cancel-draft, pause-resume, poll-transactions, test-connection). Forth Pay and Forth CRM share FORTH_CLIENT_ID / FORTH_API_KEY; forth-test-connection refreshes the OAuth token (~9 day cache) and stamps health on both rows in company_integrations. Outbound polling only — no inbound webhook receiver yet.',
   },
+
   {
     id: 'entrust-united',
     name: 'Entrust United',
