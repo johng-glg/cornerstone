@@ -78,7 +78,7 @@ export function NsfRetryPolicyTab() {
         company_id: policy.company_id,
         name: policy.name,
         max_attempts: policy.max_attempts,
-        delay_pattern: policy.delay_pattern as unknown as Record<string, unknown>,
+        delay_pattern: policy.delay_pattern as unknown as never,
         is_active: policy.is_active,
       };
       if (policy.id) {
@@ -89,6 +89,7 @@ export function NsfRetryPolicyTab() {
         if (error) throw error;
       }
     },
+
     onSuccess: () => {
       toast.success('NSF retry policy saved');
       qc.invalidateQueries({ queryKey: ['nsf-retry-policy'] });
