@@ -709,7 +709,9 @@ export type Database = {
           preferred_contact_method:
             | Database["public"]["Enums"]["phone_type"]
             | null
+          ssn_ciphertext: string | null
           ssn_encrypted: string | null
+          ssn_last4: string | null
           status: Database["public"]["Enums"]["client_status_enum"] | null
           tcpa_consent: boolean | null
           tcpa_consent_date: string | null
@@ -730,7 +732,9 @@ export type Database = {
           preferred_contact_method?:
             | Database["public"]["Enums"]["phone_type"]
             | null
+          ssn_ciphertext?: string | null
           ssn_encrypted?: string | null
+          ssn_last4?: string | null
           status?: Database["public"]["Enums"]["client_status_enum"] | null
           tcpa_consent?: boolean | null
           tcpa_consent_date?: string | null
@@ -751,7 +755,9 @@ export type Database = {
           preferred_contact_method?:
             | Database["public"]["Enums"]["phone_type"]
             | null
+          ssn_ciphertext?: string | null
           ssn_encrypted?: string | null
+          ssn_last4?: string | null
           status?: Database["public"]["Enums"]["client_status_enum"] | null
           tcpa_consent?: boolean | null
           tcpa_consent_date?: string | null
@@ -1768,31 +1774,43 @@ export type Database = {
       }
       lead_banking: {
         Row: {
+          account_number_ciphertext: string | null
           account_number_encrypted: string | null
+          account_number_last4: string | null
           account_type: Database["public"]["Enums"]["bank_account_type"]
           bank_name: string
           created_at: string
           id: string
           lead_id: string
+          routing_number_ciphertext: string | null
           routing_number_encrypted: string | null
+          routing_number_last4: string | null
         }
         Insert: {
+          account_number_ciphertext?: string | null
           account_number_encrypted?: string | null
+          account_number_last4?: string | null
           account_type?: Database["public"]["Enums"]["bank_account_type"]
           bank_name: string
           created_at?: string
           id?: string
           lead_id: string
+          routing_number_ciphertext?: string | null
           routing_number_encrypted?: string | null
+          routing_number_last4?: string | null
         }
         Update: {
+          account_number_ciphertext?: string | null
           account_number_encrypted?: string | null
+          account_number_last4?: string | null
           account_type?: Database["public"]["Enums"]["bank_account_type"]
           bank_name?: string
           created_at?: string
           id?: string
           lead_id?: string
+          routing_number_ciphertext?: string | null
           routing_number_encrypted?: string | null
+          routing_number_last4?: string | null
         }
         Relationships: [
           {
@@ -4505,6 +4523,12 @@ export type Database = {
         }
         Returns: string
       }
+      decrypt_client_ssn: { Args: { _client_id: string }; Returns: string }
+      decrypt_lead_banking: {
+        Args: { _lead_banking_id: string }
+        Returns: Json
+      }
+      encrypt_pii: { Args: { _plaintext: string }; Returns: string }
       evaluate_workflow_conditions: {
         Args: {
           _conditions: Json
