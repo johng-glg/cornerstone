@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getAccessToken, buildForthHeaders, forthFetch } from "../_shared/forthAuth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,60 +37,8 @@ interface RegisterClientRequest {
   }>;
 }
 
-// Forth CRM API endpoint
-const FORTH_AUTH_URL = 'https://api.forthcrm.com/v1/auth/token';
 const FORTH_API_BASE = 'https://api.forthcrm.com/v1';
 
-// Normalize API secret (remove whitespace/newlines)
-function normalize(s: string): string {
-  return s.replace(/[\r\n\s]+/g, '');
-}
-
-async function getAccessToken(): Promise<string> {
-  const clientId = Deno.env.get('FORTH_CLIENT_ID');
-  const apiKey = Deno.env.get('FORTH_API_KEY');
-  
-  if (!clientId || !apiKey) {
-    throw new Error('Missing Forth API credentials');
-  }
-
-  const response = await fetch(FORTH_AUTH_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      client_id: clientId,
-      client_secret: normalize(apiKey),
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Auth failed: ${response.status} - ${errorText}`);
-  }
-
-  const tokenData = await response.json();
-  
-  // Forth API returns api_key instead of access_token
-  const accessToken = tokenData.response?.access_token || 
-                      tokenData.response?.api_key || 
-                      tokenData.access_token || 
-                      tokenData.api_key ||
-                      tokenData.data?.access_token;
-                      
-  if (!accessToken) {
-    throw new Error('No access token in response');
-  }
-
-  return accessToken;
-}
-
-// Build headers for Forth API calls
-function buildForthHeaders(accessToken: string): Record<string, string> {
-  return {
-    'Api-Key': accessToken,
-    'Content-Type': 'application/json',
-  };
-}
 
 // deno-lint-ignore no-explicit-any
 async function logOperation(
