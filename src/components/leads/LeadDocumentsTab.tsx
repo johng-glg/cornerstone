@@ -7,6 +7,8 @@ import { useLeadDocuments, useDeleteLeadDocument, LEAD_DOCUMENT_TYPES, type Lead
 import { LeadDocumentFormDialog } from './LeadDocumentFormDialog';
 import { Plus, FileText, Trash2, ExternalLink, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
+import { SignedDocumentLink } from '@/components/storage/SignedDocumentLink';
+
 
 interface LeadDocumentsTabProps {
   leadId: string;
