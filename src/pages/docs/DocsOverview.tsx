@@ -122,7 +122,8 @@ export default function DocsOverview() {
         </CardHeader>
         <CardContent className="prose prose-sm dark:prose-invert max-w-none">
           <p>
-            This case management system is designed for debt settlement law firms. It provides comprehensive 
+            This case management system is designed for consumer debt defense law firms. It provides comprehensive 
+
             tools for managing the entire client lifecycle from lead intake through settlement completion.
           </p>
           
