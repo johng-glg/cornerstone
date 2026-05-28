@@ -65,5 +65,4 @@ DELETE FROM public.company_integrations WHERE provider_key = 'dialpad';
 Edge functions can be left deployed — they no-op once the registry row is gone.
 
 ## Follow-ups
-- Dedicated `contact_call_activity` table so litigation / creditor calls don't ride on `system_audit_log`.
 - Recording durability: currently we store the Dialpad URL and proxy via signed-link UI; option (b) — downloading into `client-documents` on webhook receipt — left as a future toggle.
