@@ -1,4 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { resolveCompanyId, markIntegration } from "../_shared/markIntegrationConnected.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
