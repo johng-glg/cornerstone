@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/lib/auth';
+import { useAuth, ROLE_VIEWS } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -9,14 +9,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Search, LogOut, User, Settings, Lightbulb } from 'lucide-react';
+import { Search, LogOut, User, Settings, Lightbulb, Eye } from 'lucide-react';
 import { GlobalSearch } from '@/components/search/GlobalSearch';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { FeatureRequestDialog } from '@/components/features/FeatureRequestDialog';
-
 export function TopNav() {
   const { user, staff, signOut } = useAuth();
   const navigate = useNavigate();
