@@ -2,6 +2,20 @@
 
 All notable changes documented per cross-cutting rule: "Documentation by default".
 
+## Operation Cornerstone — Phase 2 (in progress, 2026-05-28)
+
+### 2D — Inactivity session timeout
+- 30-min idle threshold with 2-min warning dialog (countdown + Stay/Sign-out actions).
+- Cross-tab activity sync via `localStorage` (`glg.lastActivityAt`).
+- Auto sign-out → toast → redirect to `/auth`. Only mounted inside `AppLayout` (auth pages excluded).
+- New: `src/hooks/useInactivityTimeout.ts`, `src/components/auth/InactivityTimeoutDialog.tsx`. See `phase_2d_summary.md`.
+
+### 2B — Audit log wiring (DB triggers)
+- `audit_trigger_fn()` fires on 11 sensitive tables; `decrypt_*` helpers self-log `pii.reveal.*`. See `phase_2b_summary.md`.
+
+### 2A — PII encryption foundation
+- Vault key + SECDEF `encrypt_pii` / `decrypt_client_ssn` / `decrypt_lead_banking`; new ciphertext columns. See `phase_2a_summary.md`.
+
 ## Operation Cornerstone — Phase 1 (2026-05-28)
 
 Phase 1 hardens the platform for multi-tenant commercial launch. Sub-phases were shipped in dependency order: 1B → 1A → 1C → 1E → 1D.
