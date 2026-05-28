@@ -184,7 +184,7 @@ export function useCreateLitigationMatter() {
     mutationFn: async (matter: LitigationMatterInsert) => {
       const { data, error } = await supabase
         .from('litigation_matters')
-        .insert([matter])
+        .insert([matter] as never)
         .select()
         .single();
       if (error) throw error;
