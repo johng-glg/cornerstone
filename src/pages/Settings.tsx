@@ -82,6 +82,10 @@ export default function SettingsPage() {
             <RolesSettingsTab />
           </TabsContent>
 
+          <TabsContent value="feature-flags">
+            <FeatureFlagsTab />
+          </TabsContent>
+
           <TabsContent value="appearance">
             <AppearanceSettingsTab />
           </TabsContent>
