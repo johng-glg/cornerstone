@@ -8,6 +8,8 @@ import { AuthProvider } from "@/lib/auth";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import LeadsPage from "./pages/Leads";
 import ClientsPage from "./pages/Clients";
 import ClientDetailPage from "./pages/ClientDetail";
@@ -63,6 +65,8 @@ const App = () => (
             <Routes>
               {/* Public routes */}
               <Route path="/auth" element={<Auth />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               
               {/* Documentation routes */}
               <Route path="/docs" element={<DocsLayout />}>
