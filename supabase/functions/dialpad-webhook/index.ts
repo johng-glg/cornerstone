@@ -80,11 +80,10 @@ Deno.serve(async (req) => {
     const existing = await admin
       .from("dialpad_calls").select("id, company_id, related_entity_type, related_entity_id, initiated_by")
       .eq("dialpad_call_id", callId).maybeSingle();
-
     const row: Record<string, unknown> = {
       dialpad_call_id: callId,
       state,
-      direction: direction || existing.data?.related_entity_type ? direction : null,
+      direction: direction || null,
       duration_seconds: duration,
       recording_url: recordingUrl,
       voicemail_url: voicemailUrl,
@@ -92,6 +91,19 @@ Deno.serve(async (req) => {
       started_at: startedAt,
       ended_at: endedAt,
       raw: evt,
+    };
+    if (!existing.data) {
+      row.target_phone = targetPhone || "";
+      row.company_id = companyId;
+      row.related_entity_type = entityType;
+      row.related_entity_id = entityId;
+      row.initiated_by = staffId;
+      await admin.from("dialpad_calls").insert(row);
+    } else {
+      if (!existing.data.related_entity_type && entityType) row.related_entity_type = entityType;
+      if (!existing.data.related_entity_id && entityId) row.related_entity_id = entityId;
+      await admin.from("dialpad_calls").update(row).eq("dialpad_call_id", callId);
+
       target_phone: targetPhone || existing.data?.related_entity_id || "",
     };
     if (!existing.data) {
