@@ -10,7 +10,7 @@ import { User, Calendar, FileText, DollarSign, Briefcase, Edit2, ExternalLink, C
 import { NotesPanel } from '@/components/notes/NotesPanel';
 import { useClientService, useUpdatePrimaryStatus, useUpdatePaymentStatus, useUpdateContactStatus, useUpdateRetention } from '@/hooks/useClientServices';
 import { useServiceStatusHistory } from '@/hooks/useServiceStatusHistory';
-import { useRegisterForthClient } from '@/hooks/useForthApi';
+import { useRegisterForthClient, usePauseForthClient, useResumeForthClient } from '@/hooks/useForthApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { ServiceStatusBadges, PrimaryStatusBadge, PaymentStatusBadge, ContactStatusBadge } from './ServiceStatusBadges';
