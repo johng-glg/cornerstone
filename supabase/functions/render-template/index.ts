@@ -55,6 +55,21 @@ const MERGE_FIELD_MAP: Record<string, (data: Record<string, unknown>) => string 
   '{settlement.savings_amount}': (d) => d.savings_amount ? formatCurrency(d.savings_amount as number) : null,
   '{settlement.savings_percentage}': (d) => d.savings_percentage ? `${d.savings_percentage}%` : null,
   '{settlement.payment_schedule}': (d) => (d.payment_schedule as string) || null,
+  // Phase 5D: transaction merge fields
+  '{transaction.amount}': (d) => d.amount ? formatCurrency(d.amount as number) : null,
+  '{transaction.type}': (d) => (d.transaction_type as string) || null,
+  '{transaction.status}': (d) => (d.status as string) || null,
+  '{transaction.scheduled_date}': (d) => d.scheduled_date ? formatDate(d.scheduled_date as string) : null,
+  '{transaction.processed_date}': (d) => d.processed_at ? formatDate(d.processed_at as string) : null,
+  '{transaction.description}': (d) => (d.description as string) || null,
+  '{transaction.external_id}': (d) => (d.external_id as string) || null,
+  // Phase 5D: loan merge fields (placeholders for future ASAP loan entity)
+  '{loan.amount}': (d) => d.amount ? formatCurrency(d.amount as number) : null,
+  '{loan.term_months}': (d) => d.term_months ? String(d.term_months) : null,
+  '{loan.interest_rate}': (d) => d.interest_rate ? `${d.interest_rate}%` : null,
+  '{loan.monthly_payment}': (d) => d.monthly_payment ? formatCurrency(d.monthly_payment as number) : null,
+  '{loan.status}': (d) => (d.status as string) || null,
+  '{loan.disbursement_date}': (d) => d.disbursement_date ? formatDate(d.disbursement_date as string) : null,
   '{company.name}': (d) => (d.name as string) || null,
   '{company.phone}': (d) => (d.phone as string) || null,
   '{company.email}': (d) => (d.email as string) || null,
@@ -70,6 +85,7 @@ const MERGE_FIELD_MAP: Record<string, (data: Record<string, unknown>) => string 
   '{current_time}': () => formatTime(new Date().toISOString()),
   '{current_year}': () => new Date().getFullYear().toString(),
 };
+
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
@@ -201,11 +217,13 @@ function renderMergeFields(
       let dataSource: Record<string, unknown> = {};
       if (field.startsWith('{lead.') || field.startsWith('{client.') ||
           field.startsWith('{service.') || field.startsWith('{liability.') ||
-          field.startsWith('{settlement.')) {
+          field.startsWith('{settlement.') || field.startsWith('{transaction.') ||
+          field.startsWith('{loan.')) {
         dataSource = entityData;
       } else if (field.startsWith('{company.')) dataSource = companyData;
       else if (field.startsWith('{staff.')) dataSource = staffData;
       value = MERGE_FIELD_MAP[field](dataSource);
+
     } else {
       // Try generic resolution (e.g. {this.amount} in an each loop)
       const inner = field.slice(1, -1);
@@ -229,8 +247,10 @@ function renderContent(
   const contexts: Record<string, Record<string, unknown>> = {
     lead: entityData, client: entityData, service: entityData,
     liability: entityData, settlement: entityData,
+    transaction: entityData, loan: entityData,
     company: companyData, staff: staffData,
   };
+
   // Process blocks before merge fields so inner fields get filled.
   let processed = processEachBlocks(content, contexts);
   processed = processIfBlocks(processed, contexts);
@@ -313,7 +333,24 @@ serve(async (req: Request) => {
         if (!error && data) entityData = data;
         break;
       }
+      case 'transaction': {
+        const { data, error } = await supabase.from('transactions')
+          .select('*, client_services:client_service_id(owning_company_id)')
+          .eq('id', entity_id).single();
+        if (!error && data) {
+          entityData = data;
+          companyId = (data.client_services as Record<string, unknown>)?.owning_company_id as string ?? null;
+        }
+        break;
+      }
+      case 'loan': {
+        // Future ASAP loan entity. Currently no loans table — entityData stays empty
+        // so merge fields fall through to additional_data overrides.
+        entityData = {};
+        break;
+      }
     }
+
 
     let companyData: Record<string, unknown> = {};
     if (companyId) {

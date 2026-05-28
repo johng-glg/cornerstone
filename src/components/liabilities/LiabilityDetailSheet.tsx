@@ -347,7 +347,16 @@ export function LiabilityDetailSheet({ liabilityId, open, onOpenChange, onEdit }
                 onOpenChange={setShowOfferBuilder}
                 liabilityId={liabilityId}
                 clientServiceId={liability.client_service_id}
-                currentEscrowBalance={clientService?.escrow_balance || 0}
+                currentEscrowBalance={(() => {
+                  // Phase 5B: prefer Forth-synced balance when fresh (<24h).
+                  const syncedAt = clientService?.escrow_balance_synced_at
+                    ? new Date(clientService.escrow_balance_synced_at).getTime()
+                    : 0;
+                  const fresh = syncedAt && Date.now() - syncedAt < 24 * 3600 * 1000;
+                  return fresh && clientService?.escrow_balance_synced != null
+                    ? Number(clientService.escrow_balance_synced)
+                    : clientService?.escrow_balance || 0;
+                })()}
                 monthlyDraft={clientService?.monthly_payment || 0}
               />
             )}

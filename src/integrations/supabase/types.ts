@@ -3004,6 +3004,47 @@ export type Database = {
         }
         Relationships: []
       }
+      nsf_retry_policies: {
+        Row: {
+          company_id: string
+          created_at: string
+          delay_pattern: Json
+          id: string
+          is_active: boolean
+          max_attempts: number
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          delay_pattern?: Json
+          id?: string
+          is_active?: boolean
+          max_attempts?: number
+          name?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          delay_pattern?: Json
+          id?: string
+          is_active?: boolean
+          max_attempts?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nsf_retry_policies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_processors: {
         Row: {
           created_at: string
@@ -3119,6 +3160,66 @@ export type Database = {
           success?: boolean
         }
         Relationships: []
+      }
+      reconciliation_findings: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          details: Json
+          detector: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          summary: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          details?: Json
+          detector: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          summary: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          details?: Json
+          detector?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_findings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_findings_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reminder_settings: {
         Row: {
@@ -4251,6 +4352,67 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transaction_retry_attempts: {
+        Row: {
+          attempt_number: number
+          created_at: string
+          fired_at: string | null
+          id: string
+          notes: string | null
+          original_transaction_id: string
+          policy_id: string | null
+          retry_transaction_id: string | null
+          scheduled_for: string
+          status: string
+        }
+        Insert: {
+          attempt_number: number
+          created_at?: string
+          fired_at?: string | null
+          id?: string
+          notes?: string | null
+          original_transaction_id: string
+          policy_id?: string | null
+          retry_transaction_id?: string | null
+          scheduled_for: string
+          status?: string
+        }
+        Update: {
+          attempt_number?: number
+          created_at?: string
+          fired_at?: string | null
+          id?: string
+          notes?: string | null
+          original_transaction_id?: string
+          policy_id?: string | null
+          retry_transaction_id?: string | null
+          scheduled_for?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_retry_attempts_original_transaction_id_fkey"
+            columns: ["original_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_retry_attempts_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "nsf_retry_policies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_retry_attempts_retry_transaction_id_fkey"
+            columns: ["retry_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
         ]

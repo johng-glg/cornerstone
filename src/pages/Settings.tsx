@@ -12,6 +12,7 @@ import { LitigationTeamsSettingsTab } from '@/components/settings/LitigationTeam
 import { DocuSealTemplatesTab } from '@/components/settings/DocuSealTemplatesTab';
 import { RolesSettingsTab } from '@/components/settings/RolesSettingsTab';
 import { FeatureFlagsTab } from '@/components/settings/FeatureFlagsTab';
+import { NsfRetryPolicyTab } from '@/components/settings/NsfRetryPolicyTab';
 
 
 export default function SettingsPage() {
@@ -37,9 +38,15 @@ export default function SettingsPage() {
             <TabsTrigger value="legal-teams">Legal Teams</TabsTrigger>
             <TabsTrigger value="roles">Roles</TabsTrigger>
             <TabsTrigger value="feature-flags">Feature Flags</TabsTrigger>
+            <TabsTrigger value="nsf-retry">NSF Retry</TabsTrigger>
             <TabsTrigger value="appearance">Appearance</TabsTrigger>
             <TabsTrigger value="company">Company</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="nsf-retry">
+            <NsfRetryPolicyTab />
+          </TabsContent>
+
 
           <TabsContent value="profile">
             <ProfileSettingsTab />
