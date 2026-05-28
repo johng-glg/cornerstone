@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -164,8 +164,14 @@ export default function Auth() {
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? 'Signing in...' : 'Sign In'}
                 </Button>
-                <p className="text-sm text-muted-foreground text-center">
-                  Contact your administrator if you need an account or forgot your password.
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-primary hover:underline text-center w-full"
+                >
+                  Forgot your password?
+                </Link>
+                <p className="text-xs text-muted-foreground text-center">
+                  Need an account? Contact your administrator.
                 </p>
               </CardFooter>
             </form>
