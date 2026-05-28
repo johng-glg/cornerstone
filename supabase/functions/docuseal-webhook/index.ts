@@ -300,6 +300,83 @@ async function handleSubmissionCompleted(
     .update(updateData)
     .eq("id", requestId);
 
+  // Auto-save signed artifacts (Phase 1E) — fetch the DocuSeal-hosted PDFs
+  // and persist them into the private `signed-documents` bucket. When the
+  // signature request is bound to a client, also surface them in
+  // `client_documents` so staff see them inside the client hub.
+  try {
+    const { data: request } = await supabase
+      .from("signature_requests")
+      .select("id, title, company_id, entity_type, entity_id")
+      .eq("id", requestId)
+      .single();
+
+    if (request) {
+      const archived: Array<{ kind: string; storage_path: string; name: string }> = [];
+
+      const archive = async (kind: "executed" | "certificate", doc?: { name?: string; url?: string }) => {
+        if (!doc?.url) return;
+        try {
+          const res = await fetch(doc.url);
+          if (!res.ok) {
+            console.error(`Failed to fetch ${kind} from DocuSeal: ${res.status}`);
+            return;
+          }
+          const bytes = new Uint8Array(await res.arrayBuffer());
+          const safeName = (doc.name || `${kind}.pdf`).replace(/[^\w.\-]+/g, "_");
+          const path = `${request.company_id}/${requestId}/${kind}-${Date.now()}-${safeName}`;
+          const { error: upErr } = await supabase.storage
+            .from("signed-documents")
+            .upload(path, bytes, {
+              contentType: "application/pdf",
+              upsert: true,
+            });
+          if (upErr) {
+            console.error(`Storage upload failed for ${kind}:`, upErr);
+            return;
+          }
+          archived.push({ kind, storage_path: path, name: safeName });
+        } catch (e) {
+          console.error(`Error archiving ${kind}:`, e);
+        }
+      };
+
+      await archive("executed", executedPdf);
+      await archive(
+        "certificate",
+        certificate || (data.audit_log_url ? { name: "audit.pdf", url: data.audit_log_url } : undefined),
+      );
+
+      // Persist the storage paths on the signature_request for replay/debug.
+      if (archived.length > 0) {
+        await supabase
+          .from("signature_requests")
+          .update({
+            evidence_json: { ...(data as object), archived_files: archived },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", requestId);
+      }
+
+      // Mirror into client_documents when bound to a client.
+      if (request.entity_type === "client" && request.entity_id && archived.length > 0) {
+        const rows = archived.map((a) => ({
+          client_id: request.entity_id,
+          title: `${request.title || "Signed document"} — ${a.kind === "certificate" ? "Audit certificate" : "Executed"}`,
+          document_type: a.kind === "certificate" ? "audit_certificate" : "signed_agreement",
+          file_url: a.storage_path,
+          notes: `Auto-archived from DocuSeal signature request ${requestId}`,
+        }));
+        const { error: docErr } = await supabase.from("client_documents").insert(rows);
+        if (docErr) {
+          console.error("Failed to insert client_documents rows:", docErr);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Signed-doc auto-save failed (non-fatal):", e);
+  }
+
   // Log completion event
   await supabase.from("signature_events").insert({
     request_id: requestId,
@@ -312,7 +389,4 @@ async function handleSubmissionCompleted(
   });
 
   console.log(`Request ${requestId} fully completed with documents`);
-
-  // TODO: Download and store PDFs to Supabase Storage
-  // TODO: Create timeline entry on Lead/Client record
 }
