@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { validateDocumentUpload, DOCUMENT_ACCEPT_ATTR } from '@/lib/storage';
+import { SignedDocumentLink } from '@/components/storage/SignedDocumentLink';
+
 
 interface DocumentFileUploadProps {
   matterId: string;
