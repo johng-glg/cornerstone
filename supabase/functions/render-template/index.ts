@@ -263,6 +263,9 @@ serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
+    const gate = await requireAuth(req);
+    if (gate instanceof Response) return gate;
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -270,6 +273,7 @@ serve(async (req: Request) => {
 
     const body: RenderRequest = await req.json();
     const { template_id, template_content, template_subject, entity_type, entity_id, additional_data = {}, channel, log_usage } = body;
+
 
     if (!entity_type || !entity_id) {
       return new Response(JSON.stringify({ error: 'entity_type and entity_id are required' }),
