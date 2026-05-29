@@ -247,3 +247,14 @@ notifications` FK. **Schema-diff verified** vs reference: all 19 table definitio
   remap is non-destructive. `tests/db/` expanded to **19 groups** (adds reconciliation checks: new
   `app_role` values, `staff.hourly_rate` default, company-type-change audit); full suite passes
   locally on the reconciled A3→A11.1 schema.
+- **A12 — ADR-009 ratification + Phase A summary (Phase A closeout).** Relocated
+  `ADR-009-plsa-adapter-interface-contract.md` from the repo root into the canonical
+  `docs/adrs/` and **ratified** it (Status: Accepted, 2026-05-29, by the PM/decision-owner):
+  the 10 outbound operations + 13 inbound events + error/idempotency/provider-id semantics are
+  frozen, with the merged A6 `plsa-routing` dispatcher and `plsa-adapter-mock` recorded as the
+  conforming implementation. The one remaining external item — the new-processor team co-sign
+  (target 2026-06-17) — is tracked as an open follow-up that does not reopen the interface. Added
+  `docs/phases/phase_A_summary.md`: the Phase A closeout (PR-by-PR landing, schema-fidelity proof
+  — whole-schema object diff empty across 954 objects except the documented `staff` column
+  ordering, quality gates, locked decisions, the eight logged divergences, carried-forward items
+  incl. B-A1, and exit-criteria status). Finalized `docs/lovable_sync_log.md` with the A12 entry.

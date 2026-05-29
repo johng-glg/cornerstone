@@ -1,10 +1,19 @@
 # ADR-009 — PLSA Adapter Interface Contract
 
-**Status:** Proposed
-**Date:** 2026-05-27
+**Status:** Accepted
+**Date:** 2026-05-27 (proposed) · **Ratified:** 2026-05-29
+**Decision owner:** Program Manager (John G.)
 **Authors:** Tony Rodriguez, Lisa Soria, Joe Duarte + new-processor team rep (TBD)
 **Logged by:** Program Manager
-**Target ratification:** 2026-06-17 (Phase A week 3 — earlier than other Phase A ADRs because the new-processor team needs to build against this).
+**Ratification note:** Ratified by the PM/decision-owner on 2026-05-29 — ahead of the original
+2026-06-17 target — because the contract is already implemented and exercised in Cornerstone:
+the merged A6 `plsa-routing` dispatcher and `plsa-adapter-mock` conform to all 10 outbound
+operations and 13 inbound events below, and the `check:zod`/`check:cors` gates hold the
+edge layer to it. Freezing the interface now lets the new-processor team build against a
+stable target immediately. **One external follow-up remains open:** the new-processor team
+representative co-sign (rep to be named by 2026-06-03; co-sign target 2026-06-17). Their
+sign-off confirms buildability from their side; it does not reopen the interface. Any change
+to the contract from here requires an ADR revision and joint re-sign-off.
 
 ---
 
@@ -19,9 +28,10 @@ Forth has confirmed it will NOT cooperate with the new processor. The two provid
 
 The Architecture Plan §5 defines the contract at the conceptual level (10 outbound operations, 12 canonical inbound events). This ADR commits to the specific interface signature, error semantics, idempotency model, and event payload shapes so both teams can build to it.
 
-## Decision (Proposed)
+## Decision
 
-Adopt the following interface contract, derived from Architecture Plan §5.1:
+Adopt the following interface contract, derived from Architecture Plan §5.1. **Ratified
+2026-05-29** — frozen; changes require an ADR revision and joint re-sign-off.
 
 ### Outbound operations (CRM → Adapter)
 
@@ -94,12 +104,25 @@ Canonical event names, all carrying: `event_id`, `correlation_id`, `idempotency_
 - Forth's actual API has quirks (sequential single-record debt creation, OFFER_STATUS = 10 = Completed semantics, per-credential-set routing) that have to be encapsulated cleanly. Risk of leakage if the adapter is rushed.
 
 **This commits us to:**
-- Ratify by 2026-06-17 (Phase A week 3).
+- Ratify by 2026-06-17 (Phase A week 3). _(Met early — ratified 2026-05-29; see the ratification note above.)_
 - Both adapter teams build to this spec; any deviation requires ADR revision and joint sign-off.
-- Mock adapter as first deliverable — built before either real adapter is complete.
+- Mock adapter as first deliverable — built before either real adapter is complete. _(Delivered in A6: `plsa-adapter-mock`.)_
+
+## Status at ratification (2026-05-29)
+
+- **Mock adapter delivered** (first-deliverable commitment met): `plsa-adapter-mock` returns
+  ADR-009-shaped responses for every operation, so Cornerstone's downstream services are
+  unblocked without either real provider. Merged in A6.
+- **Routing layer conforms:** `plsa-routing` dispatches all 10 outbound operations with
+  provider resolution (override→service→transaction→client→`forth`) and forwards caller auth;
+  inbound events land via the `forth-*` adapters and `plsa_sync_log`. Merged in A6.
+- **Provider-id discipline holds:** every payload carries `provider_id`; no Cornerstone code
+  branches on it — provider quirks are encapsulated in `plsa-adapter-forth`.
 
 ## Open Follow-ups
 
+- **New-processor team representative co-sign** — rep to be named by 2026-06-03; co-sign target
+  2026-06-17. The only remaining external item; confirms buildability from their side and does
+  not reopen the interface.
 - Versioning policy: how do we evolve this interface without breaking either adapter mid-build?
 - Schema registry (ADR-005, pending) — where does this contract live as enforceable schema?
-- New-processor team representative for sign-off — needs to be named by 2026-06-03.
