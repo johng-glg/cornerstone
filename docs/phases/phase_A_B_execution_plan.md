@@ -17,10 +17,12 @@
 - **Q-A4 — All four divergences approved** and applied during Phase A: encrypt per-tenant Forth
   credentials, pin a single `supabase-js` version, restrict CORS per environment, Zod on every
   edge-function input/webhook. Each gets a `lovable_sync_log.md` entry or short ADR.
-- **Q1 — Deployment target = "Other"** (not Vercel + Supabase Cloud); specifics pending
-  (`open_questions.md` Q-A6). Phase A/B build host-agnostically against **local Supabase**;
-  Phase F is re-scoped once the target is known. Seed §2A still locks **Supabase** as the backend
-  technology (self-host permitted).
+- **Q1/Q-A6 — Deployment target:** **Backend = Supabase Cloud (managed); Frontend = AWS/GCP/Azure
+  static hosting** (specific hyperscaler TBD at Phase F, Q-A6b). Not Vercel. Backend ops stay
+  managed. Phase A/B build host-agnostically against **local Supabase**; **Phase F** provisions 3
+  Supabase Cloud projects (dev/staging/prod), deploys edge functions via the Supabase CLI, and
+  ships the static React build to the chosen cloud's CDN — *no Vercel preview deploys; preview
+  environments come from the chosen cloud or Supabase branch previews instead.*
 
 ### Sizing reality
 Full-surface replication at production quality — *with the test coverage Lovable never had*
