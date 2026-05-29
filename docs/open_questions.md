@@ -42,9 +42,15 @@ starting now. Proceeding per the seed; logged here for the record.
 
 ## Follow-ups (non-blocking)
 
-- **Q-A8 — Restore edge-function type-checking in CI.** `deno test` currently runs with
-  `--no-check`: Deno's type-checker pulls `@types/node` transitively through esm.sh type graphs
-  (supabase-js → node-fetch/@types/ws), which fails without a node_modules dir. Tests still
-  execute (runtime validation of the pure logic); `src/` is strictly type-checked in the Verify
-  job. Restore full edge-fn type-check via a Deno node-compat config (`deno.json` with
-  `nodeModulesDir` / an import map, or vendored types) — Phase D hardening.
+- **Q-A8 — Restore edge-function type-checking in CI. RESOLVED (Phase D, 2026-05-29.)** CI now
+  runs `deno check --no-check=remote supabase/functions` and tests with the same flag: our own
+  edge-function source is type-checked, while only the _remote_ esm.sh type graph (which pulls
+  `@types/node` transitively and fails without a node_modules dir) is skipped. A type error in
+  `supabase/functions/**` now fails CI, which plain `--no-check` silently allowed. The
+  node-compat-config approach proved unnecessary — `--no-check=remote` is the minimal correct fix.
+
+- **Q-A5 — Compliance sign-off owners (referenced in Phase D).** Phase D produced the
+  compliance-evidence corpus (`docs/compliance-evidence/`): RLS audit + SSN-backfill evidence are
+  engineering-complete and auto-verified; the TSR/DFPI/bar artifacts are grounded scaffolds
+  **pending named-reviewer attestation (Kimberly Uptain) and confirmation of required evidence
+  formats**. Still open — this is the one Phase D item that is attestation, not engineering.

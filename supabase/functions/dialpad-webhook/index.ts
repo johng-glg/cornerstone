@@ -4,6 +4,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
+import { enforceRateLimit, clientIp } from "../_shared/rateLimit.ts";
 import { verifyHmacSha256Base64 } from "../_shared/hmac.ts";
 import { logIntegrationEvent } from "../_shared/integrations.ts";
 import {
@@ -22,6 +23,15 @@ type Evt = Record<string, any>;
 
 export async function handler(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(req) });
+
+  // Unauthenticated endpoint: rate-limit by source IP before HMAC to blunt signature brute-force.
+  const limited = await enforceRateLimit(req, {
+    bucket: "dialpad-webhook",
+    identifier: clientIp(req),
+    maxRequests: 120,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
 
   const raw = await req.text();
   const signature =

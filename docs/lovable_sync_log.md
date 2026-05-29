@@ -87,6 +87,20 @@ litigation, lead-engine, workflow-engine, and email-infrastructure layers.
   (`supabase start`) remains the recommended full-stack local environment.
 - No schema changes in Phase B — seed, tests, docs, and tooling only.
 
+### Phase D — security hardening (2026-05-29)
+
+- **Rate limiting (Lovable had none — accepted risk resolved).** Postgres-backed fixed-window
+  limiter wired into auth-adjacent / external-API edge functions + webhooks. Lovable's functions
+  had no limiter; this is net-new hardening, not a transcription.
+- **PII-plaintext verification.** Lovable left deprecated plaintext-era PII columns
+  (`clients.ssn_encrypted`, `lead_banking.*_encrypted`) in place; Cornerstone adds a standing
+  assertion (`assert_no_plaintext_pii`) proving they hold no data, run in CI.
+- **SAST + edge-fn type-check.** CodeQL added (Lovable had no SAST); Q-A8 edge-fn type-checking
+  restored via `--no-check=remote`.
+- **Compliance evidence corpus** authored (`docs/compliance-evidence/`) — Lovable had none.
+  RLS audit + SSN-backfill auto-verified; TSR/DFPI/bar scaffolds pending sign-off (Q-A5).
+- One new table (`rate_limit_counters`) + functions; no change to existing Lovable-derived schema.
+
 ### Hardening divergences planned (apply as the relevant objects land)
 
 - Encrypt per-tenant Forth credentials in `company_processor_configs` (Lovable stores them

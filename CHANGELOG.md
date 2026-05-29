@@ -5,6 +5,28 @@ All notable changes to Cornerstone are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added — Phase D
+
+- **Phase D — Security & compliance posture, codified (full phase in one change).** Resolves the
+  Lovable "accepted risks" and codifies the security posture. **Rate limiting:** a Postgres-backed
+  fixed-window limiter (`rate_limit_counters` table, RLS-locked; `check_rate_limit()`
+  service-role-only with atomic increment + opportunistic prune) and a shared `enforceRateLimit()`
+  edge helper (HTTP 429 + `Retry-After`, fails open on limiter outage), wired into the
+  auth-adjacent / external-API functions (`forth-auth`, `dialpad-initiate`, `docuseal-send`,
+  `docuseal-test`, `dialpad-test-connection`) by user id and into the unauthenticated webhooks
+  (`dialpad-webhook`, `docuseal-webhook`) by source IP before HMAC. **PII plaintext:**
+  `pii_plaintext_audit` view + `assert_no_plaintext_pii()` (service-role-only) prove the
+  deprecated plaintext-era columns hold no data. **SAST:** CodeQL job in CI (`security-extended`,
+  JS/TS). **Q-A8 resolved:** CI type-checks edge-function source via `deno check --no-check=remote`
+  (only the esm.sh remote type graph is skipped). **Docs:** `docs/security-overview.md` and the
+  `docs/compliance-evidence/` corpus — `rls_audit_report.md` (95/95 tables RLS-enabled, verified
+  live; 212 policies), `ssn_backfill_evidence.md` (auto-verified), and TSR §310.3(a)(1) / DFPI /
+  bar-trust-accounting scaffolds grounded in real schema and pending sign-off (Q-A5).
+  **Tests:** `tests/db/rls_isolation.test.sql` groups 20 (rate limiter) + 21 (PII verifier);
+  `supabase/functions/_shared/rateLimit.test.ts`. Verified end-to-end on local Postgres 16: all
+  11 migrations apply, the limiter and PII assertion behave correctly, and the full 21-group
+  isolation suite passes. `phase_D_summary.md` records the closeout.
+
 ### Added — Phase B
 
 - **B1–B4 — Local development + engineer onboarding (full Phase B in one change).** Replaced the
