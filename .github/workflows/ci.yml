@@ -114,20 +114,19 @@ jobs:
         with:
           deno-version: v2.x
 
-      # Q-A8 resolved: type-check our own edge-function source, skipping only the *remote*
-      # type graph (esm.sh pulls @types/node transitively, which fails without node_modules).
-      # `--no-check=remote` checks local code while ignoring remote .d.ts — so a type error in
-      # supabase/functions/** now fails CI, which plain `--no-check` silently allowed.
-      - name: Type-check edge functions (local graph)
-        run: deno check --no-check=remote supabase/functions
-
       - name: Deno tests (edge functions)
-        # Tests run with local type-checking (remote graph skipped, see above).
+        # Q-A8 resolved: `--no-check=remote` type-checks our own edge-function source while
+        # skipping only the *remote* type graph (esm.sh pulls @types/node transitively, which
+        # fails without a node_modules dir). A type error in supabase/functions/** now fails CI,
+        # which the previous bare `--no-check` silently allowed. (`--no-check` is a flag on the
+        # `test`/`run` subcommands, not on `deno check`.)
         run: deno test --no-check=remote --allow-net --allow-env --allow-read supabase/functions
 
   codeql:
     name: CodeQL (SAST)
     runs-on: ubuntu-latest
+    # Prerequisite: code scanning must be enabled for the repo (Settings → Code security →
+    # Code scanning). Until then the analyze step cannot upload results and the job fails.
     permissions:
       security-events: write
       actions: read

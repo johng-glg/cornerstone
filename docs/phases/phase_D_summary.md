@@ -42,7 +42,16 @@ On the in-environment Postgres 16 (B-A1 blocks the container mesh, not a native 
 5. RLS coverage asserted live: **95/95** `public` tables RLS-enabled, 0 disabled, 212 policies.
 
 CI enforcement: `db-verify` (groups 20–21), `edge-fn-test` (rate-limit unit tests + local
-type-check), `codeql` (SAST). Edge-fn tests + CodeQL run in CI (no deno/CodeQL in the sandbox).
+type-check via `deno test --no-check=remote`), `codeql` (SAST). Edge-fn tests + CodeQL run in CI
+(no deno/CodeQL in the sandbox).
+
+> **Post-PR CI fixes (first run on #24):** (1) the edge-fn type-check used a separate
+> `deno check --no-check=remote` step — `--no-check` is not a flag on the `check` subcommand;
+> folded the local type-check into `deno test --no-check=remote`. (2) The `db-verify` groups 20–21
+> exercised the service-role-only functions as the connection role; reworked them to run the
+> function calls `AS service_role` (their real caller) with least-privilege asserted from the
+> catalog. (3) CodeQL requires repo **code scanning** to be enabled (Settings → Code security)
+> before it can upload — being enabled by the PM; the job goes green on the next run thereafter.
 
 ## 4. The DocuSeal "historical backfill" accepted risk
 
