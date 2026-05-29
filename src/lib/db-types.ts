@@ -89,3 +89,76 @@ export interface TransactionListRow {
   plsa_provider_id: string;
   created_at: string;
 }
+
+// ── Domains landed since A5 (A8 litigation, A10 templates/signatures/notifications) ──────────
+
+export type LitigationStatus =
+  | "new"
+  | "pre_response"
+  | "post_response"
+  | "settled"
+  | "dropped"
+  | "judgment"
+  | "declined"
+  | "dismissed";
+
+export interface LitigationMatterListRow {
+  id: string;
+  client_service_id: string;
+  liability_id: string;
+  case_number: string | null;
+  court_name: string | null;
+  state: string | null;
+  opposing_party: string | null;
+  status: LitigationStatus;
+  response_deadline: string | null;
+  next_hearing_date: string | null;
+  created_at: string;
+}
+
+export type TemplateType = "email" | "sms" | "document";
+export type TemplateLanguage = "en" | "es";
+
+export interface TemplateListRow {
+  id: string;
+  company_id: string;
+  name: string;
+  template_type: TemplateType;
+  language: TemplateLanguage;
+  is_active: boolean;
+  current_version: number;
+  updated_at: string;
+}
+
+export type SignatureRequestStatus =
+  | "draft"
+  | "queued"
+  | "sent"
+  | "viewed"
+  | "partially_signed"
+  | "completed"
+  | "declined"
+  | "expired"
+  | "canceled"
+  | "error";
+
+export interface SignatureRequestListRow {
+  id: string;
+  company_id: string;
+  title: string;
+  entity_type: string;
+  status: SignatureRequestStatus;
+  completed_at: string | null;
+  created_at: string;
+}
+
+export interface NotificationListRow {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  message: string | null;
+  link: string | null;
+  is_read: boolean;
+  created_at: string;
+}

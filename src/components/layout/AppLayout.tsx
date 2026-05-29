@@ -63,6 +63,27 @@ function AppShell({ children }: { children: ReactNode }) {
             <Link to="/leads" className="hover:text-foreground">
               Leads
             </Link>
+            <Link to="/engagements" className="hover:text-foreground">
+              Engagements
+            </Link>
+            <Link to="/liabilities" className="hover:text-foreground">
+              Liabilities
+            </Link>
+            <Link to="/transactions" className="hover:text-foreground">
+              Transactions
+            </Link>
+            <Link to="/litigation" className="hover:text-foreground">
+              Litigation
+            </Link>
+            <Link to="/templates" className="hover:text-foreground">
+              Templates
+            </Link>
+            <Link to="/signatures" className="hover:text-foreground">
+              Signatures
+            </Link>
+            <Link to="/notifications" className="hover:text-foreground">
+              Notifications
+            </Link>
             <Link to="/settings" className="hover:text-foreground">
               Settings
             </Link>

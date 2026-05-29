@@ -10,6 +10,13 @@ import ResetPassword from "@/pages/ResetPassword";
 import Dashboard from "@/pages/Dashboard";
 import Clients from "@/pages/Clients";
 import Leads from "@/pages/Leads";
+import Liabilities from "@/pages/Liabilities";
+import Engagements from "@/pages/Engagements";
+import Transactions from "@/pages/Transactions";
+import Litigation from "@/pages/Litigation";
+import Templates from "@/pages/Templates";
+import Signatures from "@/pages/Signatures";
+import Notifications from "@/pages/Notifications";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
 
@@ -55,6 +62,62 @@ function App() {
                 element={
                   <AppLayout>
                     <Leads />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/liabilities"
+                element={
+                  <AppLayout>
+                    <Liabilities />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/engagements"
+                element={
+                  <AppLayout>
+                    <Engagements />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/transactions"
+                element={
+                  <AppLayout>
+                    <Transactions />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/litigation"
+                element={
+                  <AppLayout>
+                    <Litigation />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/templates"
+                element={
+                  <AppLayout>
+                    <Templates />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/signatures"
+                element={
+                  <AppLayout>
+                    <Signatures />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/notifications"
+                element={
+                  <AppLayout>
+                    <Notifications />
                   </AppLayout>
                 }
               />

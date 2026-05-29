@@ -205,3 +205,14 @@ notifications` FK. **Schema-diff verified** vs reference: all 19 table definitio
   Zod-validated (webhook uses a passthrough schema — HMAC is the trust boundary), restricted CORS,
   `import.meta.main`-guarded. check:zod now guards **24 edge functions**; new Deno tests for the hex
   HMAC + DocuSeal logic. Completes the integrations edge layer (Forth, Dialpad, DocuSeal).
+- **A-frontend (catch-up) — list pages for the post-A5 domains.** Read hooks + RLS-scoped list
+  pages so the UI tracks the backend landed since the core CRM: the A5 fast-follows
+  (**Liabilities**, **Engagements** = `client_services`, **Transactions**, reusing the existing
+  `useCoreCrm` hooks) plus new `src/hooks/useDomains.ts` (`useLitigationMatters`, `useTemplates`,
+  `useSignatureRequests`, `useNotifications`) and pages **Litigation** (A8), **Templates** /
+  **Signatures** / **Notifications** (A10). Hand-authored row projections in `db-types.ts`
+  (`LitigationMatterListRow`, `TemplateListRow`, `SignatureRequestListRow`, `NotificationListRow`);
+  routes wired in `App.tsx` and links added to the `AppLayout` nav. Hook unit tests
+  (`useDomains.test.tsx`: success/error/empty, mocked Supabase). All read paths rely on RLS for
+  tenant/user scoping (the hooks never filter by company/user themselves). typecheck / lint /
+  Vitest (16 tests) / production build all green.
