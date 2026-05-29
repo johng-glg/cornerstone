@@ -413,4 +413,51 @@ BEGIN
 END $$;
 RESET ROLE;
 
+-- ---------------------------------------------------------------------------
+-- 17. A10 email/templates/signatures/notifications/notes: templates + signature_requests are
+--     company-scoped, notifications are user-scoped, and notes resolve company via
+--     resolve_entity_company_id(entity_type, entity_id).
+-- ---------------------------------------------------------------------------
+INSERT INTO public.templates (company_id, name, template_type) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'Welcome A', 'email'),
+  ('22222222-2222-2222-2222-222222222222', 'Welcome B', 'email');
+INSERT INTO public.signature_requests (company_id, entity_type, entity_id, title, short_token)
+  SELECT '11111111-1111-1111-1111-111111111111', 'client',
+         (SELECT id FROM public.clients WHERE company_id = '11111111-1111-1111-1111-111111111111' LIMIT 1),
+         'Retainer A', 'tok-a';
+INSERT INTO public.signature_requests (company_id, entity_type, entity_id, title, short_token)
+  SELECT '22222222-2222-2222-2222-222222222222', 'client',
+         (SELECT id FROM public.clients WHERE company_id = '22222222-2222-2222-2222-222222222222' LIMIT 1),
+         'Retainer B', 'tok-b';
+INSERT INTO public.notifications (user_id, type, title) VALUES
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'system_alert', 'For A'),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'system_alert', 'For B');
+-- notes attached to each tenant's client; company resolved via resolve_entity_company_id('client', ...)
+INSERT INTO public.notes (entity_type, entity_id, content, created_by)
+  SELECT 'client', c.id, 'Note A', (SELECT id FROM public.staff WHERE user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')
+  FROM public.clients c WHERE c.company_id = '11111111-1111-1111-1111-111111111111' LIMIT 1;
+INSERT INTO public.notes (entity_type, entity_id, content, created_by)
+  SELECT 'client', c.id, 'Note B', (SELECT id FROM public.staff WHERE user_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb')
+  FROM public.clients c WHERE c.company_id = '22222222-2222-2222-2222-222222222222' LIMIT 1;
+
+SELECT set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', true);
+SELECT set_config('request.jwt.claims', '{"sub":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","role":"authenticated"}', true);
+SET LOCAL ROLE authenticated;
+DO $$
+BEGIN
+  ASSERT (SELECT count(*) FROM public.templates) = 1, 'user B sees only their tenant template';
+  ASSERT (SELECT count(*) FROM public.templates WHERE name = 'Welcome A') = 0, 'user B must not see tenant A template';
+  ASSERT (SELECT count(*) FROM public.signature_requests) = 1, 'user B sees only their tenant signature request';
+  -- notifications are user-scoped; user B may also have a trigger-created matter_assigned notice
+  -- (from the group-16 assignment), so assert visibility is confined to user B, not an exact count.
+  ASSERT NOT EXISTS (SELECT 1 FROM public.notifications WHERE user_id <> 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
+    'user B must see only their own notifications';
+  ASSERT (SELECT count(*) FROM public.notifications WHERE title = 'For B') = 1, 'user B sees their own notification';
+  ASSERT (SELECT count(*) FROM public.notifications WHERE title = 'For A') = 0, 'user B must not see user A notifications';
+  ASSERT (SELECT count(*) FROM public.notes) = 1, 'user B sees only notes resolving to their company';
+  ASSERT (SELECT count(*) FROM public.notes WHERE content = 'Note A') = 0, 'user B must not see tenant A notes';
+  RAISE NOTICE 'PASS 17: email/templates/signatures/notifications/notes isolation + entity resolver';
+END $$;
+RESET ROLE;
+
 ROLLBACK;
