@@ -1,75 +1,77 @@
 # Phase A + B — Execution Plan
 
-> **Section 8.5/8.6 deliverable.** One-page execution plan for Phase A (Repository Standup +
-> Pattern Extraction) and Phase B (Local Dev + Engineer Onboarding), sized against the actual
-> `lovable-source` tree (94 tables, 78 migrations, 34 edge functions — see
-> `lovable_pattern_inventory.md`), not the v4 spec digest.
+> **Section 8.5/8.6 deliverable.** Execution plan for Phase A (Repository Standup + Pattern
+> Extraction) and Phase B (Local Dev + Engineer Onboarding), sized against the actual
+> `lovable-source` tree (94 tables, 78 migrations, 34 edge functions, 275 RLS policies — see
+> `lovable_pattern_inventory.md`).
 >
 > **Date:** 2026-05-29 · **Branch convention:** `feature/{phase}-{slug}` → PR → `main`.
 
 ---
 
-## Framing & sizing reality
+## Decisions locked (PM, 2026-05-29)
 
-The seed sizes Phase A at weeks 1–3. The inventory shows the system is ~2–3× the spec's
-apparent scope. **Faithful replication of 78 migrations + 34 edge functions + 275 RLS policies
-at production quality (with the test coverage Lovable lacks) does not fit 3 weeks** if "done"
-means every module ported and tested. Two ways to honor the deadline:
+- **Q-A1 — Phase A scope = ENTIRE SURFACE.** Replicate the full 94-table / 34-function /
+  all-frontend-module system at production + test quality within Phase A. This absorbs most of
+  what the seed framed as Phase C (integration replication); Phase C/D narrow to *hardening*.
+- **Q-A4 — All four divergences approved** and applied during Phase A: encrypt per-tenant Forth
+  credentials, pin a single `supabase-js` version, restrict CORS per environment, Zod on every
+  edge-function input/webhook. Each gets a `lovable_sync_log.md` entry or short ADR.
+- **Q1 — Deployment target = "Other"** (not Vercel + Supabase Cloud); specifics pending
+  (`open_questions.md` Q-A6). Phase A/B build host-agnostically against **local Supabase**;
+  Phase F is re-scoped once the target is known. Seed §2A still locks **Supabase** as the backend
+  technology (self-host permitted).
 
-- **Phase A = production-quality foundation + the spine**, not the entire surface. The spine is:
-  tenancy/RLS substrate, audit trail, PII crypto, feature flags, integrations hub, PLSA routing
-  + mock adapter, and the auth/app shell — everything the rest depends on and everything on the
-  critical compliance/money/PII path. The remaining CRM modules (litigation, lead engine,
-  workflow engine, email infra, billing) port in Phase A-continuation / early C at production
-  quality behind the same gates.
-- This keeps the **exit criteria** intact (clones cleanly, `npm run dev` against local Supabase,
-  CI green, Google SSO login, tenant isolation proven by tests) while being honest that
-  full-surface parity is a Phase A→C arc, not a 3-week single drop.
-
-> **Decision needed from PM (see open questions Q-A1):** confirm "Phase A = spine, full surface
-> by end of C" vs "Phase A = entire surface." The PR breakdown below assumes spine-first.
-
----
-
-## Phase A — Repository Standup + Pattern Extraction
-
-**Goal:** Clean repo, production-quality baseline, the dependency spine replicated and tested.
-
-| PR | Title | Scope | Acceptance criteria |
-|---|---|---|---|
-| **A1** | `[Phase A] Repo scaffold + tooling` | Dir structure (`/src /supabase/{migrations,functions} /tests /docs /scripts /.github/workflows`); Vite+React+TS strict; ESLint+Prettier; Husky+lint-staged; Vitest; Playwright; Zod; `.env.example`; strip `lovable-tagger`. | `npm install` clean; `npm run typecheck/lint/build` pass; pre-commit hook runs lint-staged; no secrets in tree. |
-| **A2** | `[Phase A] Initial CI pipeline` | `.github/workflows/ci.yml`: typecheck + lint + test + build on PR; coverage gate scaffold; `npm audit` (high/critical block). | CI green on a no-op PR; failing test blocks merge; coverage reported. |
-| **A3** | `[Phase A] Supabase local + schema spine (tenancy/RLS/audit/PII)` | Migrations for `companies`, `staff`, `user_roles`, `role_permissions`, `tenant_feature_flags`; helpers `can_access_company`, `has_role`, `get_user_company_id`, `is_feature_enabled`, `log_audit_event`, `audit_trigger_fn`, `encrypt_pii`/`decrypt_*`; `system_audit_log`; vault key. All forward-only **with inline rollback SQL**. | `supabase start` + `supabase db reset` applies cleanly; types regenerate; **cross-tenant isolation tests pass (100%)**; PII reveal admin-gated + self-logging tested. |
-| **A4** | `[Phase A] Auth + app shell + Google SSO` | Auth flow, forgot/reset password, MFA opt-in, inactivity timeout, app layout, routing skeleton, role impersonation (view-only), Supabase client. | User logs in via Google SSO against local Supabase; protected routes gated; session timeout works; smoke E2E green. |
-| **A5** | `[Phase A] Integrations hub + PLSA routing + mock adapter` | `integration_providers`/`company_integrations`/`integration_event_log`; `_shared/{requireAuth,integrations,markIntegrationConnected,forthAuth}`; `plsa-routing` + `plsa-adapter-mock`; `company_processor_configs` (**credentials encrypted, diverging from Lovable plaintext**). | Routing dispatches all 12 ADR-009 ops to mock; integration event log writes; **edge-fn integration tests** cover happy path + auth failure + disabled-provider short-circuit; ADR-009 conformance test green. |
-| **A6** | `[Phase A] Core CRM domain (clients/leads/liabilities/services/transactions)` | The core business tables + RLS + the read/write hooks and pages for the central entities; `plsaApi.ts` client adapter. | RLS tests per table; happy/failure unit tests on business-logic hooks; pages render against seeded local data. |
-| **A7** | `[Phase A] Pattern inventory + ADR-009 ratification draft + phase summary` | Finalize `lovable_pattern_inventory.md`; ADR-009 → ratified copy under `docs/adrs/`; resolve duplicate-table question; `docs/phases/phase_A_summary.md`; CHANGELOG. | Inventory merged; ADR-009 status updated; duplicate-table decision documented; CI green. |
-
-**Phase A exit (seed):** repo clones cleanly · `npm install && npm run dev` works against local
-Supabase · CI green · Google SSO login · **tenant isolation verified by automated tests**.
-
-**Estimated landing:** A1–A2 within ~3–4 days. A3–A5 (the spine + isolation tests) ~2 weeks.
-A6–A7 ~1 week. **Phase A spine lands ~2026-06-19 (≈3 weeks);** full-surface parity (litigation,
-lead engine, workflow engine, email infra, billing ported + tested) trails into Phase C —
-target ~2026-07-10. Caveat: depends on Q-A1 scope decision and Supabase local fidelity for
-`pgmq`/`pg_cron`/`vault`.
+### Sizing reality
+Full-surface replication at production quality — *with the test coverage Lovable never had*
+(275 RLS policies each cross-tenant tested; 100% on auth/isolation/money/PII) — is a **~6–9 week**
+effort, not 3. The trade is favorable: by doing full replication in Phase A, the original Phase C
+(replication) collapses into hardening only, so the overall arc to the **Phase 8 cutover
+(~2026-10-14)** stays intact. Phase B runs in parallel from week 1.
 
 ---
 
-## Phase B — Local Development + Engineer Onboarding
+## Phase A — Repository Standup + Full-Surface Replication
 
-**Goal:** a senior engineer goes clone → contributing in under a day. Runs largely in parallel
-with late Phase A.
+**Goal:** clean production-grade repo with the entire Lovable system replicated, tested, and
+isolation-verified.
 
 | PR | Title | Scope | Acceptance criteria |
 |---|---|---|---|
-| **B1** | `[Phase B] Local stack + seed data` | `supabase start` full stack; idempotent seed scripts: synthetic tenants/users/engagements, **no real PII**; covers the cross-tenant test fixtures. | Fresh `supabase db reset && seed` yields 2+ synthetic tenants and login-ready users. |
-| **B2** | `[Phase B] Dev docs + env` | `docs/dev-setup.md` (clone→running), `docs/contributor-guide.md` (branching/PR/review), `.env.example` complete, VS Code workspace + recommended extensions. | A clean follow-through of `dev-setup.md` reaches a running app in <60 min. |
-| **B3** | `[Phase B] Docker Compose option` | Compose path for engineers preferring native containers. | `docker compose up` brings up the stack; documented. |
-| **B4** | `[Phase B] Onboarding validation` | A throwaway "test PR" exercising the full CI pipeline; capture evidence in phase summary. | Test PR completes full CI green; `docs/phases/phase_B_summary.md` + CHANGELOG. |
+| **A1** | `[Phase A] Repo scaffold + tooling` | Dir structure; Vite+React+TS **strict**; ESLint+Prettier; Husky+lint-staged; Vitest; Playwright; Zod; `.env.example`; strip `lovable-tagger`; **pin supabase-js** baseline. | `npm install` clean; typecheck/lint/build pass; pre-commit runs lint-staged; no secrets in tree. |
+| **A2** | `[Phase A] CI pipeline + secret scan` | `.github/workflows/ci.yml`: typecheck+lint+test+build on PR; coverage gate; `npm audit` (high/critical block); secret scan; **CI rule: new edge fn without Zod fails**; **CI rule: CORS `*` fails**. | CI green on no-op PR; failing test/secret/Zod-missing blocks merge. |
+| **A3** | `[Phase A] Tenancy + RLS + audit + PII spine` | `companies`, `staff`, `user_roles`, `role_permissions`, `tenant_feature_flags`; helpers `can_access_company`, `has_role`, `get_user_company_id`, `is_feature_enabled`, `log_audit_event`, `audit_trigger_fn`, `resolve_entity_company_id`; `system_audit_log`; vault key + `encrypt_pii`/`decrypt_*`. Forward-only **with inline rollback SQL**. | `supabase db reset` clean; types regenerate; **cross-tenant isolation tests 100%**; PII reveal admin-gated + self-logging tested. |
+| **A4** | `[Phase A] Auth + app shell + Google SSO` | Auth, forgot/reset, MFA opt-in, inactivity timeout, app layout, routing skeleton, role impersonation (view-only), Supabase client. | Google SSO login vs local Supabase; protected routes gated; smoke E2E green. |
+| **A5** | `[Phase A] Core CRM domain` | `clients` (+addresses/phones/communications/documents), `leads` (+activities/banking/budgets/debts/disclosures/documents), `liabilities`/`liability_actions`, `creditors`/`creditor_contacts`/`creditor_responses`, `services`/`client_services`, `transactions`, `settlements`; RLS + hooks + pages; `plsaApi.ts`. **Resolve duplicate tables (Q-A2).** | RLS test per table; happy/failure unit tests on business hooks; pages render vs seed; duplicate-table decision documented. |
+| **A6** | `[Phase A] PLSA layer + Forth adapter` | `plsa-routing` + `plsa-adapter-mock` + 12 `forth-*` fns + `plsa-nsf-retry`/`plsa-escrow-sync`/`plsa-reconciliation`; `company_processor_configs` (**creds encrypted**); `plsa_sync_log`, `reconciliation_findings`, `nsf_retry_policies`, `transaction_retry_attempts`; 3 crons; `_shared/{requireAuth,forthAuth}`. | All 12 ADR-009 ops dispatch to mock; **edge-fn integration tests**: happy + auth-fail + webhook-sig-mismatch + downstream-timeout; ADR-009 conformance green. |
+| **A7** | `[Phase A] Integrations hub + DocuSeal + Dialpad` | `integration_providers`/`company_integrations`/`integration_event_log`; `_shared/{integrations,markIntegrationConnected}`; `docuseal-*` (3) incl. signed-doc archival; `dialpad-*` (5) incl. HMAC webhook, `dialpad_calls`, screen-pop; `client_communications` + polymorphic `entity_communications`. | Per-integration tests (happy/auth-fail/sig-mismatch/timeout); disabled-provider short-circuits; integration health visible. |
+| **A8** | `[Phase A] Litigation module` | `litigation_matters`/`hearings`/`activities`/`documents`/`teams`/`team_members`, `appearance_requests`, `filing_fees`, `law_firms`/`law_firm_contacts`; pages incl. court calendar; storage hardening (private buckets + `can_access_storage_object` + signed URLs). | RLS + storage isolation tests; calendar renders; signed-URL doc access tested. |
+| **A9** | `[Phase A] Lead engine + workflow engine` | `lead_scoring_profiles`, `lead_assignment_*` (rules/pool/queue/log) + `assign_lead`/`calculate_lead_score`/`process_assignment_queue`; `workflow_rules`/`groups`/`executions` + `evaluate_workflow_conditions`/`check_trigger_match`/`validate_status_transition`. | Scoring + assignment unit tests (happy/edge); workflow rule evaluation tests; idempotency on re-run. |
+| **A10** | `[Phase A] Email infra + templates + signatures + notifications` | `pgmq` email queue + `enqueue_email`/`read_email_batch`/`move_to_dlq`/`delete_email`; `email_send_log`/`state`/`unsubscribe_tokens`/`suppressed_emails`; `process-email-queue`/`process-deadline-reminders`/`render-template`; `templates`/`template_*`/`report_templates`; `signature_requests`/`signers`/`events`; `notifications`/`notification_preferences`/`deadline_reminders`/`reminder_settings`; `domain_events`+`emit_domain_event`; `outbound_webhook_log`/`webhook_endpoints`. | Queue enqueue→process→DLQ tested; template render tests; signature lifecycle tested; webhook signing tested. |
+| **A11** | `[Phase A] Billing, tasks, eligibility, remaining tables + docs center` | `billing_entries`, `tasks`/`assignments`/`task_templates`, `eligibility_reviews`, `feature_requests`, `notes`/`note_mentions`, `simulate-underwriting`, `create-staff-user`/`reset-staff-password`; any residual tables; in-app docs center routes. | Remaining-table RLS tests; staff-admin fn tests; full table parity vs `types.ts` confirmed. |
+| **A12** | `[Phase A] ADR-009 ratification + inventory finalize + phase summary` | ADR-009 → ratified `docs/adrs/ADR-009-*.md`; finalize inventory; `lovable_sync_log.md` divergence entries; coverage report; `docs/phases/phase_A_summary.md`; CHANGELOG. | ADR-009 ratified; coverage gates met system-wide; all 4 divergences logged; CI green. |
 
-**Phase B exit (seed):** fresh clone → working dev env in <60 min via docs; a test PR completes
-the full CI pipeline. **Estimated landing:** ~1 week after Phase A spine, overlapping A6–A7.
+**Phase A exit (seed):** repo clones cleanly · `npm install && npm run dev` vs local Supabase ·
+CI green · Google SSO login · **tenant isolation verified by automated tests** · *(extended by
+Q-A1)* full-surface parity with `lovable-source` confirmed against `types.ts`.
+
+**Estimated landing:** A1–A2 ~3–4 days; A3–A4 ~1 week; A5–A11 (full replication + tests) the
+bulk, ~5–7 weeks; A12 ~few days. **Phase A complete ≈ late July 2026 (2026-07-24 ± 1 wk).**
+Caveats: Supabase-local fidelity for `pgmq`/`pg_cron`/`pg_net`/`vault`; resourcing (solo vs +hire,
+Q3); ADR-009 final shape (ratify 2026-06-17).
+
+---
+
+## Phase B — Local Development + Engineer Onboarding (parallel from week 1)
+
+| PR | Title | Scope | Acceptance criteria |
+|---|---|---|---|
+| **B1** | `[Phase B] Local stack + seed data` | `supabase start` full stack; idempotent seed: synthetic tenants/users/engagements, **no real PII**; cross-tenant test fixtures. | `supabase db reset && seed` → 2+ synthetic tenants, login-ready users. |
+| **B2** | `[Phase B] Dev docs + env` | `docs/dev-setup.md`, `docs/contributor-guide.md`, complete `.env.example`, VS Code workspace + extensions. | Clean follow-through reaches running app <60 min. |
+| **B3** | `[Phase B] Docker Compose option` | Compose path for native-container engineers. | `docker compose up` brings up stack; documented. |
+| **B4** | `[Phase B] Onboarding validation` | Throwaway test PR exercising full CI; evidence in summary. | Test PR full CI green; `phase_B_summary.md` + CHANGELOG. |
+
+**Phase B exit:** fresh clone → working dev env <60 min; test PR completes full CI.
 
 ---
 
@@ -77,13 +79,14 @@ the full CI pipeline. **Estimated landing:** ~1 week after Phase A spine, overla
 
 Typecheck · ESLint+Prettier · Vitest (no unjustified skips) · production build · `npm audit`
 (high/critical block) · coverage thresholds (100% on auth/isolation/money/PII/RLS) · migrations
-forward-only with inline rollback SQL · docs + CHANGELOG updated in the same PR.
+forward-only with inline rollback SQL · **Zod present on every edge-fn input (CI-enforced)** ·
+**no CORS `*` (CI-enforced)** · docs + CHANGELOG in the same PR.
 
 ## Dependencies & risks
 
-- **Supabase local fidelity** for `pgmq`, `pg_cron`, `pg_net`, `supabase_vault` — verify in B1;
-  if any can't run locally, document a stub/seam so tests don't gate on cloud-only features.
-- **Secret hygiene** — the Lovable `.env` carries live keys; never propagate. CI secret scan in A2.
-- **Scope decision Q-A1** gates the A6/Phase-C boundary.
-- **ADR-009 ratification (2026-06-17)** lands inside Phase A — A5/A7 must align with the final
-  contract; the new-processor team builds against it.
+- **Supabase local fidelity** for `pgmq`/`pg_cron`/`pg_net`/`supabase_vault` — verify in B1;
+  document stub/seam if any is cloud-only so tests don't gate on it.
+- **Secret hygiene** — Lovable `.env` has live keys; never propagate. Secret scan in A2.
+- **Deployment target (Q-A6)** unknown — Phase A/B stay host-agnostic; Phase F awaits the answer.
+- **ADR-009 ratification (2026-06-17)** lands mid-Phase-A; A6/A12 align to the final contract.
+- **Resourcing (Q3)** materially affects the late-July estimate.

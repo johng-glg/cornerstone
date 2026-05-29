@@ -9,7 +9,7 @@
 
 | # | Question | Status / current assumption |
 |---|---|---|
-| Q1 | **Deployment target.** Vercel + Supabase Cloud assumed. Confirm — if AWS/GCP/self-host, Phase F scope changes. | **Open.** Assuming Vercel + Supabase Cloud (seed §2A default). |
+| Q1 | **Deployment target.** Vercel + Supabase Cloud assumed. Confirm — if AWS/GCP/self-host, Phase F scope changes. | **Partially resolved (2026-05-29):** PM selected **"Other" (not Vercel + Supabase Cloud)**. Specifics pending — see Q-A6. Phase F scope will change accordingly. |
 | Q2 | **Lovable IP / source extraction.** Confirm GLG owns the Lovable source and can extract for replication. | **Resolved.** Source delivered as `lovable-source` branch; John built it. |
 | Q3 | **Senior engineering hire status.** Onboard? Affects dev-env choices and pace. | **Open.** Phase B docs written stack-agnostic so either way works. |
 | Q4 | **Sync cadence with Lovable.** Default: within 1 week of each Lovable phase shipping. Confirm. | **Open.** Assuming 1-week default; `docs/lovable_sync_log.md` will track. |
@@ -20,10 +20,11 @@
 
 | # | Question | Why it matters |
 |---|---|---|
-| **Q-A1** | **Phase A scope: "spine-first" or "entire surface"?** The system is ~2–3× the spec's apparent scope. Plan assumes Phase A = dependency spine + core CRM, with litigation/lead-engine/workflow/email-infra/billing porting through early Phase C. | Determines the A6→C boundary and the Phase A landing date (~2026-06-19 spine vs later for full parity). |
+| **Q-A1** | **Phase A scope: "spine-first" or "entire surface"?** | **Resolved (2026-05-29): ENTIRE SURFACE in Phase A.** PM elected to replicate the full 94-table / 34-function / all-frontend-module surface at production+test quality within Phase A, absorbing most of Phase C's replication work. Revised landing ~late July; see execution plan. |
+| **Q-A6** | **What is the "Other" deployment target?** PM declined Vercel + Supabase Cloud. Need: frontend host, backend host (self-hosted Supabase vs managed), cloud (AWS/GCP/Azure/on-prem), regional residency needs. Note: seed §2A locks **Supabase** as the backend *technology* (self-host allowed); it does not lock the host. | Gates Phase F design and per-environment secret/infra setup. Until known, Phase A/B target local Supabase + a host-agnostic build. |
 | **Q-A2** | **Duplicate tables: which is live —** `services` vs `client_services`, and `template_usage` vs `template_usages`? | We replicate only the live table and mark the other deprecated; avoids carrying confusion into production. Needs FK/RLS/code-reference confirmation from source. |
 | **Q-A3** | **Forth poller cron — in a migration or only in the Supabase dashboard?** (Forth audit §3 left this ambiguous; in-repo crons are escrow-sync/nsf-retry/reconciliation only.) | Determines whether transaction polling is reproducible from source or needs to be authored. |
-| **Q-A4** | **Confirm divergences** (inventory §9): encrypt per-tenant Forth creds, pin `supabase-js` version, restrict CORS, Zod on every input. All are hardening beyond Lovable. | Seed requires documented justification for any divergence from a Lovable pattern; confirming up front avoids rework. |
+| **Q-A4** | **Confirm divergences** (inventory §9): encrypt per-tenant Forth creds, pin `supabase-js` version, restrict CORS, Zod on every input. | **Resolved (2026-05-29): ALL FOUR APPROVED.** Apply in Phase A; each gets a sync-log/ADR note. (Q-A2 duplicate-table resolution still pending source confirmation — I will resolve from source, not block on PM.) |
 | **Q-A5** | **Compliance sign-off owners.** Seed names Kimberly Uptain (Phase D compliance) and references bar/DFPI/TSR evidence. Confirm reviewers and required evidence formats for `docs/compliance-evidence/`. | Phase D exit depends on named sign-off; good to line up early. |
 
 ## Cross-program note (not blocking)
