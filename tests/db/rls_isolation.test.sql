@@ -24,7 +24,7 @@ VALUES
 
 INSERT INTO public.staff (user_id, company_id, first_name, last_name, email, department)
 VALUES
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'Ada', 'Admin', 'a@example.test', 'admin'),
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'Ada', 'Admin', 'a@example.test', 'administration'),
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '22222222-2222-2222-2222-222222222222', 'Ben', 'User', 'b@example.test', 'client_services');
 
 INSERT INTO public.user_roles (user_id, role) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'admin');
@@ -45,7 +45,7 @@ INSERT INTO public.leads (company_id, first_name, last_name) VALUES
 INSERT INTO auth.users (id, instance_id, aud, role, email)
 VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'p@example.test');
 INSERT INTO public.staff (user_id, company_id, first_name, last_name, email, department)
-VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc', '22222222-2222-2222-2222-222222222222', 'Pat', 'Para', 'p@example.test', 'attorney');
+VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc', '22222222-2222-2222-2222-222222222222', 'Pat', 'Para', 'p@example.test', 'legal');
 INSERT INTO public.user_roles (user_id, role) VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'paralegal');
 
 -- A6 fixtures: a processor + a per-tenant processor config in each company (admin-only, company-scoped).
@@ -489,5 +489,29 @@ BEGIN
   RAISE NOTICE 'PASS 18: billing/tasks cross-tenant isolation + global task templates';
 END $$;
 RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- 19. Spine reconciliation: new app_role values exist, staff.hourly_rate defaults to 350,
+--     and a companies.company_type change fires the audit trigger.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE _before bigint; _after bigint;
+BEGIN
+  -- new enum values resolve
+  PERFORM 'of_counsel'::public.app_role;
+  PERFORM 'eligibility_reviewer'::public.app_role;
+  -- staff.hourly_rate default
+  ASSERT (SELECT hourly_rate FROM public.staff WHERE user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') = 350.00,
+    'staff.hourly_rate defaults to 350.00';
+  -- department migrated to department_new
+  ASSERT (SELECT department::text FROM public.staff WHERE user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') = 'administration',
+    'staff.department is the department_new value';
+  -- company_type change is audited
+  SELECT count(*) INTO _before FROM public.system_audit_log WHERE action = 'company.type_changed';
+  UPDATE public.companies SET company_type = 'affiliate' WHERE id = '11111111-1111-1111-1111-111111111111';
+  SELECT count(*) INTO _after FROM public.system_audit_log WHERE action = 'company.type_changed';
+  ASSERT _after = _before + 1, 'company_type change writes a company.type_changed audit row';
+  RAISE NOTICE 'PASS 19: spine reconciliation (app_role values, staff.hourly_rate, company-type audit)';
+END $$;
 
 ROLLBACK;

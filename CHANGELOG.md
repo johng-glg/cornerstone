@@ -229,13 +229,21 @@ notifications` FK. **Schema-diff verified** vs reference: all 19 table definitio
   reference: all 6 table defs, 10 enums, and the function body are byte-identical (scoped diff clean
   both directions). `tests/db/` expanded to **18 groups** (billing/tasks cross-tenant isolation +
   global task templates); full suite passes locally on the A3→A11 schema.
-- **Schema reconciliation (pending, surfaced by the full-surface diff).** Completing the 94-table
-  surface enabled a whole-schema diff against the reference, which exposed drift in the early **A3/A5
-  spine** that the per-phase scoped diffs had missed: `staff` is missing `hourly_rate` / `last_login_at`
-  and uses a hand-made `department` enum instead of the reference's `department_new` (different value
-  set); `app_role` is missing `of_counsel` / `eligibility_reviewer`; `companies.company_type`,
-  `transactions.status`, and `transactions.transaction_type` use differently-named/typed columns vs
-  the reference's `company_type_enum` / `transaction_status` / `transaction_type`; the
-  `audit_company_type_change` trigger+function is absent; and a few `role_permissions` /
-  `role_special_permissions` policies differ. Tracked for a dedicated forward-only reconciliation
-  migration (enum value remap is data-affecting) before the A12 ADR-009 ratification / Phase A summary.
+- **A11.1 — Spine reconciliation (closes the full-surface diff).** Completing the 94-table surface
+  enabled a **whole-schema diff** against the reference, which exposed drift in the early **A3/A5
+  spine** that the per-phase scoped diffs had missed. Forward-only corrective migration
+  (`20260529180000_phase_a11_spine_reconciliation.sql`) brings it to parity: `app_role` gains
+  `of_counsel` / `eligibility_reviewer`; `staff` gains `hourly_rate` (default 350.00) + `last_login_at`
+  and `screen_pop_preference` becomes NOT NULL; `staff.department` is migrated from the hand-made
+  `department` enum to the reference `department_new` (documented value map; the old enum is dropped);
+  the orphan reference enums `company_type_enum` / `transaction_status` / `transaction_type` are
+  created for parity (no column uses them); `companies` gains `audit_company_type_change()` +
+  `trg_audit_company_type_change`; the `role_permissions` / `role_special_permissions` policies and a
+  missing `staff` DELETE policy are aligned to the reference; and three non-reference indexes are
+  dropped. **The whole-schema object diff is now empty** — all 954 objects match — **except `staff`
+  physical column ordering** (the column _set_, types, nullability, and defaults are byte-identical;
+  Postgres cannot reorder columns without a destructive rebuild of a table the whole schema FKs into,
+  so this is an accepted, documented divergence). No production data exists yet, so the `department`
+  remap is non-destructive. `tests/db/` expanded to **19 groups** (adds reconciliation checks: new
+  `app_role` values, `staff.hourly_rate` default, company-type-change audit); full suite passes
+  locally on the reconciled A3→A11.1 schema.
