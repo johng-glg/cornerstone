@@ -418,3 +418,12 @@ verify_jwt = false
 
 [functions.forth-poll-transactions]
 verify_jwt = false
+
+[functions.forth-auth]
+verify_jwt = false
+
+[functions.forth-create-draft]
+verify_jwt = false
+
+[functions.forth-update-draft]
+verify_jwt = false

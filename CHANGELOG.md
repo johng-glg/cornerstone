@@ -96,4 +96,4 @@ All notable changes to Cornerstone are documented here. Format loosely follows
   the production pattern (Zod input, restricted CORS, `requireAuth`, `forthFetch`, `plsa_sync_log`):
   `forth-cancel-draft` (lock-window + status guards) and `forth-poll-transactions` (status
   reconciliation + NSF-retry scheduling, round-robin by `last_polled_at`). Remaining group-1
-  adapters (`forth-auth`, `forth-create-draft`, `forth-update-draft`) follow.
+  adapters (`forth-auth`, `forth-create-draft`, `forth-update-draft`) follow. **Now added:** `forth-auth` (diagnostic OAuth, per-tenant via `company_id`), `forth-create-draft` (resolves the client's Forth CRM id via service→client lookups, posts the draft, stores `external_id`), and `forth-update-draft` (amount/process_date with the 7-day lock + status guards). All Zod-validated, restricted CORS, `requireAuth`, `forthFetch`. check:zod now guards 7 edge functions.
