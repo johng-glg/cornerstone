@@ -62,6 +62,16 @@ litigation, lead-engine, workflow-engine, and email-infrastructure layers.
 - Q-A2 resolved for core CRM: `services` (catalog) and `client_services` (engagements) are
   distinct, not duplicates. `template_usage`/`template_usages` duplicate deferred to A10.
 
+### A12 — Phase A closeout (2026-05-29)
+
+- **ADR-009 ratified** and moved to `docs/adrs/ADR-009-plsa-adapter-interface-contract.md`
+  (was repo root). Interface frozen; A6 `plsa-routing` + `plsa-adapter-mock` are the conforming
+  implementation. New-processor co-sign (target 2026-06-17) is the one open external follow-up.
+- **Phase A summary** written (`docs/phases/phase_A_summary.md`). Records final parity: the
+  whole-schema object diff is empty (all 954 objects) except the accepted, documented `staff`
+  physical column ordering (logical schema byte-identical).
+- No new schema in A12 — documentation, ADR ratification, and CHANGELOG only.
+
 ### Hardening divergences planned (apply as the relevant objects land)
 
 - Encrypt per-tenant Forth credentials in `company_processor_configs` (Lovable stores them
