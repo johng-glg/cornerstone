@@ -49,9 +49,25 @@ function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b px-4 py-3">
-        <Link to="/" className="font-semibold">
-          Cornerstone
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link to="/" className="font-semibold">
+            Cornerstone
+          </Link>
+          <nav className="hidden items-center gap-3 text-sm text-muted-foreground sm:flex">
+            <Link to="/" className="hover:text-foreground">
+              Dashboard
+            </Link>
+            <Link to="/clients" className="hover:text-foreground">
+              Clients
+            </Link>
+            <Link to="/leads" className="hover:text-foreground">
+              Leads
+            </Link>
+            <Link to="/settings" className="hover:text-foreground">
+              Settings
+            </Link>
+          </nav>
+        </div>
         <div className="flex items-center gap-3">
           {isRealAdmin && (
             <label className="flex items-center gap-2 text-sm text-muted-foreground">

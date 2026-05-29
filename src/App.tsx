@@ -8,6 +8,8 @@ import Auth from "@/pages/Auth";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import Dashboard from "@/pages/Dashboard";
+import Clients from "@/pages/Clients";
+import Leads from "@/pages/Leads";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/NotFound";
 
@@ -37,6 +39,22 @@ function App() {
                 element={
                   <AppLayout>
                     <Dashboard />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/clients"
+                element={
+                  <AppLayout>
+                    <Clients />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/leads"
+                element={
+                  <AppLayout>
+                    <Leads />
                   </AppLayout>
                 }
               />

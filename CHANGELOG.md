@@ -54,3 +54,11 @@ All notable changes to Cornerstone are documented here. Format loosely follows
   `pgp_sym_decrypt` calls with the `extensions.` schema qualifier. Expanded `tests/db/` isolation
   suite: clients/leads cross-tenant + `can_view_leads` paralegal gating (12 groups pass locally on
   the A3+A5 schema).
+- **A5 (frontend) — core-CRM data layer.** Hand-authored row types (`src/lib/db-types.ts`) for the
+  five core entities; TanStack Query read hooks (`useClients`/`useLeads`/`useLiabilities`/
+  `useClientServices`/`useTransactions`) over RLS-scoped queries; Clients and Leads list pages with
+  shared loading/error/empty (`QueryState`); top-bar nav. Hook unit tests (success/error/empty,
+  mocked Supabase). Full generated `Database` types are deferred to a Docker-capable environment/CI
+  (`supabase gen types` needs Docker — B-A1); the row projections keep the data layer strictly
+  typed meanwhile. Remaining list pages (liabilities/engagements/transactions) follow the same
+  pattern as a fast follow.
