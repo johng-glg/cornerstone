@@ -517,10 +517,11 @@ END $$;
 -- ---------------------------------------------------------------------------
 -- 20. Phase D rate limiter: check_rate_limit allows up to the limit then denies, is
 --     per-identifier, and is service-role-only (anon/authenticated cannot execute it).
---     The function is service-role-only by grant, so exercise it AS service_role — the role
---     the edge functions actually use — rather than the connection role.
+--     Called directly as the connection role — the same pattern group 13 uses for the
+--     other service-role-only definer function (decrypt_processor_credentials). The CI
+--     connection role can execute these; least privilege is proven from the catalog (the
+--     test does NOT `SET ROLE service_role`, which the CI role is not a member of).
 -- ---------------------------------------------------------------------------
-SET LOCAL ROLE service_role;
 DO $$
 DECLARE _allowed boolean; _retry int;
 BEGIN
@@ -535,61 +536,44 @@ BEGIN
   -- a different identifier is independent
   SELECT allowed INTO _allowed FROM public.check_rate_limit('t20','idB',2,60);
   ASSERT _allowed, 'different identifier has its own window';
-  RAISE NOTICE 'PASS 20a: rate limiter allow/deny/per-identifier (as service_role)';
-END $$;
-RESET ROLE;
-
--- Least privilege is asserted from the catalog (role-independent).
-DO $$
-BEGIN
+  -- least privilege (catalog; role-independent)
   ASSERT NOT has_function_privilege('anon', 'public.check_rate_limit(text,text,integer,integer)', 'EXECUTE'),
     'anon must not execute check_rate_limit';
   ASSERT NOT has_function_privilege('authenticated', 'public.check_rate_limit(text,text,integer,integer)', 'EXECUTE'),
     'authenticated must not execute check_rate_limit';
   ASSERT has_function_privilege('service_role', 'public.check_rate_limit(text,text,integer,integer)', 'EXECUTE'),
     'service_role should execute check_rate_limit';
-  RAISE NOTICE 'PASS 20b: rate limiter service-role-only (catalog)';
+  RAISE NOTICE 'PASS 20: rate limiter allow/deny/per-identifier + service-role-only';
 END $$;
 
 -- ---------------------------------------------------------------------------
 -- 21. Phase D PII-plaintext verification: assert_no_plaintext_pii passes on a clean db,
 --     raises when a deprecated plaintext column is populated, and is service-role-only.
---     Run the function AS service_role (its grant), keeping the UPDATEs as the privileged role.
+--     Called directly as the connection role (group-13 pattern).
 -- ---------------------------------------------------------------------------
 UPDATE public.clients SET ssn_encrypted = NULL;  -- ensure clean precondition regardless of seed
-SET LOCAL ROLE service_role;
-DO $$
-BEGIN
-  PERFORM public.assert_no_plaintext_pii();
-  RAISE NOTICE 'PASS 21a: assert_no_plaintext_pii passes on clean db (as service_role)';
-END $$;
-RESET ROLE;
-
--- Populate a deprecated plaintext column, then confirm the assertion raises (as service_role).
-UPDATE public.clients SET ssn_encrypted = 'legacy-plaintext'
- WHERE company_id = '11111111-1111-1111-1111-111111111111';
-SET LOCAL ROLE service_role;
 DO $$
 DECLARE _raised boolean := false;
 BEGIN
+  -- clean: assertion passes
+  PERFORM public.assert_no_plaintext_pii();
+  -- populate a deprecated plaintext column → assertion must raise
+  UPDATE public.clients SET ssn_encrypted = 'legacy-plaintext'
+   WHERE company_id = '11111111-1111-1111-1111-111111111111';
   BEGIN
     PERFORM public.assert_no_plaintext_pii();
     EXCEPTION WHEN others THEN _raised := true;
   END;
   ASSERT _raised, 'assert_no_plaintext_pii must raise when a deprecated column holds data';
-  RAISE NOTICE 'PASS 21b: assert_no_plaintext_pii raises on plaintext (as service_role)';
-END $$;
-RESET ROLE;
-UPDATE public.clients SET ssn_encrypted = NULL;  -- restore
-
--- Least privilege from the catalog.
-DO $$
-BEGIN
+  -- restore
+  UPDATE public.clients SET ssn_encrypted = NULL
+   WHERE company_id = '11111111-1111-1111-1111-111111111111';
+  -- least privilege (catalog)
   ASSERT NOT has_function_privilege('authenticated', 'public.assert_no_plaintext_pii()', 'EXECUTE'),
     'authenticated must not execute assert_no_plaintext_pii';
   ASSERT has_function_privilege('service_role', 'public.assert_no_plaintext_pii()', 'EXECUTE'),
     'service_role should execute assert_no_plaintext_pii';
-  RAISE NOTICE 'PASS 21c: PII verifier service-role-only (catalog)';
+  RAISE NOTICE 'PASS 21: PII-plaintext verifier clean/raises + service-role-only';
 END $$;
 
 ROLLBACK;

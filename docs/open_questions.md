@@ -42,12 +42,13 @@ starting now. Proceeding per the seed; logged here for the record.
 
 ## Follow-ups (non-blocking)
 
-- **Q-A8 — Restore edge-function type-checking in CI. RESOLVED (Phase D, 2026-05-29.)** CI now
-  runs `deno check --no-check=remote supabase/functions` and tests with the same flag: our own
-  edge-function source is type-checked, while only the _remote_ esm.sh type graph (which pulls
-  `@types/node` transitively and fails without a node_modules dir) is skipped. A type error in
-  `supabase/functions/**` now fails CI, which plain `--no-check` silently allowed. The
-  node-compat-config approach proved unnecessary — `--no-check=remote` is the minimal correct fix.
+- **Q-A8 — Restore edge-function type-checking in CI. STILL OPEN (attempted in Phase D, reverted.)**
+  The Phase D attempt (`deno test --no-check=remote`) failed in CI: it re-enables type-checking of
+  the local edge-fn graph but still resolves the remote esm.sh graph for typing, which fails in the
+  CI deno environment (the original blocker). Reverted to the known-good `deno test --no-check`.
+  A correct fix needs an environment where deno can actually run (the dev sandbox blocks jsr.io /
+  esm.sh with 403, so it can't be reproduced locally either) — e.g. a Deno node-compat config
+  (`deno.json` with `nodeModulesDir` / an import map / vendored types). Deferred again.
 
 - **Q-A5 — Compliance sign-off owners (referenced in Phase D).** Phase D produced the
   compliance-evidence corpus (`docs/compliance-evidence/`): RLS audit + SSN-backfill evidence are
