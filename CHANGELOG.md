@@ -72,3 +72,14 @@ All notable changes to Cornerstone are documented here. Format loosely follows
   the append-mostly audit tables). Expanded `tests/db/` to 14 groups: adds `company_processor_configs`
   admin-only + company-scoped isolation. Edge functions (`plsa-routing` + mock/forth adapters)
   land in the A6 edge-function increment.
+- **A6 (edge functions, core) — PLSA routing + mock adapter.** `plsa-routing` (the canonical
+  ADR-009 12-operation dispatcher: Zod-validated input, provider resolution
+  override→service→transaction→client→`forth`, downstream dispatch forwarding the caller's auth)
+  and `plsa-adapter-mock` (realistic ADR-009-shaped responses for every operation). Shared
+  `_shared/cors.ts` (restricted origin allowlist — **no wildcard**, Q-A4) and hardened
+  `_shared/requireAuth.ts` (constant-time service-role compare). First real exercise of the
+  `check:zod` / `check:cors` gates on edge functions (negative-tested). New CI **edge-fn-test**
+  job runs Deno tests; pure logic (schema, provider resolution, route mapping, mock shapes) is
+  unit-tested (server guarded by `import.meta.main` so imports don't boot it). The 12 `forth-*`
+  adapters + `forthAuth` (with `company_processor_configs` credential encryption) + reconciliation
+  functions land in the next A6 increment.

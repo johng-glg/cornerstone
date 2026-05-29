@@ -39,3 +39,12 @@
 Advisory Panel Q5 (2026-05-28) voted **DEFER migration off Lovable**. The v3 seed prompt
 supersedes that — John reframed the standalone as the production destination with Phase A
 starting now. Proceeding per the seed; logged here for the record.
+
+## Follow-ups (non-blocking)
+
+- **Q-A8 — Restore edge-function type-checking in CI.** `deno test` currently runs with
+  `--no-check`: Deno's type-checker pulls `@types/node` transitively through esm.sh type graphs
+  (supabase-js → node-fetch/@types/ws), which fails without a node_modules dir. Tests still
+  execute (runtime validation of the pure logic); `src/` is strictly type-checked in the Verify
+  job. Restore full edge-fn type-check via a Deno node-compat config (`deno.json` with
+  `nodeModulesDir` / an import map, or vendored types) — Phase D hardening.

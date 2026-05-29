@@ -85,11 +85,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Boots the local Supabase stack and applies all migrations on first start;
-      # a bad migration fails this step. GitHub runners can pull the images (unlike
-      # the dev sandbox — see docs/open_questions.md B-A1).
-      - name: Start Supabase (applies migrations)
-        run: npx supabase start
+      # Only the database is needed to apply migrations + run the SQL tests. Excluding the
+      # other services keeps image pulls minimal — fewer pulls dodge ECR anonymous-pull rate
+      # limits ("toomanyrequests") and speed the job up.
+      - name: Start Supabase (db only; applies migrations)
+        run: npx supabase start -x studio,imgproxy,logflare,vector,edge-runtime,supavisor,mailpit,postgres-meta,realtime,storage-api,kong,postgrest
 
       - name: Tenant-isolation / PII / audit tests
         run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f tests/db/rls_isolation.test.sql
@@ -97,3 +97,20 @@ jobs:
       - name: Stop Supabase
         if: always()
         run: npx supabase stop
+
+  edge-fn-test:
+    name: Edge functions (Deno test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Deno tests (edge functions)
+        # --no-check: run the tests without full type-checking. Deno's type-checker pulls
+        # @types/node transitively through esm.sh type graphs; restoring type-check via a
+        # Deno node-compat config is tracked in open_questions (Q-A8). Tests still execute,
+        # validating the pure logic at runtime; src/ is strictly type-checked in the Verify job.
+        run: deno test --no-check --allow-net --allow-env --allow-read supabase/functions
