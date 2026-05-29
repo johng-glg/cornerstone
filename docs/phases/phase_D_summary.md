@@ -23,8 +23,8 @@ Zod-on-every-input gate, secret scan, PII encryption), so this phase closed the 
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Rate limiting**                | Postgres-backed fixed-window limiter: `rate_limit_counters` table (RLS-locked) + `check_rate_limit()` (service-role-only, atomic increment, opportunistic prune). Shared `enforceRateLimit()` edge helper (returns 429 + `Retry-After`, fails open on limiter outage). Wired into `forth-auth`, `dialpad-initiate`, `docuseal-send`, `docuseal-test`, `dialpad-test-connection` (by user id) and the two webhooks `dialpad-webhook`/`docuseal-webhook` (by source IP, before HMAC). |
 | **SSN/PII plaintext**            | `pii_plaintext_audit` view + `assert_no_plaintext_pii()` (service-role-only) prove the deprecated plaintext-era columns hold no data. Evidence in `compliance-evidence/ssn_backfill_evidence.md`.                                                                                                                                                                                                                                                                                   |
-| **SAST**                         | CodeQL job in CI (`security-extended`, JS/TS).                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| **Edge-fn type-checking (Q-A8)** | CI now runs `deno check --no-check=remote` over `supabase/functions` and tests with the same flag — local source is type-checked; only the esm.sh remote type graph is skipped. Q-A8 resolved.                                                                                                                                                                                                                                                                                      |
+| **SAST**                         | CodeQL via GitHub's default code-scanning setup (JS/TS + Actions), enabled at the repo level. (An in-workflow CodeQL job was tried first but conflicts with default setup — GitHub allows only one — so SAST lives in default setup, not `ci.yml`.)                                                                                                                                                                                                                                 |
+| **Edge-fn type-checking (Q-A8)** | Attempted (`deno test --no-check=remote`) but reverted — it still resolves the remote esm.sh type graph and fails in CI. Edge-fn tests run with `deno test --no-check`; **Q-A8 remains open** (needs a Deno node-compat config; not reproducible in the sandbox, which blocks jsr.io/esm.sh).                                                                                                                                                                                       |
 | **RLS audit**                    | `compliance-evidence/rls_audit_report.md` — 95/95 tables RLS-enabled (verified live), 212 policies, each property tied to a test group.                                                                                                                                                                                                                                                                                                                                             |
 | **Security overview**            | `docs/security-overview.md` — threat model, isolation, encryption, auth, validation/CORS/rate-limiting, audit, secrets, SAST, IR posture, known limitations.                                                                                                                                                                                                                                                                                                                        |
 | **Compliance evidence**          | `compliance-evidence/` — RLS audit + SSN backfill (auto-verified); TSR §310.3(a)(1), DFPI registration, and bar trust-accounting scaffolds (grounded in real schema, pending sign-off).                                                                                                                                                                                                                                                                                             |
@@ -41,17 +41,26 @@ On the in-environment Postgres 16 (B-A1 blocks the container mesh, not a native 
 4. The full isolation suite (now **21 groups**) passes, groups 20–21 included.
 5. RLS coverage asserted live: **95/95** `public` tables RLS-enabled, 0 disabled, 212 policies.
 
-CI enforcement: `db-verify` (groups 20–21), `edge-fn-test` (rate-limit unit tests + local
-type-check via `deno test --no-check=remote`), `codeql` (SAST). Edge-fn tests + CodeQL run in CI
-(no deno/CodeQL in the sandbox).
+CI enforcement: `db-verify` (groups 20–21), `edge-fn-test` (rate-limit unit tests), and CodeQL
+SAST via GitHub default code-scanning (`CodeQL / Analyze` checks). Edge-fn tests run in CI (no
+deno in the sandbox).
 
-> **Post-PR CI fixes (first run on #24):** (1) the edge-fn type-check used a separate
-> `deno check --no-check=remote` step — `--no-check` is not a flag on the `check` subcommand;
-> folded the local type-check into `deno test --no-check=remote`. (2) The `db-verify` groups 20–21
-> exercised the service-role-only functions as the connection role; reworked them to run the
-> function calls `AS service_role` (their real caller) with least-privilege asserted from the
-> catalog. (3) CodeQL requires repo **code scanning** to be enabled (Settings → Code security)
-> before it can upload — being enabled by the PM; the job goes green on the next run thereafter.
+> **Post-PR CI fixes (PR #24).** Three issues surfaced on CI that the superuser-based local
+> harness had masked, each fixed at the root:
+>
+> 1. **db-verify — real least-privilege bug.** Group 20 failed on `anon must not execute
+check_rate_limit`. Cause: Supabase's `ALTER DEFAULT PRIVILEGES` grants EXECUTE on new public
+>    functions directly to `anon`/`authenticated`, so a bare `REVOKE … FROM PUBLIC` left those
+>    grants — `anon` could call `check_rate_limit` and the cross-tenant `assert_no_plaintext_pii`.
+>    Fix: `REVOKE EXECUTE … FROM PUBLIC, anon, authenticated` on both (the proven
+>    `decrypt_processor_credentials` pattern). Verified on a local Postgres mirroring Supabase's
+>    default privileges.
+> 2. **edge-fn-test — Q-A8 reopened.** The `deno test --no-check=remote` attempt still resolves the
+>    remote esm.sh type graph and fails in CI; reverted to the known-good `deno test --no-check`.
+>    Q-A8 stays open (can't be reproduced in the sandbox — jsr.io/esm.sh are 403 here).
+> 3. **CodeQL — use default setup.** The PM enabled GitHub's default code-scanning, which conflicts
+>    with an in-workflow CodeQL job (GitHub allows only one). Removed the `ci.yml` CodeQL job; SAST
+>    is the default-setup `CodeQL / Analyze (javascript-typescript|actions)` checks.
 
 ## 4. The DocuSeal "historical backfill" accepted risk
 

@@ -82,7 +82,8 @@ and the decrypt helpers. Append-only in practice; reviewed in the RLS audit.
 
 ## 8. SAST / dependency posture
 
-- **CodeQL (SAST)** runs in CI (`security-extended` queries, JS/TS) — Phase D.
+- **CodeQL (SAST)** runs via GitHub's default code-scanning setup (JS/TS + GitHub Actions),
+  enabled at the repo level in Phase D. Surfaces as the `CodeQL / Analyze (…)` PR checks.
 - `npm audit` blocks high/critical advisories at merge.
 - **Edge-function type-checking** is enforced in CI on the local graph (`deno check
 --no-check=remote`) — Q-A8 resolved in Phase D; only the remote esm.sh type graph is skipped.
@@ -107,6 +108,6 @@ and the decrypt helpers. Append-only in practice; reviewed in the RLS audit.
 | CORS                          | allowlist                                | `check:cors`                   |
 | Rate limiting                 | `check_rate_limit`                       | `db-verify` (G20) + edge tests |
 | Secrets                       | scan                                     | `check:secrets`                |
-| SAST                          | CodeQL                                   | `codeql` job                   |
+| SAST                          | CodeQL (default setup)                   | `CodeQL / Analyze` checks      |
 | Dependencies                  | npm audit                                | `verify` job                   |
 | Edge-fn types                 | `deno check --no-check=remote`           | `edge-fn-test` job             |

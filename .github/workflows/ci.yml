@@ -121,29 +121,8 @@ jobs:
         # runtime; src/ is strictly type-checked in the Verify job.
         run: deno test --no-check --allow-net --allow-env --allow-read supabase/functions
 
-  codeql:
-    name: CodeQL (SAST)
-    runs-on: ubuntu-latest
-    # Prerequisite: code scanning must be enabled for the repo (Settings → Code security →
-    # Code scanning). Until then the analyze step cannot upload results and the job fails.
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: javascript-typescript
-          # Security-extended adds the higher-signal security queries on top of the defaults.
-          queries: security-extended
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
-
-      - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:javascript-typescript"
+# SAST (CodeQL) runs via GitHub's *default* code-scanning setup (repo Settings → Code security),
+# not a workflow job here. Default and advanced (in-workflow) CodeQL are mutually exclusive — an
+# in-workflow analyze step fails while default setup is enabled — so SAST is intentionally not a
+# job in this file. The "CodeQL / Analyze (javascript-typescript|actions)" checks come from
+# default setup and gate the PR.
