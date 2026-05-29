@@ -107,9 +107,9 @@ All notable changes to Cornerstone are documented here. Format loosely follows
   escrow_drift count). All Zod, restricted CORS, `requireAuth`, `import.meta.main`. **17 edge
   functions** total; cron registration deferred to Phase F (env-specific URLs/keys).
   A6 edge layer complete; A7 (DocuSeal/Dialpad) next.
-- **A7 (integrations-hub + Dialpad schema).** `integration_providers` (seeded docuseal/forth_pay/
+- **A7 (integrations-hub + Dialpad schema).** `integration_providers` (seeded docuseal/forth*pay/
   forth_crm/dialpad), `company_integrations` (admin-only mutate, company-scoped read),
   `integration_event_log` (admin read, service insert), `dialpad_calls` (company-scoped), polymorphic
   `entity_communications`; `staff` gains `dialpad_user_id` + `screen_pop_preference`. Schema-diff
   clean vs reference; db-verify expanded to 16 groups (hub cross-tenant + admin-only mutate). Edge
-  functions (docuseal-_/dialpad-_) follow.
+  functions (docuseal-*/dialpad-\_) follow.
