@@ -1,0 +1,14 @@
+dist
+coverage
+node_modules
+playwright-report
+package-lock.json
+bun.lockb
+src/integrations/supabase/types.ts
+*.pdf
+
+# Source-of-truth reference documents — preserved verbatim, not reformatted
+ADR-009-plsa-adapter-interface-contract.md
+claude_code_standalone_prompt.md
+cornerstone_advisory_panel_report.md
+forth_integration_audit.md

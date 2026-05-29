@@ -1,0 +1,2 @@
+-- Local seed data. Intentionally empty for A3 (the DB verification tests create their own
+-- fixtures in-transaction). Synthetic multi-tenant seed data lands in Phase B1.
