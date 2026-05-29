@@ -113,3 +113,18 @@ All notable changes to Cornerstone are documented here. Format loosely follows
   `entity_communications`; `staff` gains `dialpad_user_id` + `screen_pop_preference`. Schema-diff
   clean vs reference; db-verify expanded to 16 groups (hub cross-tenant + admin-only mutate). Edge
   functions (docuseal-*/dialpad-\_) follow.
+- **A7 (Dialpad + integrations-hub edge functions).** Shared hub helpers: `_shared/integrations.ts`
+  (service-role config lookup, `requireIntegrationEnabled` gate, `logIntegrationEvent`),
+  `_shared/markIntegrationConnected.ts` (JWT→company resolution + `last_connected_at`/
+  `last_connection_error` stamping across shared-credential providers), `_shared/hmac.ts` (Web-Crypto
+  HMAC-SHA256/base64 verify, constant-time compare; unit-tested against a known vector), and
+  `_shared/dialpad.ts` (E.164 normalization, custom-data parsing, terminal-state + comms-table
+  routing, call summaries; unit-tested). Functions: `dialpad-webhook` (HMAC-verified receiver — upserts
+  `dialpad_calls`, phone-matches inbound calls to clients→leads, and on terminal states appends a call
+  activity to `client_communications` or polymorphic `entity_communications`), `dialpad-initiate`
+  (click-to-call — integration-enabled + `staff.dialpad_user_id` guards), and three test-connection
+  endpoints (`dialpad-test-connection`, `forth-test-connection` [stamps shared forth_pay+forth_crm],
+  `docuseal-test`). All Zod-validated (webhook uses a passthrough schema — HMAC is the trust boundary),
+  restricted CORS, `requireAuth` (webhook excepted — HMAC-authenticated), `import.meta.main`-guarded.
+  check:zod now guards 22 edge functions; new Deno tests for `hmac`/`dialpad`. DocuSeal webhook/send
+  deferred (depend on the A10 signatures schema + signed-documents storage bucket).
