@@ -457,3 +457,18 @@ verify_jwt = false
 
 [functions.plsa-reconciliation]
 verify_jwt = false
+
+[functions.dialpad-webhook]
+verify_jwt = false
+
+[functions.dialpad-initiate]
+verify_jwt = false
+
+[functions.dialpad-test-connection]
+verify_jwt = false
+
+[functions.forth-test-connection]
+verify_jwt = false
+
+[functions.docuseal-test]
+verify_jwt = false
