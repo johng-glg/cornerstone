@@ -192,3 +192,16 @@ notifications` FK. **Schema-diff verified** vs reference: all 19 table definitio
   fires a notification end-to-end); full suite passes locally on the A3→A10 schema. DocuSeal
   `webhook`/`send` edge functions (now unblocked by this signatures schema) follow as the A10 edge
   increment.
+- **A10 (edge functions) — DocuSeal e-signatures.** `docuseal-send` (authenticated: dispatches a
+  drafted `signature_request` — builds a DocuSeal submission from its `docuseal_template_id` + signer
+  rows, stores the submission/submitter ids and signing URLs, flips status to `sent`, records a
+  `sent` signature_event) and `docuseal-webhook` (HMAC-verified receiver: advances signer/request
+  status across `form.viewed`/`form.completed`/`form.declined`/`submission.completed`/`expired`,
+  stores the executed PDF + certificate + evidence on completion, and appends a signature_event;
+  never downgrades a terminal request). New pure, unit-tested `_shared/docuseal.ts` (event
+  classification, status mapping, submission-id resolution across form/submission payload shapes,
+  submission-payload builder) and a hex-HMAC variant in `_shared/hmac.ts` (`hmacSha256Hex` /
+  `verifyHmacSha256Hex`, for DocuSeal's `X-Docuseal-Signature`; vectors verified via openssl). All
+  Zod-validated (webhook uses a passthrough schema — HMAC is the trust boundary), restricted CORS,
+  `import.meta.main`-guarded. check:zod now guards **24 edge functions**; new Deno tests for the hex
+  HMAC + DocuSeal logic. Completes the integrations edge layer (Forth, Dialpad, DocuSeal).

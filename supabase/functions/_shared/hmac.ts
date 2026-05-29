@@ -5,8 +5,13 @@ function toBase64(bytes: ArrayBuffer): string {
   return btoa(String.fromCharCode(...new Uint8Array(bytes)));
 }
 
-/** Compute base64(HMAC-SHA256(raw, secret)). */
-export async function hmacSha256Base64(raw: string, secret: string): Promise<string> {
+function toHex(bytes: ArrayBuffer): string {
+  return Array.from(new Uint8Array(bytes))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function sign(raw: string, secret: string): Promise<ArrayBuffer> {
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -14,8 +19,17 @@ export async function hmacSha256Base64(raw: string, secret: string): Promise<str
     false,
     ["sign"],
   );
-  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(raw));
-  return toBase64(sig);
+  return await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(raw));
+}
+
+/** Compute base64(HMAC-SHA256(raw, secret)). */
+export async function hmacSha256Base64(raw: string, secret: string): Promise<string> {
+  return toBase64(await sign(raw, secret));
+}
+
+/** Compute hex(HMAC-SHA256(raw, secret)). */
+export async function hmacSha256Hex(raw: string, secret: string): Promise<string> {
+  return toHex(await sign(raw, secret));
 }
 
 /** Constant-time string comparison. */
@@ -35,4 +49,15 @@ export async function verifyHmacSha256Base64(
   if (!signature) return false;
   const expected = await hmacSha256Base64(raw, secret);
   return timingSafeEqual(expected, signature);
+}
+
+/** Verify a hex HMAC-SHA256 signature (e.g. DocuSeal's X-Docuseal-Signature) over the raw body. */
+export async function verifyHmacSha256Hex(
+  raw: string,
+  secret: string,
+  signature: string,
+): Promise<boolean> {
+  if (!signature) return false;
+  const expected = await hmacSha256Hex(raw, secret);
+  return timingSafeEqual(expected.toLowerCase(), signature.trim().toLowerCase());
 }
