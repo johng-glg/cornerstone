@@ -298,4 +298,36 @@ BEGIN
   RAISE NOTICE 'PASS 13: processor credential encrypt/decrypt + service-role-only';
 END $$;
 
+-- ---------------------------------------------------------------------------
+-- 14. A7 integrations hub: company_integrations + dialpad_calls cross-tenant isolation,
+--     and company_integrations is admin-only to mutate.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.company_integrations (company_id, provider_key) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'docuseal'),
+  ('22222222-2222-2222-2222-222222222222', 'docuseal');
+INSERT INTO public.dialpad_calls (company_id, dialpad_call_id, target_phone) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'call-a', '+15551110000'),
+  ('22222222-2222-2222-2222-222222222222', 'call-b', '+15552220000');
+
+SELECT set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', true);
+SELECT set_config('request.jwt.claims', '{"sub":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","role":"authenticated"}', true);
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE _denied boolean := false;
+BEGIN
+  ASSERT (SELECT count(*) FROM public.company_integrations) = 1, 'user B sees only their tenant integration';
+  ASSERT (SELECT count(*) FROM public.dialpad_calls) = 1, 'user B sees only their tenant calls';
+  ASSERT (SELECT count(*) FROM public.dialpad_calls WHERE company_id = '11111111-1111-1111-1111-111111111111') = 0,
+    'user B must not see tenant A calls';
+  -- non-admin cannot mutate company_integrations (admin-only)
+  BEGIN
+    INSERT INTO public.company_integrations (company_id, provider_key)
+    VALUES ('22222222-2222-2222-2222-222222222222', 'dialpad');
+    EXCEPTION WHEN insufficient_privilege OR check_violation THEN _denied := true;
+  END;
+  ASSERT _denied, 'non-admin must not insert company_integrations';
+  RAISE NOTICE 'PASS 14: integrations-hub cross-tenant isolation + admin-only mutate';
+END $$;
+RESET ROLE;
+
 ROLLBACK;
