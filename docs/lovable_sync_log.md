@@ -37,6 +37,13 @@ litigation, lead-engine, workflow-engine, and email-infrastructure layers.
    we author a consolidated final-state baseline, verified by schema-diff against the Lovable
    schema.
 
+### A6 Forth auth (2026-05-29)
+
+- **Credential encryption implemented (Q-A4).** Per-tenant Forth creds: client_id in
+  `company_processor_configs.config`, api_key encrypted in `api_key_encrypted` (via `encrypt_pii`),
+  read through the service-role-only `decrypt_processor_credentials` RPC. Diverges from Lovable's
+  plaintext `config.{client_id,api_key}`.
+
 ### A6 schema (2026-05-29)
 
 - PLSA/payments tables extracted from the reference; **re-added the two A5-deferred `transactions`
