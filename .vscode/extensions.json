@@ -1,0 +1,11 @@
+{
+  "// Cornerstone recommended extensions": "Install via the Extensions view → 'Show Recommended Extensions'.",
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "denoland.vscode-deno",
+    "ms-playwright.playwright",
+    "supabase.supabase-vscode"
+  ]
+}

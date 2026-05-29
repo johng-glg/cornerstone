@@ -5,6 +5,32 @@ All notable changes to Cornerstone are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added — Phase B
+
+- **B1–B4 — Local development + engineer onboarding (full Phase B in one change).** Replaced the
+  placeholder `supabase/seed.sql` with a synthetic, **PII-free, idempotent** multi-tenant seed:
+  3 tenants spanning all `company_type`s (Northstar `law_firm`, Beacon `affiliate`, Cornerstone
+  `financing_company`), 6 **login-ready** users (bcrypt password `Cornerstone!1`, confirmed email,
+  matching `auth.identities` rows) across `admin`/`attorney`/`paralegal`/`case_manager` roles, plus
+  cross-tenant clients, leads, client-services, a liability, per-tenant PLSA processor configs
+  (api key stored **encrypted**, mirroring the Q-A4 contract), integrations, email templates, and
+  notifications. SSNs are synthetic (`900-00-000x`) and stored only via `encrypt_pii`. The seed
+  uses a UUID space disjoint from the `tests/db/rls_isolation.test.sql` fixtures so the two
+  coexist. Added `tests/db/seed_verify.test.sql` (6 groups: tenant count, login-readiness,
+  password verification, cross-tenant fixtures, PII/credential encryption, and a re-seed
+  idempotency check across 11 tables) and wired it into the CI `db-verify` job after the isolation
+  suite. Added `docs/dev-setup.md` (fresh-clone → running app in <60 min, two backend paths,
+  seeded-user table, troubleshooting), `docs/contributor-guide.md` (branch/commit/PR conventions
+  plus the full quality-gate table), an expanded `.env.example`, and
+  `.vscode/{settings,extensions}.json`. Added a Docker Compose DB-only path
+  (`docker-compose.yml` with `scripts/compose/{bootstrap,apply}.sh`) for engineers without the
+  Supabase CLI: stock Postgres with the Supabase-managed surface stubbed, all migrations applied,
+  and the seed loaded. Verified end-to-end on a local Postgres 16 — all 10 migrations apply, the
+  seed loads, `seed_verify` passes, the existing 19-group isolation suite still passes with the
+  seed present, and three consecutive seed applications leave row counts unchanged.
+  `phase_B_summary.md` records the closeout; B-A1 (sandbox image pulls) remains the one item
+  proven in CI rather than the sandbox.
+
 ### Added — Phase A
 
 - **A1 — Repository scaffold + tooling.** Vite + React 18 + TypeScript (strict) baseline;

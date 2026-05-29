@@ -1,0 +1,38 @@
+# Docker Compose — DB-only local path (Phase B, docs/dev-setup.md "Path B").
+#
+# Brings up a stock Postgres with the full Cornerstone schema (all migrations) and the
+# synthetic PII-free seed applied, for engineers who want the database without the full
+# Supabase service mesh. The Supabase CLI (`supabase start`, "Path A") remains the
+# recommended path for the complete local experience (Auth, Storage, Edge Functions, Studio).
+#
+#   docker compose up -d        # Postgres on :54322, migrations + seed applied on first boot
+#   docker compose logs -f db   # watch apply.sh progress
+#   docker compose down -v      # tear down and wipe the volume (clean reseed next up)
+#
+# The initializer (scripts/compose/apply.sh) runs once, when the data volume is empty.
+
+services:
+  db:
+    image: postgres:15
+    container_name: cornerstone-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      # Match the Supabase CLI's local DB port so tooling/.env line up across both paths.
+      - "54322:5432"
+    volumes:
+      - cornerstone_db_data:/var/lib/postgresql/data
+      # The repo is mounted read-only so apply.sh can read migrations + seed.
+      - ./:/repo:ro
+      # initdb.d runs alphabetically on an empty data dir; this is our single entrypoint.
+      - ./scripts/compose/apply.sh:/docker-entrypoint-initdb.d/10-apply.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  cornerstone_db_data:
