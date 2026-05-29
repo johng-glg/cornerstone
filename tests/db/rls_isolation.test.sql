@@ -460,4 +460,34 @@ BEGIN
 END $$;
 RESET ROLE;
 
+-- ---------------------------------------------------------------------------
+-- 18. A11 billing/tasks/eligibility: tasks + billing_entries are company-scoped, task_templates
+--     are globally readable by authenticated staff. Completes the 94-table surface.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.tasks (company_id, title) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'Task A'),
+  ('22222222-2222-2222-2222-222222222222', 'Task B');
+INSERT INTO public.billing_entries (company_id, staff_id, entry_type, description, expense_amount, total_amount)
+  SELECT '11111111-1111-1111-1111-111111111111',
+         (SELECT id FROM public.staff WHERE user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+         'expense', 'Filing fee A', 100.00, 100.00;
+INSERT INTO public.billing_entries (company_id, staff_id, entry_type, description, expense_amount, total_amount)
+  SELECT '22222222-2222-2222-2222-222222222222',
+         (SELECT id FROM public.staff WHERE user_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
+         'expense', 'Filing fee B', 100.00, 100.00;
+INSERT INTO public.task_templates (name, default_title) VALUES ('Onboarding', 'Welcome the client');
+
+SELECT set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', true);
+SELECT set_config('request.jwt.claims', '{"sub":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","role":"authenticated"}', true);
+SET LOCAL ROLE authenticated;
+DO $$
+BEGIN
+  ASSERT (SELECT count(*) FROM public.tasks) = 1, 'user B sees only their tenant tasks';
+  ASSERT (SELECT count(*) FROM public.tasks WHERE title = 'Task A') = 0, 'user B must not see tenant A tasks';
+  ASSERT (SELECT count(*) FROM public.billing_entries) = 1, 'user B sees only their tenant billing entries';
+  ASSERT (SELECT count(*) FROM public.task_templates) = 1, 'task templates are globally readable by authenticated staff';
+  RAISE NOTICE 'PASS 18: billing/tasks cross-tenant isolation + global task templates';
+END $$;
+RESET ROLE;
+
 ROLLBACK;
