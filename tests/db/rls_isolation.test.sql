@@ -34,6 +34,20 @@ INSERT INTO public.tenant_feature_flags (company_id, flag_key, enabled) VALUES
   ('11111111-1111-1111-1111-111111111111', 'leads.paralegal_visibility', true),
   ('22222222-2222-2222-2222-222222222222', 'leads.paralegal_visibility', true);
 
+-- Core-CRM fixtures (A5): one client + one lead per tenant, and a pure-paralegal user in B.
+INSERT INTO public.clients (company_id, first_name, last_name) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'Cara', 'ClientA'),
+  ('22222222-2222-2222-2222-222222222222', 'Cody', 'ClientB');
+INSERT INTO public.leads (company_id, first_name, last_name) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'Lena', 'LeadA'),
+  ('22222222-2222-2222-2222-222222222222', 'Leo', 'LeadB');
+
+INSERT INTO auth.users (id, instance_id, aud, role, email)
+VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'p@example.test');
+INSERT INTO public.staff (user_id, company_id, first_name, last_name, email, department)
+VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc', '22222222-2222-2222-2222-222222222222', 'Pat', 'Para', 'p@example.test', 'attorney');
+INSERT INTO public.user_roles (user_id, role) VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'paralegal');
+
 -- ---------------------------------------------------------------------------
 -- 1. can_access_company: self yes, cross-tenant no  (definer fn, explicit args)
 -- ---------------------------------------------------------------------------
@@ -153,6 +167,71 @@ BEGIN
   ]) t WHERE to_regclass('public.' || t) IS NULL;
   ASSERT _missing IS NULL, format('missing spine tables: %s', _missing);
   RAISE NOTICE 'PASS 8: spine tables present';
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- 9. Core CRM: clients + leads cross-tenant isolation (as case_manager user B)
+-- ---------------------------------------------------------------------------
+SELECT set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', true);
+SELECT set_config('request.jwt.claims', '{"sub":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","role":"authenticated"}', true);
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE _c int; _l int;
+BEGIN
+  SELECT count(*) INTO _c FROM public.clients;
+  ASSERT _c = 1, format('user B should see only their tenant client, saw %s', _c);
+  ASSERT (SELECT count(*) FROM public.clients WHERE company_id = '11111111-1111-1111-1111-111111111111') = 0,
+    'user B must not see tenant A clients';
+  -- case_manager is non-paralegal, so can_view_leads is unrestricted within company scope
+  SELECT count(*) INTO _l FROM public.leads;
+  ASSERT _l = 1, format('case_manager B should see only their tenant lead, saw %s', _l);
+  RAISE NOTICE 'PASS 9: clients + leads cross-tenant isolation';
+END $$;
+RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- 10. can_view_leads: a pure paralegal is gated by leads.paralegal_visibility
+-- ---------------------------------------------------------------------------
+SELECT set_config('request.jwt.claim.sub', 'cccccccc-cccc-cccc-cccc-cccccccccccc', true);
+SELECT set_config('request.jwt.claims', '{"sub":"cccccccc-cccc-cccc-cccc-cccccccccccc","role":"authenticated"}', true);
+SET LOCAL ROLE authenticated;
+DO $$
+BEGIN
+  -- Flag is ON (fixture) → paralegal sees their tenant's lead.
+  ASSERT (SELECT count(*) FROM public.leads) = 1, 'paralegal should see leads while flag is ON';
+  RAISE NOTICE 'PASS 10a: paralegal sees leads with flag ON';
+END $$;
+RESET ROLE;
+
+UPDATE public.tenant_feature_flags SET enabled = false
+WHERE company_id = '22222222-2222-2222-2222-222222222222' AND flag_key = 'leads.paralegal_visibility';
+
+SELECT set_config('request.jwt.claim.sub', 'cccccccc-cccc-cccc-cccc-cccccccccccc', true);
+SELECT set_config('request.jwt.claims', '{"sub":"cccccccc-cccc-cccc-cccc-cccccccccccc","role":"authenticated"}', true);
+SET LOCAL ROLE authenticated;
+DO $$
+BEGIN
+  -- Flag OFF → pure paralegal is gated to zero leads (RLS via can_view_leads).
+  ASSERT (SELECT count(*) FROM public.leads) = 0, 'paralegal must see no leads while flag is OFF';
+  RAISE NOTICE 'PASS 10b: paralegal gated to zero leads with flag OFF';
+END $$;
+RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- 11. A5 core-CRM tables exist + decrypt helpers landed
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE _missing text;
+BEGIN
+  SELECT string_agg(t, ', ') INTO _missing FROM unnest(ARRAY[
+    'clients','client_services','services','leads','lead_banking','liabilities',
+    'liability_actions','creditors','creditor_contacts','creditor_responses','settlements','transactions'
+  ]) t WHERE to_regclass('public.' || t) IS NULL;
+  ASSERT _missing IS NULL, format('missing A5 tables: %s', _missing);
+  ASSERT to_regprocedure('public.decrypt_client_ssn(uuid)') IS NOT NULL, 'decrypt_client_ssn present';
+  ASSERT to_regprocedure('public.decrypt_lead_banking(uuid)') IS NOT NULL, 'decrypt_lead_banking present';
+  ASSERT to_regprocedure('public.can_view_leads(uuid, uuid)') IS NOT NULL, 'can_view_leads present';
+  RAISE NOTICE 'PASS 11: A5 tables + decrypt/can_view_leads present';
 END $$;
 
 ROLLBACK;

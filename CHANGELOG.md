@@ -41,3 +41,16 @@ All notable changes to Cornerstone are documented here. Format loosely follows
     alert-dialog, sonner). Unit tests for the route guard and inactivity timer; E2E smoke updated
     for the auth gate. Live Google SSO requires the Google provider configured in Supabase Auth
     (environment config, not code).
+- **A5 — Core CRM domain.** Consolidated baseline migration (`20260529100000_phase_a5_*`, ADR-001)
+  curated from the authoritative reference: **20 tables** — `clients` (+addresses/phones/
+  communications/documents), `client_services` (+`client_service_clients`/`client_service_types`/
+  `service_status_history`), `services`, `leads` (+`lead_activities`/`lead_banking`), `liabilities`
+  (+`liability_actions`), `creditors` (+`creditor_contacts`/`creditor_responses`), `settlements`,
+  `transactions` — with 27 enums, indexes, RLS policies, triggers, and explicit grants. Lands the
+  ADR-001-deferred `decrypt_client_ssn`/`decrypt_lead_banking`/`can_view_leads` (now their tables
+  exist) and audit-trigger attachments. **Schema-diff verified** against the reference (only the
+  intentional deferrals differ). Deferred to owning phases: FKs to `lead_scoring_profiles` (A9) and
+  `payment_processors`/`payment_schedules` (A6), and the `leads` lead-engine triggers (A9). Hardened
+  `pgp_sym_decrypt` calls with the `extensions.` schema qualifier. Expanded `tests/db/` isolation
+  suite: clients/leads cross-tenant + `can_view_leads` paralegal gating (12 groups pass locally on
+  the A3+A5 schema).

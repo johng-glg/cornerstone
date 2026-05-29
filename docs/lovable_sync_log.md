@@ -37,6 +37,16 @@ litigation, lead-engine, workflow-engine, and email-infrastructure layers.
    we author a consolidated final-state baseline, verified by schema-diff against the Lovable
    schema.
 
+### A5 groundwork (2026-05-29)
+
+- Stood up a local stub harness (`scripts/schema-harness/`) that applies the **full** Lovable
+  migration chain on stock Postgres and dumps the authoritative final `public` schema to
+  `supabase/reference/lovable_public_schema.sql` — the ADR-001 schema-diff baseline. Confirms
+  the inventory exactly: **94 tables, 94 RLS-enabled, 212 live policies, 38 functions** (212 live
+  vs 275 raw `CREATE POLICY` is the expected effect of the history's DROP/CREATE churn).
+- Q-A2 resolved for core CRM: `services` (catalog) and `client_services` (engagements) are
+  distinct, not duplicates. `template_usage`/`template_usages` duplicate deferred to A10.
+
 ### Hardening divergences planned (apply as the relevant objects land)
 
 - Encrypt per-tenant Forth credentials in `company_processor_configs` (Lovable stores them
