@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import { mockResponse, MockInputSchema, OPERATIONS } from "./index.ts";
+import { mockResponse, MockInputSchema, OPERATIONS } from "./logic.ts";
 
 Deno.test("mockResponse returns ack + provider_id for every operation", () => {
   for (const op of OPERATIONS) {

@@ -4,7 +4,7 @@ import {
   resolveProviderId,
   resolveRoute,
   type ProviderLookups,
-} from "./index.ts";
+} from "./logic.ts";
 
 const nullLookups: ProviderLookups = {
   byClientService: () => Promise.resolve(null),
