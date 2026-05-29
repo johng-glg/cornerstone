@@ -1,8 +1,11 @@
 import { test, expect } from "@playwright/test";
 
-// Smoke test: the app boots and renders the landing shell. Expanded into real user-flow
-// coverage (auth/SSO, tenant isolation surfaces) as those land in Phase A4+.
-test("landing page renders", async ({ page }) => {
+// Smoke: an unauthenticated visit to a protected route redirects to the sign-in page,
+// which offers Google SSO and email/password. Real Google SSO sign-in is exercised against
+// a configured Supabase environment (not in this smoke run).
+test("unauthenticated visit redirects to the sign-in page", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Cornerstone" })).toBeVisible();
+  await expect(page).toHaveURL(/\/auth$/);
+  await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
+  await expect(page.getByLabel("Email")).toBeVisible();
 });

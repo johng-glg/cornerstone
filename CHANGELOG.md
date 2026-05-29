@@ -31,3 +31,13 @@ All notable changes to Cornerstone are documented here. Format loosely follows
   tenant-isolation / PII / audit tests in `tests/db/rls_isolation.test.sql`) — verification runs
   in CI because the dev sandbox cannot pull container images (open_questions B-A1). Added the
   Supabase CLI + full local `config.toml`.
+- **A4 — Auth + app shell + Google SSO.** `AuthProvider`/`useAuth` context (email-password +
+  **Google OAuth** sign-in, sign-up, password reset, `updatePassword`, role state, and admin
+  view-only role impersonation that never affects RLS); `ProtectedRoute` guard (loading →
+  redirect-to-`/auth`); `AppLayout` shell (top bar with impersonation lens + sign-out, inactivity
+  timeout mounted); `useInactivityTimeout` (30-min idle, 2-min warning, cross-tab sync, fires
+  once) + `InactivityTimeoutDialog`; Auth / Forgot-password / Reset-password pages; TOTP `MfaCard`
+  - Settings; Dashboard/NotFound; the shadcn primitives they need (button, input, label, card,
+    alert-dialog, sonner). Unit tests for the route guard and inactivity timer; E2E smoke updated
+    for the auth gate. Live Google SSO requires the Google provider configured in Supabase Auth
+    (environment config, not code).
