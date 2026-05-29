@@ -5,6 +5,31 @@ All notable changes to Cornerstone are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added — Phase E
+
+- **Phase E — Multi-tenant SaaS readiness (full phase in one change).** Tenant lifecycle:
+  provision → operate → export → delete, all gated and audited. **Platform admin:**
+  `platform_admins` table + `is_platform_admin()` (cross-tenant super-admin, distinct from the
+  per-tenant `admin` role) — provisioning/deletion gate on this, not a tenant role.
+  **Provisioning:** `provision_tenant()` (atomic company + first-admin staff + admin role;
+  platform-admin gated; audit-logged) + the `provision-tenant` edge function (creates the admin
+  auth user via the Auth API, then the RPC; Zod-validated, rate-limited, rolls back the orphan
+  auth user on failure). **Subdomain routing:** `companies.subdomain` (DNS-label CHECK,
+  case-insensitive unique, nullable) + `resolve_tenant_by_subdomain()` (DNS/CDN mapping is Phase
+  F). **Feature-flag catalog:** `feature_flag_catalog` + `effective_feature_flag()` (override
+  else catalog default) so the flag UI is comprehensive — no engineer-only flags. **Usage
+  metrics:** `tenant_usage_metrics` view (`security_invoker`; staff/calls/signatures/
+  transactions/clients, total + this-month). **Export/deletion (GDPR/CCPA):**
+  `export_tenant_data()` (JSON snapshot; platform admin or tenant's own admin; PII stays
+  ciphertext) and `delete_tenant_data()` (platform-admin only; requires deactivation + exact-name
+  confirmation; cascade; audit-logged before delete). **Frontend:** `src/hooks/useTenantAdmin.ts`
+  (usage, flag catalog, per-tenant flag upsert, provisioning mutation) + row types. **Runbook:**
+  `docs/runbooks/tenant-onboarding.md` (the <15-min provisioning path — the Phase E exit
+  criterion). **Tests:** `rls_isolation.test.sql` group 22 (platform gating, provision, subdomain,
+  flag catalog, usage, export, deletion guards + cascade, audit) and `useTenantAdmin.test.tsx`
+  (5). Verified end-to-end on local Postgres 16 (12 migrations apply, 22-group isolation suite +
+  seed_verify green); `phase_E_summary.md` records the closeout.
+
 ### Added — Phase D
 
 - **Phase D — Security & compliance posture, codified (full phase in one change).** Resolves the

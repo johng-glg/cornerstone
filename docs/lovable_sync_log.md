@@ -101,6 +101,17 @@ litigation, lead-engine, workflow-engine, and email-infrastructure layers.
   RLS audit + SSN-backfill auto-verified; TSR/DFPI/bar scaffolds pending sign-off (Q-A5).
 - One new table (`rate_limit_counters`) + functions; no change to existing Lovable-derived schema.
 
+### Phase E — multi-tenant SaaS readiness (2026-05-29)
+
+- **Net-new SaaS layer Lovable never had.** Cross-tenant `platform_admins` + `is_platform_admin()`;
+  `provision_tenant`/`delete_tenant_data`/`export_tenant_data`; `feature_flag_catalog` +
+  `effective_feature_flag`; `tenant_usage_metrics` view; `companies.subdomain` + resolver.
+- **Additive only** to the Lovable-derived schema: one new column (`companies.subdomain`, nullable)
+  - two new tables (`platform_admins`, `feature_flag_catalog`); no existing table changed.
+- Deletion relies on the existing `ON DELETE CASCADE` company_id FKs (24 of 32) — verified cascade
+  clears child rows; the SET NULL / indirect cases (e.g. transactions via client_services) are
+  handled by the company cascade through their parents.
+
 ### Hardening divergences planned (apply as the relevant objects land)
 
 - Encrypt per-tenant Forth credentials in `company_processor_configs` (Lovable stores them

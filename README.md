@@ -70,7 +70,8 @@ docs/                    Architecture, ADRs, runbooks, phase summaries, complian
 - `docs/contributor-guide.md` — branch/commit/PR conventions + the quality gates
 - `docs/lovable_pattern_inventory.md` — inventory of the Lovable reference system + porting notes
 - `docs/phases/phase_A_B_execution_plan.md` — current execution plan
-- `docs/phases/` — phase closeouts (A, B, D)
+- `docs/phases/` — phase closeouts (A, B, D, E)
+- `docs/runbooks/` — operational runbooks (tenant onboarding)
 - `docs/security-overview.md` — threat model, isolation, encryption, audit, rate limiting
 - `docs/compliance-evidence/` — RLS audit, SSN-backfill evidence, TSR/DFPI/bar artifacts
 - `docs/open_questions.md` — open decisions
