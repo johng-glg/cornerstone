@@ -128,3 +128,21 @@ All notable changes to Cornerstone are documented here. Format loosely follows
   restricted CORS, `requireAuth` (webhook excepted — HMAC-authenticated), `import.meta.main`-guarded.
   check:zod now guards 22 edge functions; new Deno tests for `hmac`/`dialpad`. DocuSeal webhook/send
   deferred (depend on the A10 signatures schema + signed-documents storage bucket).
+- **A8 — Litigation domain + storage hardening.** Consolidated baseline
+  (`20260529140000_phase_a8_*`, ADR-001): **11 tables** — `litigation_matters` (+`litigation_teams`/
+  `litigation_team_members`/`litigation_activities`/`litigation_documents`/`litigation_hearings`),
+  `appearance_requests`, `filing_fees`, `deadline_reminders`, and global reference `law_firms`
+  (+`law_firm_contacts`) — with 5 enums (`litigation_status`/`appearance_request_status`/
+  `filing_fee_status`/`reminder_type`/`reminder_status`), indexes, RLS (matters and their children
+  company-scoped via `client_services.owning_company_id`; law firms globally readable; filing-fee/
+  appearance writes matter-scoped; reminders staff-own + admin-manage), the `litigation_matters`
+  audit trigger, and explicit grants. **Storage hardening (Q-A4):** `can_access_storage_object()`
+  helper (resolves the first path-folder entity id → company) plus three **private** document buckets
+  (`client-documents`/`lead-documents`/`litigation-documents`) and path-scoped `storage.objects` RLS,
+  applied behind a `storage`-schema guard so the migration is a no-op on a public-only harness.
+  **Schema-diff verified** against the reference: all 11 table definitions, enums, and the storage
+  helper are byte-identical; the only differences are two intentional deferrals re-added by their
+  owning phases — `deadline_reminders.notification_id → notifications` (notifications phase) and the
+  `generate_deadline_reminders()` RPC (depends on `reminder_settings` + `assignments`). `tests/db/`
+  expanded to **15 groups** (litigation cross-tenant isolation + global law-firm visibility +
+  matter-scoped filing-fee RLS); full suite passes locally on the A3→A8 schema.
