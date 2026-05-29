@@ -162,3 +162,38 @@ export interface NotificationListRow {
   is_read: boolean;
   created_at: string;
 }
+
+// --- Phase E: multi-tenant SaaS admin ---
+
+/** One row of public.tenant_usage_metrics (per-tenant rollup). */
+export interface TenantUsageMetricsRow {
+  company_id: string;
+  company_name: string;
+  subdomain: string | null;
+  is_active: boolean;
+  staff_total: number;
+  staff_active: number;
+  calls_total: number;
+  calls_this_month: number;
+  signatures_total: number;
+  signatures_this_month: number;
+  transactions_total: number;
+  transactions_this_month: number;
+  clients_total: number;
+}
+
+/** One row of public.feature_flag_catalog. */
+export interface FeatureFlagCatalogRow {
+  flag_key: string;
+  label: string;
+  description: string;
+  default_enabled: boolean;
+  category: string;
+}
+
+/** A per-tenant feature flag override (public.tenant_feature_flags). */
+export interface TenantFeatureFlagRow {
+  company_id: string;
+  flag_key: string;
+  enabled: boolean;
+}

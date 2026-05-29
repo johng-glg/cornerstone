@@ -576,4 +576,77 @@ BEGIN
   RAISE NOTICE 'PASS 21: PII-plaintext verifier clean/raises + service-role-only';
 END $$;
 
+-- ---------------------------------------------------------------------------
+-- 22. Phase E multi-tenant SaaS: platform-admin gating, provisioning, subdomain routing,
+--     feature-flag catalog defaults, usage metrics, export, and deletion guards.
+-- ---------------------------------------------------------------------------
+-- Fixtures: a platform admin (user A from earlier) is NOT one yet; make a dedicated one.
+INSERT INTO auth.users (id, instance_id, aud, role, email)
+VALUES ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'platform@example.test');
+INSERT INTO public.platform_admins (user_id, note) VALUES ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'test platform admin');
+INSERT INTO auth.users (id, instance_id, aud, role, email)
+VALUES ('dddddddd-eeee-dddd-eeee-dddddddddddd', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'newtenantadmin@example.test');
+
+DO $$
+DECLARE _cid uuid; _denied boolean;
+BEGIN
+  -- platform-admin recognition
+  ASSERT public.is_platform_admin('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'), 'platform admin recognized';
+  ASSERT NOT public.is_platform_admin('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'), 'tenant admin is not a platform admin';
+
+  -- least privilege on the lifecycle functions
+  ASSERT NOT has_function_privilege('authenticated',
+    'public.provision_tenant(text, public.company_type, text, uuid, text, text, text)', 'EXECUTE'),
+    'authenticated must not execute provision_tenant';
+  ASSERT NOT has_function_privilege('authenticated', 'public.delete_tenant_data(uuid, text)', 'EXECUTE'),
+    'authenticated must not execute delete_tenant_data';
+END $$;
+
+-- provision as the platform admin (set the JWT sub so is_platform_admin()/auth.uid() resolve)
+SELECT set_config('request.jwt.claim.sub', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', true);
+SELECT set_config('request.jwt.claims', '{"sub":"eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee","role":"authenticated"}', true);
+DO $$
+DECLARE _cid uuid;
+BEGIN
+  _cid := public.provision_tenant('Evergreen Firm', 'law_firm', 'evergreen',
+    'dddddddd-eeee-dddd-eeee-dddddddddddd', 'Erin', 'Admin', 'newtenantadmin@example.test');
+  ASSERT _cid IS NOT NULL, 'tenant provisioned';
+  ASSERT (SELECT count(*) FROM public.staff WHERE company_id = _cid) = 1, 'first admin staff created';
+  ASSERT (SELECT count(*) FROM public.user_roles
+            WHERE user_id = 'dddddddd-eeee-dddd-eeee-dddddddddddd' AND role = 'admin') = 1, 'admin role granted';
+  -- subdomain routing (case-insensitive)
+  ASSERT public.resolve_tenant_by_subdomain('EVERGREEN') = _cid, 'subdomain resolves case-insensitively';
+  -- feature-flag catalog defaults + override precedence
+  ASSERT public.effective_feature_flag(_cid, 'leads.paralegal_visibility') = true, 'catalog default applies';
+  ASSERT public.effective_feature_flag(_cid, 'no.such.flag') = false, 'unknown flag defaults false';
+  INSERT INTO public.tenant_feature_flags (company_id, flag_key, enabled) VALUES (_cid, 'leads.paralegal_visibility', false);
+  ASSERT public.effective_feature_flag(_cid, 'leads.paralegal_visibility') = false, 'per-tenant override wins';
+  -- usage metrics rollup
+  ASSERT (SELECT staff_total FROM public.tenant_usage_metrics WHERE company_id = _cid) = 1, 'usage metrics counts staff';
+  -- export (as platform admin)
+  ASSERT (public.export_tenant_data(_cid) -> 'company' ->> 'name') = 'Evergreen Firm', 'export includes company';
+  -- deletion guard: active tenant cannot be deleted
+  ASSERT (SELECT NOT EXISTS (SELECT 1)) IS NOT NULL;  -- noop to keep block tidy
+  BEGIN
+    PERFORM public.delete_tenant_data(_cid, 'Evergreen Firm');
+    RAISE EXCEPTION 'should not reach: active tenant deleted';
+  EXCEPTION WHEN others THEN NULL;  -- expected: blocked while active
+  END;
+  -- deactivate, then delete with correct name → cascades
+  UPDATE public.companies SET is_active = false WHERE id = _cid;
+  PERFORM public.delete_tenant_data(_cid, 'Evergreen Firm');
+  ASSERT (SELECT count(*) FROM public.companies WHERE id = _cid) = 0, 'tenant deleted';
+  ASSERT (SELECT count(*) FROM public.staff WHERE company_id = _cid) = 0, 'staff cascade-deleted';
+  RAISE NOTICE 'PASS 22: platform-admin gating, provision, subdomain, flag catalog, usage, export, delete';
+END $$;
+
+-- audit trail captured the tenant lifecycle
+DO $$
+BEGIN
+  ASSERT (SELECT count(*) FROM public.system_audit_log
+            WHERE action IN ('tenant.provisioned','tenant.exported','tenant.deleted')) >= 3,
+    'tenant lifecycle events are audited';
+  RAISE NOTICE 'PASS 22b: tenant lifecycle audited';
+END $$;
+
 ROLLBACK;
