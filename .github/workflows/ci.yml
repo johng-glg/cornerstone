@@ -94,6 +94,12 @@ jobs:
       - name: Tenant-isolation / PII / audit tests
         run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f tests/db/rls_isolation.test.sql
 
+      # supabase start loaded supabase/seed.sql (config.toml [db.seed]); this verifies the
+      # synthetic multi-tenant dataset is present, login-ready, PII-free, and idempotent.
+      # Run from the repo root so the test's `\i supabase/seed.sql` reseed resolves.
+      - name: Seed verification (synthetic data present + idempotent)
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f tests/db/seed_verify.test.sql
+
       - name: Stop Supabase
         if: always()
         run: npx supabase stop

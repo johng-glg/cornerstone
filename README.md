@@ -27,8 +27,9 @@ cp .env.example .env        # fill in local Supabase values
 npm run dev                 # http://localhost:8080
 ```
 
-Full local setup (local Supabase stack + seed data) is documented in `docs/dev-setup.md`
-(Phase B).
+Full local setup (local Supabase stack + synthetic seed data, two backend paths, seeded login
+credentials) is documented in `docs/dev-setup.md`. Contribution conventions and the quality bar
+are in `docs/contributor-guide.md`.
 
 ## Scripts
 
@@ -65,7 +66,10 @@ docs/                    Architecture, ADRs, runbooks, phase summaries, complian
 
 ## Documentation
 
+- `docs/dev-setup.md` — local development setup (Supabase CLI + Docker Compose paths, seed data)
+- `docs/contributor-guide.md` — branch/commit/PR conventions + the quality gates
 - `docs/lovable_pattern_inventory.md` — inventory of the Lovable reference system + porting notes
 - `docs/phases/phase_A_B_execution_plan.md` — current execution plan
+- `docs/phases/phase_A_summary.md`, `docs/phases/phase_B_summary.md` — phase closeouts
 - `docs/open_questions.md` — open decisions
 - `docs/adrs/` — Architecture Decision Records (ADR-009 = PLSA adapter interface)

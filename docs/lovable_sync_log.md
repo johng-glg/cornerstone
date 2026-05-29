@@ -72,6 +72,21 @@ litigation, lead-engine, workflow-engine, and email-infrastructure layers.
   physical column ordering (logical schema byte-identical).
 - No new schema in A12 — documentation, ADR ratification, and CHANGELOG only.
 
+### Phase B — local dev + onboarding (2026-05-29)
+
+- **Synthetic, PII-free seed.** Lovable committed a live `.env` and seeded against real-looking
+  data; Cornerstone's `supabase/seed.sql` is fully synthetic — fake names/emails, SSNs only via
+  `encrypt_pii` in the `900-00-000x` range, processor api keys stored encrypted. Idempotent
+  (stable-id `ON CONFLICT` guards) so `supabase start` / `db reset` re-runs cleanly. Verified
+  end-to-end on local Postgres 16 (migrations + seed + both SQL suites green; 3× re-seed stable).
+- **Seed verification in CI.** `tests/db/seed_verify.test.sql` asserts the acceptance criteria
+  (2+ tenants, login-ready users, cross-tenant fixtures, no plaintext PII, idempotency) in the
+  `db-verify` job — the B-A1 workaround: the stack boots in CI, not the sandbox.
+- **Docker Compose DB-only path** added for engineers without the Supabase CLI, reusing the
+  schema-harness approach (stub the Supabase-managed surface on stock Postgres). Path A
+  (`supabase start`) remains the recommended full-stack local environment.
+- No schema changes in Phase B — seed, tests, docs, and tooling only.
+
 ### Hardening divergences planned (apply as the relevant objects land)
 
 - Encrypt per-tenant Forth credentials in `company_processor_configs` (Lovable stores them
