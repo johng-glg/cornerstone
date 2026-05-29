@@ -372,4 +372,45 @@ BEGIN
 END $$;
 RESET ROLE;
 
+-- ---------------------------------------------------------------------------
+-- 16. A9 lead + workflow engine: lead_assignment_rules / workflow_rules / lead_scoring_profiles
+--     are company-scoped, assignments are staff(company)-scoped, and a lead INSERT fires the
+--     re-added scoring/assignment triggers without error.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.lead_scoring_profiles (id, company_id, name) VALUES
+  ('99999999-9999-9999-9999-999999999999', '11111111-1111-1111-1111-111111111111', 'Profile A'),
+  ('a9a9a9a9-a9a9-a9a9-a9a9-a9a9a9a9a9a9', '22222222-2222-2222-2222-222222222222', 'Profile B');
+INSERT INTO public.lead_assignment_rules (company_id, name) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'Rule A'),
+  ('22222222-2222-2222-2222-222222222222', 'Rule B');
+INSERT INTO public.workflow_rules (company_id, name, entity_type, trigger_type) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'WF A', 'leads', 'record_created'),
+  ('22222222-2222-2222-2222-222222222222', 'WF B', 'leads', 'record_created');
+-- distinct entity_id per row (idx_assignments_single_role is unique on entity_type/id/role).
+INSERT INTO public.assignments (staff_id, entity_type, entity_id, assignment_type)
+  SELECT s.id, 'litigation_matter', '5a5a5a5a-5a5a-5a5a-5a5a-5a5a5a5a5a5a', 'litigation_attorney'
+  FROM public.staff s WHERE s.user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+INSERT INTO public.assignments (staff_id, entity_type, entity_id, assignment_type)
+  SELECT s.id, 'litigation_matter', '6b6b6b6b-6b6b-6b6b-6b6b-6b6b6b6b6b6b', 'litigation_attorney'
+  FROM public.staff s WHERE s.user_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+
+-- A lead INSERT must fire trg_auto_assign_lead + trg_calculate_lead_score without error.
+INSERT INTO public.leads (company_id, first_name, last_name, scoring_profile_id)
+  VALUES ('22222222-2222-2222-2222-222222222222', 'Trig', 'Lead', 'a9a9a9a9-a9a9-a9a9-a9a9-a9a9a9a9a9a9');
+
+SELECT set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', true);
+SELECT set_config('request.jwt.claims', '{"sub":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","role":"authenticated"}', true);
+SET LOCAL ROLE authenticated;
+DO $$
+BEGIN
+  ASSERT (SELECT count(*) FROM public.lead_assignment_rules) = 1, 'user B sees only their tenant assignment rule';
+  ASSERT (SELECT count(*) FROM public.lead_assignment_rules WHERE name = 'Rule A') = 0,
+    'user B must not see tenant A assignment rule';
+  ASSERT (SELECT count(*) FROM public.workflow_rules) = 1, 'user B sees only their tenant workflow rule';
+  ASSERT (SELECT count(*) FROM public.lead_scoring_profiles) = 1, 'user B sees only their tenant scoring profile';
+  ASSERT (SELECT count(*) FROM public.assignments) = 1, 'user B sees only assignments for staff in their company';
+  RAISE NOTICE 'PASS 16: lead/workflow engine cross-tenant isolation + lead trigger wiring';
+END $$;
+RESET ROLE;
+
 ROLLBACK;
