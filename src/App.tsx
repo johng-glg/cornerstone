@@ -1,32 +1,61 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "next-themes";
+import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider } from "@/lib/auth";
+import { AppLayout } from "@/components/layout/AppLayout";
+import Auth from "@/pages/Auth";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
+import Dashboard from "@/pages/Dashboard";
+import Settings from "@/pages/Settings";
+import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
 /**
- * Application root. The full route map (clients, leads, liabilities, litigation,
- * services, payments, integrations, settings, etc.) is built out across Phase A
- * PRs A4–A11. This shell establishes the providers and a placeholder landing route
- * so the app boots, builds, and is E2E-smoke-testable from day one.
+ * Application root. Public auth routes are open; everything else is wrapped in AppLayout,
+ * which gates on authentication and arms the inactivity timeout. The route map grows as
+ * modules land in Phase A (A5+).
  */
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
-  );
-}
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <Toaster />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              {/* Public */}
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
 
-function Landing() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-2 bg-background text-foreground">
-      <h1 className="text-2xl font-semibold">Cornerstone</h1>
-      <p className="text-muted-foreground">Guardian Litigation Group Case Management System</p>
-    </main>
+              {/* Protected */}
+              <Route
+                path="/"
+                element={
+                  <AppLayout>
+                    <Dashboard />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <AppLayout>
+                    <Settings />
+                  </AppLayout>
+                }
+              />
+
+              {/* Catch-all */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 
