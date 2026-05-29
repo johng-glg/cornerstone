@@ -23,6 +23,7 @@
     "test:e2e": "playwright test",
     "check:zod": "node scripts/check-edge-fn-zod.mjs",
     "check:cors": "node scripts/check-cors.mjs",
+    "check:secrets": "node scripts/check-secrets.mjs",
     "prepare": "husky"
   },
   "dependencies": {
