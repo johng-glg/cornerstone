@@ -216,3 +216,26 @@ notifications` FK. **Schema-diff verified** vs reference: all 19 table definitio
   (`useDomains.test.tsx`: success/error/empty, mocked Supabase). All read paths rely on RLS for
   tenant/user scoping (the hooks never filter by company/user themselves). typecheck / lint /
   Vitest (16 tests) / production build all green.
+- **A11 — Billing + tasks + eligibility (final schema phase).** Consolidated baseline
+  (`20260529170000_phase_a11_*`, ADR-001), curated **verbatim** from the authoritative reference:
+  the last **6 tables** — `billing_entries` (time/expense entries with inline CHECK constraints),
+  `tasks`, `task_templates`, `eligibility_reviews`, `job_titles`, `feature_requests` — with 10 new
+  enums, indexes, RLS (billing/tasks company-scoped; task_templates + job_titles globally readable,
+  admin-managed; feature_requests submitter-or-admin), audit + `updated_at` triggers, and explicit
+  grants. Lands `notify_task_assignment()` and **re-adds the A10-deferred `trg_notify_task_assignment`
+  on `tasks`** (now that `tasks` exists); `billing_entries.litigation_matter_id → litigation_matters`
+  is created here as a normal FK. **This completes the full 94-table reference surface** — the local
+  A3→A11 chain applies cleanly and yields exactly 94 public base tables. Schema-diff verified vs
+  reference: all 6 table defs, 10 enums, and the function body are byte-identical (scoped diff clean
+  both directions). `tests/db/` expanded to **18 groups** (billing/tasks cross-tenant isolation +
+  global task templates); full suite passes locally on the A3→A11 schema.
+- **Schema reconciliation (pending, surfaced by the full-surface diff).** Completing the 94-table
+  surface enabled a whole-schema diff against the reference, which exposed drift in the early **A3/A5
+  spine** that the per-phase scoped diffs had missed: `staff` is missing `hourly_rate` / `last_login_at`
+  and uses a hand-made `department` enum instead of the reference's `department_new` (different value
+  set); `app_role` is missing `of_counsel` / `eligibility_reviewer`; `companies.company_type`,
+  `transactions.status`, and `transactions.transaction_type` use differently-named/typed columns vs
+  the reference's `company_type_enum` / `transaction_status` / `transaction_type`; the
+  `audit_company_type_change` trigger+function is absent; and a few `role_permissions` /
+  `role_special_permissions` policies differ. Tracked for a dedicated forward-only reconciliation
+  migration (enum value remap is data-affecting) before the A12 ADR-009 ratification / Phase A summary.
