@@ -91,8 +91,11 @@ COMMENT ON FUNCTION public.check_rate_limit(text, text, integer, integer) IS
   'Phase D: fixed-window rate-limit check + increment. Service-role only. Returns (allowed, current_count, limit_value, retry_after_seconds).';
 
 -- Least privilege: only the service role may call it (edge functions use the admin client).
--- Authenticated/anon must never be able to probe or inflate counters.
-REVOKE ALL ON FUNCTION public.check_rate_limit(text, text, integer, integer) FROM PUBLIC;
+-- Authenticated/anon must never be able to probe or inflate counters. Revoke from anon and
+-- authenticated EXPLICITLY (not just PUBLIC): Supabase's ALTER DEFAULT PRIVILEGES grants EXECUTE
+-- on new public functions directly to anon/authenticated, so a bare REVOKE FROM PUBLIC leaves
+-- those direct grants in place.
+REVOKE EXECUTE ON FUNCTION public.check_rate_limit(text, text, integer, integer) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.check_rate_limit(text, text, integer, integer) TO service_role;
 
 -- ============================================================================
@@ -138,7 +141,9 @@ $$;
 COMMENT ON FUNCTION public.assert_no_plaintext_pii() IS
   'Phase D: raises if any deprecated plaintext-era PII column holds data. Compliance evidence for the SSN-backfill accepted-risk.';
 
-REVOKE ALL ON FUNCTION public.assert_no_plaintext_pii() FROM PUBLIC;
+-- Revoke from anon/authenticated explicitly (see check_rate_limit note above): this function
+-- reads PII columns across all tenants, so it must be service-role only.
+REVOKE EXECUTE ON FUNCTION public.assert_no_plaintext_pii() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.assert_no_plaintext_pii() TO service_role;
 
 -- ============================================================================
