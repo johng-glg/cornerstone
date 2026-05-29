@@ -146,3 +146,24 @@ All notable changes to Cornerstone are documented here. Format loosely follows
   `generate_deadline_reminders()` RPC (depends on `reminder_settings` + `assignments`). `tests/db/`
   expanded to **15 groups** (litigation cross-tenant isolation + global law-firm visibility +
   matter-scoped filing-fee RLS); full suite passes locally on the A3→A8 schema.
+- **A9 — Lead engine + workflow engine.** Consolidated baseline (`20260529150000_phase_a9_*`,
+  ADR-001), curated **verbatim** from the authoritative reference: **19 tables** — lead engine
+  (`lead_scoring_profiles`, `lead_assignment_rules`/`_pool`/`_queue`/`_log`, `lead_budgets`/
+  `lead_debts`/`lead_disclosures`/`lead_documents`, `assignments`, `reminder_settings`) and workflow
+  engine (`workflow_groups`/`workflow_rules`/`workflow_executions`, `domain_events`,
+  `webhook_endpoints`, `outbound_webhook_log`, `graduation_automation_config`, `graduation_events`) —
+  with 9 new enums, indexes, RLS (lead/workflow rows company-scoped via `leads`/`get_user_company_id`;
+  `assignments` staff(company)-scoped; `domain_events`/`outbound_webhook_log`/`graduation_events`
+  company-scoped read with service-role writes), and explicit grants. **10 functions:** lead scoring
+  - round-robin/pool assignment (`assign_lead`, `calculate_lead_score`, `trigger_auto_assign_lead`,
+    `trigger_calculate_lead_score`, `process_assignment_queue`, `validate_status_transition`), workflow
+    evaluation/event bus (`check_trigger_match`, `evaluate_workflow_conditions`, `emit_domain_event`),
+    and the now-unblocked `generate_deadline_reminders()` (A8 deferral — `reminder_settings` +
+    `assignments` now exist). **Re-adds the A5-deferred `leads` integration:** the
+    `leads.scoring_profile_id → lead_scoring_profiles` FK and the `trg_auto_assign_lead` /
+    `trg_calculate_lead_score` triggers. **Schema-diff verified** vs reference: all 19 table
+    definitions, 9 enums, and 10 function bodies are byte-identical; the only difference is one
+    intentional deferral — `trg_notify_matter_assignment` on `assignments` (needs the notifications
+    table + `notify_matter_assignment()`, lands in the notifications phase). `tests/db/` expanded to
+    **16 groups** (lead/workflow cross-tenant isolation + lead-trigger wiring); full suite passes
+    locally on the A3→A9 schema.
