@@ -62,3 +62,13 @@ All notable changes to Cornerstone are documented here. Format loosely follows
   (`supabase gen types` needs Docker — B-A1); the row projections keep the data layer strictly
   typed meanwhile. Remaining list pages (liabilities/engagements/transactions) follow the same
   pattern as a fast follow.
+- **A6 — PLSA / payments schema.** Consolidated baseline (`20260529110000_phase_a6_*`, ADR-001):
+  7 tables — `payment_processors`, `payment_schedules`, `company_processor_configs`
+  (per-tenant processor creds; `api_key_encrypted` column — encryption enforced in the forth
+  adapter edge functions, Q-A4), `plsa_sync_log`, `reconciliation_findings`, `nsf_retry_policies`,
+  `transaction_retry_attempts` — plus 2 enums and the explicit grants. **Re-adds the two
+  A5-deferred `transactions` FKs** (`processor_id` → `payment_processors`, `schedule_id` →
+  `payment_schedules`). Schema-diff vs reference clean (structure exact; least-privilege grants on
+  the append-mostly audit tables). Expanded `tests/db/` to 14 groups: adds `company_processor_configs`
+  admin-only + company-scoped isolation. Edge functions (`plsa-routing` + mock/forth adapters)
+  land in the A6 edge-function increment.

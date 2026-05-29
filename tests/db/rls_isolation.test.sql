@@ -48,6 +48,13 @@ INSERT INTO public.staff (user_id, company_id, first_name, last_name, email, dep
 VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc', '22222222-2222-2222-2222-222222222222', 'Pat', 'Para', 'p@example.test', 'attorney');
 INSERT INTO public.user_roles (user_id, role) VALUES ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'paralegal');
 
+-- A6 fixtures: a processor + a per-tenant processor config in each company (admin-only, company-scoped).
+INSERT INTO public.payment_processors (id, name, processor_type)
+  VALUES ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'Mock Processor', 'mock');
+INSERT INTO public.company_processor_configs (company_id, processor_id) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'dddddddd-dddd-dddd-dddd-dddddddddddd'),
+  ('22222222-2222-2222-2222-222222222222', 'dddddddd-dddd-dddd-dddd-dddddddddddd');
+
 -- ---------------------------------------------------------------------------
 -- 1. can_access_company: self yes, cross-tenant no  (definer fn, explicit args)
 -- ---------------------------------------------------------------------------
@@ -233,5 +240,37 @@ BEGIN
   ASSERT to_regprocedure('public.can_view_leads(uuid, uuid)') IS NOT NULL, 'can_view_leads present';
   RAISE NOTICE 'PASS 11: A5 tables + decrypt/can_view_leads present';
 END $$;
+
+-- ---------------------------------------------------------------------------
+-- 12. A6: company_processor_configs is admin-only AND company-scoped
+-- ---------------------------------------------------------------------------
+-- Admin user A: sees only their own tenant's config (1), not tenant B's.
+SELECT set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', true);
+SELECT set_config('request.jwt.claims', '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","role":"authenticated"}', true);
+SET LOCAL ROLE authenticated;
+DO $$
+BEGIN
+  ASSERT (SELECT count(*) FROM public.company_processor_configs) = 1,
+    'admin A should see only their tenant processor config';
+  ASSERT (SELECT count(*) FROM public.company_processor_configs
+          WHERE company_id = '22222222-2222-2222-2222-222222222222') = 0,
+    'admin A must not see tenant B processor config';
+  RAISE NOTICE 'PASS 12a: company_processor_configs admin company-scoped';
+END $$;
+RESET ROLE;
+
+-- Non-admin user B: admin-only table → zero rows.
+SELECT set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', true);
+SELECT set_config('request.jwt.claims', '{"sub":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","role":"authenticated"}', true);
+SET LOCAL ROLE authenticated;
+DO $$
+BEGIN
+  ASSERT (SELECT count(*) FROM public.company_processor_configs) = 0,
+    'non-admin must not read processor configs (admin-only)';
+  ASSERT to_regclass('public.payment_processors') IS NOT NULL
+     AND to_regclass('public.plsa_sync_log') IS NOT NULL, 'A6 tables present';
+  RAISE NOTICE 'PASS 12b: processor configs admin-only + A6 tables present';
+END $$;
+RESET ROLE;
 
 ROLLBACK;
