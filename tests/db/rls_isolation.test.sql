@@ -2,49 +2,40 @@
 -- Run with psql -v ON_ERROR_STOP=1 against a local Supabase DB (CI db-verify job).
 -- All work happens in one transaction and is rolled back at the end, so the run is repeatable.
 -- Any failed assertion RAISEs and aborts the transaction => psql exits non-zero.
+--
+-- Note on role switching: role/GUC changes are done at the TOP (transaction) level, never inside
+-- a function or DO block — Postgres reverts function-local SET LOCAL when the function returns,
+-- which would silently run RLS checks as the superuser.
 
 BEGIN;
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as the privileged migration/superuser role): two isolated tenants,
--- one admin in tenant A, one non-admin in tenant B.
+-- one admin in tenant A, one non-admin (case_manager) in tenant B.
 -- ---------------------------------------------------------------------------
-\set co_a '11111111-1111-1111-1111-111111111111'
-\set co_b '22222222-2222-2222-2222-222222222222'
-\set user_a 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
-\set user_b 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
-
 INSERT INTO public.companies (id, name) VALUES
-  (:'co_a', 'Tenant A'),
-  (:'co_b', 'Tenant B');
+  ('11111111-1111-1111-1111-111111111111', 'Tenant A'),
+  ('22222222-2222-2222-2222-222222222222', 'Tenant B');
 
 INSERT INTO auth.users (id, instance_id, aud, role, email)
 VALUES
-  (:'user_a', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'a@example.test'),
-  (:'user_b', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'b@example.test');
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'a@example.test'),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'b@example.test');
 
 INSERT INTO public.staff (user_id, company_id, first_name, last_name, email, department)
 VALUES
-  (:'user_a', :'co_a', 'Ada', 'Admin', 'a@example.test', 'admin'),
-  (:'user_b', :'co_b', 'Ben', 'User', 'b@example.test', 'client_services');
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '11111111-1111-1111-1111-111111111111', 'Ada', 'Admin', 'a@example.test', 'admin'),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '22222222-2222-2222-2222-222222222222', 'Ben', 'User', 'b@example.test', 'client_services');
 
-INSERT INTO public.user_roles (user_id, role) VALUES (:'user_a', 'admin');
-INSERT INTO public.user_roles (user_id, role) VALUES (:'user_b', 'case_manager');
+INSERT INTO public.user_roles (user_id, role) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'admin');
+INSERT INTO public.user_roles (user_id, role) VALUES ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'case_manager');
 
 INSERT INTO public.tenant_feature_flags (company_id, flag_key, enabled) VALUES
-  (:'co_a', 'leads.paralegal_visibility', true),
-  (:'co_b', 'leads.paralegal_visibility', true);
-
--- Helper: become an authenticated user with a given JWT sub claim.
-CREATE OR REPLACE FUNCTION pg_temp.become(_uid uuid) RETURNS void LANGUAGE plpgsql AS $$
-BEGIN
-  PERFORM set_config('request.jwt.claims', json_build_object('sub', _uid, 'role', 'authenticated')::text, true);
-  EXECUTE 'SET LOCAL ROLE authenticated';
-END;
-$$;
+  ('11111111-1111-1111-1111-111111111111', 'leads.paralegal_visibility', true),
+  ('22222222-2222-2222-2222-222222222222', 'leads.paralegal_visibility', true);
 
 -- ---------------------------------------------------------------------------
--- 1. can_access_company: self yes, cross-tenant no
+-- 1. can_access_company: self yes, cross-tenant no  (definer fn, explicit args)
 -- ---------------------------------------------------------------------------
 DO $$
 BEGIN
@@ -68,49 +59,38 @@ BEGIN
 END $$;
 
 -- ---------------------------------------------------------------------------
--- 3. tenant_feature_flags RLS: a user sees only their tenant's flags
+-- Become user B (non-admin) — top-level role + JWT claim so RLS actually applies.
 -- ---------------------------------------------------------------------------
+SELECT set_config('request.jwt.claims', '{"sub":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","role":"authenticated"}', true);
+SET LOCAL ROLE authenticated;
+
+-- 3 + 5. tenant_feature_flags + user_roles: user B sees only their own tenant/rows
 DO $$
 DECLARE _n int;
 BEGIN
-  PERFORM pg_temp.become('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
   SELECT count(*) INTO _n FROM public.tenant_feature_flags;
   ASSERT _n = 1, format('user B should see exactly 1 flag (own tenant), saw %s', _n);
   SELECT count(*) INTO _n FROM public.tenant_feature_flags WHERE company_id = '11111111-1111-1111-1111-111111111111';
   ASSERT _n = 0, 'user B must not see tenant A flags';
-  RESET ROLE;
-  RAISE NOTICE 'PASS 3: tenant_feature_flags cross-tenant isolation';
+  SELECT count(*) INTO _n FROM public.user_roles;
+  ASSERT _n = 1, format('user B should see only own role row, saw %s', _n);
+  RAISE NOTICE 'PASS 3+5: feature-flag + user_roles cross-tenant/own-only isolation';
 END $$;
 
--- ---------------------------------------------------------------------------
--- 4. tenant_feature_flags write: non-admin (user B) cannot insert; admin (user A) bound to own tenant
--- ---------------------------------------------------------------------------
+-- 4. tenant_feature_flags write: non-admin user B cannot insert (RLS WITH CHECK)
 DO $$
 DECLARE _denied boolean := false;
 BEGIN
-  PERFORM pg_temp.become('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
   BEGIN
     INSERT INTO public.tenant_feature_flags (company_id, flag_key, enabled)
     VALUES ('22222222-2222-2222-2222-222222222222', 'leads.show_in_navigation', false);
     EXCEPTION WHEN insufficient_privilege OR check_violation THEN _denied := true;
   END;
-  ASSERT _denied, 'non-admin must not be able to write feature flags (RLS WITH CHECK)';
-  RESET ROLE;
+  ASSERT _denied, 'non-admin must not be able to write feature flags';
   RAISE NOTICE 'PASS 4: non-admin feature-flag write denied';
 END $$;
 
--- ---------------------------------------------------------------------------
--- 5. user_roles: a user sees only their own roles
--- ---------------------------------------------------------------------------
-DO $$
-DECLARE _n int;
-BEGIN
-  PERFORM pg_temp.become('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
-  SELECT count(*) INTO _n FROM public.user_roles;
-  ASSERT _n = 1, format('user B should see only own role row, saw %s', _n);
-  RESET ROLE;
-  RAISE NOTICE 'PASS 5: user_roles own-only visibility';
-END $$;
+RESET ROLE;
 
 -- ---------------------------------------------------------------------------
 -- 6. PII: encrypt_pii roundtrips; anon cannot execute it
@@ -121,23 +101,30 @@ BEGIN
   _ct := public.encrypt_pii('123-45-6789');
   ASSERT _ct IS NOT NULL, 'encrypt_pii returns ciphertext';
   ASSERT public.encrypt_pii(NULL) IS NULL, 'encrypt_pii(NULL) is NULL';
-  SELECT extensions.pgp_sym_decrypt(_ct, (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'pii_encryption_key' LIMIT 1))
-    INTO _pt;
+  SELECT extensions.pgp_sym_decrypt(
+           _ct,
+           (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'pii_encryption_key' LIMIT 1)
+         ) INTO _pt;
   ASSERT _pt = '123-45-6789', 'ciphertext decrypts back to plaintext';
+  RAISE NOTICE 'PASS 6a: PII encrypt roundtrip';
+END $$;
 
-  PERFORM set_config('request.jwt.claims', json_build_object('sub', gen_random_uuid(), 'role', 'anon')::text, true);
-  EXECUTE 'SET LOCAL ROLE anon';
+-- anon must be unable to execute encrypt_pii (separate top-level role switch)
+SET LOCAL ROLE anon;
+DO $$
+DECLARE _denied boolean := false;
+BEGIN
   BEGIN
     PERFORM public.encrypt_pii('x');
     EXCEPTION WHEN insufficient_privilege THEN _denied := true;
   END;
-  RESET ROLE;
   ASSERT _denied, 'anon must NOT be able to execute encrypt_pii';
-  RAISE NOTICE 'PASS 6: PII encrypt roundtrip + anon revoke';
+  RAISE NOTICE 'PASS 6b: anon encrypt_pii revoke';
 END $$;
+RESET ROLE;
 
 -- ---------------------------------------------------------------------------
--- 7. Audit trail: log_audit_event writes; audit trigger fires on staff change
+-- 7. Audit trail: trigger fires on staff change
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE _before int; _after int;
@@ -151,7 +138,7 @@ BEGIN
 END $$;
 
 -- ---------------------------------------------------------------------------
--- 8. Spine objects exist (lightweight schema presence check)
+-- 8. Spine objects exist
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE _missing text;
