@@ -412,3 +412,9 @@ verify_jwt = false
 
 [functions.plsa-adapter-mock]
 verify_jwt = false
+
+[functions.forth-cancel-draft]
+verify_jwt = false
+
+[functions.forth-poll-transactions]
+verify_jwt = false

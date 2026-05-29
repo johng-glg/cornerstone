@@ -91,3 +91,9 @@ All notable changes to Cornerstone are documented here. Format loosely follows
   OAuth/token-cache/`forthFetch` (reads creds via the RPC; env fallback). db-verify expanded to 15
   groups (encrypt→decrypt roundtrip + service-role-only gating). The 12 `forth-*` adapters consume
   this next.
+- **A6 (Forth adapters — drafts/poll).** `_shared/forthLogic.ts` pure logic (Forth→local status
+  map, NSF detection, Forth-tx matching, 7-day lock window) with Deno tests. First two adapters on
+  the production pattern (Zod input, restricted CORS, `requireAuth`, `forthFetch`, `plsa_sync_log`):
+  `forth-cancel-draft` (lock-window + status guards) and `forth-poll-transactions` (status
+  reconciliation + NSF-retry scheduling, round-robin by `last_polled_at`). Remaining group-1
+  adapters (`forth-auth`, `forth-create-draft`, `forth-update-draft`) follow.
