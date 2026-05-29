@@ -427,3 +427,24 @@ verify_jwt = false
 
 [functions.forth-update-draft]
 verify_jwt = false
+
+[functions.forth-sync-client]
+verify_jwt = false
+
+[functions.forth-pause-resume]
+verify_jwt = false
+
+[functions.forth-contact-update]
+verify_jwt = false
+
+[functions.forth-contact-close]
+verify_jwt = false
+
+[functions.forth-register-client]
+verify_jwt = false
+
+[functions.forth-fetch-balance]
+verify_jwt = false
+
+[functions.forth-payment-to-creditor]
+verify_jwt = false
