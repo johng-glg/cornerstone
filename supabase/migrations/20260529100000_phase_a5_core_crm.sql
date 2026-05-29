@@ -277,7 +277,6 @@ $function$
 --
 --
 
-\restrict PTjiqlYBoro9gaffXztqgnRQBuWj7LengVPUb4nBPTNBX4fD8FDVxqVIa1JTKAO
 
 
 
@@ -2140,7 +2139,6 @@ GRANT ALL ON TABLE public.creditor_responses TO service_role;
 --
 --
 
-\unrestrict PTjiqlYBoro9gaffXztqgnRQBuWj7LengVPUb4nBPTNBX4fD8FDVxqVIa1JTKAO
 
 
 
