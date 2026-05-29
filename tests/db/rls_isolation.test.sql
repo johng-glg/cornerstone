@@ -273,4 +273,29 @@ BEGIN
 END $$;
 RESET ROLE;
 
+-- ---------------------------------------------------------------------------
+-- 13. Per-tenant processor credential encryption (decrypt_processor_credentials)
+-- ---------------------------------------------------------------------------
+-- Store an encrypted api_key + non-secret client_id on tenant A's config (as superuser).
+UPDATE public.company_processor_configs
+SET api_key_encrypted = public.encrypt_pii('sk-forth-secret-123'),
+    config = '{"client_id":"cid-A"}'::jsonb
+WHERE company_id = '11111111-1111-1111-1111-111111111111';
+
+DO $$
+DECLARE _creds jsonb;
+BEGIN
+  _creds := public.decrypt_processor_credentials('11111111-1111-1111-1111-111111111111');
+  ASSERT _creds ->> 'client_id' = 'cid-A', 'client_id should round-trip from config';
+  ASSERT _creds ->> 'api_key' = 'sk-forth-secret-123', 'api_key should decrypt to plaintext';
+  -- Service-role only: anon/authenticated must NOT hold EXECUTE.
+  ASSERT NOT has_function_privilege('anon', 'public.decrypt_processor_credentials(uuid)', 'EXECUTE'),
+    'anon must not execute decrypt_processor_credentials';
+  ASSERT NOT has_function_privilege('authenticated', 'public.decrypt_processor_credentials(uuid)', 'EXECUTE'),
+    'authenticated must not execute decrypt_processor_credentials';
+  ASSERT has_function_privilege('service_role', 'public.decrypt_processor_credentials(uuid)', 'EXECUTE'),
+    'service_role should execute decrypt_processor_credentials';
+  RAISE NOTICE 'PASS 13: processor credential encrypt/decrypt + service-role-only';
+END $$;
+
 ROLLBACK;

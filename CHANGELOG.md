@@ -83,3 +83,11 @@ All notable changes to Cornerstone are documented here. Format loosely follows
   unit-tested (server guarded by `import.meta.main` so imports don't boot it). The 12 `forth-*`
   adapters + `forthAuth` (with `company_processor_configs` credential encryption) + reconciliation
   functions land in the next A6 increment.
+- **A6 (Forth auth + credential encryption).** `decrypt_processor_credentials(company_id)` —
+  SECURITY DEFINER, **service-role-only** — returns `{client_id, api_key}` with the api_key decrypted
+  from `company_processor_configs.api_key_encrypted` (Q-A4: encrypted per-tenant creds, vs Lovable's
+  plaintext `config`). `_shared/forth.ts` pure helpers (secret normalize, OAuth-token extraction
+  across Forth's response shapes, 429 backoff) with Deno tests; `_shared/forthAuth.ts` credential-aware
+  OAuth/token-cache/`forthFetch` (reads creds via the RPC; env fallback). db-verify expanded to 15
+  groups (encrypt→decrypt roundtrip + service-role-only gating). The 12 `forth-*` adapters consume
+  this next.
