@@ -60,7 +60,10 @@ END $$;
 
 -- ---------------------------------------------------------------------------
 -- Become user B (non-admin) — top-level role + JWT claim so RLS actually applies.
+-- Set BOTH the legacy `request.jwt.claim.sub` GUC and the `request.jwt.claims` JSON so
+-- auth.uid() resolves regardless of which implementation the Supabase image ships.
 -- ---------------------------------------------------------------------------
+SELECT set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', true);
 SELECT set_config('request.jwt.claims', '{"sub":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","role":"authenticated"}', true);
 SET LOCAL ROLE authenticated;
 
