@@ -37,6 +37,14 @@ litigation, lead-engine, workflow-engine, and email-infrastructure layers.
    we author a consolidated final-state baseline, verified by schema-diff against the Lovable
    schema.
 
+### A6 schema (2026-05-29)
+
+- PLSA/payments tables extracted from the reference; **re-added the two A5-deferred `transactions`
+  FKs** (their targets `payment_processors`/`payment_schedules` now exist).
+- Grants: explicit (vs Lovable's reliance on Supabase default privileges) for local testability +
+  least privilege; matched the reference's no-DELETE on `reconciliation_findings` /
+  `transaction_retry_attempts`.
+
 ### A5 groundwork (2026-05-29)
 
 - Stood up a local stub harness (`scripts/schema-harness/`) that applies the **full** Lovable
