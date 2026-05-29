@@ -1,6 +1,7 @@
 // docuseal-test — pings the DocuSeal API and stamps the docuseal integration.
 import { z } from "https://esm.sh/zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
+import { enforceRateLimit } from "../_shared/rateLimit.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { resolveCompanyId, markIntegration } from "../_shared/markIntegrationConnected.ts";
 
@@ -10,6 +11,15 @@ export async function handler(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(req) });
   const gate = await requireAuth(req);
   if (gate instanceof Response) return gate;
+
+  // Test-connection hits the external DocuSeal API; cap to deter probing/abuse.
+  const limited = await enforceRateLimit(req, {
+    bucket: "docuseal-test",
+    identifier: gate.userId ?? "service",
+    maxRequests: 10,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
   InputSchema.safeParse(await req.json().catch(() => ({})));
 
   const companyId = await resolveCompanyId(req.headers.get("Authorization"));

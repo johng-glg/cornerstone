@@ -3,6 +3,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
+import { enforceRateLimit } from "../_shared/rateLimit.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { requireIntegrationEnabled, logIntegrationEvent } from "../_shared/integrations.ts";
 
@@ -16,6 +17,15 @@ export async function handler(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(req) });
   const gate = await requireAuth(req);
   if (gate instanceof Response) return gate;
+
+  // Click-to-call places real outbound calls via Dialpad; cap per-user request rate.
+  const limited = await enforceRateLimit(req, {
+    bucket: "dialpad-initiate",
+    identifier: gate.userId ?? "service",
+    maxRequests: 20,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
 
   const parsed = InputSchema.safeParse(await req.json());
   if (!parsed.success) {

@@ -4,6 +4,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
+import { enforceRateLimit } from "../_shared/rateLimit.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { requireIntegrationEnabled, logIntegrationEvent } from "../_shared/integrations.ts";
 import { resolveCompanyId } from "../_shared/markIntegrationConnected.ts";
@@ -18,6 +19,15 @@ export async function handler(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(req) });
   const gate = await requireAuth(req);
   if (gate instanceof Response) return gate;
+
+  // Sending signature requests calls DocuSeal and can dispatch emails; cap per-user rate.
+  const limited = await enforceRateLimit(req, {
+    bucket: "docuseal-send",
+    identifier: gate.userId ?? "service",
+    maxRequests: 30,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
 
   const parsed = InputSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {

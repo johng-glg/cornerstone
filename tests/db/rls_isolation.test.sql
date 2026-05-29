@@ -514,4 +514,66 @@ BEGIN
   RAISE NOTICE 'PASS 19: spine reconciliation (app_role values, staff.hourly_rate, company-type audit)';
 END $$;
 
+-- ---------------------------------------------------------------------------
+-- 20. Phase D rate limiter: check_rate_limit allows up to the limit then denies, is
+--     per-identifier, and is service-role-only (anon/authenticated cannot execute it).
+--     Called directly as the connection role — the same pattern group 13 uses for the
+--     other service-role-only definer function (decrypt_processor_credentials). The CI
+--     connection role can execute these; least privilege is proven from the catalog (the
+--     test does NOT `SET ROLE service_role`, which the CI role is not a member of).
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE _allowed boolean; _retry int;
+BEGIN
+  -- limit 2 / 60s: two allowed, third denied
+  SELECT allowed INTO _allowed FROM public.check_rate_limit('t20','idA',2,60);
+  ASSERT _allowed, 'first call under limit';
+  SELECT allowed INTO _allowed FROM public.check_rate_limit('t20','idA',2,60);
+  ASSERT _allowed, 'second call at limit';
+  SELECT allowed, retry_after_seconds INTO _allowed, _retry FROM public.check_rate_limit('t20','idA',2,60);
+  ASSERT NOT _allowed, 'third call denied';
+  ASSERT _retry > 0, 'denied call returns a positive retry_after';
+  -- a different identifier is independent
+  SELECT allowed INTO _allowed FROM public.check_rate_limit('t20','idB',2,60);
+  ASSERT _allowed, 'different identifier has its own window';
+  -- least privilege (catalog; role-independent)
+  ASSERT NOT has_function_privilege('anon', 'public.check_rate_limit(text,text,integer,integer)', 'EXECUTE'),
+    'anon must not execute check_rate_limit';
+  ASSERT NOT has_function_privilege('authenticated', 'public.check_rate_limit(text,text,integer,integer)', 'EXECUTE'),
+    'authenticated must not execute check_rate_limit';
+  ASSERT has_function_privilege('service_role', 'public.check_rate_limit(text,text,integer,integer)', 'EXECUTE'),
+    'service_role should execute check_rate_limit';
+  RAISE NOTICE 'PASS 20: rate limiter allow/deny/per-identifier + service-role-only';
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- 21. Phase D PII-plaintext verification: assert_no_plaintext_pii passes on a clean db,
+--     raises when a deprecated plaintext column is populated, and is service-role-only.
+--     Called directly as the connection role (group-13 pattern).
+-- ---------------------------------------------------------------------------
+UPDATE public.clients SET ssn_encrypted = NULL;  -- ensure clean precondition regardless of seed
+DO $$
+DECLARE _raised boolean := false;
+BEGIN
+  -- clean: assertion passes
+  PERFORM public.assert_no_plaintext_pii();
+  -- populate a deprecated plaintext column → assertion must raise
+  UPDATE public.clients SET ssn_encrypted = 'legacy-plaintext'
+   WHERE company_id = '11111111-1111-1111-1111-111111111111';
+  BEGIN
+    PERFORM public.assert_no_plaintext_pii();
+    EXCEPTION WHEN others THEN _raised := true;
+  END;
+  ASSERT _raised, 'assert_no_plaintext_pii must raise when a deprecated column holds data';
+  -- restore
+  UPDATE public.clients SET ssn_encrypted = NULL
+   WHERE company_id = '11111111-1111-1111-1111-111111111111';
+  -- least privilege (catalog)
+  ASSERT NOT has_function_privilege('authenticated', 'public.assert_no_plaintext_pii()', 'EXECUTE'),
+    'authenticated must not execute assert_no_plaintext_pii';
+  ASSERT has_function_privilege('service_role', 'public.assert_no_plaintext_pii()', 'EXECUTE'),
+    'service_role should execute assert_no_plaintext_pii';
+  RAISE NOTICE 'PASS 21: PII-plaintext verifier clean/raises + service-role-only';
+END $$;
+
 ROLLBACK;

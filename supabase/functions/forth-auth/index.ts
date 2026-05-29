@@ -3,6 +3,7 @@
 // exercises per-tenant credential lookup.
 import { z } from "https://esm.sh/zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
+import { enforceRateLimit } from "../_shared/rateLimit.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { getAccessToken } from "../_shared/forthAuth.ts";
 
@@ -13,6 +14,15 @@ export async function handler(req: Request): Promise<Response> {
 
   const gate = await requireAuth(req);
   if (gate instanceof Response) return gate;
+
+  // Token mint against Forth's OAuth endpoint; cap per-user to protect the upstream credential.
+  const limited = await enforceRateLimit(req, {
+    bucket: "forth-auth",
+    identifier: gate.userId ?? "service",
+    maxRequests: 15,
+    windowSeconds: 60,
+  });
+  if (limited) return limited;
 
   const raw = await req.json().catch(() => ({}));
   const parsed = InputSchema.safeParse(raw ?? {});

@@ -116,7 +116,13 @@ jobs:
 
       - name: Deno tests (edge functions)
         # --no-check: run the tests without full type-checking. Deno's type-checker pulls
-        # @types/node transitively through esm.sh type graphs; restoring type-check via a
-        # Deno node-compat config is tracked in open_questions (Q-A8). Tests still execute,
-        # validating the pure logic at runtime; src/ is strictly type-checked in the Verify job.
+        # @types/node transitively through esm.sh type graphs; restoring edge-fn type-checking
+        # is tracked in open_questions (Q-A8). Tests still execute, validating the pure logic at
+        # runtime; src/ is strictly type-checked in the Verify job.
         run: deno test --no-check --allow-net --allow-env --allow-read supabase/functions
+
+# SAST (CodeQL) runs via GitHub's *default* code-scanning setup (repo Settings → Code security),
+# not a workflow job here. Default and advanced (in-workflow) CodeQL are mutually exclusive — an
+# in-workflow analyze step fails while default setup is enabled — so SAST is intentionally not a
+# job in this file. The "CodeQL / Analyze (javascript-typescript|actions)" checks come from
+# default setup and gate the PR.
