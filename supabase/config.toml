@@ -448,3 +448,12 @@ verify_jwt = false
 
 [functions.forth-payment-to-creditor]
 verify_jwt = false
+
+[functions.plsa-nsf-retry]
+verify_jwt = false
+
+[functions.plsa-escrow-sync]
+verify_jwt = false
+
+[functions.plsa-reconciliation]
+verify_jwt = false
