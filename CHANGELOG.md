@@ -167,3 +167,28 @@ All notable changes to Cornerstone are documented here. Format loosely follows
     table + `notify_matter_assignment()`, lands in the notifications phase). `tests/db/` expanded to
     **16 groups** (lead/workflow cross-tenant isolation + lead-trigger wiring); full suite passes
     locally on the A3→A9 schema.
+- **A10 — Email infra + templates + e-signatures + notifications + notes.** Consolidated baseline
+  (`20260529160000_phase_a10_*`, ADR-001), curated **verbatim** from the authoritative reference:
+  **19 tables** — templates (`templates`, `template_versions`, `template_categories`,
+  `template_usage`, `template_usages`, `terminology_presets`, `report_templates`), email
+  (`email_send_log`, `email_send_state`, `email_unsubscribe_tokens`, `suppressed_emails`),
+  signatures (`signature_requests`, `signature_signers`, `signature_events`, `docuseal_templates`),
+  and notifications/notes (`notifications`, `notification_preferences`, `notes`, `note_mentions`) —
+  with 5 new enums, indexes (incl. the partial unique `email_send_log` sent-dedupe index), RLS
+  (templates/signatures company-scoped; notifications/preferences user-scoped; email tables
+  service-role-only; notes/note_mentions company-resolved via `resolve_entity_company_id`), and
+  explicit grants. **9 functions:** `create_notification`, `get_company_terminology`,
+  `notify_matter_assignment`, `notify_note_mention`, the pgmq email queue (`enqueue_email`,
+  `delete_email`, `read_email_batch`, `move_to_dlq`), and `resolve_entity_company_id` (created here
+  because the notes RLS needs it; its `tasks` branch is runtime-only). `pgmq` extension created
+  (stripped + stubbed in the local harness, real on Supabase Cloud / CI). **Re-adds two earlier
+  deferrals now that their deps exist:** the A9 `trg_notify_matter_assignment` trigger on
+  `assignments` (→ `notify_matter_assignment`) and the A8 `deadline_reminders.notification_id →
+notifications` FK. **Schema-diff verified** vs reference: all 19 table definitions, 5 enums, and
+  9 function bodies are byte-identical; the only difference is one intentional deferral —
+  `trg_notify_task_assignment` on `tasks` + `notify_task_assignment()` (A11: needs `tasks`).
+  `tests/db/` expanded to **17 groups** (templates/signatures/notifications/notes cross-tenant
+  isolation + the entity resolver; group 17 also confirms the re-added matter-assignment trigger
+  fires a notification end-to-end); full suite passes locally on the A3→A10 schema. DocuSeal
+  `webhook`/`send` edge functions (now unblocked by this signatures schema) follow as the A10 edge
+  increment.
