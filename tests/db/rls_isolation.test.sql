@@ -55,6 +55,18 @@ INSERT INTO public.company_processor_configs (company_id, processor_id) VALUES
   ('11111111-1111-1111-1111-111111111111', 'dddddddd-dddd-dddd-dddd-dddddddddddd'),
   ('22222222-2222-2222-2222-222222222222', 'dddddddd-dddd-dddd-dddd-dddddddddddd');
 
+-- A8 fixtures: a client_service + liability + litigation_matter per tenant, and one global law firm.
+INSERT INTO public.client_services (id, service_number, owning_company_id) VALUES
+  ('55555555-5555-5555-5555-555555555555', 'CS-A-001', '11111111-1111-1111-1111-111111111111'),
+  ('66666666-6666-6666-6666-666666666666', 'CS-B-001', '22222222-2222-2222-2222-222222222222');
+INSERT INTO public.liabilities (id, client_service_id) VALUES
+  ('57575757-5757-5757-5757-575757575757', '55555555-5555-5555-5555-555555555555'),
+  ('68686868-6868-6868-6868-686868686868', '66666666-6666-6666-6666-666666666666');
+INSERT INTO public.litigation_matters (id, liability_id, client_service_id) VALUES
+  ('5a5a5a5a-5a5a-5a5a-5a5a-5a5a5a5a5a5a', '57575757-5757-5757-5757-575757575757', '55555555-5555-5555-5555-555555555555'),
+  ('6b6b6b6b-6b6b-6b6b-6b6b-6b6b6b6b6b6b', '68686868-6868-6868-6868-686868686868', '66666666-6666-6666-6666-666666666666');
+INSERT INTO public.law_firms (id, name) VALUES ('7c7c7c7c-7c7c-7c7c-7c7c-7c7c7c7c7c7c', 'Global Firm LLP');
+
 -- ---------------------------------------------------------------------------
 -- 1. can_access_company: self yes, cross-tenant no  (definer fn, explicit args)
 -- ---------------------------------------------------------------------------
@@ -327,6 +339,36 @@ BEGIN
   END;
   ASSERT _denied, 'non-admin must not insert company_integrations';
   RAISE NOTICE 'PASS 14: integrations-hub cross-tenant isolation + admin-only mutate';
+END $$;
+RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- 15. A8 litigation: matters are company-scoped via client_services (cross-tenant isolation),
+--     law_firms are globally visible to all staff, and filing-fee writes are matter-scoped.
+-- ---------------------------------------------------------------------------
+SELECT set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', true);
+SELECT set_config('request.jwt.claims', '{"sub":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","role":"authenticated"}', true);
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE _denied boolean := false;
+BEGIN
+  ASSERT (SELECT count(*) FROM public.litigation_matters) = 1, 'user B sees only their tenant litigation matter';
+  ASSERT (SELECT count(*) FROM public.litigation_matters
+          WHERE client_service_id = '55555555-5555-5555-5555-555555555555') = 0,
+    'user B must not see tenant A litigation matter';
+  ASSERT (SELECT count(*) FROM public.law_firms WHERE name = 'Global Firm LLP') = 1,
+    'law firms are globally visible to all staff';
+  -- filing fee against own-tenant matter is allowed
+  INSERT INTO public.filing_fees (matter_id, amount, description)
+    VALUES ('6b6b6b6b-6b6b-6b6b-6b6b-6b6b6b6b6b6b', 100.00, 'court filing');
+  -- filing fee against a cross-tenant matter is denied by RLS
+  BEGIN
+    INSERT INTO public.filing_fees (matter_id, amount, description)
+      VALUES ('5a5a5a5a-5a5a-5a5a-5a5a-5a5a5a5a5a5a', 100.00, 'cross-tenant');
+    EXCEPTION WHEN insufficient_privilege OR check_violation THEN _denied := true;
+  END;
+  ASSERT _denied, 'filing fee against cross-tenant matter must be denied';
+  RAISE NOTICE 'PASS 15: litigation cross-tenant isolation + global law firms + filing-fee RLS';
 END $$;
 RESET ROLE;
 
