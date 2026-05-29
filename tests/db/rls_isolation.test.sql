@@ -112,19 +112,20 @@ BEGIN
   RAISE NOTICE 'PASS 6a: PII encrypt roundtrip';
 END $$;
 
--- anon must be unable to execute encrypt_pii (separate top-level role switch)
-SET LOCAL ROLE anon;
+-- anon must be unable to execute the sensitive functions. Assert the EXECUTE privilege
+-- directly via the catalog rather than invoking encrypt_pii as anon — invoking the
+-- vault-reading function under the anon role crashes the Supabase backend, and the ACL
+-- check is the precise assertion of the security property anyway.
 DO $$
-DECLARE _denied boolean := false;
 BEGIN
-  BEGIN
-    PERFORM public.encrypt_pii('x');
-    EXCEPTION WHEN insufficient_privilege THEN _denied := true;
-  END;
-  ASSERT _denied, 'anon must NOT be able to execute encrypt_pii';
-  RAISE NOTICE 'PASS 6b: anon encrypt_pii revoke';
+  ASSERT NOT has_function_privilege('anon', 'public.encrypt_pii(text)', 'EXECUTE'),
+    'anon must NOT have EXECUTE on encrypt_pii';
+  ASSERT has_function_privilege('authenticated', 'public.encrypt_pii(text)', 'EXECUTE'),
+    'authenticated should have EXECUTE on encrypt_pii';
+  ASSERT NOT has_function_privilege('anon', 'public.is_feature_enabled(uuid, text)', 'EXECUTE'),
+    'anon must NOT have EXECUTE on is_feature_enabled';
+  RAISE NOTICE 'PASS 6b: encrypt_pii / is_feature_enabled EXECUTE revoked for anon';
 END $$;
-RESET ROLE;
 
 -- ---------------------------------------------------------------------------
 -- 7. Audit trail: trigger fires on staff change
