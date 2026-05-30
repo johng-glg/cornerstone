@@ -69,7 +69,8 @@ docs/                    Architecture, ADRs, runbooks, phase summaries, complian
 - `docs/dev-setup.md` — local development setup (Supabase CLI + Docker Compose paths, seed data)
 - `docs/contributor-guide.md` — branch/commit/PR conventions + the quality gates
 - `docs/lovable_pattern_inventory.md` — inventory of the Lovable reference system + porting notes
-- `docs/phases/phase_A_B_execution_plan.md` — current execution plan
+- `docs/phases/phase_A_B_execution_plan.md` — Phase A/B execution plan
+- `docs/phases/phase_F_execution_plan.md` — Phase F (AWS deployment) execution plan
 - `docs/phases/` — phase closeouts (A, B, D, E)
 - `docs/runbooks/` — operational runbooks (tenant onboarding)
 - `docs/security-overview.md` — threat model, isolation, encryption, audit, rate limiting
