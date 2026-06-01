@@ -13,6 +13,14 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { NotesTab } from "@/components/leads/tabs/NotesTab";
 import { TasksTab } from "@/components/leads/tabs/TasksTab";
 import { ClientEditDialog } from "@/components/clients/ClientEditDialog";
+import {
+  ClientLitigationTab,
+  ClientPaymentsTab,
+  ClientBillingTab,
+  ClientDocumentsTab,
+  ClientSignaturesTab,
+  ClientCommsTab,
+} from "@/components/clients/detail/ClientListTabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -85,8 +93,14 @@ export default function ClientDetail() {
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="engagements">Engagements</TabsTrigger>
                 <TabsTrigger value="liabilities">Liabilities</TabsTrigger>
-                <TabsTrigger value="notes">Notes</TabsTrigger>
+                <TabsTrigger value="litigation">Litigation</TabsTrigger>
+                <TabsTrigger value="payments">Payments</TabsTrigger>
+                <TabsTrigger value="billing">Billing</TabsTrigger>
                 <TabsTrigger value="tasks">Tasks</TabsTrigger>
+                <TabsTrigger value="documents">Documents</TabsTrigger>
+                <TabsTrigger value="signatures">Signatures</TabsTrigger>
+                <TabsTrigger value="notes">Notes</TabsTrigger>
+                <TabsTrigger value="comms">Comms</TabsTrigger>
               </TabsList>
 
               {/* OVERVIEW */}
@@ -247,12 +261,26 @@ export default function ClientDetail() {
                 </Card>
               </TabsContent>
 
+              <TabsContent value="litigation">
+                {id && <ClientLitigationTab clientId={id} serviceIds={serviceIds} />}
+              </TabsContent>
+              <TabsContent value="payments">
+                {id && <ClientPaymentsTab clientId={id} serviceIds={serviceIds} />}
+              </TabsContent>
+              <TabsContent value="billing">{id && <ClientBillingTab clientId={id} />}</TabsContent>
+              <TabsContent value="documents">
+                {id && <ClientDocumentsTab clientId={id} />}
+              </TabsContent>
+              <TabsContent value="signatures">
+                {id && <ClientSignaturesTab clientId={id} />}
+              </TabsContent>
               <TabsContent value="notes">
                 {id && <NotesTab entityId={id} entityType="client" />}
               </TabsContent>
               <TabsContent value="tasks">
                 {id && <TasksTab entityId={id} entityType="client" />}
               </TabsContent>
+              <TabsContent value="comms">{id && <ClientCommsTab clientId={id} />}</TabsContent>
             </Tabs>
 
             <ClientEditDialog client={client.data} open={editing} onOpenChange={setEditing} />

@@ -170,6 +170,160 @@ export function useClientAddresses(
   });
 }
 
+// ── Related lists (read-only) ──────────────────────────────────────────────────
+export interface LitigationRow {
+  id: string;
+  case_number: string | null;
+  court_name: string | null;
+  opposing_party: string | null;
+  status: string;
+  response_deadline: string | null;
+  next_hearing_date: string | null;
+}
+export interface PaymentRow {
+  id: string;
+  amount: number;
+  transaction_type: string;
+  status: string;
+  scheduled_date: string | null;
+  processed_at: string | null;
+}
+export interface BillingRow {
+  id: string;
+  entry_type: string;
+  description: string;
+  billing_date: string;
+  total_amount: number;
+  is_billable: boolean;
+  status: string;
+}
+export interface DocumentRow {
+  id: string;
+  document_type: string;
+  title: string;
+  file_url: string;
+  created_at: string;
+}
+export interface SignatureRow {
+  id: string;
+  title: string;
+  status: string;
+  completed_at: string | null;
+  created_at: string;
+}
+export interface CommunicationRow {
+  id: string;
+  communication_type: string;
+  direction: string;
+  subject: string | null;
+  notes: string | null;
+  outcome: string | null;
+  communication_date: string;
+}
+
+function byServiceIds<T>(table: string, cols: string, serviceIds: string[], order: string) {
+  return async (): Promise<T[]> => {
+    const { data, error } = await supabase
+      .from(table)
+      .select(cols)
+      .in("client_service_id", serviceIds)
+      .order(order, { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []) as unknown as T[];
+  };
+}
+
+export function useClientLitigation(clientId: string | undefined, serviceIds: string[]) {
+  return useQuery<LitigationRow[], Error>({
+    queryKey: ["client_litigation", clientId ?? "", serviceIds.join(",")],
+    enabled: !!clientId && serviceIds.length > 0,
+    queryFn: byServiceIds<LitigationRow>(
+      "litigation_matters",
+      "id, case_number, court_name, opposing_party, status, response_deadline, next_hearing_date",
+      serviceIds,
+      "created_at",
+    ),
+  });
+}
+
+export function useClientPayments(clientId: string | undefined, serviceIds: string[]) {
+  return useQuery<PaymentRow[], Error>({
+    queryKey: ["client_payments", clientId ?? "", serviceIds.join(",")],
+    enabled: !!clientId && serviceIds.length > 0,
+    queryFn: byServiceIds<PaymentRow>(
+      "transactions",
+      "id, amount, transaction_type, status, scheduled_date, processed_at",
+      serviceIds,
+      "scheduled_date",
+    ),
+  });
+}
+
+export function useClientBilling(clientId: string | undefined) {
+  return useQuery<BillingRow[], Error>({
+    queryKey: ["client_billing", clientId ?? ""],
+    enabled: !!clientId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("billing_entries")
+        .select("id, entry_type, description, billing_date, total_amount, is_billable, status")
+        .eq("client_id", clientId!)
+        .order("billing_date", { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as BillingRow[];
+    },
+  });
+}
+
+export function useClientDocuments(clientId: string | undefined) {
+  return useQuery<DocumentRow[], Error>({
+    queryKey: ["client_documents_list", clientId ?? ""],
+    enabled: !!clientId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("client_documents")
+        .select("id, document_type, title, file_url, created_at")
+        .eq("client_id", clientId!)
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as DocumentRow[];
+    },
+  });
+}
+
+export function useClientSignatures(clientId: string | undefined) {
+  return useQuery<SignatureRow[], Error>({
+    queryKey: ["client_signatures", clientId ?? ""],
+    enabled: !!clientId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("signature_requests")
+        .select("id, title, status, completed_at, created_at")
+        .eq("entity_type", "client")
+        .eq("entity_id", clientId!)
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as SignatureRow[];
+    },
+  });
+}
+
+export function useClientCommunications(clientId: string | undefined) {
+  return useQuery<CommunicationRow[], Error>({
+    queryKey: ["client_comms", clientId ?? ""],
+    enabled: !!clientId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("client_communications")
+        .select("id, communication_type, direction, subject, notes, outcome, communication_date")
+        .eq("client_id", clientId!)
+        .order("communication_date", { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as CommunicationRow[];
+    },
+  });
+}
+
 export interface ClientUpdateInput {
   id: string;
   first_name?: string;
