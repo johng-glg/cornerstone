@@ -11,11 +11,19 @@ const eqAfterSelect = vi.fn(() => ({ single: singleMock, order: orderMock }));
 const selectMock = vi.fn(() => ({ eq: eqAfterSelect }));
 const insertSingleMock = vi.fn();
 const insertMock = vi.fn(() => ({ select: () => ({ single: insertSingleMock }) }));
+const deleteEqMock = vi.fn();
+const deleteMock = vi.fn(() => ({ eq: deleteEqMock }));
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { from: () => ({ select: selectMock, insert: insertMock }) },
+  supabase: { from: () => ({ select: selectMock, insert: insertMock, delete: deleteMock }) },
 }));
 
-import { useLead, useLeadActivities, useAddLeadActivity } from "./useLeadDetail";
+import {
+  useLead,
+  useLeadActivities,
+  useAddLeadActivity,
+  useAddLeadDebt,
+  useDeleteLeadDebt,
+} from "./useLeadDetail";
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -57,5 +65,36 @@ describe("useLeadDetail", () => {
     expect(insertMock).toHaveBeenCalledWith(
       expect.objectContaining({ lead_id: "l1", activity_type: "call" }),
     );
+  });
+
+  it("useAddLeadDebt inserts a debt and returns the row", async () => {
+    insertSingleMock.mockResolvedValueOnce({
+      data: { id: "d1", lead_id: "l1", creditor_name: "Capital One" },
+      error: null,
+    });
+    const { result } = renderHook(() => useAddLeadDebt(), { wrapper });
+    result.current.mutate({
+      lead_id: "l1",
+      creditor_name: "Capital One",
+      account_type: "credit_card",
+      current_balance: 5000,
+      is_enrolled: true,
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lead_id: "l1",
+        creditor_name: "Capital One",
+        current_balance: 5000,
+      }),
+    );
+  });
+
+  it("useDeleteLeadDebt deletes by id", async () => {
+    deleteEqMock.mockResolvedValueOnce({ error: null });
+    const { result } = renderHook(() => useDeleteLeadDebt("l1"), { wrapper });
+    result.current.mutate({ id: "d1" });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(deleteEqMock).toHaveBeenCalledWith("id", "d1");
   });
 });

@@ -2,13 +2,14 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
-import { useLead, useLeadActivities, useLeadDebts } from "@/hooks/useLeadDetail";
+import { useLead, useLeadActivities, useLeadDebts, useDeleteLeadDebt } from "@/hooks/useLeadDetail";
 import { useUpdateLead } from "@/hooks/useCoreCrm";
 import type { LeadStatus } from "@/lib/db-types";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { LeadDetailDialog } from "@/components/leads/LeadDetailDialog";
 import { LogActivityForm } from "@/components/leads/LogActivityForm";
+import { AddDebtDialog } from "@/components/leads/AddDebtDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,7 @@ export default function LeadDetail() {
   const activities = useLeadActivities(id);
   const debts = useLeadDebts(id);
   const updateLead = useUpdateLead();
+  const deleteDebt = useDeleteLeadDebt(id ?? "");
   const [editing, setEditing] = useState(false);
 
   const setStatus = (status: LeadStatus) => {
@@ -214,17 +216,20 @@ export default function LeadDetail() {
             {/* Debts */}
             <Card>
               <CardHeader className="flex-row items-center justify-between space-y-0">
-                <CardTitle className="text-base">Debts</CardTitle>
-                <span className="text-sm text-muted-foreground">
-                  Total {formatCurrency(debtTotal)}
-                </span>
+                <div className="flex items-center gap-3">
+                  <CardTitle className="text-base">Debts</CardTitle>
+                  <span className="text-sm text-muted-foreground">
+                    Total {formatCurrency(debtTotal)}
+                  </span>
+                </div>
+                {id && <AddDebtDialog leadId={id} />}
               </CardHeader>
               <CardContent>
                 <QueryState
                   isLoading={debts.isLoading}
                   error={debts.error}
                   isEmpty={(debts.data ?? []).length === 0}
-                  emptyMessage="No debts recorded for this lead."
+                  emptyMessage="No debts recorded yet — use “Add debt” to enter one."
                 >
                   <div className="overflow-x-auto rounded-md border">
                     <table className="w-full text-sm">
@@ -232,9 +237,11 @@ export default function LeadDetail() {
                         <tr>
                           <th className="px-3 py-2 font-medium">Creditor</th>
                           <th className="px-3 py-2 font-medium">Type</th>
+                          <th className="px-3 py-2 font-medium">Acct ****</th>
                           <th className="px-3 py-2 font-medium">Original</th>
                           <th className="px-3 py-2 font-medium">Current</th>
                           <th className="px-3 py-2 font-medium">Enrolled</th>
+                          <th className="px-3 py-2 font-medium sr-only">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -242,9 +249,31 @@ export default function LeadDetail() {
                           <tr key={d.id} className="border-b last:border-0">
                             <td className="px-3 py-2">{d.creditor_name}</td>
                             <td className="px-3 py-2">{titleCase(d.account_type)}</td>
+                            <td className="px-3 py-2 text-muted-foreground">
+                              {d.account_number_last4 ? `••••${d.account_number_last4}` : "—"}
+                            </td>
                             <td className="px-3 py-2">{formatCurrency(d.original_balance)}</td>
                             <td className="px-3 py-2">{formatCurrency(d.current_balance)}</td>
                             <td className="px-3 py-2">{d.is_enrolled ? "Yes" : "No"}</td>
+                            <td className="px-3 py-2 text-right">
+                              <button
+                                type="button"
+                                disabled={deleteDebt.isPending}
+                                onClick={() => {
+                                  if (!confirm(`Remove the ${d.creditor_name} debt?`)) return;
+                                  deleteDebt.mutate(
+                                    { id: d.id },
+                                    {
+                                      onSuccess: () => toast.success("Debt removed."),
+                                      onError: (e) => toast.error(e.message),
+                                    },
+                                  );
+                                }}
+                                className="text-xs text-destructive hover:underline disabled:opacity-50"
+                              >
+                                Remove
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>

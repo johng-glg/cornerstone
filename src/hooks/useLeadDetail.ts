@@ -78,6 +78,49 @@ export function useLeadDebts(leadId: string | undefined): UseQueryResult<LeadDeb
   });
 }
 
+export interface NewDebtInput {
+  lead_id: string;
+  creditor_name: string;
+  account_type: string;
+  original_balance?: number | null;
+  current_balance: number;
+  account_number_last4?: string | null;
+  is_enrolled: boolean;
+}
+
+/** Add a debt to a lead. RLS: `Staff can access lead debts` (own tenant). */
+export function useAddLeadDebt(): UseMutationResult<LeadDebtRow, Error, NewDebtInput> {
+  const qc = useQueryClient();
+  return useMutation<LeadDebtRow, Error, NewDebtInput>({
+    mutationFn: async (input) => {
+      const { data, error } = await supabase
+        .from("lead_debts")
+        .insert(input)
+        .select(DEBT_COLS)
+        .single();
+      if (error) throw new Error(error.message);
+      return data as unknown as LeadDebtRow;
+    },
+    onSuccess: (row) => {
+      qc.invalidateQueries({ queryKey: leadDetailKeys.debts(row.lead_id) });
+    },
+  });
+}
+
+/** Remove a debt from a lead. */
+export function useDeleteLeadDebt(leadId: string): UseMutationResult<void, Error, { id: string }> {
+  const qc = useQueryClient();
+  return useMutation<void, Error, { id: string }>({
+    mutationFn: async ({ id }) => {
+      const { error } = await supabase.from("lead_debts").delete().eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: leadDetailKeys.debts(leadId) });
+    },
+  });
+}
+
 export interface NewActivityInput {
   lead_id: string;
   staff_id: string | null;
