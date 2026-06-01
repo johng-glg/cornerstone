@@ -13,6 +13,7 @@ import { AddDebtDialog } from "@/components/leads/AddDebtDialog";
 import { NotesTab } from "@/components/leads/tabs/NotesTab";
 import { TasksTab } from "@/components/leads/tabs/TasksTab";
 import { BudgetTab } from "@/components/leads/tabs/BudgetTab";
+import { EnrollmentWizard } from "@/components/leads/EnrollmentWizard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -66,6 +67,7 @@ export default function LeadDetail() {
   const updateLead = useUpdateLead();
   const deleteDebt = useDeleteLeadDebt(id ?? "");
   const [editing, setEditing] = useState(false);
+  const [converting, setConverting] = useState(false);
 
   const setStatus = (status: LeadStatus) => {
     if (!id) return;
@@ -118,14 +120,11 @@ export default function LeadDetail() {
                 <Button
                   size="sm"
                   className="bg-guardian-gold text-guardian-navy hover:bg-guardian-gold/90"
-                  onClick={() =>
-                    toast("Enrollment wizard coming next", {
-                      description:
-                        "The 8-step Consumer Defense enrollment (eligibility → review) is the next build.",
-                    })
-                  }
+                  disabled={lead.data.status === "converted"}
+                  onClick={() => setConverting(true)}
                 >
-                  <ArrowRightCircle className="mr-1 h-3.5 w-3.5" /> Convert
+                  <ArrowRightCircle className="mr-1 h-3.5 w-3.5" />
+                  {lead.data.status === "converted" ? "Converted" : "Convert"}
                 </Button>
               </div>
             </div>
@@ -403,6 +402,18 @@ export default function LeadDetail() {
             </Tabs>
 
             <LeadDetailDialog lead={lead.data} open={editing} onOpenChange={setEditing} />
+            {converting && (
+              <EnrollmentWizard
+                lead={lead.data}
+                leadDebts={debts.data ?? []}
+                open={converting}
+                onOpenChange={setConverting}
+                onConverted={() => {
+                  lead.refetch();
+                  debts.refetch();
+                }}
+              />
+            )}
           </>
         )}
       </QueryState>
