@@ -1,5 +1,7 @@
 import { useTemplates } from "@/hooks/useDomains";
 import { QueryState } from "@/components/common/QueryState";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { titleCase } from "@/lib/format";
 
 export default function Templates() {
   const { data, isLoading, error } = useTemplates();
@@ -29,10 +31,12 @@ export default function Templates() {
               {rows.map((t) => (
                 <tr key={t.id} className="border-b last:border-0">
                   <td className="px-3 py-2">{t.name}</td>
-                  <td className="px-3 py-2">{t.template_type}</td>
+                  <td className="px-3 py-2">{titleCase(t.template_type)}</td>
                   <td className="px-3 py-2 uppercase text-muted-foreground">{t.language}</td>
                   <td className="px-3 py-2">v{t.current_version}</td>
-                  <td className="px-3 py-2">{t.is_active ? "Yes" : "No"}</td>
+                  <td className="px-3 py-2">
+                    <StatusBadge status={t.is_active ? "active" : "inactive"} />
+                  </td>
                 </tr>
               ))}
             </tbody>

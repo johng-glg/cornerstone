@@ -1,5 +1,7 @@
 import { useClients } from "@/hooks/useCoreCrm";
 import { QueryState } from "@/components/common/QueryState";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { NewClientDialog } from "@/components/clients/NewClientDialog";
 
 export default function Clients() {
   const { data, isLoading, error } = useClients();
@@ -7,7 +9,10 @@ export default function Clients() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Clients</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Clients</h1>
+        <NewClientDialog />
+      </div>
       <QueryState
         isLoading={isLoading}
         error={error}
@@ -31,7 +36,9 @@ export default function Clients() {
                     {c.first_name} {c.last_name}
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">{c.email ?? "—"}</td>
-                  <td className="px-3 py-2">{c.status ?? (c.is_active ? "active" : "inactive")}</td>
+                  <td className="px-3 py-2">
+                    <StatusBadge status={c.status ?? (c.is_active ? "active" : "inactive")} />
+                  </td>
                   <td className="px-3 py-2 text-muted-foreground">{c.forth_crm_id ?? "—"}</td>
                 </tr>
               ))}

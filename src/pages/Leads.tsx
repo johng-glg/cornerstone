@@ -1,16 +1,22 @@
+import { useState } from "react";
 import { useLeads } from "@/hooks/useCoreCrm";
+import type { LeadListRow } from "@/lib/db-types";
 import { QueryState } from "@/components/common/QueryState";
+import { StatusBadge } from "@/components/common/StatusBadge";
 import { NewLeadDialog } from "@/components/leads/NewLeadDialog";
-
-const usd = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
+import { LeadDetailDialog } from "@/components/leads/LeadDetailDialog";
+import { formatCurrency, titleCase } from "@/lib/format";
 
 export default function Leads() {
   const { data, isLoading, error } = useLeads();
   const rows = data ?? [];
+  const [selected, setSelected] = useState<LeadListRow | null>(null);
+  const [open, setOpen] = useState(false);
+
+  const openLead = (lead: LeadListRow) => {
+    setSelected(lead);
+    setOpen(true);
+  };
 
   return (
     <div className="space-y-4">
@@ -38,16 +44,20 @@ export default function Leads() {
             </thead>
             <tbody>
               {rows.map((l) => (
-                <tr key={l.id} className="border-b last:border-0">
+                <tr
+                  key={l.id}
+                  onClick={() => openLead(l)}
+                  className="cursor-pointer border-b last:border-0 hover:bg-muted/40"
+                >
                   <td className="px-3 py-2 font-mono text-xs">{l.lead_number}</td>
                   <td className="px-3 py-2">
                     {l.first_name} {l.last_name}
                   </td>
-                  <td className="px-3 py-2">{l.status}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{l.interest_type}</td>
                   <td className="px-3 py-2">
-                    {l.estimated_debt_amount != null ? usd.format(l.estimated_debt_amount) : "—"}
+                    <StatusBadge status={l.status} />
                   </td>
+                  <td className="px-3 py-2 text-muted-foreground">{titleCase(l.interest_type)}</td>
+                  <td className="px-3 py-2">{formatCurrency(l.estimated_debt_amount)}</td>
                   <td className="px-3 py-2">{l.lead_score ?? "—"}</td>
                 </tr>
               ))}
@@ -55,6 +65,7 @@ export default function Leads() {
           </table>
         </div>
       </QueryState>
+      <LeadDetailDialog lead={selected} open={open} onOpenChange={setOpen} />
     </div>
   );
 }

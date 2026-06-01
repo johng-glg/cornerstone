@@ -1,4 +1,10 @@
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseMutationResult,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type {
   LitigationMatterListRow,
@@ -63,5 +69,43 @@ export function useNotifications(): UseQueryResult<NotificationListRow[], Error>
   return useQuery({
     queryKey: domainKeys.notifications,
     queryFn: () => fetchList<NotificationListRow>("notifications", NOTIFICATION_COLS),
+  });
+}
+
+/** Mark a single notification read (default) or unread. RLS: `Users can update own notifications`. */
+export function useMarkNotificationRead(): UseMutationResult<
+  void,
+  Error,
+  { id: string; isRead?: boolean }
+> {
+  const qc = useQueryClient();
+  return useMutation<void, Error, { id: string; isRead?: boolean }>({
+    mutationFn: async ({ id, isRead = true }) => {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ is_read: isRead })
+        .eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: domainKeys.notifications });
+    },
+  });
+}
+
+/** Mark every unread notification read in one round-trip. */
+export function useMarkAllNotificationsRead(): UseMutationResult<void, Error, void> {
+  const qc = useQueryClient();
+  return useMutation<void, Error, void>({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("is_read", false);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: domainKeys.notifications });
+    },
   });
 }

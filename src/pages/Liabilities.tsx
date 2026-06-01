@@ -1,11 +1,7 @@
 import { useLiabilities } from "@/hooks/useCoreCrm";
 import { QueryState } from "@/components/common/QueryState";
-
-const usd = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { formatCurrency, titleCase } from "@/lib/format";
 
 export default function Liabilities() {
   const { data, isLoading, error } = useLiabilities();
@@ -33,14 +29,12 @@ export default function Liabilities() {
             <tbody>
               {rows.map((l) => (
                 <tr key={l.id} className="border-b last:border-0">
-                  <td className="px-3 py-2">{l.liability_type}</td>
-                  <td className="px-3 py-2">{l.status}</td>
+                  <td className="px-3 py-2">{titleCase(l.liability_type)}</td>
                   <td className="px-3 py-2">
-                    {l.current_balance != null ? usd.format(l.current_balance) : "—"}
+                    <StatusBadge status={l.status} />
                   </td>
-                  <td className="px-3 py-2">
-                    {l.enrolled_balance != null ? usd.format(l.enrolled_balance) : "—"}
-                  </td>
+                  <td className="px-3 py-2">{formatCurrency(l.current_balance)}</td>
+                  <td className="px-3 py-2">{formatCurrency(l.enrolled_balance)}</td>
                 </tr>
               ))}
             </tbody>

@@ -8,7 +8,9 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import type {
   ClientListRow,
+  ClientStatus,
   LeadListRow,
+  LeadStatus,
   LeadSource,
   LeadInterest,
   LiabilityListRow,
@@ -124,6 +126,71 @@ export function useCreateLead(
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: coreCrmKeys.leads });
+    },
+  });
+}
+
+/** Editable lead fields. `id` selects the row; the rest are the patch. RLS-gated to own tenant. */
+export interface LeadUpdateInput {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string | null;
+  phone?: string | null;
+  status?: LeadStatus;
+  source?: LeadSource;
+  interest_type?: LeadInterest;
+  estimated_debt_amount?: number | null;
+  state?: string | null;
+  notes?: string | null;
+}
+
+/** Update a lead. The `Staff can manage company leads` policy enforces tenant ownership. */
+export function useUpdateLead(): UseMutationResult<LeadListRow, Error, LeadUpdateInput> {
+  const qc = useQueryClient();
+  return useMutation<LeadListRow, Error, LeadUpdateInput>({
+    mutationFn: async ({ id, ...patch }) => {
+      const { data, error } = await supabase
+        .from("leads")
+        .update(patch)
+        .eq("id", id)
+        .select(LEAD_COLS)
+        .single();
+      if (error) throw new Error(error.message);
+      return data as LeadListRow;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: coreCrmKeys.leads });
+    },
+  });
+}
+
+/** Fields a user supplies when creating a client. Tenant stamped from active staff. */
+export interface NewClientInput {
+  first_name: string;
+  last_name: string;
+  email?: string | null;
+  status: ClientStatus;
+}
+
+/** Create a client in the caller's company (RLS: `Staff can manage company clients`). */
+export function useCreateClient(
+  companyId: string | undefined,
+): UseMutationResult<ClientListRow, Error, NewClientInput> {
+  const qc = useQueryClient();
+  return useMutation<ClientListRow, Error, NewClientInput>({
+    mutationFn: async (input) => {
+      if (!companyId) throw new Error("No active company — cannot create a client.");
+      const { data, error } = await supabase
+        .from("clients")
+        .insert({ ...input, company_id: companyId, is_active: input.status === "active" })
+        .select(CLIENT_COLS)
+        .single();
+      if (error) throw new Error(error.message);
+      return data as ClientListRow;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: coreCrmKeys.clients });
     },
   });
 }

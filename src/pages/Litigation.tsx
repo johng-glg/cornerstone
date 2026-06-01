@@ -1,9 +1,7 @@
 import { useLitigationMatters } from "@/hooks/useDomains";
 import { QueryState } from "@/components/common/QueryState";
-
-function fmtDate(d: string | null): string {
-  return d ? new Date(d).toLocaleDateString() : "—";
-}
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { formatDate } from "@/lib/format";
 
 export default function Litigation() {
   const { data, isLoading, error } = useLitigationMatters();
@@ -36,9 +34,11 @@ export default function Litigation() {
                   <td className="px-3 py-2 font-mono text-xs">{m.case_number ?? "—"}</td>
                   <td className="px-3 py-2">{m.court_name ?? "—"}</td>
                   <td className="px-3 py-2 text-muted-foreground">{m.opposing_party ?? "—"}</td>
-                  <td className="px-3 py-2">{m.status}</td>
-                  <td className="px-3 py-2">{fmtDate(m.response_deadline)}</td>
-                  <td className="px-3 py-2">{fmtDate(m.next_hearing_date)}</td>
+                  <td className="px-3 py-2">
+                    <StatusBadge status={m.status} />
+                  </td>
+                  <td className="px-3 py-2">{formatDate(m.response_deadline)}</td>
+                  <td className="px-3 py-2">{formatDate(m.next_hearing_date)}</td>
                 </tr>
               ))}
             </tbody>

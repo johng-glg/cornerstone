@@ -1,11 +1,9 @@
 import { useTransactions } from "@/hooks/useCoreCrm";
 import { QueryState } from "@/components/common/QueryState";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { formatDate, titleCase } from "@/lib/format";
 
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
-
-function fmtDate(d: string | null): string {
-  return d ? new Date(d).toLocaleDateString() : "—";
-}
 
 export default function Transactions() {
   const { data, isLoading, error } = useTransactions();
@@ -34,11 +32,13 @@ export default function Transactions() {
             <tbody>
               {rows.map((t) => (
                 <tr key={t.id} className="border-b last:border-0">
-                  <td className="px-3 py-2">{t.transaction_type}</td>
+                  <td className="px-3 py-2">{titleCase(t.transaction_type)}</td>
                   <td className="px-3 py-2">{usd.format(t.amount)}</td>
-                  <td className="px-3 py-2">{t.status}</td>
-                  <td className="px-3 py-2">{fmtDate(t.scheduled_date)}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{fmtDate(t.processed_at)}</td>
+                  <td className="px-3 py-2">
+                    <StatusBadge status={t.status} />
+                  </td>
+                  <td className="px-3 py-2">{formatDate(t.scheduled_date)}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{formatDate(t.processed_at)}</td>
                 </tr>
               ))}
             </tbody>
