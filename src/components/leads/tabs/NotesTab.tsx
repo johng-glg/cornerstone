@@ -2,15 +2,21 @@ import { useState, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { MessageSquare } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { useLeadNotes, useAddNote } from "@/hooks/useLeadTabs";
+import { useEntityNotes, useAddNote } from "@/hooks/useLeadTabs";
 import { QueryState } from "@/components/common/QueryState";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
-export function NotesTab({ leadId }: { leadId: string }) {
+export function NotesTab({
+  entityId,
+  entityType = "lead",
+}: {
+  entityId: string;
+  entityType?: string;
+}) {
   const { staff } = useAuth();
-  const notes = useLeadNotes(leadId);
-  const addNote = useAddNote(leadId, staff?.id);
+  const notes = useEntityNotes(entityType, entityId);
+  const addNote = useAddNote(entityType, entityId, staff?.id);
   const [draft, setDraft] = useState("");
 
   const submit = () => {

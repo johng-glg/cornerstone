@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useClients } from "@/hooks/useCoreCrm";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -5,6 +6,7 @@ import { NewClientDialog } from "@/components/clients/NewClientDialog";
 
 export default function Clients() {
   const { data, isLoading, error } = useClients();
+  const navigate = useNavigate();
   const rows = data ?? [];
 
   return (
@@ -31,7 +33,11 @@ export default function Clients() {
             </thead>
             <tbody>
               {rows.map((c) => (
-                <tr key={c.id} className="border-b last:border-0">
+                <tr
+                  key={c.id}
+                  onClick={() => navigate(`/clients/${c.id}`)}
+                  className="cursor-pointer border-b last:border-0 hover:bg-muted/40"
+                >
                   <td className="px-3 py-2">
                     {c.first_name} {c.last_name}
                   </td>

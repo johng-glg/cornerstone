@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
-import { useLeadTasks, useAddTask, useToggleTask } from "@/hooks/useLeadTabs";
+import { useEntityTasks, useAddTask, useToggleTask } from "@/hooks/useLeadTabs";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -25,11 +25,17 @@ import { formatDate, titleCase } from "@/lib/format";
 
 const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
 
-export function TasksTab({ leadId }: { leadId: string }) {
+export function TasksTab({
+  entityId,
+  entityType = "lead",
+}: {
+  entityId: string;
+  entityType?: string;
+}) {
   const { staff } = useAuth();
-  const tasks = useLeadTasks(leadId);
-  const addTask = useAddTask(leadId, staff?.company_id, staff?.id);
-  const toggle = useToggleTask(leadId);
+  const tasks = useEntityTasks(entityType, entityId);
+  const addTask = useAddTask(entityType, entityId, staff?.company_id, staff?.id);
+  const toggle = useToggleTask(entityType, entityId);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<(typeof PRIORITIES)[number]>("medium");

@@ -330,8 +330,12 @@ export default function LeadDetail() {
               </TabsContent>
 
               {/* NOTES / TASKS / BUDGET */}
-              <TabsContent value="notes">{id && <NotesTab leadId={id} />}</TabsContent>
-              <TabsContent value="tasks">{id && <TasksTab leadId={id} />}</TabsContent>
+              <TabsContent value="notes">
+                {id && <NotesTab entityId={id} entityType="lead" />}
+              </TabsContent>
+              <TabsContent value="tasks">
+                {id && <TasksTab entityId={id} entityType="lead" />}
+              </TabsContent>
               <TabsContent value="budget">{id && <BudgetTab leadId={id} />}</TabsContent>
 
               {/* DOCS */}

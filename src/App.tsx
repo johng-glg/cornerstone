@@ -9,6 +9,7 @@ import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import Dashboard from "@/pages/Dashboard";
 import Clients from "@/pages/Clients";
+import ClientDetail from "@/pages/ClientDetail";
 import Leads from "@/pages/Leads";
 import LeadDetail from "@/pages/LeadDetail";
 import Liabilities from "@/pages/Liabilities";
@@ -55,6 +56,14 @@ function App() {
                 element={
                   <AppLayout>
                     <Clients />
+                  </AppLayout>
+                }
+              />
+              <Route
+                path="/clients/:id"
+                element={
+                  <AppLayout>
+                    <ClientDetail />
                   </AppLayout>
                 }
               />

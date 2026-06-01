@@ -34,22 +34,25 @@ export interface BudgetRow {
 }
 
 export const leadTabKeys = {
-  notes: (id: string) => ["lead_notes", id] as const,
-  tasks: (id: string) => ["lead_tasks", id] as const,
+  notes: (entityType: string, id: string) => ["notes", entityType, id] as const,
+  tasks: (entityType: string, id: string) => ["tasks", entityType, id] as const,
   budget: (id: string) => ["lead_budget", id] as const,
 };
 
-// ── Notes (polymorphic public.notes, entity_type='lead') ───────────────────────
-export function useLeadNotes(leadId: string | undefined): UseQueryResult<NoteRow[], Error> {
+// ── Notes (polymorphic public.notes) ──────────────────────────────────────────
+export function useEntityNotes(
+  entityType: string,
+  entityId: string | undefined,
+): UseQueryResult<NoteRow[], Error> {
   return useQuery({
-    queryKey: leadTabKeys.notes(leadId ?? ""),
-    enabled: !!leadId,
+    queryKey: leadTabKeys.notes(entityType, entityId ?? ""),
+    enabled: !!entityId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notes")
         .select("id, content, created_by, created_at")
-        .eq("entity_type", "lead")
-        .eq("entity_id", leadId!)
+        .eq("entity_type", entityType)
+        .eq("entity_id", entityId!)
         .order("created_at", { ascending: false });
       if (error) throw new Error(error.message);
       return (data ?? []) as unknown as NoteRow[];
@@ -57,9 +60,10 @@ export function useLeadNotes(leadId: string | undefined): UseQueryResult<NoteRow
   });
 }
 
-/** Add a note. `created_by` must be the caller's staff id (RLS). */
+/** Add a note to any entity. `created_by` must be the caller's staff id (RLS). */
 export function useAddNote(
-  leadId: string,
+  entityType: string,
+  entityId: string,
   staffId: string | undefined,
 ): UseMutationResult<void, Error, { content: string }> {
   const qc = useQueryClient();
@@ -68,26 +72,29 @@ export function useAddNote(
       if (!staffId) throw new Error("No staff profile — cannot add a note.");
       const { error } = await supabase
         .from("notes")
-        .insert({ entity_type: "lead", entity_id: leadId, content, created_by: staffId });
+        .insert({ entity_type: entityType, entity_id: entityId, content, created_by: staffId });
       if (error) throw new Error(error.message);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: leadTabKeys.notes(leadId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: leadTabKeys.notes(entityType, entityId) }),
   });
 }
 
-// ── Tasks (public.tasks linked via entity_type='lead') ─────────────────────────
-export function useLeadTasks(leadId: string | undefined): UseQueryResult<TaskRow[], Error> {
+// ── Tasks (public.tasks linked via entity_type/entity_id) ──────────────────────
+export function useEntityTasks(
+  entityType: string,
+  entityId: string | undefined,
+): UseQueryResult<TaskRow[], Error> {
   return useQuery({
-    queryKey: leadTabKeys.tasks(leadId ?? ""),
-    enabled: !!leadId,
+    queryKey: leadTabKeys.tasks(entityType, entityId ?? ""),
+    enabled: !!entityId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks")
         .select(
           "id, title, description, task_type, priority, status, due_date, completed_at, created_at",
         )
-        .eq("entity_type", "lead")
-        .eq("entity_id", leadId!)
+        .eq("entity_type", entityType)
+        .eq("entity_id", entityId!)
         .order("created_at", { ascending: false });
       if (error) throw new Error(error.message);
       return (data ?? []) as unknown as TaskRow[];
@@ -102,7 +109,8 @@ export interface NewTaskInput {
 }
 
 export function useAddTask(
-  leadId: string,
+  entityType: string,
+  entityId: string,
   companyId: string | undefined,
   staffId: string | undefined,
 ): UseMutationResult<void, Error, NewTaskInput> {
@@ -116,18 +124,19 @@ export function useAddTask(
         priority: input.priority,
         due_date: input.due_date || null,
         created_by: staffId ?? null,
-        entity_type: "lead",
-        entity_id: leadId,
+        entity_type: entityType,
+        entity_id: entityId,
       });
       if (error) throw new Error(error.message);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: leadTabKeys.tasks(leadId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: leadTabKeys.tasks(entityType, entityId) }),
   });
 }
 
 /** Toggle a task between completed and pending. */
 export function useToggleTask(
-  leadId: string,
+  entityType: string,
+  entityId: string,
 ): UseMutationResult<void, Error, { id: string; completed: boolean }> {
   const qc = useQueryClient();
   return useMutation<void, Error, { id: string; completed: boolean }>({
@@ -141,7 +150,7 @@ export function useToggleTask(
         .eq("id", id);
       if (error) throw new Error(error.message);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: leadTabKeys.tasks(leadId) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: leadTabKeys.tasks(entityType, entityId) }),
   });
 }
 
