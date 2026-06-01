@@ -1,0 +1,74 @@
+name: Terraform
+
+# Validates the infrastructure code on PRs that touch infra/. Runs fmt + init + validate, and a
+# plan when AWS OIDC is configured. NEVER applies — apply is a manual, approved operation run by
+# the account owner (see docs/phases/phase_F_execution_plan.md). No static AWS keys.
+
+on:
+  pull_request:
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/terraform.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/terraform/**"
+
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write # for OIDC plan, when an AWS account is configured
+  pull-requests: write # to comment the plan summary
+
+jobs:
+  validate:
+    name: fmt · validate (bootstrap)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform/bootstrap
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Format check
+        run: terraform fmt -recursive -check ../
+
+      - name: Init (no backend)
+        run: terraform init -backend=false -input=false
+
+      - name: Validate
+        run: terraform validate
+
+  plan:
+    name: plan (bootstrap)
+    runs-on: ubuntu-latest
+    # Plan needs real AWS credentials via OIDC. It is skipped until the account + role exist
+    # (Q-F1). Enable by setting the repo variable AWS_BOOTSTRAP_ROLE_ARN.
+    if: vars.AWS_BOOTSTRAP_ROLE_ARN != ''
+    defaults:
+      run:
+        working-directory: infra/terraform/bootstrap
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_BOOTSTRAP_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Init
+        run: terraform init -input=false
+
+      - name: Plan
+        run: terraform plan -input=false -no-color
