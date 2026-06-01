@@ -1,0 +1,14 @@
+# Terraform working files — never commit these.
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfplan
+# Local var files that may carry account-specific values.
+*.tfvars
+*.tfvars.json
+# Lock file: excluded for now. The first `terraform init` against the real registry (in CI or on
+# the account owner's machine) generates the authoritative multi-platform lock, which is then
+# committed. A lock generated from a single-platform local mirror would break CI on other arches.
+.terraform.lock.hcl
+
