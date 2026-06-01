@@ -1,0 +1,71 @@
+name: Deploy — production
+
+# Deploy the frontend to production on a version tag (v*). The `production` GitHub Environment
+# carries a required-reviewer protection rule, so every prod deploy pauses for manual approval
+# before any AWS action. Builds with production's VITE_* values, syncs to the prod S3 bucket via
+# the F1 OIDC role (whose trust is restricted to the production environment), and invalidates
+# CloudFront. Backend migrate/deploy is the separately-approved db-deploy.yml (F4).
+#
+# No-op until production is provisioned (the role var is set in the Environment, Q-F1).
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag or SHA to deploy"
+        required: true
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false # never cancel an in-flight prod deploy
+
+permissions:
+  contents: read
+  id-token: write # OIDC
+
+jobs:
+  deploy:
+    name: Build + deploy (production)
+    runs-on: ubuntu-latest
+    environment: production # required-reviewer approval gate lives here
+    if: vars.AWS_DEPLOY_ROLE_ARN != ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.19"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (production env)
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: npm run build
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Sync build to S3
+        run: |
+          aws s3 sync dist/ "s3://${{ vars.SITE_BUCKET }}/" --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude "index.html" --exclude "*.map"
+          aws s3 cp dist/index.html "s3://${{ vars.SITE_BUCKET }}/index.html" \
+            --cache-control "no-cache,no-store,must-revalidate"
+
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/*"
