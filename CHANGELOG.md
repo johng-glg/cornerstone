@@ -5,6 +5,17 @@ All notable changes to Cornerstone are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Security
+
+- **Upgrade vitest 3→4, vite 5→7 (+ coverage-v8 4, plugin-react-swc 4) to clear `npm audit`.**
+  Newly-published advisories — a **critical** vitest UI arbitrary-file-read/exec
+  (GHSA-5xrq-8626-4rwp) and a moderate esbuild/vite dev-server request advisory
+  (GHSA-67mh-4wv8-2f99) — started failing the CI `npm audit --audit-level=high` gate on every PR.
+  Both are **dev-only** tools (test runner / bundler); no production dependency was affected.
+  Bumped to the patched majors; `npm audit` now reports **0 vulnerabilities**. vite 7 requires
+  Node `^20.19.0`, so the CI Node pin + `.nvmrc` moved `20` → `20.19`. Verified: typecheck, lint,
+  format, 21 unit tests (vitest 4.1.8), coverage, production build (vite 7), and `npm ci` all green.
+
 ### Added — Phase E
 
 - **Phase E — Multi-tenant SaaS readiness (full phase in one change).** Tenant lifecycle:
