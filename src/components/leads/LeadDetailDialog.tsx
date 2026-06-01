@@ -4,10 +4,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { useUpdateLead } from "@/hooks/useCoreCrm";
-import type { LeadListRow } from "@/lib/db-types";
+import type { LeadDetailRow, LeadListRow } from "@/lib/db-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +26,9 @@ import {
 } from "@/components/ui/select";
 
 const STATUSES = ["new", "contacted", "qualified", "converted", "lost"] as const;
+const EMPLOYMENT = ["", "employed", "unemployed", "self_employed", "retired", "disabled"] as const;
 const labelize = (v: string) => v.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const numOrNan = z.union([z.coerce.number().nonnegative(), z.nan()]).optional();
 
 const schema = z.object({
   first_name: z.string().trim().min(1, "Required"),
@@ -33,21 +36,33 @@ const schema = z.object({
   email: z.string().trim().email("Invalid email").optional().or(z.literal("")),
   phone: z.string().trim().optional().or(z.literal("")),
   status: z.enum(STATUSES),
-  estimated_debt_amount: z.union([z.coerce.number().nonnegative(), z.nan()]).optional(),
+  state: z.string().trim().max(2, "2-letter code").optional().or(z.literal("")),
+  estimated_debt_amount: numOrNan,
+  number_of_debts: numOrNan,
+  monthly_income: numOrNan,
+  employment_status: z.enum(EMPLOYMENT),
+  has_active_lawsuit: z.boolean(),
+  in_bankruptcy: z.boolean(),
+  notes: z.string().trim().optional().or(z.literal("")),
 });
 
 type FormValues = z.input<typeof schema>;
+
+const toNum = (v: number | undefined) =>
+  v === undefined || Number.isNaN(v as number) ? null : Number(v);
 
 export function LeadDetailDialog({
   lead,
   open,
   onOpenChange,
 }: {
-  lead: LeadListRow | null;
+  // Accepts the list row or the fuller detail row.
+  lead: LeadListRow | LeadDetailRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const updateLead = useUpdateLead();
+  const detail = lead as LeadDetailRow | null;
   const {
     register,
     handleSubmit,
@@ -57,7 +72,6 @@ export function LeadDetailDialog({
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
-  // Re-seed the form whenever a different lead is opened.
   useEffect(() => {
     if (lead) {
       reset({
@@ -68,19 +82,23 @@ export function LeadDetailDialog({
         status: STATUSES.includes(lead.status as (typeof STATUSES)[number])
           ? (lead.status as (typeof STATUSES)[number])
           : "new",
+        state: detail?.state ?? "",
         estimated_debt_amount: lead.estimated_debt_amount ?? undefined,
+        number_of_debts: detail?.number_of_debts ?? undefined,
+        monthly_income: detail?.monthly_income ?? undefined,
+        employment_status: (detail?.employment_status ?? "") as (typeof EMPLOYMENT)[number],
+        has_active_lawsuit: detail?.has_active_lawsuit ?? false,
+        in_bankruptcy: detail?.in_bankruptcy ?? false,
+        notes: detail?.notes ?? "",
       });
     }
+    // detail fields are derived from `lead`; depending on `lead` is sufficient.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lead, reset]);
 
   if (!lead) return null;
 
   const onSubmit = handleSubmit((values) => {
-    const amount =
-      values.estimated_debt_amount === undefined ||
-      Number.isNaN(values.estimated_debt_amount as number)
-        ? null
-        : Number(values.estimated_debt_amount);
     updateLead.mutate(
       {
         id: lead.id,
@@ -89,7 +107,14 @@ export function LeadDetailDialog({
         email: values.email || null,
         phone: values.phone || null,
         status: values.status,
-        estimated_debt_amount: amount,
+        state: values.state ? values.state.toUpperCase() : null,
+        estimated_debt_amount: toNum(values.estimated_debt_amount),
+        number_of_debts: toNum(values.number_of_debts),
+        monthly_income: toNum(values.monthly_income),
+        employment_status: values.employment_status || null,
+        has_active_lawsuit: values.has_active_lawsuit,
+        in_bankruptcy: values.in_bankruptcy,
+        notes: values.notes || null,
       },
       {
         onSuccess: () => {
@@ -103,13 +128,10 @@ export function LeadDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{lead.lead_number}</DialogTitle>
-          <DialogDescription>
-            Score {lead.lead_score ?? "—"} · {labelize(lead.source)} ·{" "}
-            {labelize(lead.interest_type)}
-          </DialogDescription>
+          <DialogTitle>Edit lead</DialogTitle>
+          <DialogDescription>{lead.lead_number}</DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -128,6 +150,7 @@ export function LeadDetailDialog({
               )}
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label htmlFor="l_email">Email</Label>
@@ -139,7 +162,8 @@ export function LeadDetailDialog({
               <Input id="l_phone" {...register("phone")} />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+
+          <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label>Status</Label>
               <Select
@@ -159,6 +183,34 @@ export function LeadDetailDialog({
               </Select>
             </div>
             <div className="space-y-1">
+              <Label htmlFor="l_state">State</Label>
+              <Input id="l_state" maxLength={2} placeholder="CA" {...register("state")} />
+              {errors.state && <p className="text-xs text-destructive">{errors.state.message}</p>}
+            </div>
+            <div className="space-y-1">
+              <Label>Employment</Label>
+              <Select
+                value={watch("employment_status")}
+                onValueChange={(v) =>
+                  setValue("employment_status", v as (typeof EMPLOYMENT)[number])
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="—" />
+                </SelectTrigger>
+                <SelectContent>
+                  {EMPLOYMENT.map((e) => (
+                    <SelectItem key={e || "none"} value={e}>
+                      {e ? labelize(e) : "—"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
               <Label htmlFor="l_debt">Est. debt ($)</Label>
               <Input
                 id="l_debt"
@@ -168,7 +220,52 @@ export function LeadDetailDialog({
                 {...register("estimated_debt_amount")}
               />
             </div>
+            <div className="space-y-1">
+              <Label htmlFor="l_ndebts"># Debts</Label>
+              <Input
+                id="l_ndebts"
+                type="number"
+                min="0"
+                step="1"
+                {...register("number_of_debts")}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="l_income">Monthly income ($)</Label>
+              <Input
+                id="l_income"
+                type="number"
+                min="0"
+                step="100"
+                {...register("monthly_income")}
+              />
+            </div>
           </div>
+
+          <div className="flex gap-6">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-input"
+                {...register("has_active_lawsuit")}
+              />
+              Active lawsuit
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-input"
+                {...register("in_bankruptcy")}
+              />
+              In bankruptcy
+            </label>
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="l_notes">Notes</Label>
+            <Textarea id="l_notes" rows={3} {...register("notes")} />
+          </div>
+
           <DialogFooter>
             <Button type="submit" disabled={updateLead.isPending}>
               {updateLead.isPending ? "Saving…" : "Save changes"}

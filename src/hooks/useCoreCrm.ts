@@ -141,6 +141,11 @@ export interface LeadUpdateInput {
   source?: LeadSource;
   interest_type?: LeadInterest;
   estimated_debt_amount?: number | null;
+  number_of_debts?: number | null;
+  monthly_income?: number | null;
+  employment_status?: string | null;
+  has_active_lawsuit?: boolean;
+  in_bankruptcy?: boolean;
   state?: string | null;
   notes?: string | null;
 }
