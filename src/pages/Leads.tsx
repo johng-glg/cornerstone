@@ -1,5 +1,6 @@
 import { useLeads } from "@/hooks/useCoreCrm";
 import { QueryState } from "@/components/common/QueryState";
+import { NewLeadDialog } from "@/components/leads/NewLeadDialog";
 
 const usd = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -13,7 +14,10 @@ export default function Leads() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Leads</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Leads</h1>
+        <NewLeadDialog />
+      </div>
       <QueryState
         isLoading={isLoading}
         error={error}

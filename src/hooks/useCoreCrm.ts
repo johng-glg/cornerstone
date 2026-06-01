@@ -1,8 +1,16 @@
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseMutationResult,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type {
   ClientListRow,
   LeadListRow,
+  LeadSource,
+  LeadInterest,
   LiabilityListRow,
   ClientServiceListRow,
   TransactionListRow,
@@ -74,5 +82,48 @@ export function useTransactions(): UseQueryResult<TransactionListRow[], Error> {
   return useQuery({
     queryKey: coreCrmKeys.transactions,
     queryFn: () => fetchList<TransactionListRow>("transactions", TRANSACTION_COLS),
+  });
+}
+
+/**
+ * Fields a user supplies when creating a lead. The tenant (`company_id`) is stamped by the
+ * caller from the active staff profile; `lead_number`, `status`, score, and auto-assignment
+ * are all set server-side by triggers, so they are intentionally omitted here.
+ */
+export interface NewLeadInput {
+  first_name: string;
+  last_name: string;
+  email?: string | null;
+  phone?: string | null;
+  source: LeadSource;
+  interest_type: LeadInterest;
+  estimated_debt_amount?: number | null;
+  state?: string | null;
+  notes?: string | null;
+}
+
+/**
+ * Create a lead in the caller's company. RLS (`Staff can manage company leads`) enforces that
+ * `company_id` is the caller's own tenant. On success the leads list is invalidated so the new
+ * row appears immediately.
+ */
+export function useCreateLead(
+  companyId: string | undefined,
+): UseMutationResult<LeadListRow, Error, NewLeadInput> {
+  const qc = useQueryClient();
+  return useMutation<LeadListRow, Error, NewLeadInput>({
+    mutationFn: async (input) => {
+      if (!companyId) throw new Error("No active company — cannot create a lead.");
+      const { data, error } = await supabase
+        .from("leads")
+        .insert({ ...input, company_id: companyId })
+        .select(LEAD_COLS)
+        .single();
+      if (error) throw new Error(error.message);
+      return data as LeadListRow;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: coreCrmKeys.leads });
+    },
   });
 }
