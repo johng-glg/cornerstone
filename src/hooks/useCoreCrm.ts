@@ -159,8 +159,10 @@ export function useUpdateLead(): UseMutationResult<LeadListRow, Error, LeadUpdat
       if (error) throw new Error(error.message);
       return data as LeadListRow;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: coreCrmKeys.leads });
+      // Also refresh the single-lead detail query (keyed ["lead", id] in useLeadDetail).
+      qc.invalidateQueries({ queryKey: ["lead", variables.id] });
     },
   });
 }

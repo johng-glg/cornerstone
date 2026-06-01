@@ -1,22 +1,47 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useLeads } from "@/hooks/useCoreCrm";
-import type { LeadListRow } from "@/lib/db-types";
+import type { LeadStatus } from "@/lib/db-types";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { NewLeadDialog } from "@/components/leads/NewLeadDialog";
-import { LeadDetailDialog } from "@/components/leads/LeadDetailDialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatCurrency, titleCase } from "@/lib/format";
+
+const STATUS_FILTERS: Array<LeadStatus | "all"> = [
+  "all",
+  "new",
+  "contacted",
+  "qualified",
+  "converted",
+  "lost",
+];
 
 export default function Leads() {
   const { data, isLoading, error } = useLeads();
-  const rows = data ?? [];
-  const [selected, setSelected] = useState<LeadListRow | null>(null);
-  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<LeadStatus | "all">("all");
 
-  const openLead = (lead: LeadListRow) => {
-    setSelected(lead);
-    setOpen(true);
-  };
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (data ?? []).filter((l) => {
+      if (status !== "all" && l.status !== status) return false;
+      if (!q) return true;
+      return (
+        `${l.first_name} ${l.last_name}`.toLowerCase().includes(q) ||
+        (l.email ?? "").toLowerCase().includes(q) ||
+        l.lead_number.toLowerCase().includes(q)
+      );
+    });
+  }, [data, search, status]);
 
   return (
     <div className="space-y-4">
@@ -24,11 +49,34 @@ export default function Leads() {
         <h1 className="text-2xl font-semibold">Leads</h1>
         <NewLeadDialog />
       </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Input
+          placeholder="Search name, email, or lead #…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-xs"
+        />
+        <Select value={status} onValueChange={(v) => setStatus(v as LeadStatus | "all")}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_FILTERS.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s === "all" ? "All statuses" : titleCase(s)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-sm text-muted-foreground">{rows.length} shown</span>
+      </div>
+
       <QueryState
         isLoading={isLoading}
         error={error}
         isEmpty={rows.length === 0}
-        emptyMessage="No leads yet."
+        emptyMessage={data && data.length > 0 ? "No leads match your filters." : "No leads yet."}
       >
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
@@ -46,7 +94,7 @@ export default function Leads() {
               {rows.map((l) => (
                 <tr
                   key={l.id}
-                  onClick={() => openLead(l)}
+                  onClick={() => navigate(`/leads/${l.id}`)}
                   className="cursor-pointer border-b last:border-0 hover:bg-muted/40"
                 >
                   <td className="px-3 py-2 font-mono text-xs">{l.lead_number}</td>
@@ -65,7 +113,6 @@ export default function Leads() {
           </table>
         </div>
       </QueryState>
-      <LeadDetailDialog lead={selected} open={open} onOpenChange={setOpen} />
     </div>
   );
 }
