@@ -16,7 +16,18 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['"Montserrat"', '"SF Pro Display"', "system-ui", "sans-serif"],
+      },
       colors: {
+        // Guardian Litigation Group brand palette (docs/brand-guidelines.md)
+        guardian: {
+          gold: "hsl(var(--guardian-gold))",
+          navy: "hsl(var(--guardian-navy))",
+          charcoal: "hsl(var(--guardian-charcoal))",
+          ivory: "hsl(var(--guardian-ivory))",
+          blue: "hsl(var(--guardian-blue))",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
