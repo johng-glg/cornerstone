@@ -24,21 +24,39 @@ permissions:
   pull-requests: write # to comment the plan summary
 
 jobs:
-  validate:
-    name: fmt · validate (bootstrap)
+  fmt:
+    name: fmt (all)
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+      - name: Format check
+        run: terraform fmt -recursive -check infra/terraform
+
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Each root is init+validate'd independently. Env roots pass both providers into the
+        # frontend module, so validating them also validates the module.
+        dir:
+          - infra/terraform/bootstrap
+          - infra/terraform/envs/dev
+          - infra/terraform/envs/staging
+          - infra/terraform/envs/production
     defaults:
       run:
-        working-directory: infra/terraform/bootstrap
+        working-directory: ${{ matrix.dir }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.9.8"
-
-      - name: Format check
-        run: terraform fmt -recursive -check ../
 
       - name: Init (no backend)
         run: terraform init -backend=false -input=false

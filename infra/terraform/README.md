@@ -7,14 +7,25 @@
 
 ```
 infra/terraform/
-  bootstrap/   # F1: remote state (S3+DynamoDB) + GitHub OIDC provider + per-env CI deploy roles
-  modules/     # F2: reusable frontend infra module (S3 + CloudFront + ACM + Route53)  [pending]
-  envs/        # F2: dev / staging / production instantiations of the module           [pending]
+  bootstrap/         # F1: remote state (S3+DynamoDB) + GitHub OIDC provider + per-env CI deploy roles
+  modules/frontend/  # F2: reusable frontend module (private S3 + CloudFront/OAC + ACM + Route53)
+  envs/{dev,staging,production}/  # F2: per-env instantiations of the frontend module
 ```
 
-This directory currently contains **F1 only** (the CI→AWS trust + remote-state backing store).
-It provisions **no application infrastructure** — the static-site buckets, CloudFront
-distributions, certs, and DNS land in `modules/` + `envs/` in F2.
+Contains **F1 + F2**. F1 is the CI→AWS trust + remote-state store. F2 is the frontend
+infrastructure (static-site bucket, CloudFront, TLS, DNS) as a reusable module instantiated per
+environment. **Still provisions nothing until `terraform apply`** is run against a real account
+(Q-F1) — everything here `validate`s with placeholder variables.
+
+### F2 — frontend module (`modules/frontend`)
+
+Per environment: a **private S3 bucket** (versioned for rollback, encrypted, no public access),
+a **CloudFront distribution** reaching it via **Origin Access Control**, an **ACM cert**
+(us-east-1) covering the env apex **and the `*.<zone>` wildcard** so Phase E tenant subdomains
+resolve with no per-tenant infra, **security response headers** (HSTS/no-sniff/DENY/referrer),
+**SPA error mapping** (403/404 → `/index.html` 200), and **Route53 alias records** (apex +
+wildcard). The bucket policy admits only this distribution. Outputs `bucket_name` +
+`distribution_id` for the F3 deploy pipeline.
 
 ## What F1 sets up
 
