@@ -1,38 +1,87 @@
+import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { MfaCard } from "@/components/settings/MfaCard";
 import { FeatureFlagsCard } from "@/components/settings/FeatureFlagsCard";
+import { ProfileSettingsTab } from "@/components/settings/ProfileSettingsTab";
+import { NotificationSettingsTab } from "@/components/settings/NotificationSettingsTab";
+import { CompanySettingsTab } from "@/components/settings/CompanySettingsTab";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function Settings() {
-  const { staff, roles } = useAuth();
+const CONFIG_LINKS = [
+  { to: "/lead-rules", label: "Assignment Rules" },
+  { to: "/task-templates", label: "Task Templates" },
+  { to: "/litigation-teams", label: "Litigation Teams" },
+  { to: "/templates", label: "Templates" },
+  { to: "/integrations", label: "Integrations" },
+  { to: "/creditors", label: "Creditors" },
+  { to: "/services", label: "Services" },
+  { to: "/staff", label: "Staff" },
+];
+
+function ConfigurationTab({ isAdmin }: { isAdmin: boolean }) {
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Configuration</CardTitle>
+        <CardDescription>Firm-wide setup lives on these pages.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {CONFIG_LINKS.map((l) => (
+            <Link key={l.to} to={l.to} className="text-sm text-guardian-gold hover:underline">
+              → {l.label}
+            </Link>
+          ))}
+          {isAdmin && (
+            <Link to="/companies" className="text-sm text-guardian-gold hover:underline">
+              → Companies
+            </Link>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function Settings() {
+  const { roles } = useAuth();
+  const isAdmin = roles.includes("admin");
+
+  return (
+    <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Settings</h1>
+      <Tabs defaultValue="profile">
+        <TabsList className="w-full justify-start overflow-x-auto">
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          {isAdmin && <TabsTrigger value="company">Company</TabsTrigger>}
+          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="flags">Feature Flags</TabsTrigger>
+          <TabsTrigger value="config">Configuration</TabsTrigger>
+        </TabsList>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Profile</CardTitle>
-          <CardDescription>Your account details.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-1 text-sm">
-          <p>
-            <span className="text-muted-foreground">Name: </span>
-            {staff ? `${staff.first_name} ${staff.last_name}` : "—"}
-          </p>
-          <p>
-            <span className="text-muted-foreground">Email: </span>
-            {staff?.email ?? "—"}
-          </p>
-          <p>
-            <span className="text-muted-foreground">Roles: </span>
-            {roles.length ? roles.join(", ") : "—"}
-          </p>
-        </CardContent>
-      </Card>
-
-      <FeatureFlagsCard />
-
-      <MfaCard />
+        <TabsContent value="profile" className="max-w-2xl pt-4">
+          <ProfileSettingsTab />
+        </TabsContent>
+        <TabsContent value="notifications" className="max-w-2xl pt-4">
+          <NotificationSettingsTab />
+        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="company" className="max-w-2xl pt-4">
+            <CompanySettingsTab />
+          </TabsContent>
+        )}
+        <TabsContent value="security" className="max-w-2xl pt-4">
+          <MfaCard />
+        </TabsContent>
+        <TabsContent value="flags" className="max-w-2xl pt-4">
+          <FeatureFlagsCard />
+        </TabsContent>
+        <TabsContent value="config" className="max-w-2xl pt-4">
+          <ConfigurationTab isAdmin={isAdmin} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
