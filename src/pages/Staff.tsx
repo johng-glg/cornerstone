@@ -105,6 +105,13 @@ export default function Staff() {
       searchText={(s) =>
         `${s.first_name} ${s.last_name} ${s.email} ${s.department} ${s.job_title ?? ""}`
       }
+      exportRow={(s) => ({
+        Name: `${s.first_name} ${s.last_name}`,
+        Email: s.email,
+        Department: titleCase(s.department),
+        Title: s.job_title ?? "",
+        Active: s.is_active ? "Yes" : "No",
+      })}
       empty="No staff yet."
       columns={[
         { header: "Name", cell: (s) => `${s.first_name} ${s.last_name}` },

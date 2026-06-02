@@ -150,6 +150,15 @@ export default function Workflows() {
       query={q}
       action={<RuleDialog />}
       searchText={(r) => `${r.name} ${r.entity_type} ${r.trigger_type}`}
+      exportRow={(r) => ({
+        Name: r.name,
+        Entity: titleCase(r.entity_type),
+        Trigger: titleCase(r.trigger_type),
+        Action: titleCase(r.actions?.[0]?.type ?? ""),
+        Priority: r.priority,
+        Blocking: r.is_blocking ? "Yes" : "No",
+        Active: r.is_active ? "Yes" : "No",
+      })}
       empty="No workflow rules yet."
       columns={[
         { header: "Name", cell: (r) => r.name },

@@ -114,6 +114,12 @@ export default function Services() {
       query={q}
       action={<AddServiceAction />}
       searchText={(s) => `${s.name} ${s.service_type}`}
+      exportRow={(s) => ({
+        Name: s.name,
+        Type: titleCase(s.service_type),
+        Description: s.description ?? "",
+        Active: s.is_active ? "Yes" : "No",
+      })}
       empty="No services defined."
       columns={[
         { header: "Name", cell: (s) => s.name },

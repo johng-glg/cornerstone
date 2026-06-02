@@ -69,6 +69,14 @@ export default function Tasks() {
       query={q}
       action={<NewTaskAction />}
       searchText={(t) => `${t.title} ${t.task_type} ${t.status} ${t.priority}`}
+      exportRow={(t) => ({
+        Title: t.title,
+        Type: titleCase(t.task_type),
+        "Linked to": t.entity_type ? titleCase(t.entity_type) : "",
+        Priority: titleCase(t.priority),
+        Status: titleCase(t.status),
+        Due: t.due_date ?? "",
+      })}
       empty="No tasks yet."
       columns={[
         { header: "Title", cell: (t) => t.title },

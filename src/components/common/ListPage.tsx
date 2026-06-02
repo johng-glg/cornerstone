@@ -2,6 +2,8 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { QueryState } from "@/components/common/QueryState";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { exportCsv } from "@/lib/csv";
 
 export interface Column<T> {
   header: string;
@@ -20,6 +22,7 @@ export function ListPage<T extends { id: string }>({
   onRowClick,
   searchText,
   searchPlaceholder = "Search…",
+  exportRow,
 }: {
   title: string;
   description?: string;
@@ -31,6 +34,8 @@ export function ListPage<T extends { id: string }>({
   /** When provided, a search box filters rows by this text (case-insensitive substring). */
   searchText?: (row: T) => string;
   searchPlaceholder?: string;
+  /** When provided, an "Export CSV" button exports the (filtered) rows as this flat object. */
+  exportRow?: (row: T) => Record<string, string | number>;
 }) {
   const [search, setSearch] = useState("");
   const rows = useMemo(() => {
@@ -48,7 +53,18 @@ export function ListPage<T extends { id: string }>({
           <h1 className="text-2xl font-semibold">{title}</h1>
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
-        {action}
+        <div className="flex shrink-0 items-center gap-2">
+          {exportRow && rows.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => exportCsv(title, rows.map(exportRow))}
+            >
+              Export CSV
+            </Button>
+          )}
+          {action}
+        </div>
       </div>
       {searchText && (hasAny || search) && (
         <Input

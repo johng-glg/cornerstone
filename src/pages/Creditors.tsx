@@ -119,6 +119,14 @@ export default function Creditors() {
       query={q}
       action={<AddCreditorAction />}
       searchText={(c) => `${c.name} ${c.creditor_type ?? ""} ${c.state ?? ""} ${c.email ?? ""}`}
+      exportRow={(c) => ({
+        Name: c.name,
+        Type: c.creditor_type ? titleCase(c.creditor_type) : "",
+        Phone: c.phone ?? "",
+        Email: c.email ?? "",
+        State: c.state ?? "",
+        Active: c.is_active ? "Yes" : "No",
+      })}
       empty="No creditors yet."
       columns={[
         { header: "Name", cell: (c) => c.name },

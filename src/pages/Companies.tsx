@@ -63,6 +63,13 @@ export default function Companies() {
       query={q}
       action={isAdmin ? <AddCompanyAction /> : undefined}
       searchText={(c) => `${c.name} ${c.company_type} ${c.city ?? ""} ${c.state ?? ""}`}
+      exportRow={(c) => ({
+        Name: c.name,
+        Type: titleCase(c.company_type),
+        City: c.city ?? "",
+        State: c.state ?? "",
+        Active: c.is_active ? "Yes" : "No",
+      })}
       empty="No companies."
       columns={[
         { header: "Name", cell: (c) => c.name },
