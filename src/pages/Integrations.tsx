@@ -1,11 +1,50 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { useIntegrationProviders, useCompanyIntegrations } from "@/hooks/useModules";
 import { useSetIntegration } from "@/hooks/useModuleMutations";
 import { useAuth } from "@/lib/auth";
 import { QueryState } from "@/components/common/QueryState";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { titleCase } from "@/lib/format";
+
+// Maps a provider to its test-connection edge function (when one exists).
+function testFnFor(providerKey: string): string | null {
+  if (providerKey.includes("forth")) return "forth-test-connection";
+  if (providerKey.includes("dialpad")) return "dialpad-test-connection";
+  if (providerKey.includes("docuseal")) return "docuseal-test";
+  return null;
+}
+
+function TestButton({ providerKey }: { providerKey: string }) {
+  const fn = testFnFor(providerKey);
+  const [pending, setPending] = useState(false);
+  if (!fn) return null;
+  const run = async () => {
+    setPending(true);
+    const { data, error } = await supabase.functions.invoke(fn, { body: {} });
+    setPending(false);
+    if (error) {
+      toast.error(
+        error.message.includes("not found") || error.message.includes("404")
+          ? "Function not deployed yet — see the edge-functions runbook."
+          : error.message,
+      );
+      return;
+    }
+    if (data && (data as { success?: boolean }).success === false) {
+      toast.error((data as { error?: string }).error ?? "Connection failed.");
+      return;
+    }
+    toast.success("Connection OK.");
+  };
+  return (
+    <Button size="sm" variant="ghost" className="h-7 text-xs" disabled={pending} onClick={run}>
+      {pending ? "Testing…" : "Test"}
+    </Button>
+  );
+}
 
 export default function Integrations() {
   const providers = useIntegrationProviders();
@@ -50,29 +89,32 @@ export default function Integrations() {
                       <p className="mt-1 text-sm text-muted-foreground">{p.description}</p>
                     )}
                   </div>
-                  <label className="flex shrink-0 cursor-pointer items-center gap-2 text-xs">
-                    <span className={enabled ? "text-green-700" : "text-muted-foreground"}>
-                      {enabled ? "On" : "Off"}
-                    </span>
-                    <input
-                      type="checkbox"
-                      className="h-5 w-5"
-                      checked={enabled}
-                      disabled={!isAdmin || setIntegration.isPending}
-                      onChange={(e) =>
-                        setIntegration.mutate(
-                          { providerKey: p.provider_key, enabled: e.target.checked },
-                          {
-                            onSuccess: () =>
-                              toast.success(
-                                `${p.display_name} ${e.target.checked ? "enabled" : "disabled"}.`,
-                              ),
-                            onError: (err) => toast.error(err.message),
-                          },
-                        )
-                      }
-                    />
-                  </label>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {enabled && <TestButton providerKey={p.provider_key} />}
+                    <label className="flex cursor-pointer items-center gap-2 text-xs">
+                      <span className={enabled ? "text-green-700" : "text-muted-foreground"}>
+                        {enabled ? "On" : "Off"}
+                      </span>
+                      <input
+                        type="checkbox"
+                        className="h-5 w-5"
+                        checked={enabled}
+                        disabled={!isAdmin || setIntegration.isPending}
+                        onChange={(e) =>
+                          setIntegration.mutate(
+                            { providerKey: p.provider_key, enabled: e.target.checked },
+                            {
+                              onSuccess: () =>
+                                toast.success(
+                                  `${p.display_name} ${e.target.checked ? "enabled" : "disabled"}.`,
+                                ),
+                              onError: (err) => toast.error(err.message),
+                            },
+                          )
+                        }
+                      />
+                    </label>
+                  </div>
                 </CardContent>
               </Card>
             );

@@ -1,0 +1,40 @@
+name: Deploy — edge functions
+
+# Deploys all Supabase edge functions (Forth, Dialpad, DocuSeal, PLSA, provisioning) to the
+# project. Per-function config (verify_jwt, etc.) comes from supabase/config.toml.
+#
+# Gated on the `SUPABASE_PROJECT_REF` repo VARIABLE existing, so this is a no-op until you opt in.
+# To enable (Settings → Secrets and variables → Actions):
+#   Variable: SUPABASE_PROJECT_REF = ppefwolueksddgabvseh
+#   Secret:   SUPABASE_ACCESS_TOKEN = <a Supabase access token from supabase.com/dashboard/account/tokens>
+# The vendor API keys are set separately as function secrets — see
+# docs/runbooks/edge-functions-deploy.md.
+
+on:
+  push:
+    branches: [claude/vibrant-bardeen-nwrt8]
+    paths: ["supabase/functions/**", ".github/workflows/deploy-edge-functions.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-edge-functions
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy edge functions
+    runs-on: ubuntu-latest
+    # `vars` is allowed in job-level if (unlike `secrets`); no-op until the ref var is set.
+    if: vars.SUPABASE_PROJECT_REF != ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Deploy all functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy --project-ref "${{ vars.SUPABASE_PROJECT_REF }}"
