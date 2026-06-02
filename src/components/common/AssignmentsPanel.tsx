@@ -7,6 +7,7 @@ import {
   ASSIGNMENT_TYPES,
 } from "@/hooks/useAssignments";
 import { useStaffList } from "@/hooks/useModules";
+import { useRecordActivity } from "@/hooks/useActivityLog";
 import { QueryState } from "@/components/common/QueryState";
 import { QuickFormDialog } from "@/components/common/QuickFormDialog";
 import { Button } from "@/components/ui/button";
@@ -16,15 +17,24 @@ import { titleCase } from "@/lib/format";
 export function AssignmentsPanel({
   entityType,
   entityId,
+  clientId,
 }: {
   entityType: string;
   entityId: string;
+  /** Owning client, when known, so the assignment also rolls up to the client timeline. */
+  clientId?: string | null;
 }) {
   const q = useAssignments(entityType, entityId);
   const add = useAddAssignment(entityType, entityId);
   const remove = useRemoveAssignment(entityType, entityId);
   const staff = useStaffList();
+  const record = useRecordActivity();
   const rows = q.data ?? [];
+
+  const staffName = (id: string) => {
+    const s = (staff.data ?? []).find((x) => x.id === id);
+    return s ? `${s.first_name} ${s.last_name}` : "a staff member";
+  };
 
   return (
     <div className="space-y-3">
@@ -55,6 +65,14 @@ export function AssignmentsPanel({
           onSubmit={async (v) => {
             try {
               await add.mutateAsync({ staff_id: v.staff_id, assignment_type: v.assignment_type });
+              await record({
+                entityType,
+                entityId,
+                clientId,
+                category: "assignment",
+                description: `Assigned ${staffName(v.staff_id)} as ${titleCase(v.assignment_type)}`,
+                metadata: { staff_id: v.staff_id, assignment_type: v.assignment_type },
+              });
               toast.success("Assigned.");
             } catch (e) {
               toast.error((e as Error).message);
@@ -87,7 +105,20 @@ export function AssignmentsPanel({
                 disabled={remove.isPending}
                 onClick={() =>
                   remove.mutate(a.id, {
-                    onSuccess: () => toast.success("Unassigned."),
+                    onSuccess: () => {
+                      const name = a.staff
+                        ? `${a.staff.first_name} ${a.staff.last_name}`
+                        : "a staff member";
+                      void record({
+                        entityType,
+                        entityId,
+                        clientId,
+                        category: "assignment",
+                        description: `Unassigned ${name} (${titleCase(a.assignment_type)})`,
+                        metadata: { assignment_id: a.id, assignment_type: a.assignment_type },
+                      });
+                      toast.success("Unassigned.");
+                    },
                     onError: (e) => toast.error(e.message),
                   })
                 }

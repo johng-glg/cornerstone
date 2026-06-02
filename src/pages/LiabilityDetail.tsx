@@ -10,7 +10,9 @@ import {
 import { useSettlements, useAddSettlement } from "@/hooks/useSettlements";
 import { useEntityNotes, useAddNote } from "@/hooks/useLeadTabs";
 import { useLitigationTeams, useStaffList } from "@/hooks/useModules";
+import { useRecordActivity } from "@/hooks/useActivityLog";
 import { AssignmentsPanel } from "@/components/common/AssignmentsPanel";
+import { ActivityFeed } from "@/components/common/ActivityFeed";
 import { QueryState } from "@/components/common/QueryState";
 import { QuickFormDialog } from "@/components/common/QuickFormDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -31,6 +33,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function SettlementsTab({ liabilityId }: { liabilityId: string }) {
   const q = useSettlements([liabilityId]);
   const add = useAddSettlement();
+  const record = useRecordActivity();
   const rows = q.data ?? [];
   return (
     <div className="space-y-3">
@@ -53,6 +56,13 @@ function SettlementsTab({ liabilityId }: { liabilityId: string }) {
                 offer_percentage: v.offer_percentage ? Number(v.offer_percentage) : null,
                 number_of_payments: v.number_of_payments ? Number(v.number_of_payments) : null,
                 notes: v.notes || null,
+              });
+              await record({
+                entityType: "liability",
+                entityId: liabilityId,
+                category: "settlement",
+                description: `Settlement offer of ${formatCurrency(Number(v.offer_amount))} created`,
+                metadata: { offer_amount: Number(v.offer_amount) },
               });
               toast.success("Settlement offer added.");
             } catch (e) {
@@ -302,6 +312,7 @@ export default function LiabilityDetail() {
               <TabsList className="w-full justify-start overflow-x-auto">
                 <TabsTrigger value="settlements">Settlements</TabsTrigger>
                 <TabsTrigger value="assignments">Assignments</TabsTrigger>
+                <TabsTrigger value="activity">Activity</TabsTrigger>
                 <TabsTrigger value="notes">Notes</TabsTrigger>
                 <TabsTrigger value="history">History</TabsTrigger>
               </TabsList>
@@ -310,6 +321,9 @@ export default function LiabilityDetail() {
               </TabsContent>
               <TabsContent value="assignments" className="pt-4">
                 <AssignmentsPanel entityType="liability" entityId={l.id} />
+              </TabsContent>
+              <TabsContent value="activity" className="pt-4">
+                <ActivityFeed entityType="liability" entityId={l.id} />
               </TabsContent>
               <TabsContent value="notes" className="pt-4">
                 <NotesTab liabilityId={l.id} />
