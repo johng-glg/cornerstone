@@ -49,9 +49,9 @@ INSERT INTO public.client_phones (id, client_id, phone_number, phone_type, is_pr
   ('ac100000-0000-4000-8000-000000000002','ac000000-0000-4000-8000-000000000002','555-0302','mobile',true,true)
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.client_addresses (id, client_id, address_type, city, state, zip_code, is_primary, is_active) VALUES
-  ('ac200000-0000-4000-8000-000000000001','ac000000-0000-4000-8000-000000000001','home','Austin','TX','78701',true,true),
-  ('ac200000-0000-4000-8000-000000000002','ac000000-0000-4000-8000-000000000002','home','San Diego','CA','92101',true,true)
+INSERT INTO public.client_addresses (id, client_id, address_type, address_line1, city, state, zip_code, is_primary, is_active) VALUES
+  ('ac200000-0000-4000-8000-000000000001','ac000000-0000-4000-8000-000000000001','home','123 Congress Ave','Austin','TX','78701',true,true),
+  ('ac200000-0000-4000-8000-000000000002','ac000000-0000-4000-8000-000000000002','home','456 Harbor Dr','San Diego','CA','92101',true,true)
 ON CONFLICT (id) DO NOTHING;
 
 -- 4. Engagements (client_services) --------------------------------------------
@@ -82,10 +82,10 @@ INSERT INTO public.transactions (id, client_service_id, amount, transaction_type
 ON CONFLICT (id) DO NOTHING;
 
 -- 7. Billing entries -----------------------------------------------------------
-INSERT INTO public.billing_entries (id, company_id, staff_id, client_id, client_service_id, entry_type, description, billing_date, duration_minutes, hourly_rate, total_amount, is_billable, status) VALUES
-  ('ba000000-0000-4000-8000-000000000001','0a000000-0000-4000-8000-000000000001',(SELECT id FROM public.staff WHERE user_id = 'd2000000-0000-4000-8000-000000000002'),'ac000000-0000-4000-8000-000000000001','ad000000-0000-4000-8000-000000000001','time','Creditor negotiation call',  '2026-03-10',45,250,187.50,true,'approved'),
-  ('ba000000-0000-4000-8000-000000000002','0a000000-0000-4000-8000-000000000001',(SELECT id FROM public.staff WHERE user_id = 'd2000000-0000-4000-8000-000000000002'),'ac000000-0000-4000-8000-000000000002','ad000000-0000-4000-8000-000000000002','time','Litigation response drafting','2026-04-02',90,250,375.00,true,'draft'),
-  ('ba000000-0000-4000-8000-000000000003','0a000000-0000-4000-8000-000000000001',(SELECT id FROM public.staff WHERE user_id = 'd3000000-0000-4000-8000-000000000003'),'ac000000-0000-4000-8000-000000000001',NULL,'expense','Court filing fee','2026-04-05',NULL,NULL,95.00,true,'invoiced')
+INSERT INTO public.billing_entries (id, company_id, staff_id, client_id, client_service_id, entry_type, description, billing_date, duration_minutes, hourly_rate, expense_amount, total_amount, is_billable, status) VALUES
+  ('ba000000-0000-4000-8000-000000000001','0a000000-0000-4000-8000-000000000001',(SELECT id FROM public.staff WHERE user_id = 'd2000000-0000-4000-8000-000000000002'),'ac000000-0000-4000-8000-000000000001','ad000000-0000-4000-8000-000000000001','time','Creditor negotiation call',  '2026-03-10',45,250,NULL,187.50,true,'approved'),
+  ('ba000000-0000-4000-8000-000000000002','0a000000-0000-4000-8000-000000000001',(SELECT id FROM public.staff WHERE user_id = 'd2000000-0000-4000-8000-000000000002'),'ac000000-0000-4000-8000-000000000002','ad000000-0000-4000-8000-000000000002','time','Litigation response drafting','2026-04-02',90,250,NULL,375.00,true,'draft'),
+  ('ba000000-0000-4000-8000-000000000003','0a000000-0000-4000-8000-000000000001',(SELECT id FROM public.staff WHERE user_id = 'd3000000-0000-4000-8000-000000000003'),'ac000000-0000-4000-8000-000000000001',NULL,'expense','Court filing fee','2026-04-05',NULL,NULL,95.00,95.00,true,'invoiced')
 ON CONFLICT (id) DO NOTHING;
 
 -- 8. Tasks ---------------------------------------------------------------------
