@@ -74,7 +74,10 @@ export async function getAccessToken(companyId?: string): Promise<string> {
   const resp = await fetch("https://api.forthcrm.com/v1/auth/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ client_id: clientId, client_secret: normalizeSecret(clientSecret) }),
+    body: JSON.stringify({
+      client_id: normalizeSecret(clientId),
+      client_secret: normalizeSecret(clientSecret),
+    }),
   });
   const text = await resp.text();
   if (!resp.ok) {
