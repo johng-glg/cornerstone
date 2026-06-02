@@ -224,10 +224,17 @@ function AppShell({ children }: { children: ReactNode }) {
           <GlobalSearch />
           <div className="flex flex-1 items-center justify-end gap-3">
             {isRealAdmin && (
-              <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="hidden sm:inline">View as</span>
+              <label
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm transition-colors",
+                  impersonatedView
+                    ? "border-guardian-gold/50 bg-guardian-gold/15 text-guardian-navy"
+                    : "border-input bg-background text-muted-foreground",
+                )}
+              >
+                <span className="hidden sm:inline">Viewing as</span>
                 <select
-                  className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                  className="bg-transparent text-sm font-medium outline-none"
                   value={impersonatedView ?? ""}
                   onChange={(e) => setImpersonatedView(e.target.value || null)}
                   aria-label="Impersonate role view"

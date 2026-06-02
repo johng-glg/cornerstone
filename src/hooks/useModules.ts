@@ -48,12 +48,16 @@ export interface TaskListRow {
   status: string;
   due_date: string | null;
   entity_type: string | null;
+  assigned_to: string | null;
 }
 export const useTasksList = (): UseQueryResult<TaskListRow[], Error> =>
   useQuery({
     queryKey: ["tasks_all"],
     queryFn: () =>
-      list<TaskListRow>("tasks", "id, title, task_type, priority, status, due_date, entity_type"),
+      list<TaskListRow>(
+        "tasks",
+        "id, title, task_type, priority, status, due_date, entity_type, assigned_to",
+      ),
   });
 
 export interface BillingListRow {
