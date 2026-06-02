@@ -60,36 +60,48 @@ export async function handler(req: Request): Promise<Response> {
     "Content-Type": "application/json",
   };
 
+  // deno-lint-ignore no-explicit-any
+  const items = (b: any): any[] =>
+    b?.items ?? b?.webhooks ?? b?.subscriptions ?? (Array.isArray(b) ? b : []);
+
   try {
-    // 1. Create the webhook (secret → HS256 JWT-signed event deliveries).
+    // 1. Create the webhook (secret → HS256 JWT-signed deliveries). Idempotent: if one already
+    //    exists for this hook_url (409), reuse it and refresh its secret so JWT verification matches.
+    let webhookId: string | undefined;
+    let reused = false;
     const whResp = await fetch(`${DIALPAD_API}/webhooks`, {
       method: "POST",
       headers,
       body: JSON.stringify({ hook_url: hookUrl, secret }),
     });
     const whBody = await whResp.json().catch(() => ({}));
-    if (!whResp.ok) {
+    if (whResp.ok) {
+      webhookId = whBody.id ?? whBody.webhook_id;
+    } else if (whResp.status === 409) {
+      reused = true;
+      const listResp = await fetch(`${DIALPAD_API}/webhooks`, { headers });
+      const existing = items(await listResp.json().catch(() => ({}))).find(
+        (w) => w.hook_url === hookUrl,
+      );
+      webhookId = existing?.id ?? existing?.webhook_id;
+      // Best-effort: ensure the existing webhook uses the current secret.
+      if (webhookId) {
+        await fetch(`${DIALPAD_API}/webhooks/${webhookId}`, {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({ secret }),
+        }).catch(() => {});
+      }
+    }
+    if (!webhookId) {
       return jsonResponse(
         req,
         { success: false, step: "create_webhook", status: whResp.status, error: whBody },
         502,
       );
     }
-    const webhookId = whBody.id ?? whBody.webhook_id;
-    if (!webhookId) {
-      return jsonResponse(
-        req,
-        {
-          success: false,
-          step: "create_webhook",
-          error: "No webhook id in response",
-          body: whBody,
-        },
-        502,
-      );
-    }
 
-    // 2. Subscribe to call events on that webhook.
+    // 2. Subscribe to call events on that webhook. Tolerate 409 (subscription already exists).
     const subPayload: Record<string, unknown> = { webhook_id: webhookId, enabled: true };
     if (input.call_states?.length) subPayload.call_states = input.call_states;
     if (typeof input.group_calls === "boolean") subPayload.group_calls = input.group_calls;
@@ -99,25 +111,36 @@ export async function handler(req: Request): Promise<Response> {
       body: JSON.stringify(subPayload),
     });
     const subBody = await subResp.json().catch(() => ({}));
+    let subId = subBody.id ?? subBody.subscription_id ?? null;
     if (!subResp.ok) {
-      return jsonResponse(
-        req,
-        {
-          success: false,
-          step: "create_subscription",
-          status: subResp.status,
-          error: subBody,
-          webhook_id: webhookId,
-        },
-        502,
-      );
+      if (subResp.status === 409) {
+        // Already subscribed — find the existing call subscription for this webhook.
+        const subListResp = await fetch(`${DIALPAD_API}/subscriptions/call`, { headers });
+        const existingSub = items(await subListResp.json().catch(() => ({}))).find(
+          (s) => String(s.webhook_id ?? s.webhook?.id) === String(webhookId),
+        );
+        subId = existingSub?.id ?? subId;
+      } else {
+        return jsonResponse(
+          req,
+          {
+            success: false,
+            step: "create_subscription",
+            status: subResp.status,
+            error: subBody,
+            webhook_id: webhookId,
+          },
+          502,
+        );
+      }
     }
 
     return jsonResponse(req, {
       success: true,
+      reused_existing_webhook: reused,
       hook_url: hookUrl,
       webhook_id: webhookId,
-      subscription_id: subBody.id ?? subBody.subscription_id ?? null,
+      subscription_id: subId,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
