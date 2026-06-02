@@ -85,6 +85,58 @@ export interface WorkflowRule {
   is_active: boolean;
   is_blocking: boolean;
   priority: number;
+  group_id: string | null;
+}
+
+export interface WorkflowGroup {
+  id: string;
+  name: string;
+  entity_type: string;
+  color: string | null;
+  description: string | null;
+}
+
+export function useWorkflowGroups(): UseQueryResult<WorkflowGroup[], Error> {
+  const { staff } = useAuth();
+  return useQuery({
+    queryKey: ["workflow_groups", staff?.company_id],
+    enabled: !!staff?.company_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("workflow_groups")
+        .select("id, name, entity_type, color, description")
+        .eq("company_id", staff!.company_id)
+        .order("priority", { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as WorkflowGroup[];
+    },
+  });
+}
+
+export interface NewWorkflowGroup {
+  name: string;
+  entity_type: string;
+  description?: string | null;
+  color?: string | null;
+}
+export function useCreateWorkflowGroup(): UseMutationResult<void, Error, NewWorkflowGroup> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, NewWorkflowGroup>({
+    mutationFn: async (input) => {
+      if (!staff?.company_id) throw new Error("No active company.");
+      const { error } = await supabase.from("workflow_groups").insert({
+        company_id: staff.company_id,
+        created_by: staff.id ?? null,
+        name: input.name,
+        entity_type: input.entity_type,
+        description: input.description || null,
+        color: input.color || null,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["workflow_groups"] }),
+  });
 }
 
 export function useWorkflowRules(): UseQueryResult<WorkflowRule[], Error> {
@@ -96,7 +148,7 @@ export function useWorkflowRules(): UseQueryResult<WorkflowRule[], Error> {
       const { data, error } = await supabase
         .from("workflow_rules")
         .select(
-          "id, name, description, entity_type, trigger_type, conditions, actions, trigger_config, is_active, is_blocking, priority",
+          "id, name, description, entity_type, trigger_type, conditions, actions, trigger_config, is_active, is_blocking, priority, group_id",
         )
         .eq("company_id", staff!.company_id)
         .order("priority", { ascending: true });
@@ -131,6 +183,7 @@ export interface WorkflowRuleInput {
   is_active: boolean;
   is_blocking: boolean;
   priority: number;
+  group_id?: string | null;
 }
 
 export function useSaveWorkflowRule(): UseMutationResult<void, Error, WorkflowRuleInput> {
@@ -152,6 +205,7 @@ export function useSaveWorkflowRule(): UseMutationResult<void, Error, WorkflowRu
         is_active: input.is_active,
         is_blocking: input.is_blocking,
         priority: input.priority,
+        group_id: input.group_id ?? null,
       };
       const { error } = input.id
         ? await supabase.from("workflow_rules").update(payload).eq("id", input.id)
