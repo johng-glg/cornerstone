@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useAuth } from "@/lib/auth";
 import { useClients, useLeads, useLiabilities, useTransactions } from "@/hooks/useCoreCrm";
@@ -6,8 +7,64 @@ import { StatCard } from "@/components/common/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, titleCase } from "@/lib/format";
 
+// Role → the pages that role works in most. Drives the dashboard quick actions.
+const ROLE_ACTIONS: Record<string, { label: string; to: string }[]> = {
+  admin: [
+    { label: "Leads", to: "/leads" },
+    { label: "Reports", to: "/reports" },
+    { label: "Staff", to: "/staff" },
+    { label: "Settings", to: "/settings" },
+  ],
+  attorney: [
+    { label: "Litigation", to: "/litigation" },
+    { label: "Court Calendar", to: "/court-calendar" },
+    { label: "Tasks", to: "/tasks" },
+  ],
+  paralegal: [
+    { label: "Litigation", to: "/litigation" },
+    { label: "Court Calendar", to: "/court-calendar" },
+    { label: "Tasks", to: "/tasks" },
+  ],
+  sales_rep: [
+    { label: "Leads", to: "/leads" },
+    { label: "Eligibility Reviews", to: "/eligibility-reviews" },
+    { label: "Lead Metrics", to: "/lead-metrics" },
+  ],
+  negotiator: [
+    { label: "Liabilities", to: "/liabilities" },
+    { label: "Creditors", to: "/creditors" },
+    { label: "Clients", to: "/clients" },
+  ],
+  payment_processor: [
+    { label: "Payments", to: "/payments" },
+    { label: "Transactions", to: "/transactions" },
+    { label: "Billing", to: "/billing" },
+  ],
+  correspondent: [
+    { label: "Templates", to: "/templates" },
+    { label: "Signatures", to: "/signatures" },
+    { label: "Clients", to: "/clients" },
+  ],
+  case_manager: [
+    { label: "Clients", to: "/clients" },
+    { label: "Engagements", to: "/engagements" },
+    { label: "Tasks", to: "/tasks" },
+  ],
+  client_services_rep: [
+    { label: "Clients", to: "/clients" },
+    { label: "Engagements", to: "/engagements" },
+    { label: "Tasks", to: "/tasks" },
+  ],
+  viewer: [
+    { label: "Reports", to: "/reports" },
+    { label: "Clients", to: "/clients" },
+  ],
+};
+
 export default function Dashboard() {
-  const { staff } = useAuth();
+  const { staff, roles } = useAuth();
+  const primaryRole = roles[0] ?? "viewer";
+  const actions = ROLE_ACTIONS[primaryRole] ?? ROLE_ACTIONS.viewer;
   const clients = useClients();
   const leads = useLeads();
   const liabilities = useLiabilities();
@@ -30,9 +87,25 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome{staff ? `, ${staff.first_name}` : ""}.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Welcome{staff ? `, ${staff.first_name}` : ""}.
+            <span className="ml-1 text-xs">({titleCase(primaryRole)})</span>
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {actions.map((a) => (
+            <Link
+              key={a.to}
+              to={a.to}
+              className="rounded-md border bg-background px-3 py-1.5 text-sm hover:bg-muted"
+            >
+              {a.label}
+            </Link>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
