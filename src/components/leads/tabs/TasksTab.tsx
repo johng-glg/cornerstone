@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { useEntityTasks, useAddTask, useToggleTask } from "@/hooks/useLeadTabs";
+import { useRecordActivity } from "@/hooks/useActivityLog";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,8 @@ export function TasksTab({
   const tasks = useEntityTasks(entityType, entityId);
   const addTask = useAddTask(entityType, entityId, staff?.company_id, staff?.id);
   const toggle = useToggleTask(entityType, entityId);
+  const record = useRecordActivity();
+  const clientId = entityType === "client" ? entityId : undefined;
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<(typeof PRIORITIES)[number]>("medium");
@@ -49,6 +52,13 @@ export function TasksTab({
       { title: title.trim(), priority, due_date: dueDate || null },
       {
         onSuccess: () => {
+          void record({
+            entityType,
+            entityId,
+            clientId,
+            category: "task",
+            description: `Task created: ${title.trim()}`,
+          });
           toast.success("Task added.");
           setTitle("");
           setDueDate("");
@@ -121,12 +131,25 @@ export function TasksTab({
                 type="checkbox"
                 className="h-4 w-4"
                 checked={t.status === "completed"}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const completed = e.target.checked;
                   toggle.mutate(
-                    { id: t.id, completed: e.target.checked },
-                    { onError: (err) => toast.error(err.message) },
-                  )
-                }
+                    { id: t.id, completed },
+                    {
+                      onSuccess: () => {
+                        if (completed)
+                          void record({
+                            entityType,
+                            entityId,
+                            clientId,
+                            category: "task",
+                            description: `Task completed: ${t.title}`,
+                          });
+                      },
+                      onError: (err) => toast.error(err.message),
+                    },
+                  );
+                }}
               />
               <div className="min-w-0 flex-1">
                 <p

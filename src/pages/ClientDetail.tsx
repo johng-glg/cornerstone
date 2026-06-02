@@ -1,6 +1,14 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Pencil } from "lucide-react";
+import {
+  ArrowLeft,
+  Pencil,
+  Briefcase,
+  TrendingUp,
+  CheckCircle2,
+  Clock,
+  type LucideIcon,
+} from "lucide-react";
 import {
   useClient,
   useClientServices,
@@ -36,6 +44,30 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+function StatCard({
+  value,
+  sub,
+  icon: Icon,
+}: {
+  value: React.ReactNode;
+  sub: string;
+  icon: LucideIcon;
+}) {
+  return (
+    <Card>
+      <CardContent className="flex items-center gap-3 p-4">
+        <div className="rounded-md bg-muted p-2 text-muted-foreground">
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-2xl font-semibold leading-none">{value}</p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">{sub}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -47,10 +79,18 @@ export default function ClientDetail() {
   const liabilities = useClientLiabilities(id, serviceIds);
   const [editing, setEditing] = useState(false);
 
-  const enrolledTotal = (liabilities.data ?? []).reduce(
+  const engagements = services.data ?? [];
+  const liabs = liabilities.data ?? [];
+  const enrolledTotal = liabs.reduce(
     (s, l) => s + (l.enrolled_balance ?? l.current_balance ?? 0),
     0,
   );
+  const activeEngagements = engagements.filter((s) => s.status === "active").length;
+  const settledTotal = liabs
+    .filter((l) => l.status === "settled")
+    .reduce((s, l) => s + (l.enrolled_balance ?? l.current_balance ?? 0), 0);
+  const pctSettled = enrolledTotal > 0 ? Math.round((settledTotal / enrolledTotal) * 100) : 0;
+  const inNegotiation = liabs.filter((l) => l.status === "in_negotiation").length;
 
   return (
     <div className="space-y-5">
@@ -108,6 +148,28 @@ export default function ClientDetail() {
 
               {/* OVERVIEW */}
               <TabsContent value="overview" className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                  <StatCard
+                    icon={Briefcase}
+                    value={engagements.length}
+                    sub={`${activeEngagements} active`}
+                  />
+                  <StatCard
+                    icon={TrendingUp}
+                    value={formatCurrency(enrolledTotal)}
+                    sub="Total enrolled"
+                  />
+                  <StatCard
+                    icon={CheckCircle2}
+                    value={formatCurrency(settledTotal)}
+                    sub={`${pctSettled}% settled`}
+                  />
+                  <StatCard
+                    icon={Clock}
+                    value={liabs.length}
+                    sub={`${inNegotiation} in negotiation`}
+                  />
+                </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <Card>
                     <CardHeader className="pb-2">
@@ -156,13 +218,19 @@ export default function ClientDetail() {
                 {client.data.notes && (
                   <Card>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-base">Notes</CardTitle>
+                      <CardTitle className="text-base">Profile note</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p className="whitespace-pre-wrap text-sm">{client.data.notes}</p>
                     </CardContent>
                   </Card>
                 )}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Client Notes</CardTitle>
+                  </CardHeader>
+                  <CardContent>{id && <NotesTab entityId={id} entityType="client" />}</CardContent>
+                </Card>
               </TabsContent>
 
               {/* ENGAGEMENTS */}

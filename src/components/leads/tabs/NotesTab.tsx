@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { MessageSquare, AtSign } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useEntityNotes, useAddNote } from "@/hooks/useLeadTabs";
+import { useRecordActivity } from "@/hooks/useActivityLog";
 import { useStaffList } from "@/hooks/useModules";
 import { QueryState } from "@/components/common/QueryState";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ export function NotesTab({
   const { staff } = useAuth();
   const notes = useEntityNotes(entityType, entityId);
   const addNote = useAddNote(entityType, entityId, staff?.id);
+  const record = useRecordActivity();
   const staffList = useStaffList();
   const [draft, setDraft] = useState("");
   const [tagged, setTagged] = useState<Set<string>>(new Set());
@@ -32,6 +34,13 @@ export function NotesTab({
       { content, mentioned_staff_ids: [...tagged] },
       {
         onSuccess: () => {
+          void record({
+            entityType,
+            entityId,
+            clientId: entityType === "client" ? entityId : undefined,
+            category: "note",
+            description: `Note added: "${content.slice(0, 80)}${content.length > 80 ? "…" : ""}"`,
+          });
           setDraft("");
           setTagged(new Set());
           setTagOpen(false);
