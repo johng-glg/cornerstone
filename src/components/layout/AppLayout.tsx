@@ -10,6 +10,7 @@ import {
   Users,
   DollarSign,
   Scale,
+  CalendarDays,
   ReceiptText,
   CheckSquare,
   Building2,
@@ -53,6 +54,7 @@ const MAIN_MENU: NavItem[] = [
   { to: "/clients", label: "Clients", icon: Users },
   { to: "/liabilities", label: "Liabilities", icon: DollarSign },
   { to: "/litigation", label: "Litigation", icon: Scale },
+  { to: "/court-calendar", label: "Court Calendar", icon: CalendarDays },
   { to: "/billing", label: "Billing", icon: ReceiptText },
   { to: "/tasks", label: "Tasks", icon: CheckSquare },
 ];

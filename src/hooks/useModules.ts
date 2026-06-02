@@ -207,3 +207,30 @@ export const useCompanyIntegrations = (): UseQueryResult<CompanyIntegrationRow[]
         true,
       ),
   });
+
+export interface CalendarHearingRow {
+  id: string;
+  hearing_type: string;
+  scheduled_date: string | null;
+  location: string | null;
+  judge_name: string | null;
+  matter_id: string;
+  litigation_matters: { case_number: string | null; court_name: string | null } | null;
+}
+/** Upcoming hearings across all of the tenant's matters (RLS-scoped). */
+export const useCourtCalendar = (): UseQueryResult<CalendarHearingRow[], Error> =>
+  useQuery({
+    queryKey: ["court_calendar"],
+    queryFn: async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data, error } = await supabase
+        .from("litigation_hearings")
+        .select(
+          "id, hearing_type, scheduled_date, location, judge_name, matter_id, litigation_matters(case_number, court_name)",
+        )
+        .gte("scheduled_date", today)
+        .order("scheduled_date", { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as CalendarHearingRow[];
+    },
+  });

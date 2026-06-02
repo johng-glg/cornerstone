@@ -25,6 +25,7 @@ const Payments = lazy(() => import("@/pages/Payments"));
 const Transactions = lazy(() => import("@/pages/Transactions"));
 const Litigation = lazy(() => import("@/pages/Litigation"));
 const LitigationDetail = lazy(() => import("@/pages/LitigationDetail"));
+const CourtCalendar = lazy(() => import("@/pages/CourtCalendar"));
 const Billing = lazy(() => import("@/pages/Billing"));
 const Tasks = lazy(() => import("@/pages/Tasks"));
 const Creditors = lazy(() => import("@/pages/Creditors"));
@@ -55,6 +56,7 @@ const PROTECTED: Array<{ path: string; element: ReactNode }> = [
   { path: "/liabilities", element: <Liabilities /> },
   { path: "/litigation", element: <Litigation /> },
   { path: "/litigation/:id", element: <LitigationDetail /> },
+  { path: "/court-calendar", element: <CourtCalendar /> },
   { path: "/billing", element: <Billing /> },
   { path: "/tasks", element: <Tasks /> },
   { path: "/payments", element: <Payments /> },
