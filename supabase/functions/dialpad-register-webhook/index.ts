@@ -3,10 +3,11 @@
 //   1. create a webhook pointing at our dialpad-webhook receiver, signed with
 //      DIALPAD_WEBHOOK_SECRET (→ HS256 JWT-signed deliveries), then
 //   2. create a call-event subscription bound to that webhook.
-// Secrets stay server-side (read from the function env). Returns the created ids.
+// Secrets stay server-side (read from the function env). Returns the webhook + subscription ids.
 //
-// Re-running creates a *fresh* webhook + subscription, so invoke once. Requires an authenticated
-// caller (requireAuth) and is rate-limited.
+// Idempotent: re-running reuses the existing webhook/subscription (handles Dialpad 409s) and
+// refreshes the webhook secret, so it's safe to click again. Requires an authenticated caller
+// (requireAuth) and is rate-limited.
 import { z } from "https://esm.sh/zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
 import { enforceRateLimit } from "../_shared/rateLimit.ts";
