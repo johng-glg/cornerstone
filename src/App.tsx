@@ -1,45 +1,47 @@
-import type { ReactNode } from "react";
+import { type ReactNode, lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
 import { AppLayout } from "@/components/layout/AppLayout";
-import Auth from "@/pages/Auth";
-import ForgotPassword from "@/pages/ForgotPassword";
-import ResetPassword from "@/pages/ResetPassword";
-import Dashboard from "@/pages/Dashboard";
-import Clients from "@/pages/Clients";
-import ClientDetail from "@/pages/ClientDetail";
-import Leads from "@/pages/Leads";
-import LeadDetail from "@/pages/LeadDetail";
-import LeadMetrics from "@/pages/LeadMetrics";
-import EligibilityReviews from "@/pages/EligibilityReviews";
-import Liabilities from "@/pages/Liabilities";
-import Engagements from "@/pages/Engagements";
-import EngagementDetail from "@/pages/EngagementDetail";
-import Payments from "@/pages/Payments";
-import Transactions from "@/pages/Transactions";
-import Litigation from "@/pages/Litigation";
-import LitigationDetail from "@/pages/LitigationDetail";
-import Billing from "@/pages/Billing";
-import Tasks from "@/pages/Tasks";
-import Creditors from "@/pages/Creditors";
-import Reports from "@/pages/Reports";
-import Companies from "@/pages/Companies";
-import Staff from "@/pages/Staff";
-import Integrations from "@/pages/Integrations";
-import Templates from "@/pages/Templates";
-import Signatures from "@/pages/Signatures";
-import Notifications from "@/pages/Notifications";
-import FeatureRequests from "@/pages/FeatureRequests";
-import Documentation from "@/pages/Documentation";
-import Settings from "@/pages/Settings";
-import NotFound from "@/pages/NotFound";
+
+// Lazy-loaded pages — each becomes its own chunk so the initial bundle stays small and
+// heavy deps (charts, the enrollment wizard) only load when their route is visited.
+const Auth = lazy(() => import("@/pages/Auth"));
+const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Clients = lazy(() => import("@/pages/Clients"));
+const ClientDetail = lazy(() => import("@/pages/ClientDetail"));
+const Leads = lazy(() => import("@/pages/Leads"));
+const LeadDetail = lazy(() => import("@/pages/LeadDetail"));
+const LeadMetrics = lazy(() => import("@/pages/LeadMetrics"));
+const EligibilityReviews = lazy(() => import("@/pages/EligibilityReviews"));
+const Liabilities = lazy(() => import("@/pages/Liabilities"));
+const Engagements = lazy(() => import("@/pages/Engagements"));
+const EngagementDetail = lazy(() => import("@/pages/EngagementDetail"));
+const Payments = lazy(() => import("@/pages/Payments"));
+const Transactions = lazy(() => import("@/pages/Transactions"));
+const Litigation = lazy(() => import("@/pages/Litigation"));
+const LitigationDetail = lazy(() => import("@/pages/LitigationDetail"));
+const Billing = lazy(() => import("@/pages/Billing"));
+const Tasks = lazy(() => import("@/pages/Tasks"));
+const Creditors = lazy(() => import("@/pages/Creditors"));
+const Reports = lazy(() => import("@/pages/Reports"));
+const Companies = lazy(() => import("@/pages/Companies"));
+const Staff = lazy(() => import("@/pages/Staff"));
+const Integrations = lazy(() => import("@/pages/Integrations"));
+const Templates = lazy(() => import("@/pages/Templates"));
+const Signatures = lazy(() => import("@/pages/Signatures"));
+const Notifications = lazy(() => import("@/pages/Notifications"));
+const FeatureRequests = lazy(() => import("@/pages/FeatureRequests"));
+const Documentation = lazy(() => import("@/pages/Documentation"));
+const Settings = lazy(() => import("@/pages/Settings"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const queryClient = new QueryClient();
 
-// Authenticated routes. Each is wrapped in AppLayout (gates auth + renders the shell).
 const PROTECTED: Array<{ path: string; element: ReactNode }> = [
   { path: "/", element: <Dashboard /> },
   { path: "/leads", element: <Leads /> },
@@ -70,6 +72,10 @@ const PROTECTED: Array<{ path: string; element: ReactNode }> = [
   { path: "/settings", element: <Settings /> },
 ];
 
+function PageFallback() {
+  return <p className="p-6 text-sm text-muted-foreground">Loading…</p>;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -77,20 +83,22 @@ function App() {
         <Toaster />
         <BrowserRouter>
           <AuthProvider>
-            <Routes>
-              {/* Public */}
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
+            <Suspense fallback={<PageFallback />}>
+              <Routes>
+                {/* Public */}
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
 
-              {/* Protected */}
-              {PROTECTED.map(({ path, element }) => (
-                <Route key={path} path={path} element={<AppLayout>{element}</AppLayout>} />
-              ))}
+                {/* Protected */}
+                {PROTECTED.map(({ path, element }) => (
+                  <Route key={path} path={path} element={<AppLayout>{element}</AppLayout>} />
+                ))}
 
-              {/* Catch-all */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                {/* Catch-all */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </AuthProvider>
         </BrowserRouter>
       </ThemeProvider>
