@@ -375,24 +375,53 @@ export function useAddSignatureRequest(
   });
 }
 
-export function useReviewEligibility(): UseMutationResult<
-  void,
-  Error,
-  { id: string; status: string; decline_reason?: string | null }
-> {
+export interface ReviewEligibilityInput {
+  id: string;
+  status: string;
+  decline_reason?: string | null;
+  review_notes?: string | null;
+}
+export function useReviewEligibility(): UseMutationResult<void, Error, ReviewEligibilityInput> {
   const qc = useQueryClient();
   const { staff } = useAuth();
-  return useMutation<void, Error, { id: string; status: string; decline_reason?: string | null }>({
-    mutationFn: async ({ id, status, decline_reason }) => {
-      const { error } = await supabase
-        .from("eligibility_reviews")
-        .update({
-          status,
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: staff?.id ?? null,
-          decline_reason: decline_reason ?? null,
-        })
-        .eq("id", id);
+  return useMutation<void, Error, ReviewEligibilityInput>({
+    mutationFn: async ({ id, status, decline_reason, review_notes }) => {
+      const patch: Record<string, unknown> = {
+        status,
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: staff?.id ?? null,
+        decline_reason: decline_reason ?? null,
+      };
+      if (review_notes !== undefined) patch.review_notes = review_notes || null;
+      const { error } = await supabase.from("eligibility_reviews").update(patch).eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["eligibility_reviews"] }),
+  });
+}
+
+/** Persist checklist progress (and optional notes) without finalizing the review decision. */
+export interface ChecklistItemInput {
+  step: string;
+  completed: boolean;
+  completed_at: string | null;
+  completed_by: string | null;
+}
+export function useSaveEligibilityChecklist(): UseMutationResult<
+  void,
+  Error,
+  { id: string; checklist: ChecklistItemInput[]; review_notes?: string | null }
+> {
+  const qc = useQueryClient();
+  return useMutation<
+    void,
+    Error,
+    { id: string; checklist: ChecklistItemInput[]; review_notes?: string | null }
+  >({
+    mutationFn: async ({ id, checklist, review_notes }) => {
+      const patch: Record<string, unknown> = { checklist };
+      if (review_notes !== undefined) patch.review_notes = review_notes || null;
+      const { error } = await supabase.from("eligibility_reviews").update(patch).eq("id", id);
       if (error) throw new Error(error.message);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["eligibility_reviews"] }),

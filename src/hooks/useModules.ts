@@ -96,6 +96,12 @@ export const usePaymentsList = (): UseQueryResult<PaymentListRow[], Error> =>
       ),
   });
 
+export interface EligibilityChecklistItem {
+  step: string;
+  completed: boolean;
+  completed_at: string | null;
+  completed_by: string | null;
+}
 export interface EligibilityReviewRow {
   id: string;
   lead_id: string;
@@ -103,15 +109,30 @@ export interface EligibilityReviewRow {
   submitted_at: string | null;
   reviewed_at: string | null;
   decline_reason: string | null;
+  review_notes: string | null;
+  checklist: EligibilityChecklistItem[];
+  flags: string[];
+  lead: {
+    first_name: string;
+    last_name: string;
+    estimated_debt_amount: number | null;
+    status: string;
+  } | null;
 }
 export const useEligibilityReviews = (): UseQueryResult<EligibilityReviewRow[], Error> =>
   useQuery({
     queryKey: ["eligibility_reviews"],
-    queryFn: () =>
-      list<EligibilityReviewRow>(
+    queryFn: async () => {
+      const rows = await list<EligibilityReviewRow>(
         "eligibility_reviews",
-        "id, lead_id, status, submitted_at, reviewed_at, decline_reason",
-      ),
+        "id, lead_id, status, submitted_at, reviewed_at, decline_reason, review_notes, checklist, flags, lead:leads!lead_id(first_name, last_name, estimated_debt_amount, status)",
+      );
+      return rows.map((r) => ({
+        ...r,
+        checklist: Array.isArray(r.checklist) ? r.checklist : [],
+        flags: Array.isArray(r.flags) ? r.flags : [],
+      }));
+    },
   });
 
 export interface FeatureRequestRow {
