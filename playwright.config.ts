@@ -24,5 +24,9 @@ export default defineConfig({
     url: "http://localhost:8080",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    // Enable the dev/test-only auth seam (src/lib/testAuth.ts) so authenticated specs can sign
+    // a headless browser in without Google SSO. Only active when a test sets the localStorage
+    // marker; the unauthenticated smoke test is unaffected.
+    env: { VITE_E2E_TEST_AUTH: "1" },
   },
 });

@@ -87,6 +87,12 @@ export interface NewBillingEntry {
   description: string;
   total_amount: number;
   is_billable: boolean;
+  // Optional links so an entry can be associated with the client / engagement / matter it's for.
+  client_id?: string | null;
+  client_service_id?: string | null;
+  litigation_matter_id?: string | null;
+  duration_minutes?: number | null;
+  hourly_rate?: number | null;
 }
 export function useAddBillingEntry(): UseMutationResult<void, Error, NewBillingEntry> {
   const qc = useQueryClient();
@@ -97,7 +103,15 @@ export function useAddBillingEntry(): UseMutationResult<void, Error, NewBillingE
       const { error } = await supabase.from("billing_entries").insert({
         company_id: staff.company_id,
         staff_id: staff.id,
-        ...input,
+        entry_type: input.entry_type,
+        description: input.description,
+        total_amount: input.total_amount,
+        is_billable: input.is_billable,
+        client_id: input.client_id ?? null,
+        client_service_id: input.client_service_id ?? null,
+        litigation_matter_id: input.litigation_matter_id ?? null,
+        duration_minutes: input.duration_minutes ?? null,
+        hourly_rate: input.hourly_rate ?? null,
       });
       if (error) throw new Error(error.message);
     },
@@ -220,6 +234,41 @@ export function useAddTeam(): UseMutationResult<void, Error, NewTeam> {
   });
 }
 
+export interface NewAssignmentRule {
+  name: string;
+  description?: string | null;
+  method: string;
+  priority?: number | null;
+  source?: string | null;
+  interest_type?: string | null;
+  min_debt_amount?: number | null;
+  max_debt_amount?: number | null;
+  is_active: boolean;
+}
+export function useCreateAssignmentRule(): UseMutationResult<void, Error, NewAssignmentRule> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, NewAssignmentRule>({
+    mutationFn: async (input) => {
+      if (!staff?.company_id) throw new Error("No active company.");
+      const { error } = await supabase.from("lead_assignment_rules").insert({
+        company_id: staff.company_id,
+        name: input.name,
+        description: input.description || null,
+        method: input.method,
+        priority: input.priority ?? 0,
+        source: input.source || null,
+        interest_type: input.interest_type || null,
+        min_debt_amount: input.min_debt_amount ?? null,
+        max_debt_amount: input.max_debt_amount ?? null,
+        is_active: input.is_active,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["lead_assignment_rules"] }),
+  });
+}
+
 export function useToggleAssignmentRule(): UseMutationResult<
   void,
   Error,
@@ -326,24 +375,53 @@ export function useAddSignatureRequest(
   });
 }
 
-export function useReviewEligibility(): UseMutationResult<
-  void,
-  Error,
-  { id: string; status: string; decline_reason?: string | null }
-> {
+export interface ReviewEligibilityInput {
+  id: string;
+  status: string;
+  decline_reason?: string | null;
+  review_notes?: string | null;
+}
+export function useReviewEligibility(): UseMutationResult<void, Error, ReviewEligibilityInput> {
   const qc = useQueryClient();
   const { staff } = useAuth();
-  return useMutation<void, Error, { id: string; status: string; decline_reason?: string | null }>({
-    mutationFn: async ({ id, status, decline_reason }) => {
-      const { error } = await supabase
-        .from("eligibility_reviews")
-        .update({
-          status,
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: staff?.id ?? null,
-          decline_reason: decline_reason ?? null,
-        })
-        .eq("id", id);
+  return useMutation<void, Error, ReviewEligibilityInput>({
+    mutationFn: async ({ id, status, decline_reason, review_notes }) => {
+      const patch: Record<string, unknown> = {
+        status,
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: staff?.id ?? null,
+        decline_reason: decline_reason ?? null,
+      };
+      if (review_notes !== undefined) patch.review_notes = review_notes || null;
+      const { error } = await supabase.from("eligibility_reviews").update(patch).eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["eligibility_reviews"] }),
+  });
+}
+
+/** Persist checklist progress (and optional notes) without finalizing the review decision. */
+export interface ChecklistItemInput {
+  step: string;
+  completed: boolean;
+  completed_at: string | null;
+  completed_by: string | null;
+}
+export function useSaveEligibilityChecklist(): UseMutationResult<
+  void,
+  Error,
+  { id: string; checklist: ChecklistItemInput[]; review_notes?: string | null }
+> {
+  const qc = useQueryClient();
+  return useMutation<
+    void,
+    Error,
+    { id: string; checklist: ChecklistItemInput[]; review_notes?: string | null }
+  >({
+    mutationFn: async ({ id, checklist, review_notes }) => {
+      const patch: Record<string, unknown> = { checklist };
+      if (review_notes !== undefined) patch.review_notes = review_notes || null;
+      const { error } = await supabase.from("eligibility_reviews").update(patch).eq("id", id);
       if (error) throw new Error(error.message);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["eligibility_reviews"] }),
@@ -538,6 +616,7 @@ export interface NewTask {
   priority?: string;
   due_date?: string | null;
   assigned_to?: string | null;
+  description?: string | null;
 }
 export function useUpdateTaskStatus(): UseMutationResult<
   void,
@@ -569,6 +648,7 @@ export function useAddTask(): UseMutationResult<void, Error, NewTask> {
         status: "pending",
         due_date: input.due_date || null,
         assigned_to: input.assigned_to || null,
+        description: input.description || null,
       });
       if (error) throw new Error(error.message);
     },

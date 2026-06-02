@@ -64,6 +64,9 @@ export interface BillingListRow {
   total_amount: number;
   is_billable: boolean;
   status: string;
+  client: { first_name: string; last_name: string } | null;
+  client_service: { service_number: string } | null;
+  litigation_matter: { case_number: string | null } | null;
 }
 export const useBillingList = (): UseQueryResult<BillingListRow[], Error> =>
   useQuery({
@@ -71,7 +74,7 @@ export const useBillingList = (): UseQueryResult<BillingListRow[], Error> =>
     queryFn: () =>
       list<BillingListRow>(
         "billing_entries",
-        "id, entry_type, description, billing_date, total_amount, is_billable, status",
+        "id, entry_type, description, billing_date, total_amount, is_billable, status, client:clients!client_id(first_name, last_name), client_service:client_services!client_service_id(service_number), litigation_matter:litigation_matters!litigation_matter_id(case_number)",
         "billing_date",
       ),
   });
@@ -96,6 +99,12 @@ export const usePaymentsList = (): UseQueryResult<PaymentListRow[], Error> =>
       ),
   });
 
+export interface EligibilityChecklistItem {
+  step: string;
+  completed: boolean;
+  completed_at: string | null;
+  completed_by: string | null;
+}
 export interface EligibilityReviewRow {
   id: string;
   lead_id: string;
@@ -103,15 +112,30 @@ export interface EligibilityReviewRow {
   submitted_at: string | null;
   reviewed_at: string | null;
   decline_reason: string | null;
+  review_notes: string | null;
+  checklist: EligibilityChecklistItem[];
+  flags: string[];
+  lead: {
+    first_name: string;
+    last_name: string;
+    estimated_debt_amount: number | null;
+    status: string;
+  } | null;
 }
 export const useEligibilityReviews = (): UseQueryResult<EligibilityReviewRow[], Error> =>
   useQuery({
     queryKey: ["eligibility_reviews"],
-    queryFn: () =>
-      list<EligibilityReviewRow>(
+    queryFn: async () => {
+      const rows = await list<EligibilityReviewRow>(
         "eligibility_reviews",
-        "id, lead_id, status, submitted_at, reviewed_at, decline_reason",
-      ),
+        "id, lead_id, status, submitted_at, reviewed_at, decline_reason, review_notes, checklist, flags, lead:leads!lead_id(first_name, last_name, estimated_debt_amount, status)",
+      );
+      return rows.map((r) => ({
+        ...r,
+        checklist: Array.isArray(r.checklist) ? r.checklist : [],
+        flags: Array.isArray(r.flags) ? r.flags : [],
+      }));
+    },
   });
 
 export interface FeatureRequestRow {

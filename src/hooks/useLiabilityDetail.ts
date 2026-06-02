@@ -23,6 +23,7 @@ export interface LiabilityDetailRow {
   client_service_id: string;
   summons_received_at: string | null;
   creditor: { name: string } | null;
+  client_service: { primary_client_id: string | null } | null;
 }
 
 export function useLiability(id: string | undefined): UseQueryResult<LiabilityDetailRow, Error> {
@@ -33,7 +34,7 @@ export function useLiability(id: string | undefined): UseQueryResult<LiabilityDe
       const { data, error } = await supabase
         .from("liabilities")
         .select(
-          "id, account_number, liability_type, status, original_balance, current_balance, enrolled_balance, notes, client_service_id, summons_received_at, creditor:creditors!current_creditor_id(name)",
+          "id, account_number, liability_type, status, original_balance, current_balance, enrolled_balance, notes, client_service_id, summons_received_at, creditor:creditors!current_creditor_id(name), client_service:client_services!client_service_id(primary_client_id)",
         )
         .eq("id", id!)
         .single();
@@ -76,8 +77,13 @@ export interface NewMatter {
   staff_id: string;
   case_number?: string | null;
   court_name?: string | null;
+  county?: string | null;
   state?: string | null;
   opposing_party?: string | null;
+  opposing_counsel?: string | null;
+  opposing_creditor_id?: string | null;
+  service_date?: string | null;
+  response_deadline?: string | null;
 }
 
 /** Create a litigation matter from a debt. Returns the new matter id for navigation. */
@@ -94,8 +100,13 @@ export function useAddMatter(): UseMutationResult<string, Error, NewMatter> {
           staff_id: input.staff_id,
           case_number: input.case_number || null,
           court_name: input.court_name || null,
+          county: input.county || null,
           state: input.state || null,
           opposing_party: input.opposing_party || null,
+          opposing_counsel: input.opposing_counsel || null,
+          opposing_creditor_id: input.opposing_creditor_id || null,
+          service_date: input.service_date || null,
+          response_deadline: input.response_deadline || null,
           status: "new",
         })
         .select("id")

@@ -56,6 +56,12 @@
 - **Coverage bar: 80% on business logic; 100% on auth, tenant isolation, money flow, PII
   handling, and RLS policies.**
 - No unjustified skipped tests.
+- **Authenticated e2e:** production sign-in is Google SSO only, which a headless browser can't
+  complete. `tests/e2e/authenticated.spec.ts` signs in via a dev/test-only auth seam
+  (`src/lib/testAuth.ts`): with `VITE_E2E_TEST_AUTH=1` (set by the Playwright `webServer`), a
+  spec calls `signInAsTestUser(page)` to seed a synthetic session + stub the Supabase REST API.
+  The seam is gated on that build-time flag — unset in every real deployment — so it is
+  tree-shaken out of the production bundle and can never be a backdoor.
 
 ## The quality gates (all run in CI; all must pass to merge)
 

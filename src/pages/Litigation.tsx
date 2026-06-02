@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useLitigationMatters } from "@/hooks/useDomains";
 import { useLiabilities } from "@/hooks/useCoreCrm";
-import { useLitigationTeams, useStaffList } from "@/hooks/useModules";
+import { useLitigationTeams, useStaffList, useCreditors } from "@/hooks/useModules";
 import { useAddMatter } from "@/hooks/useLiabilityDetail";
 import { QueryState } from "@/components/common/QueryState";
 import { QuickFormDialog } from "@/components/common/QuickFormDialog";
@@ -12,12 +12,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency, formatDate, titleCase } from "@/lib/format";
 
+// Radix Select rejects empty-string values, so "no creditor" uses this sentinel.
+const NO_CREDITOR = "__none__";
+
 function NewMatterAction() {
   const navigate = useNavigate();
   const add = useAddMatter();
   const liabilities = useLiabilities();
   const teams = useLitigationTeams();
   const staff = useStaffList();
+  const creditors = useCreditors();
 
   const liabRows = liabilities.data ?? [];
   const liabOpts = liabRows.map((l) => ({
@@ -50,10 +54,24 @@ function NewMatterAction() {
             label: `${s.first_name} ${s.last_name}`,
           })),
         },
-        { name: "case_number", label: "Case #", full: true },
+        { name: "case_number", label: "Case #" },
         { name: "court_name", label: "Court" },
+        { name: "county", label: "County" },
         { name: "state", label: "State" },
-        { name: "opposing_party", label: "Opposing party", full: true },
+        { name: "opposing_party", label: "Opposing party (plaintiff)", full: true },
+        { name: "opposing_counsel", label: "Opposing counsel", full: true },
+        {
+          name: "opposing_creditor_id",
+          label: "Opposing creditor",
+          type: "select",
+          defaultValue: NO_CREDITOR,
+          options: [
+            { value: NO_CREDITOR, label: "— None —" },
+            ...(creditors.data ?? []).map((c) => ({ value: c.id, label: c.name })),
+          ],
+        },
+        { name: "service_date", label: "Service date", type: "date" },
+        { name: "response_deadline", label: "Response deadline", type: "date" },
       ]}
       onSubmit={async (v) => {
         const liab = liabRows.find((l) => l.id === v.liability_id);
@@ -69,8 +87,16 @@ function NewMatterAction() {
             staff_id: v.staff_id,
             case_number: v.case_number || null,
             court_name: v.court_name || null,
+            county: v.county || null,
             state: v.state || null,
             opposing_party: v.opposing_party || null,
+            opposing_counsel: v.opposing_counsel || null,
+            opposing_creditor_id:
+              v.opposing_creditor_id && v.opposing_creditor_id !== NO_CREDITOR
+                ? v.opposing_creditor_id
+                : null,
+            service_date: v.service_date || null,
+            response_deadline: v.response_deadline || null,
           });
           toast.success("Litigation matter opened.");
           navigate(`/litigation/${matterId}`);
