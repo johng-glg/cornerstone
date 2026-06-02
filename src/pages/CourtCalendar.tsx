@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCourtCalendar } from "@/hooks/useModules";
+import { useCourtCalendar, type CalendarHearingRow } from "@/hooks/useModules";
 import { QueryState } from "@/components/common/QueryState";
 import { Card, CardContent } from "@/components/ui/card";
 import { titleCase } from "@/lib/format";
@@ -17,16 +17,17 @@ function fmtDay(d: string): string {
 export default function CourtCalendar() {
   const q = useCourtCalendar();
   const navigate = useNavigate();
+  const rows = q.data ?? [];
 
   const byDay = useMemo(() => {
-    const groups = new Map<string, NonNullable<typeof q.data>>();
-    for (const h of q.data ?? []) {
+    const groups = new Map<string, CalendarHearingRow[]>();
+    for (const h of rows) {
       const key = h.scheduled_date ?? "Unscheduled";
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(h);
     }
     return [...groups.entries()];
-  }, [q.data]);
+  }, [rows]);
 
   return (
     <div className="space-y-5">
