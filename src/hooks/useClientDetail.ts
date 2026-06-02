@@ -94,6 +94,28 @@ export function useClient(id: string | undefined): UseQueryResult<ClientDetailRo
   });
 }
 
+export interface EngagementRow extends ClientServiceRow {
+  primary_client_id: string | null;
+  payment_frequency: string | null;
+}
+
+/** A single engagement (client_services row). */
+export function useEngagement(id: string | undefined): UseQueryResult<EngagementRow, Error> {
+  return useQuery({
+    queryKey: ["engagement", id ?? ""],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("client_services")
+        .select(`${SERVICE_COLS}, primary_client_id, payment_frequency`)
+        .eq("id", id!)
+        .single();
+      if (error) throw new Error(error.message);
+      return data as unknown as EngagementRow;
+    },
+  });
+}
+
 export function useClientServices(
   clientId: string | undefined,
 ): UseQueryResult<ClientServiceRow[], Error> {

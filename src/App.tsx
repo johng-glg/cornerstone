@@ -17,9 +17,11 @@ import LeadMetrics from "@/pages/LeadMetrics";
 import EligibilityReviews from "@/pages/EligibilityReviews";
 import Liabilities from "@/pages/Liabilities";
 import Engagements from "@/pages/Engagements";
+import EngagementDetail from "@/pages/EngagementDetail";
 import Payments from "@/pages/Payments";
 import Transactions from "@/pages/Transactions";
 import Litigation from "@/pages/Litigation";
+import LitigationDetail from "@/pages/LitigationDetail";
 import Billing from "@/pages/Billing";
 import Tasks from "@/pages/Tasks";
 import Creditors from "@/pages/Creditors";
@@ -45,10 +47,12 @@ const PROTECTED: Array<{ path: string; element: ReactNode }> = [
   { path: "/lead-metrics", element: <LeadMetrics /> },
   { path: "/eligibility-reviews", element: <EligibilityReviews /> },
   { path: "/engagements", element: <Engagements /> },
+  { path: "/engagements/:id", element: <EngagementDetail /> },
   { path: "/clients", element: <Clients /> },
   { path: "/clients/:id", element: <ClientDetail /> },
   { path: "/liabilities", element: <Liabilities /> },
   { path: "/litigation", element: <Litigation /> },
+  { path: "/litigation/:id", element: <LitigationDetail /> },
   { path: "/billing", element: <Billing /> },
   { path: "/tasks", element: <Tasks /> },
   { path: "/payments", element: <Payments /> },

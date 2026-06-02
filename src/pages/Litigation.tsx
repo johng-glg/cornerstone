@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useLitigationMatters } from "@/hooks/useDomains";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -5,6 +6,7 @@ import { formatDate } from "@/lib/format";
 
 export default function Litigation() {
   const { data, isLoading, error } = useLitigationMatters();
+  const navigate = useNavigate();
   const rows = data ?? [];
 
   return (
@@ -30,7 +32,11 @@ export default function Litigation() {
             </thead>
             <tbody>
               {rows.map((m) => (
-                <tr key={m.id} className="border-b last:border-0">
+                <tr
+                  key={m.id}
+                  onClick={() => navigate(`/litigation/${m.id}`)}
+                  className="cursor-pointer border-b last:border-0 hover:bg-muted/40"
+                >
                   <td className="px-3 py-2 font-mono text-xs">{m.case_number ?? "—"}</td>
                   <td className="px-3 py-2">{m.court_name ?? "—"}</td>
                   <td className="px-3 py-2 text-muted-foreground">{m.opposing_party ?? "—"}</td>

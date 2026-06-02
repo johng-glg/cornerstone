@@ -13,7 +13,7 @@ export default function Engagements() {
       description="Active client service programs."
       query={q}
       empty="No engagements yet."
-      onRowClick={(s) => s.primary_client_id && navigate(`/clients/${s.primary_client_id}`)}
+      onRowClick={(s) => navigate(`/engagements/${s.id}`)}
       columns={[
         {
           header: "Service #",
