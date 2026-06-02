@@ -8,7 +8,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 
-// Workflow automation rules (trigger → action) on public.workflow_rules.
+// Workflow automation rules (trigger → conditions → actions) on public.workflow_rules.
 
 export const WORKFLOW_ENTITIES = [
   "leads",
@@ -33,6 +33,33 @@ export const WORKFLOW_ACTIONS = [
   "trigger_webhook",
   "auto_graduate",
 ];
+export const WORKFLOW_OPERATORS = ["eq", "neq", "gt", "gte", "lt", "lte", "contains", "in"];
+
+/** Config fields each action type needs (key + label). auto_graduate has none. */
+export const ACTION_FIELDS: Record<string, { key: string; label: string }[]> = {
+  create_task: [
+    { key: "title", label: "Task title" },
+    { key: "priority", label: "Priority" },
+  ],
+  send_notification: [{ key: "message", label: "Message" }],
+  update_field: [
+    { key: "field", label: "Field" },
+    { key: "value", label: "Value" },
+  ],
+  block_transition: [{ key: "reason", label: "Reason" }],
+  trigger_webhook: [{ key: "url", label: "Webhook URL" }],
+  auto_graduate: [],
+};
+
+export interface WfCondition {
+  field: string;
+  operator: string;
+  value: string;
+}
+export interface WfAction {
+  type: string;
+  config: Record<string, string>;
+}
 
 export interface WorkflowRule {
   id: string;
@@ -40,7 +67,8 @@ export interface WorkflowRule {
   description: string | null;
   entity_type: string;
   trigger_type: string;
-  actions: { type?: string }[];
+  conditions: WfCondition[];
+  actions: WfAction[];
   is_active: boolean;
   is_blocking: boolean;
   priority: number;
@@ -55,12 +83,20 @@ export function useWorkflowRules(): UseQueryResult<WorkflowRule[], Error> {
       const { data, error } = await supabase
         .from("workflow_rules")
         .select(
-          "id, name, description, entity_type, trigger_type, actions, is_active, is_blocking, priority",
+          "id, name, description, entity_type, trigger_type, conditions, actions, is_active, is_blocking, priority",
         )
         .eq("company_id", staff!.company_id)
         .order("priority", { ascending: true });
       if (error) throw new Error(error.message);
-      return (data ?? []) as unknown as WorkflowRule[];
+      return (data ?? []).map((r) => ({
+        ...(r as Record<string, unknown>),
+        conditions: Array.isArray((r as { conditions?: unknown }).conditions)
+          ? (r as { conditions: WfCondition[] }).conditions
+          : [],
+        actions: Array.isArray((r as { actions?: unknown }).actions)
+          ? (r as { actions: WfAction[] }).actions
+          : [],
+      })) as unknown as WorkflowRule[];
     },
   });
 }
@@ -71,7 +107,8 @@ export interface WorkflowRuleInput {
   description?: string | null;
   entity_type: string;
   trigger_type: string;
-  action_type: string;
+  conditions: WfCondition[];
+  actions: WfAction[];
   is_active: boolean;
   is_blocking: boolean;
   priority: number;
@@ -90,8 +127,8 @@ export function useSaveWorkflowRule(): UseMutationResult<void, Error, WorkflowRu
         description: input.description || null,
         entity_type: input.entity_type,
         trigger_type: input.trigger_type,
-        actions: [{ type: input.action_type }],
-        conditions: [],
+        actions: input.actions,
+        conditions: input.conditions,
         trigger_config: {},
         is_active: input.is_active,
         is_blocking: input.is_blocking,
