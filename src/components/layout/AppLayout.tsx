@@ -44,6 +44,7 @@ import { useInactivityTimeout } from "@/hooks/useInactivityTimeout";
 import { InactivityTimeoutDialog } from "@/components/auth/InactivityTimeoutDialog";
 import { useNotifications } from "@/hooks/useDomains";
 import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
+import { GlobalSearch } from "@/components/layout/GlobalSearch";
 
 interface NavItem {
   to: string;
@@ -220,6 +221,7 @@ function AppShell({ children }: { children: ReactNode }) {
           >
             <Menu className="h-5 w-5" />
           </button>
+          <GlobalSearch />
           <div className="flex flex-1 items-center justify-end gap-3">
             {isRealAdmin && (
               <label className="flex items-center gap-2 text-sm text-muted-foreground">
