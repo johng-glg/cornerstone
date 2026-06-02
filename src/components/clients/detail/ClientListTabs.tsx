@@ -12,6 +12,7 @@ import {
   useAddClientDocument,
   useAddSignatureRequest,
 } from "@/hooks/useModuleMutations";
+import { useRecordActivity } from "@/hooks/useActivityLog";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { QuickFormDialog } from "@/components/common/QuickFormDialog";
@@ -21,6 +22,7 @@ import { formatCurrency, formatDate, titleCase } from "@/lib/format";
 
 function LogCommAction({ clientId }: { clientId: string }) {
   const add = useAddCommunication(clientId);
+  const record = useRecordActivity();
   return (
     <QuickFormDialog
       trigger={
@@ -66,6 +68,15 @@ function LogCommAction({ clientId }: { clientId: string }) {
             notes: v.notes,
             outcome: v.outcome,
           });
+          await record({
+            entityType: "client",
+            entityId: clientId,
+            clientId,
+            category: "communication",
+            description: `${titleCase(v.direction)} ${v.communication_type} logged${
+              v.subject ? `: ${v.subject}` : ""
+            }`,
+          });
           toast.success("Communication logged.");
         } catch (e) {
           toast.error((e as Error).message);
@@ -78,6 +89,7 @@ function LogCommAction({ clientId }: { clientId: string }) {
 
 function AddDocAction({ clientId }: { clientId: string }) {
   const add = useAddClientDocument(clientId);
+  const record = useRecordActivity();
   return (
     <QuickFormDialog
       trigger={
@@ -113,6 +125,13 @@ function AddDocAction({ clientId }: { clientId: string }) {
             title: v.title,
             document_type: v.document_type,
             file_url: v.file_url,
+          });
+          await record({
+            entityType: "client",
+            entityId: clientId,
+            clientId,
+            category: "document",
+            description: `Document added: ${v.title}`,
           });
           toast.success("Document added.");
         } catch (e) {
