@@ -106,6 +106,9 @@ jobs:
       - name: Workflow engine phase 2 (joined-company entities)
         run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f tests/db/workflow_engine_phase2.test.sql
 
+      - name: Workflow actions (update_field / auto_graduate)
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f tests/db/workflow_actions.test.sql
+
       - name: Stop Supabase
         if: always()
         run: npx supabase stop
