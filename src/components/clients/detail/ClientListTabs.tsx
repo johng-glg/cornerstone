@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import {
   useClientLitigation,
   useClientPayments,
@@ -6,10 +7,118 @@ import {
   useClientSignatures,
   useClientCommunications,
 } from "@/hooks/useClientDetail";
+import { useAddCommunication, useAddClientDocument } from "@/hooks/useModuleMutations";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { QuickFormDialog } from "@/components/common/QuickFormDialog";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, formatDate, titleCase } from "@/lib/format";
+
+function LogCommAction({ clientId }: { clientId: string }) {
+  const add = useAddCommunication(clientId);
+  return (
+    <QuickFormDialog
+      trigger={
+        <Button size="sm" variant="outline">
+          Log communication
+        </Button>
+      }
+      title="Log communication"
+      pending={add.isPending}
+      fields={[
+        {
+          name: "communication_type",
+          label: "Type",
+          type: "select",
+          required: true,
+          defaultValue: "call",
+          options: ["call", "email", "sms", "meeting", "note"].map((v) => ({
+            value: v,
+            label: titleCase(v),
+          })),
+        },
+        {
+          name: "direction",
+          label: "Direction",
+          type: "select",
+          required: true,
+          defaultValue: "outbound",
+          options: [
+            { value: "outbound", label: "Outbound" },
+            { value: "inbound", label: "Inbound" },
+          ],
+        },
+        { name: "subject", label: "Subject", full: true },
+        { name: "notes", label: "Notes", type: "textarea" },
+        { name: "outcome", label: "Outcome", full: true },
+      ]}
+      onSubmit={async (v) => {
+        try {
+          await add.mutateAsync({
+            communication_type: v.communication_type,
+            direction: v.direction,
+            subject: v.subject,
+            notes: v.notes,
+            outcome: v.outcome,
+          });
+          toast.success("Communication logged.");
+        } catch (e) {
+          toast.error((e as Error).message);
+          throw e;
+        }
+      }}
+    />
+  );
+}
+
+function AddDocAction({ clientId }: { clientId: string }) {
+  const add = useAddClientDocument(clientId);
+  return (
+    <QuickFormDialog
+      trigger={
+        <Button size="sm" variant="outline">
+          Add document
+        </Button>
+      }
+      title="Add document"
+      description="Link a document by URL (file upload arrives with storage wiring)."
+      pending={add.isPending}
+      fields={[
+        { name: "title", label: "Title", required: true, full: true },
+        {
+          name: "document_type",
+          label: "Type",
+          type: "select",
+          defaultValue: "other",
+          options: ["agreement", "statement", "correspondence", "court_filing", "id", "other"].map(
+            (v) => ({ value: v, label: titleCase(v) }),
+          ),
+        },
+        {
+          name: "file_url",
+          label: "Document URL",
+          required: true,
+          full: true,
+          placeholder: "https://…",
+        },
+      ]}
+      onSubmit={async (v) => {
+        try {
+          await add.mutateAsync({
+            title: v.title,
+            document_type: v.document_type,
+            file_url: v.file_url,
+          });
+          toast.success("Document added.");
+        } catch (e) {
+          toast.error((e as Error).message);
+          throw e;
+        }
+      }}
+    />
+  );
+}
 
 function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
   return (
@@ -131,32 +240,37 @@ export function ClientBillingTab({ clientId }: { clientId: string }) {
 export function ClientDocumentsTab({ clientId }: { clientId: string }) {
   const q = useClientDocuments(clientId);
   return (
-    <QueryState
-      isLoading={q.isLoading}
-      error={q.error}
-      isEmpty={(q.data ?? []).length === 0}
-      emptyMessage="No documents attached."
-    >
-      <Table head={["Title", "Type", "Added", ""]}>
-        {(q.data ?? []).map((d) => (
-          <tr key={d.id} className="border-b last:border-0">
-            <td className="px-3 py-2">{d.title}</td>
-            <td className="px-3 py-2 text-muted-foreground">{titleCase(d.document_type)}</td>
-            <td className="px-3 py-2">{formatDate(d.created_at)}</td>
-            <td className="px-3 py-2 text-right">
-              <a
-                href={d.file_url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs text-guardian-gold hover:underline"
-              >
-                Open
-              </a>
-            </td>
-          </tr>
-        ))}
-      </Table>
-    </QueryState>
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <AddDocAction clientId={clientId} />
+      </div>
+      <QueryState
+        isLoading={q.isLoading}
+        error={q.error}
+        isEmpty={(q.data ?? []).length === 0}
+        emptyMessage="No documents attached."
+      >
+        <Table head={["Title", "Type", "Added", ""]}>
+          {(q.data ?? []).map((d) => (
+            <tr key={d.id} className="border-b last:border-0">
+              <td className="px-3 py-2">{d.title}</td>
+              <td className="px-3 py-2 text-muted-foreground">{titleCase(d.document_type)}</td>
+              <td className="px-3 py-2">{formatDate(d.created_at)}</td>
+              <td className="px-3 py-2 text-right">
+                <a
+                  href={d.file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-guardian-gold hover:underline"
+                >
+                  Open
+                </a>
+              </td>
+            </tr>
+          ))}
+        </Table>
+      </QueryState>
+    </div>
   );
 }
 
@@ -188,34 +302,39 @@ export function ClientSignaturesTab({ clientId }: { clientId: string }) {
 export function ClientCommsTab({ clientId }: { clientId: string }) {
   const q = useClientCommunications(clientId);
   return (
-    <QueryState
-      isLoading={q.isLoading}
-      error={q.error}
-      isEmpty={(q.data ?? []).length === 0}
-      emptyMessage="No communications logged."
-    >
-      <ul className="space-y-2">
-        {(q.data ?? []).map((c) => (
-          <Card key={c.id}>
-            <CardContent className="py-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">
-                  {titleCase(c.communication_type)}{" "}
-                  <span className="text-xs font-normal text-muted-foreground">
-                    ({titleCase(c.direction)})
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <LogCommAction clientId={clientId} />
+      </div>
+      <QueryState
+        isLoading={q.isLoading}
+        error={q.error}
+        isEmpty={(q.data ?? []).length === 0}
+        emptyMessage="No communications logged."
+      >
+        <ul className="space-y-2">
+          {(q.data ?? []).map((c) => (
+            <Card key={c.id}>
+              <CardContent className="py-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    {titleCase(c.communication_type)}{" "}
+                    <span className="text-xs font-normal text-muted-foreground">
+                      ({titleCase(c.direction)})
+                    </span>
                   </span>
-                </span>
-                <time className="text-xs text-muted-foreground">
-                  {formatDate(c.communication_date)}
-                </time>
-              </div>
-              {c.subject && <p className="text-sm">{c.subject}</p>}
-              {c.notes && <p className="text-sm text-muted-foreground">{c.notes}</p>}
-              {c.outcome && <p className="text-xs text-muted-foreground">Outcome: {c.outcome}</p>}
-            </CardContent>
-          </Card>
-        ))}
-      </ul>
-    </QueryState>
+                  <time className="text-xs text-muted-foreground">
+                    {formatDate(c.communication_date)}
+                  </time>
+                </div>
+                {c.subject && <p className="text-sm">{c.subject}</p>}
+                {c.notes && <p className="text-sm text-muted-foreground">{c.notes}</p>}
+                {c.outcome && <p className="text-xs text-muted-foreground">Outcome: {c.outcome}</p>}
+              </CardContent>
+            </Card>
+          ))}
+        </ul>
+      </QueryState>
+    </div>
   );
 }

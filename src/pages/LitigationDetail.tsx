@@ -1,16 +1,113 @@
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 import {
   useMatter,
   useMatterHearings,
   useMatterActivities,
   useMatterDocuments,
 } from "@/hooks/useLitigationDetail";
+import { useAddHearing, useAddMatterActivity } from "@/hooks/useModuleMutations";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { QuickFormDialog } from "@/components/common/QuickFormDialog";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate, titleCase } from "@/lib/format";
+
+function ScheduleHearingAction({ matterId }: { matterId: string }) {
+  const add = useAddHearing(matterId);
+  return (
+    <QuickFormDialog
+      trigger={
+        <Button size="sm" variant="outline">
+          Schedule hearing
+        </Button>
+      }
+      title="Schedule hearing"
+      pending={add.isPending}
+      fields={[
+        {
+          name: "hearing_type",
+          label: "Type",
+          type: "select",
+          required: true,
+          defaultValue: "status_conference",
+          options: [
+            "status_conference",
+            "trial",
+            "motion",
+            "mediation",
+            "case_management",
+            "other",
+          ].map((v) => ({ value: v, label: titleCase(v) })),
+        },
+        { name: "scheduled_date", label: "Date", type: "date" },
+        { name: "location", label: "Location", full: true },
+        { name: "judge_name", label: "Judge" },
+        { name: "notes", label: "Notes", type: "textarea" },
+      ]}
+      onSubmit={async (v) => {
+        try {
+          await add.mutateAsync({
+            hearing_type: v.hearing_type,
+            scheduled_date: v.scheduled_date,
+            location: v.location,
+            judge_name: v.judge_name,
+            notes: v.notes,
+          });
+          toast.success("Hearing scheduled.");
+        } catch (e) {
+          toast.error((e as Error).message);
+          throw e;
+        }
+      }}
+    />
+  );
+}
+
+function LogMatterActivityAction({ matterId }: { matterId: string }) {
+  const add = useAddMatterActivity(matterId);
+  return (
+    <QuickFormDialog
+      trigger={
+        <Button size="sm" variant="outline">
+          Log activity
+        </Button>
+      }
+      title="Log activity"
+      pending={add.isPending}
+      fields={[
+        {
+          name: "activity_type",
+          label: "Type",
+          type: "select",
+          required: true,
+          defaultValue: "filing",
+          options: ["filing", "call", "correspondence", "research", "appearance", "other"].map(
+            (v) => ({ value: v, label: titleCase(v) }),
+          ),
+        },
+        { name: "description", label: "Description", type: "textarea", required: true },
+        { name: "outcome", label: "Outcome", full: true },
+      ]}
+      onSubmit={async (v) => {
+        try {
+          await add.mutateAsync({
+            activity_type: v.activity_type,
+            description: v.description,
+            outcome: v.outcome,
+          });
+          toast.success("Activity logged.");
+        } catch (e) {
+          toast.error((e as Error).message);
+          throw e;
+        }
+      }}
+    />
+  );
+}
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -117,7 +214,12 @@ export default function LitigationDetail() {
                 )}
               </TabsContent>
 
-              <TabsContent value="hearings">
+              <TabsContent value="hearings" className="space-y-3">
+                {id && (
+                  <div className="flex justify-end">
+                    <ScheduleHearingAction matterId={id} />
+                  </div>
+                )}
                 <QueryState
                   isLoading={hearings.isLoading}
                   error={hearings.error}
@@ -147,7 +249,12 @@ export default function LitigationDetail() {
                 </QueryState>
               </TabsContent>
 
-              <TabsContent value="activity">
+              <TabsContent value="activity" className="space-y-3">
+                {id && (
+                  <div className="flex justify-end">
+                    <LogMatterActivityAction matterId={id} />
+                  </div>
+                )}
                 <QueryState
                   isLoading={activities.isLoading}
                   error={activities.error}
