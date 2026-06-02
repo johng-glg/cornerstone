@@ -17,6 +17,32 @@ function testFnFor(providerKey: string): string | null {
   return null;
 }
 
+// supabase.functions.invoke only gives a generic "non-2xx" message; the real detail is in the
+// response body (FunctionsHttpError.context). Pull our { step, error } payload out for the toast.
+async function describeFnError(error: { message: string }): Promise<string> {
+  const ctx = (error as { context?: Response }).context;
+  if (ctx && typeof ctx.json === "function") {
+    try {
+      const body = (await ctx.json()) as { step?: string; error?: unknown; status?: number };
+      const msg =
+        typeof body.error === "string"
+          ? body.error
+          : body.error
+            ? JSON.stringify(body.error)
+            : null;
+      if (msg) {
+        const status = body.status ? ` (HTTP ${body.status})` : "";
+        return body.step ? `${body.step}${status}: ${msg}` : `${msg}${status}`;
+      }
+    } catch {
+      /* fall through to the generic message */
+    }
+  }
+  if (error.message.includes("not found") || error.message.includes("404"))
+    return "Function not deployed yet — deploy edge functions first.";
+  return error.message;
+}
+
 // One-tap Dialpad webhook registration (replaces the manual curl). Uses the caller's session
 // token via supabase.functions.invoke, so no token handling is needed.
 function RegisterDialpadWebhookButton({ providerKey }: { providerKey: string }) {
@@ -29,11 +55,7 @@ function RegisterDialpadWebhookButton({ providerKey }: { providerKey: string }) 
     });
     setPending(false);
     if (error) {
-      toast.error(
-        error.message.includes("not found") || error.message.includes("404")
-          ? "Function not deployed yet — deploy edge functions first."
-          : error.message,
-      );
+      toast.error(await describeFnError(error));
       return;
     }
     const d = data as { success?: boolean; error?: string; webhook_id?: string };
@@ -61,11 +83,7 @@ function TestButton({ providerKey }: { providerKey: string }) {
     const { data, error } = await supabase.functions.invoke(fn, { body: {} });
     setPending(false);
     if (error) {
-      toast.error(
-        error.message.includes("not found") || error.message.includes("404")
-          ? "Function not deployed yet — see the edge-functions runbook."
-          : error.message,
-      );
+      toast.error(await describeFnError(error));
       return;
     }
     if (data && (data as { success?: boolean }).success === false) {
