@@ -30,15 +30,23 @@ jobs:
   migrate:
     name: Apply migrations
     runs-on: ubuntu-latest
-    if: vars.SUPABASE_PROJECT_REF != ''
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      # Variable or Secret may supply this; falls back to the GLG project ref (non-sensitive).
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF || secrets.SUPABASE_PROJECT_REF || 'ppefwolueksddgabvseh' }}
     steps:
+      - name: Require secrets
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_DB_PASSWORD" ]; then
+            echo "::error::Set SUPABASE_ACCESS_TOKEN and SUPABASE_DB_PASSWORD under Settings → Secrets and variables → Actions → Secrets, then re-run."
+            exit 1
+          fi
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
           version: latest
       - name: Link project
-        run: supabase link --project-ref "${{ vars.SUPABASE_PROJECT_REF }}" -p "${{ secrets.SUPABASE_DB_PASSWORD }}"
+        run: supabase link --project-ref "$PROJECT_REF" -p "$SUPABASE_DB_PASSWORD"
       - name: Push migrations
-        run: supabase db push -p "${{ secrets.SUPABASE_DB_PASSWORD }}"
+        run: supabase db push -p "$SUPABASE_DB_PASSWORD"
