@@ -15,7 +15,7 @@ import {
   type SettlementTransition,
 } from "@/hooks/useSettlements";
 import { useEntityNotes, useAddNote } from "@/hooks/useLeadTabs";
-import { useLitigationTeams, useStaffList } from "@/hooks/useModules";
+import { useLitigationTeams, useStaffList, useCreditors } from "@/hooks/useModules";
 import { useRecordActivity } from "@/hooks/useActivityLog";
 import { AssignmentsPanel } from "@/components/common/AssignmentsPanel";
 import { ActivityFeed } from "@/components/common/ActivityFeed";
@@ -26,6 +26,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate, titleCase } from "@/lib/format";
+
+// Radix Select rejects empty-string values, so "no creditor" uses this sentinel.
+const NO_CREDITOR = "__none__";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -316,6 +319,7 @@ function OpenMatterAction({
   const add = useAddMatter();
   const teams = useLitigationTeams();
   const staff = useStaffList();
+  const creditors = useCreditors();
   const teamOpts = (teams.data ?? []).map((t) => ({ value: t.id, label: t.name }));
   const staffOpts = (staff.data ?? []).map((s) => ({
     value: s.id,
@@ -328,12 +332,26 @@ function OpenMatterAction({
       description="Creates a matter on this debt and routes it to a team and attorney."
       pending={add.isPending}
       fields={[
-        { name: "case_number", label: "Case #", full: true },
-        { name: "court_name", label: "Court" },
-        { name: "state", label: "State" },
-        { name: "opposing_party", label: "Opposing party", full: true },
         { name: "team_id", label: "Team", type: "select", required: true, options: teamOpts },
         { name: "staff_id", label: "Attorney", type: "select", required: true, options: staffOpts },
+        { name: "case_number", label: "Case #" },
+        { name: "court_name", label: "Court" },
+        { name: "county", label: "County" },
+        { name: "state", label: "State" },
+        { name: "opposing_party", label: "Opposing party (plaintiff)", full: true },
+        { name: "opposing_counsel", label: "Opposing counsel", full: true },
+        {
+          name: "opposing_creditor_id",
+          label: "Opposing creditor",
+          type: "select",
+          defaultValue: NO_CREDITOR,
+          options: [
+            { value: NO_CREDITOR, label: "— None —" },
+            ...(creditors.data ?? []).map((c) => ({ value: c.id, label: c.name })),
+          ],
+        },
+        { name: "service_date", label: "Service date", type: "date" },
+        { name: "response_deadline", label: "Response deadline", type: "date" },
       ]}
       onSubmit={async (v) => {
         try {
@@ -344,8 +362,16 @@ function OpenMatterAction({
             staff_id: v.staff_id,
             case_number: v.case_number || null,
             court_name: v.court_name || null,
+            county: v.county || null,
             state: v.state || null,
             opposing_party: v.opposing_party || null,
+            opposing_counsel: v.opposing_counsel || null,
+            opposing_creditor_id:
+              v.opposing_creditor_id && v.opposing_creditor_id !== NO_CREDITOR
+                ? v.opposing_creditor_id
+                : null,
+            service_date: v.service_date || null,
+            response_deadline: v.response_deadline || null,
           });
           toast.success("Litigation matter opened.");
           navigate(`/litigation/${matterId}`);
