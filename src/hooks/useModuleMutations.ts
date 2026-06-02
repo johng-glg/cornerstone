@@ -87,6 +87,12 @@ export interface NewBillingEntry {
   description: string;
   total_amount: number;
   is_billable: boolean;
+  // Optional links so an entry can be associated with the client / engagement / matter it's for.
+  client_id?: string | null;
+  client_service_id?: string | null;
+  litigation_matter_id?: string | null;
+  duration_minutes?: number | null;
+  hourly_rate?: number | null;
 }
 export function useAddBillingEntry(): UseMutationResult<void, Error, NewBillingEntry> {
   const qc = useQueryClient();
@@ -97,7 +103,15 @@ export function useAddBillingEntry(): UseMutationResult<void, Error, NewBillingE
       const { error } = await supabase.from("billing_entries").insert({
         company_id: staff.company_id,
         staff_id: staff.id,
-        ...input,
+        entry_type: input.entry_type,
+        description: input.description,
+        total_amount: input.total_amount,
+        is_billable: input.is_billable,
+        client_id: input.client_id ?? null,
+        client_service_id: input.client_service_id ?? null,
+        litigation_matter_id: input.litigation_matter_id ?? null,
+        duration_minutes: input.duration_minutes ?? null,
+        hourly_rate: input.hourly_rate ?? null,
       });
       if (error) throw new Error(error.message);
     },
@@ -217,6 +231,41 @@ export function useAddTeam(): UseMutationResult<void, Error, NewTeam> {
       if (error) throw new Error(error.message);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["litigation_teams"] }),
+  });
+}
+
+export interface NewAssignmentRule {
+  name: string;
+  description?: string | null;
+  method: string;
+  priority?: number | null;
+  source?: string | null;
+  interest_type?: string | null;
+  min_debt_amount?: number | null;
+  max_debt_amount?: number | null;
+  is_active: boolean;
+}
+export function useCreateAssignmentRule(): UseMutationResult<void, Error, NewAssignmentRule> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, NewAssignmentRule>({
+    mutationFn: async (input) => {
+      if (!staff?.company_id) throw new Error("No active company.");
+      const { error } = await supabase.from("lead_assignment_rules").insert({
+        company_id: staff.company_id,
+        name: input.name,
+        description: input.description || null,
+        method: input.method,
+        priority: input.priority ?? 0,
+        source: input.source || null,
+        interest_type: input.interest_type || null,
+        min_debt_amount: input.min_debt_amount ?? null,
+        max_debt_amount: input.max_debt_amount ?? null,
+        is_active: input.is_active,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["lead_assignment_rules"] }),
   });
 }
 
