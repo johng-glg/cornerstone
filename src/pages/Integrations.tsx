@@ -17,6 +17,41 @@ function testFnFor(providerKey: string): string | null {
   return null;
 }
 
+// One-tap Dialpad webhook registration (replaces the manual curl). Uses the caller's session
+// token via supabase.functions.invoke, so no token handling is needed.
+function RegisterDialpadWebhookButton({ providerKey }: { providerKey: string }) {
+  const [pending, setPending] = useState(false);
+  if (!providerKey.includes("dialpad")) return null;
+  const run = async () => {
+    setPending(true);
+    const { data, error } = await supabase.functions.invoke("dialpad-register-webhook", {
+      body: {},
+    });
+    setPending(false);
+    if (error) {
+      toast.error(
+        error.message.includes("not found") || error.message.includes("404")
+          ? "Function not deployed yet — deploy edge functions first."
+          : error.message,
+      );
+      return;
+    }
+    const d = data as { success?: boolean; error?: string; webhook_id?: string };
+    if (d?.success === false) {
+      toast.error(d.error ?? "Registration failed.");
+      return;
+    }
+    toast.success(
+      d?.webhook_id ? `Webhook registered (id ${d.webhook_id}).` : "Webhook registered.",
+    );
+  };
+  return (
+    <Button size="sm" variant="ghost" className="h-7 text-xs" disabled={pending} onClick={run}>
+      {pending ? "Registering…" : "Register webhook"}
+    </Button>
+  );
+}
+
 function TestButton({ providerKey }: { providerKey: string }) {
   const fn = testFnFor(providerKey);
   const [pending, setPending] = useState(false);
@@ -90,6 +125,9 @@ export default function Integrations() {
                     )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
+                    {enabled && isAdmin && (
+                      <RegisterDialpadWebhookButton providerKey={p.provider_key} />
+                    )}
                     {enabled && <TestButton providerKey={p.provider_key} />}
                     <label className="flex cursor-pointer items-center gap-2 text-xs">
                       <span className={enabled ? "text-green-700" : "text-muted-foreground"}>
