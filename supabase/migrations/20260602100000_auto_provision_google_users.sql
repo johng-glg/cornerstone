@@ -45,13 +45,16 @@ BEGIN
   _first := coalesce(nullif(split_part(_full, ' ', 1), ''), split_part(NEW.email, '@', 1));
   _last := nullif(trim(substring(_full FROM position(' ' IN _full))), '');
 
+  -- Bare enum literals (no ::public.department / ::public.app_role cast) so they coerce to the
+  -- column's actual enum type. The hand-made `department` type was renamed to `department_new` on
+  -- the live DB, so a hardcoded ::public.department cast fails there; coercion works on both.
   INSERT INTO public.staff (user_id, company_id, first_name, last_name, email, department, is_active)
   VALUES (NEW.id, _guardian, _first, coalesce(_last, ''), NEW.email,
-          'client_services'::public.department, true)
+          'client_services', true)
   ON CONFLICT (user_id) DO NOTHING;
 
   INSERT INTO public.user_roles (user_id, role)
-  VALUES (NEW.id, 'client_services_rep'::public.app_role)
+  VALUES (NEW.id, 'client_services_rep')
   ON CONFLICT (user_id, role) DO NOTHING;
 
   RETURN NEW;
