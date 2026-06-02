@@ -4,6 +4,7 @@ import { useAddCreditor, useUpdateCreditor } from "@/hooks/useModuleMutations";
 import { ListPage } from "@/components/common/ListPage";
 import { QuickFormDialog } from "@/components/common/QuickFormDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { ManageContacts } from "@/components/creditors/ManageContacts";
 import { Button } from "@/components/ui/button";
 import { titleCase } from "@/lib/format";
 
@@ -138,7 +139,15 @@ export default function Creditors() {
           header: "Active",
           cell: (c) => <StatusBadge status={c.is_active ? "active" : "inactive"} />,
         },
-        { header: "", cell: (c) => <EditCreditorAction c={c} /> },
+        {
+          header: "",
+          cell: (c) => (
+            <span className="flex gap-1">
+              <ManageContacts creditorId={c.id} creditorName={c.name} />
+              <EditCreditorAction c={c} />
+            </span>
+          ),
+        },
       ]}
     />
   );
