@@ -35,6 +35,19 @@ export const WORKFLOW_ACTIONS = [
 ];
 export const WORKFLOW_OPERATORS = ["eq", "neq", "gt", "gte", "lt", "lte", "contains", "in"];
 
+/**
+ * Status values per entity, used by the "When" step's from/to status-transition chips. These are
+ * starting sets an admin can match against; the settlement set mirrors the settlement_status enum.
+ */
+export const ENTITY_STATUS_OPTIONS: Record<string, string[]> = {
+  leads: ["new", "contacted", "qualified", "nurturing", "converted", "lost"],
+  client_services: ["prospect", "pending", "active", "hold", "cancelled", "graduated"],
+  liabilities: ["active", "in_negotiation", "settled", "litigation", "closed"],
+  litigation_matters: ["pre_litigation", "filed", "discovery", "hearing", "settled", "closed"],
+  tasks: ["pending", "in_progress", "completed", "cancelled"],
+  settlements: ["offered", "accepted", "rejected", "completed", "defaulted", "cancelled"],
+};
+
 /** Config fields each action type needs (key + label). auto_graduate has none. */
 export const ACTION_FIELDS: Record<string, { key: string; label: string }[]> = {
   create_task: [
@@ -61,6 +74,12 @@ export interface WfAction {
   config: Record<string, string>;
 }
 
+/** Trigger-specific config. For status_changed rules, the from/to status-transition match. */
+export interface WfTriggerConfig {
+  from_status?: string[];
+  to_status?: string[];
+}
+
 export interface WorkflowRule {
   id: string;
   name: string;
@@ -69,6 +88,7 @@ export interface WorkflowRule {
   trigger_type: string;
   conditions: WfCondition[];
   actions: WfAction[];
+  trigger_config: WfTriggerConfig;
   is_active: boolean;
   is_blocking: boolean;
   priority: number;
@@ -83,7 +103,7 @@ export function useWorkflowRules(): UseQueryResult<WorkflowRule[], Error> {
       const { data, error } = await supabase
         .from("workflow_rules")
         .select(
-          "id, name, description, entity_type, trigger_type, conditions, actions, is_active, is_blocking, priority",
+          "id, name, description, entity_type, trigger_type, conditions, actions, trigger_config, is_active, is_blocking, priority",
         )
         .eq("company_id", staff!.company_id)
         .order("priority", { ascending: true });
@@ -96,6 +116,11 @@ export function useWorkflowRules(): UseQueryResult<WorkflowRule[], Error> {
         actions: Array.isArray((r as { actions?: unknown }).actions)
           ? (r as { actions: WfAction[] }).actions
           : [],
+        trigger_config:
+          (r as { trigger_config?: WfTriggerConfig }).trigger_config &&
+          typeof (r as { trigger_config?: unknown }).trigger_config === "object"
+            ? (r as { trigger_config: WfTriggerConfig }).trigger_config
+            : {},
       })) as unknown as WorkflowRule[];
     },
   });
@@ -109,6 +134,7 @@ export interface WorkflowRuleInput {
   trigger_type: string;
   conditions: WfCondition[];
   actions: WfAction[];
+  trigger_config?: WfTriggerConfig;
   is_active: boolean;
   is_blocking: boolean;
   priority: number;
@@ -129,7 +155,7 @@ export function useSaveWorkflowRule(): UseMutationResult<void, Error, WorkflowRu
         trigger_type: input.trigger_type,
         actions: input.actions,
         conditions: input.conditions,
-        trigger_config: {},
+        trigger_config: input.trigger_config ?? {},
         is_active: input.is_active,
         is_blocking: input.is_blocking,
         priority: input.priority,

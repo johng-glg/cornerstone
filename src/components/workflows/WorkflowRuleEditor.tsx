@@ -8,6 +8,7 @@ import {
   WORKFLOW_ACTIONS,
   WORKFLOW_OPERATORS,
   ACTION_FIELDS,
+  ENTITY_STATUS_OPTIONS,
   type WorkflowRule,
   type WfCondition,
   type WfAction,
@@ -24,6 +25,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -31,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { titleCase } from "@/lib/format";
 
 function Picker({
@@ -60,6 +63,42 @@ function Picker({
   );
 }
 
+/** Multi-select status chips for the from/to transition match. */
+function StatusChips({
+  options,
+  selected,
+  onToggle,
+}: {
+  options: string[];
+  selected: string[];
+  onToggle: (status: string) => void;
+}) {
+  if (options.length === 0)
+    return <p className="text-xs text-muted-foreground">No known statuses for this entity.</p>;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((s) => {
+        const on = selected.includes(s);
+        return (
+          <button
+            key={s}
+            type="button"
+            onClick={() => onToggle(s)}
+            className={cn(
+              "rounded-md border px-2 py-1 text-xs transition-colors",
+              on
+                ? "border-guardian-navy bg-guardian-navy text-white"
+                : "border-input text-muted-foreground hover:bg-muted",
+            )}
+          >
+            {titleCase(s)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function WorkflowRuleEditor({ rule }: { rule?: WorkflowRule }) {
   const save = useSaveWorkflowRule();
   const editing = !!rule;
@@ -69,6 +108,8 @@ export function WorkflowRuleEditor({ rule }: { rule?: WorkflowRule }) {
   const [description, setDescription] = useState(rule?.description ?? "");
   const [entity, setEntity] = useState(rule?.entity_type ?? "leads");
   const [trigger, setTrigger] = useState(rule?.trigger_type ?? "status_changed");
+  const [fromStatus, setFromStatus] = useState<string[]>(rule?.trigger_config?.from_status ?? []);
+  const [toStatus, setToStatus] = useState<string[]>(rule?.trigger_config?.to_status ?? []);
   const [priority, setPriority] = useState(String(rule?.priority ?? 100));
   const [blocking, setBlocking] = useState(rule?.is_blocking ?? false);
   const [active, setActive] = useState(rule?.is_active ?? true);
@@ -76,6 +117,17 @@ export function WorkflowRuleEditor({ rule }: { rule?: WorkflowRule }) {
   const [actions, setActions] = useState<WfAction[]>(
     rule?.actions?.length ? rule.actions : [{ type: "create_task", config: {} }],
   );
+
+  const statusOptions = ENTITY_STATUS_OPTIONS[entity] ?? [];
+  const showTransition = trigger === "status_changed";
+
+  const changeEntity = (v: string) => {
+    setEntity(v);
+    setFromStatus([]);
+    setToStatus([]);
+  };
+  const toggle = (list: string[], set: (v: string[]) => void, s: string) =>
+    set(list.includes(s) ? list.filter((x) => x !== s) : [...list, s]);
 
   const setCond = (i: number, patch: Partial<WfCondition>) =>
     setConditions((cs) => cs.map((c, j) => (j === i ? { ...c, ...patch } : c)));
@@ -103,6 +155,7 @@ export function WorkflowRuleEditor({ rule }: { rule?: WorkflowRule }) {
         is_active: active,
         conditions: conditions.filter((c) => c.field.trim()),
         actions,
+        trigger_config: showTransition ? { from_status: fromStatus, to_status: toStatus } : {},
       });
       toast.success(editing ? "Rule updated." : "Rule created.");
       setOpen(false);
@@ -130,49 +183,63 @@ export function WorkflowRuleEditor({ rule }: { rule?: WorkflowRule }) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Basics */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1 sm:col-span-2">
-              <Label>Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label>Entity</Label>
-              <Picker value={entity} onChange={setEntity} options={WORKFLOW_ENTITIES} />
-            </div>
-            <div className="space-y-1">
-              <Label>Trigger</Label>
-              <Picker value={trigger} onChange={setTrigger} options={WORKFLOW_TRIGGERS} />
-            </div>
-            <div className="space-y-1">
-              <Label>Priority</Label>
-              <Input type="number" value={priority} onChange={(e) => setPriority(e.target.value)} />
-            </div>
-            <div className="flex items-end gap-4">
-              <label className="flex items-center gap-2 pb-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4"
-                  checked={blocking}
-                  onChange={(e) => setBlocking(e.target.checked)}
-                />
-                Blocking
-              </label>
-              <label className="flex items-center gap-2 pb-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4"
-                  checked={active}
-                  onChange={(e) => setActive(e.target.checked)}
-                />
-                Active
-              </label>
-            </div>
-          </div>
+        <div className="space-y-1">
+          <Label>Workflow name</Label>
+          <Input
+            value={name}
+            placeholder="e.g. Service Graduation Gate"
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
 
-          {/* Conditions */}
-          <div className="space-y-2 rounded-md border p-3">
+        <Tabs defaultValue="when" className="mt-2">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="when">When</TabsTrigger>
+            <TabsTrigger value="if">If</TabsTrigger>
+            <TabsTrigger value="then">Then</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
+
+          {/* WHEN — entity, trigger, status transition */}
+          <TabsContent value="when" className="space-y-3 pt-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label>Entity type</Label>
+                <Picker value={entity} onChange={changeEntity} options={WORKFLOW_ENTITIES} />
+              </div>
+              <div className="space-y-1">
+                <Label>Trigger type</Label>
+                <Picker value={trigger} onChange={setTrigger} options={WORKFLOW_TRIGGERS} />
+              </div>
+            </div>
+            {showTransition ? (
+              <>
+                <div className="space-y-1">
+                  <Label>From status (leave empty for any)</Label>
+                  <StatusChips
+                    options={statusOptions}
+                    selected={fromStatus}
+                    onToggle={(s) => toggle(fromStatus, setFromStatus, s)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>To status (leave empty for any)</Label>
+                  <StatusChips
+                    options={statusOptions}
+                    selected={toStatus}
+                    onToggle={(s) => toggle(toStatus, setToStatus, s)}
+                  />
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Status transitions apply to the “Status Changed” trigger.
+              </p>
+            )}
+          </TabsContent>
+
+          {/* IF — conditions */}
+          <TabsContent value="if" className="space-y-2 pt-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium">Conditions (all must match)</p>
               <Button
@@ -218,10 +285,10 @@ export function WorkflowRuleEditor({ rule }: { rule?: WorkflowRule }) {
                 </button>
               </div>
             ))}
-          </div>
+          </TabsContent>
 
-          {/* Actions */}
-          <div className="space-y-2 rounded-md border p-3">
+          {/* THEN — actions */}
+          <TabsContent value="then" className="space-y-2 pt-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium">Actions</p>
               <Button
@@ -260,22 +327,55 @@ export function WorkflowRuleEditor({ rule }: { rule?: WorkflowRule }) {
                 ))}
               </div>
             ))}
-          </div>
+          </TabsContent>
 
-          <div className="space-y-1">
-            <Label>Description</Label>
-            <Textarea
-              rows={2}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
+          {/* SETTINGS — priority, flags, description */}
+          <TabsContent value="settings" className="space-y-3 pt-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label>Priority</Label>
+                <Input
+                  type="number"
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                />
+              </div>
+              <div className="flex items-end gap-4">
+                <label className="flex items-center gap-2 pb-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={blocking}
+                    onChange={(e) => setBlocking(e.target.checked)}
+                  />
+                  Blocking
+                </label>
+                <label className="flex items-center gap-2 pb-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={active}
+                    onChange={(e) => setActive(e.target.checked)}
+                  />
+                  Active
+                </label>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Description</Label>
+              <Textarea
+                rows={2}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
 
-          <div className="flex justify-end">
-            <Button onClick={submit} disabled={save.isPending}>
-              {save.isPending ? "Saving…" : "Save rule"}
-            </Button>
-          </div>
+        <div className="flex justify-end pt-2">
+          <Button onClick={submit} disabled={save.isPending}>
+            {save.isPending ? "Saving…" : "Save rule"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
