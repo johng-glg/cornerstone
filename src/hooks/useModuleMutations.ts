@@ -176,6 +176,70 @@ export function useAddMatterDocument(
   });
 }
 
+export function useSetIntegration(): UseMutationResult<
+  void,
+  Error,
+  { providerKey: string; enabled: boolean }
+> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, { providerKey: string; enabled: boolean }>({
+    mutationFn: async ({ providerKey, enabled }) => {
+      if (!staff?.company_id) throw new Error("No active company.");
+      const { error } = await supabase
+        .from("company_integrations")
+        .upsert(
+          { company_id: staff.company_id, provider_key: providerKey, is_enabled: enabled },
+          { onConflict: "company_id,provider_key" },
+        );
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company_integrations"] }),
+  });
+}
+
+export interface NewTemplate {
+  name: string;
+  template_type: string;
+  language: string;
+  content: string;
+}
+export function useAddTemplate(): UseMutationResult<void, Error, NewTemplate> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, NewTemplate>({
+    mutationFn: async (input) => {
+      if (!staff?.company_id) throw new Error("No active company.");
+      const { error } = await supabase.from("templates").insert({
+        company_id: staff.company_id,
+        created_by: staff.id ?? null,
+        ...input,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
+  });
+}
+
+export function useUpdateTemplate(): UseMutationResult<
+  void,
+  Error,
+  { id: string; name?: string; content?: string; is_active?: boolean }
+> {
+  const qc = useQueryClient();
+  return useMutation<
+    void,
+    Error,
+    { id: string; name?: string; content?: string; is_active?: boolean }
+  >({
+    mutationFn: async ({ id, ...patch }) => {
+      const { error } = await supabase.from("templates").update(patch).eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
+  });
+}
+
 export function useAddSignatureRequest(
   clientId: string,
 ): UseMutationResult<void, Error, { title: string }> {

@@ -190,3 +190,20 @@ export const useIntegrationProviders = (): UseQueryResult<ProviderRow[], Error> 
         true,
       ),
   });
+
+export interface CompanyIntegrationRow {
+  id: string;
+  provider_key: string;
+  is_enabled: boolean;
+}
+export const useCompanyIntegrations = (): UseQueryResult<CompanyIntegrationRow[], Error> =>
+  useQuery({
+    queryKey: ["company_integrations"],
+    queryFn: () =>
+      list<CompanyIntegrationRow>(
+        "company_integrations",
+        "id, provider_key, is_enabled",
+        "provider_key",
+        true,
+      ),
+  });
