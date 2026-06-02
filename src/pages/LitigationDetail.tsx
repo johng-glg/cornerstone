@@ -8,6 +8,8 @@ import {
   useMatterDocuments,
   useFilingFees,
   useAppearances,
+  useUpdateMatter,
+  type MatterRow,
 } from "@/hooks/useLitigationDetail";
 import {
   useAddHearing,
@@ -16,6 +18,7 @@ import {
   useAddMatterDocument,
   useAddAppearance,
 } from "@/hooks/useModuleMutations";
+import { useCreditors } from "@/hooks/useModules";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { StatusChanger } from "@/components/common/StatusChanger";
@@ -227,6 +230,103 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+// Radix Select rejects empty-string values; "no creditor" uses this sentinel.
+const NO_CREDITOR = "__none__";
+
+function EditMatterAction({ matter }: { matter: MatterRow }) {
+  const update = useUpdateMatter(matter.id);
+  const creditors = useCreditors();
+  return (
+    <QuickFormDialog
+      trigger={
+        <Button size="sm" variant="outline">
+          Edit
+        </Button>
+      }
+      title="Edit litigation matter"
+      pending={update.isPending}
+      fields={[
+        { name: "case_number", label: "Case #", defaultValue: matter.case_number ?? "" },
+        { name: "court_name", label: "Court", defaultValue: matter.court_name ?? "" },
+        { name: "county", label: "County", defaultValue: matter.county ?? "" },
+        { name: "state", label: "State", defaultValue: matter.state ?? "" },
+        {
+          name: "opposing_party",
+          label: "Opposing party (plaintiff)",
+          full: true,
+          defaultValue: matter.opposing_party ?? "",
+        },
+        {
+          name: "opposing_counsel",
+          label: "Opposing counsel",
+          full: true,
+          defaultValue: matter.opposing_counsel ?? "",
+        },
+        {
+          name: "opposing_creditor_id",
+          label: "Opposing creditor",
+          type: "select",
+          defaultValue: matter.opposing_creditor_id ?? NO_CREDITOR,
+          options: [
+            { value: NO_CREDITOR, label: "— None —" },
+            ...(creditors.data ?? []).map((c) => ({ value: c.id, label: c.name })),
+          ],
+        },
+        {
+          name: "service_date",
+          label: "Service date",
+          type: "date",
+          defaultValue: matter.service_date ?? "",
+        },
+        {
+          name: "response_deadline",
+          label: "Response deadline",
+          type: "date",
+          defaultValue: matter.response_deadline ?? "",
+        },
+        {
+          name: "judgment_amount",
+          label: "Judgment ($)",
+          type: "number",
+          defaultValue: matter.judgment_amount != null ? String(matter.judgment_amount) : "",
+        },
+        {
+          name: "settlement_amount",
+          label: "Settlement ($)",
+          type: "number",
+          defaultValue: matter.settlement_amount != null ? String(matter.settlement_amount) : "",
+        },
+        { name: "notes", label: "Notes", type: "textarea", defaultValue: matter.notes ?? "" },
+      ]}
+      onSubmit={async (v) => {
+        try {
+          await update.mutateAsync({
+            case_number: v.case_number || null,
+            court_name: v.court_name || null,
+            county: v.county || null,
+            state: v.state || null,
+            opposing_party: v.opposing_party || null,
+            opposing_counsel: v.opposing_counsel || null,
+            opposing_creditor_id:
+              v.opposing_creditor_id && v.opposing_creditor_id !== NO_CREDITOR
+                ? v.opposing_creditor_id
+                : null,
+            service_date: v.service_date || null,
+            response_deadline: v.response_deadline || null,
+            judgment_amount: v.judgment_amount ? Number(v.judgment_amount) : null,
+            settlement_amount: v.settlement_amount ? Number(v.settlement_amount) : null,
+            notes: v.notes || null,
+          });
+          toast.success("Matter updated.");
+        } catch (e) {
+          toast.error((e as Error).message);
+          throw e;
+        }
+      }}
+    />
+  );
+}
+
 export default function LitigationDetail() {
   const { id } = useParams<{ id: string }>();
   const matter = useMatter(id);
@@ -275,13 +375,16 @@ export default function LitigationDetail() {
                   {matter.data.opposing_party ? ` · vs ${matter.data.opposing_party}` : ""}
                 </p>
               </div>
-              <Link
-                to={`/clients`}
-                className="text-sm text-guardian-gold hover:underline"
-                title="Engagement"
-              >
-                View engagement
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  to={`/engagements/${matter.data.client_service_id}`}
+                  className="text-sm text-guardian-gold hover:underline"
+                  title="Engagement"
+                >
+                  View engagement
+                </Link>
+                <EditMatterAction matter={matter.data} />
+              </div>
             </div>
 
             <Tabs defaultValue="overview">
