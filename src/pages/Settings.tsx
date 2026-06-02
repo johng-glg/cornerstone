@@ -5,6 +5,7 @@ import { FeatureFlagsCard } from "@/components/settings/FeatureFlagsCard";
 import { ProfileSettingsTab } from "@/components/settings/ProfileSettingsTab";
 import { NotificationSettingsTab } from "@/components/settings/NotificationSettingsTab";
 import { CompanySettingsTab } from "@/components/settings/CompanySettingsTab";
+import { ReminderSettingsTab } from "@/components/settings/ReminderSettingsTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -55,6 +56,7 @@ export default function Settings() {
         <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          {isAdmin && <TabsTrigger value="reminders">Reminders</TabsTrigger>}
           {isAdmin && <TabsTrigger value="company">Company</TabsTrigger>}
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="flags">Feature Flags</TabsTrigger>
@@ -67,6 +69,11 @@ export default function Settings() {
         <TabsContent value="notifications" className="max-w-2xl pt-4">
           <NotificationSettingsTab />
         </TabsContent>
+        {isAdmin && (
+          <TabsContent value="reminders" className="max-w-2xl pt-4">
+            <ReminderSettingsTab />
+          </TabsContent>
+        )}
         {isAdmin && (
           <TabsContent value="company" className="max-w-2xl pt-4">
             <CompanySettingsTab />

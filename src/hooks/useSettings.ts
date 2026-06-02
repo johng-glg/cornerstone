@@ -91,6 +91,53 @@ export function useUpsertNotificationPref(): UseMutationResult<void, Error, Noti
   });
 }
 
+export interface ReminderSettings {
+  id: string | null;
+  response_deadline_days: number[];
+  hearing_days: number[];
+  task_due_days: number[];
+  reminder_hour: number;
+  is_active: boolean;
+}
+export function useReminderSettings(): UseQueryResult<ReminderSettings | null, Error> {
+  const { staff } = useAuth();
+  return useQuery({
+    queryKey: ["reminder_settings", staff?.company_id],
+    enabled: !!staff?.company_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reminder_settings")
+        .select("id, response_deadline_days, hearing_days, task_due_days, reminder_hour, is_active")
+        .eq("company_id", staff!.company_id)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return (data ?? null) as unknown as ReminderSettings | null;
+    },
+  });
+}
+export function useSaveReminderSettings(): UseMutationResult<void, Error, ReminderSettings> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, ReminderSettings>({
+    mutationFn: async (input) => {
+      if (!staff?.company_id) throw new Error("No active company.");
+      const payload = {
+        company_id: staff.company_id,
+        response_deadline_days: input.response_deadline_days,
+        hearing_days: input.hearing_days,
+        task_due_days: input.task_due_days,
+        reminder_hour: input.reminder_hour,
+        is_active: input.is_active,
+      };
+      const { error } = input.id
+        ? await supabase.from("reminder_settings").update(payload).eq("id", input.id)
+        : await supabase.from("reminder_settings").insert(payload);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["reminder_settings"] }),
+  });
+}
+
 export interface CompanyInfo {
   id: string;
   name: string;

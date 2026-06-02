@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Pencil } from "lucide-react";
 import {
   useClient,
@@ -37,6 +37,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 
 export default function ClientDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const client = useClient(id);
   const services = useClientServices(id);
   const phones = useClientPhones(id);
@@ -240,7 +241,11 @@ export default function ClientDetail() {
                           </thead>
                           <tbody>
                             {(liabilities.data ?? []).map((l) => (
-                              <tr key={l.id} className="border-b last:border-0">
+                              <tr
+                                key={l.id}
+                                onClick={() => navigate(`/liabilities/${l.id}`)}
+                                className="cursor-pointer border-b last:border-0 hover:bg-muted/40"
+                              >
                                 <td className="px-3 py-2">
                                   {l.notes ?? (l.account_number ? `••••${l.account_number}` : "—")}
                                 </td>
