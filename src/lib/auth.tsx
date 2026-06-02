@@ -2,6 +2,12 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 import type { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { PASSWORD_RECOVERY_STORAGE_KEY } from "@/lib/authRecovery";
+import {
+  TEST_AUTH_ENABLED,
+  buildTestAuthState,
+  clearTestAuthMarker,
+  readTestAuthMarker,
+} from "@/lib/testAuth";
 
 /** Staff profile row (mirrors public.staff). Typed locally until generated DB types land. */
 export interface StaffProfile {
@@ -121,6 +127,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Dev/test-only seam: if the synthetic-session marker is present (Playwright set it),
+    // hydrate a fake authenticated session and skip Supabase entirely. Compiled out of
+    // production builds — TEST_AUTH_ENABLED is a literal `false` unless VITE_E2E_TEST_AUTH=1.
+    if (TEST_AUTH_ENABLED) {
+      const marker = readTestAuthMarker();
+      if (marker) {
+        const t = buildTestAuthState(marker);
+        setSession(t.session);
+        setUser(t.user);
+        setStaff(t.staff);
+        setRoles(t.roles);
+        setLoading(false);
+        return;
+      }
+    }
+
     // Register the auth-state listener BEFORE checking the existing session so no event is missed.
     const {
       data: { subscription },
@@ -190,6 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    if (TEST_AUTH_ENABLED) clearTestAuthMarker();
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
