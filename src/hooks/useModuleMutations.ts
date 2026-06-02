@@ -176,6 +176,68 @@ export function useAddMatterDocument(
   });
 }
 
+export interface NewAppearance {
+  appearance_date: string;
+  description: string;
+}
+export function useAddAppearance(matterId: string): UseMutationResult<void, Error, NewAppearance> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, NewAppearance>({
+    mutationFn: async (input) => {
+      const { error } = await supabase.from("appearance_requests").insert({
+        matter_id: matterId,
+        appearance_date: input.appearance_date,
+        description: input.description,
+        requested_by: staff?.id ?? null,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["matter_appearances", matterId] }),
+  });
+}
+
+export interface NewTeam {
+  name: string;
+  description?: string | null;
+  color?: string | null;
+}
+export function useAddTeam(): UseMutationResult<void, Error, NewTeam> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, NewTeam>({
+    mutationFn: async (input) => {
+      if (!staff?.company_id) throw new Error("No active company.");
+      const { error } = await supabase.from("litigation_teams").insert({
+        company_id: staff.company_id,
+        name: input.name,
+        description: input.description || null,
+        color: input.color || null,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["litigation_teams"] }),
+  });
+}
+
+export function useToggleAssignmentRule(): UseMutationResult<
+  void,
+  Error,
+  { id: string; is_active: boolean }
+> {
+  const qc = useQueryClient();
+  return useMutation<void, Error, { id: string; is_active: boolean }>({
+    mutationFn: async ({ id, is_active }) => {
+      const { error } = await supabase
+        .from("lead_assignment_rules")
+        .update({ is_active })
+        .eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["lead_assignment_rules"] }),
+  });
+}
+
 export function useSetIntegration(): UseMutationResult<
   void,
   Error,

@@ -7,12 +7,14 @@ import {
   useMatterActivities,
   useMatterDocuments,
   useFilingFees,
+  useAppearances,
 } from "@/hooks/useLitigationDetail";
 import {
   useAddHearing,
   useAddMatterActivity,
   useAddFilingFee,
   useAddMatterDocument,
+  useAddAppearance,
 } from "@/hooks/useModuleMutations";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -184,6 +186,34 @@ function AddMatterDocAction({ matterId }: { matterId: string }) {
   );
 }
 
+function RequestAppearanceAction({ matterId }: { matterId: string }) {
+  const add = useAddAppearance(matterId);
+  return (
+    <QuickFormDialog
+      trigger={
+        <Button size="sm" variant="outline">
+          Request appearance
+        </Button>
+      }
+      title="Request appearance"
+      pending={add.isPending}
+      fields={[
+        { name: "appearance_date", label: "Appearance date", type: "date", required: true },
+        { name: "description", label: "Description", type: "textarea", required: true },
+      ]}
+      onSubmit={async (v) => {
+        try {
+          await add.mutateAsync({ appearance_date: v.appearance_date, description: v.description });
+          toast.success("Appearance requested.");
+        } catch (e) {
+          toast.error((e as Error).message);
+          throw e;
+        }
+      }}
+    />
+  );
+}
+
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between py-1.5 text-sm">
@@ -200,6 +230,7 @@ export default function LitigationDetail() {
   const activities = useMatterActivities(id);
   const documents = useMatterDocuments(id);
   const fees = useFilingFees(id);
+  const appearances = useAppearances(id);
 
   return (
     <div className="space-y-5">
@@ -244,6 +275,7 @@ export default function LitigationDetail() {
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="hearings">Hearings</TabsTrigger>
                 <TabsTrigger value="activity">Activity</TabsTrigger>
+                <TabsTrigger value="appearances">Appearances</TabsTrigger>
                 <TabsTrigger value="fees">Filing Fees</TabsTrigger>
                 <TabsTrigger value="documents">Documents</TabsTrigger>
               </TabsList>
@@ -356,6 +388,45 @@ export default function LitigationDetail() {
                       </li>
                     ))}
                   </ol>
+                </QueryState>
+              </TabsContent>
+
+              <TabsContent value="appearances" className="space-y-3">
+                {id && (
+                  <div className="flex justify-end">
+                    <RequestAppearanceAction matterId={id} />
+                  </div>
+                )}
+                <QueryState
+                  isLoading={appearances.isLoading}
+                  error={appearances.error}
+                  isEmpty={(appearances.data ?? []).length === 0}
+                  emptyMessage="No appearance requests."
+                >
+                  <div className="overflow-x-auto rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead className="border-b bg-muted/50 text-left">
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Appearance date</th>
+                          <th className="px-3 py-2 font-medium">Description</th>
+                          <th className="px-3 py-2 font-medium">Status</th>
+                          <th className="px-3 py-2 font-medium">Requested</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(appearances.data ?? []).map((a) => (
+                          <tr key={a.id} className="border-b last:border-0">
+                            <td className="px-3 py-2">{formatDate(a.appearance_date)}</td>
+                            <td className="px-3 py-2">{a.description}</td>
+                            <td className="px-3 py-2">
+                              <StatusBadge status={a.status} />
+                            </td>
+                            <td className="px-3 py-2">{formatDate(a.requested_date)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </QueryState>
               </TabsContent>
 

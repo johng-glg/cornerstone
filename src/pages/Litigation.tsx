@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useLitigationMatters } from "@/hooks/useDomains";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -11,7 +11,17 @@ export default function Litigation() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Litigation</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Litigation</h1>
+        <div className="flex gap-4 text-sm">
+          <Link to="/court-calendar" className="text-guardian-gold hover:underline">
+            Court calendar
+          </Link>
+          <Link to="/litigation-teams" className="text-guardian-gold hover:underline">
+            Teams
+          </Link>
+        </div>
+      </div>
       <QueryState
         isLoading={isLoading}
         error={error}

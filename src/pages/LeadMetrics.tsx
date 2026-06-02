@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useLeads } from "@/hooks/useCoreCrm";
 import { StatCard } from "@/components/common/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +24,12 @@ export default function LeadMetrics() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Lead Metrics</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Lead Metrics</h1>
+        <Link to="/lead-rules" className="text-sm text-guardian-gold hover:underline">
+          Assignment rules
+        </Link>
+      </div>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Total leads" value={isLoading ? "…" : total} />
         <StatCard

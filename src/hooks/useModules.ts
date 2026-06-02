@@ -208,6 +208,49 @@ export const useCompanyIntegrations = (): UseQueryResult<CompanyIntegrationRow[]
       ),
   });
 
+export interface LitigationTeamRow {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string | null;
+  is_active: boolean;
+  priority: number | null;
+}
+export const useLitigationTeams = (): UseQueryResult<LitigationTeamRow[], Error> =>
+  useQuery({
+    queryKey: ["litigation_teams"],
+    queryFn: () =>
+      list<LitigationTeamRow>(
+        "litigation_teams",
+        "id, name, description, color, is_active, priority",
+        "priority",
+        true,
+      ),
+  });
+
+export interface AssignmentRuleRow {
+  id: string;
+  name: string;
+  description: string | null;
+  method: string;
+  is_active: boolean;
+  is_default: boolean;
+  source: string | null;
+  interest_type: string | null;
+  priority: number | null;
+}
+export const useAssignmentRules = (): UseQueryResult<AssignmentRuleRow[], Error> =>
+  useQuery({
+    queryKey: ["lead_assignment_rules"],
+    queryFn: () =>
+      list<AssignmentRuleRow>(
+        "lead_assignment_rules",
+        "id, name, description, method, is_active, is_default, source, interest_type, priority",
+        "priority",
+        true,
+      ),
+  });
+
 export interface CalendarHearingRow {
   id: string;
   hearing_type: string;

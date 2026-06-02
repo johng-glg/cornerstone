@@ -105,6 +105,30 @@ export interface FilingFeeRow {
   requested_date: string | null;
   paid_date: string | null;
 }
+export interface AppearanceRow {
+  id: string;
+  appearance_date: string | null;
+  requested_date: string | null;
+  description: string;
+  status: string;
+  court_name: string | null;
+}
+export function useAppearances(id: string | undefined): UseQueryResult<AppearanceRow[], Error> {
+  return useQuery({
+    queryKey: ["matter_appearances", id ?? ""],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("appearance_requests")
+        .select("id, appearance_date, requested_date, description, status, court_name")
+        .eq("matter_id", id!)
+        .order("appearance_date", { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as AppearanceRow[];
+    },
+  });
+}
+
 export function useFilingFees(id: string | undefined): UseQueryResult<FilingFeeRow[], Error> {
   return useQuery({
     queryKey: ["matter_fees", id ?? ""],
