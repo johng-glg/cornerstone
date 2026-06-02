@@ -5,15 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Logo } from "@/components/common/Logo";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "@/components/ui/card";
 
 type Mode = "signin" | "signup";
 
@@ -66,10 +58,12 @@ export default function Auth() {
     <main className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
-          <Logo tone="light" className="mb-2 h-10 w-auto" />
-          <CardTitle className="text-base font-semibold text-muted-foreground">
-            Cornerstone
-          </CardTitle>
+          <img
+            src="/brand/cornerstone-logo.svg"
+            alt="Cornerstone"
+            className="mb-2 h-32 w-auto select-none"
+            draggable={false}
+          />
           <CardDescription>
             {googleOnly
               ? "Sign in with your Guardian Litigation Group account"

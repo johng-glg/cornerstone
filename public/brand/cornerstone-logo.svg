@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 400" fill="none" role="img" aria-label="Cornerstone">
+  <title>Cornerstone</title>
+  <!-- Isometric cube mark: slate top, navy left + upper-right, gold lower-right (shield). -->
+  <g stroke="#ffffff" stroke-width="7" stroke-linejoin="round">
+    <!-- Top face (slate) -->
+    <polygon points="260,46 372,110 260,174 148,110" fill="#5C6E88"/>
+    <!-- Left face (navy) -->
+    <polygon points="148,110 260,174 260,300 148,236" fill="#213A5C"/>
+    <!-- Right face, upper (navy) -->
+    <polygon points="372,110 260,174 260,240 372,176" fill="#1B3252"/>
+    <!-- Right face, lower (gold shield) -->
+    <polygon points="372,176 260,240 260,300 372,236" fill="#B0894A"/>
+  </g>
+  <!-- "C" notch on the top face + a square bite, echoing the Cornerstone monogram. -->
+  <g fill="#ffffff">
+    <polygon points="260,86 300,109 260,132 220,109"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="260" y="358" text-anchor="middle"
+        font-family="'Segoe UI', Arial, Helvetica, sans-serif" font-size="52"
+        font-weight="800" letter-spacing="4" fill="#3A4452">CORNERSTONE</text>
+</svg>
