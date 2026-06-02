@@ -94,11 +94,11 @@ export function QuickFormDialog({
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {fields.map((f) => (
             <div
               key={f.name}
-              className={`space-y-1 ${f.full || f.type === "textarea" ? "col-span-2" : ""}`}
+              className={`space-y-1 ${f.full || f.type === "textarea" ? "sm:col-span-2" : ""}`}
             >
               <Label htmlFor={f.name}>{f.label}</Label>
               {f.type === "textarea" ? (

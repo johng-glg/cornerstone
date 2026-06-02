@@ -314,7 +314,7 @@ export function EnrollmentWizard({
           {step === 1 && (
             <>
               <h3 className="font-semibold">Client Information</h3>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div className="space-y-1">
                   <Label>First Name *</Label>
                   <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
@@ -328,7 +328,7 @@ export function EnrollmentWizard({
                   <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label>Date of Birth</Label>
                   <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
@@ -359,7 +359,7 @@ export function EnrollmentWizard({
           {step === 2 && (
             <>
               <h3 className="font-semibold">Employment &amp; Hardship</h3>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label>Employment Status</Label>
                   <Select value={employment} onValueChange={setEmployment}>
@@ -467,7 +467,7 @@ export function EnrollmentWizard({
                       Remove
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <Input
                       placeholder="Creditor name"
                       value={d.creditor_name}
@@ -489,7 +489,7 @@ export function EnrollmentWizard({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <Input
                       type="number"
                       placeholder="Original $"
@@ -523,7 +523,7 @@ export function EnrollmentWizard({
               <p className="text-sm text-muted-foreground">
                 Based on total enrolled debt of {formatCurrency(totalDebt)}
               </p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {PROGRAM_TERMS.map((t) => {
                   const active = term === t;
                   return (

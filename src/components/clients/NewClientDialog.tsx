@@ -87,7 +87,7 @@ export function NewClientDialog() {
           <DialogDescription>Add a client record to your firm.</DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="c_first">First name</Label>
               <Input id="c_first" {...register("first_name")} />

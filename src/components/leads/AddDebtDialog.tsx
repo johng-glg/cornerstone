@@ -118,7 +118,7 @@ export function AddDebtDialog({ leadId }: { leadId: string }) {
               <p className="text-xs text-destructive">{errors.creditor_name.message}</p>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label>Type</Label>
               <Select
@@ -153,7 +153,7 @@ export function AddDebtDialog({ leadId }: { leadId: string }) {
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="d_current">Current balance ($)</Label>
               <Input

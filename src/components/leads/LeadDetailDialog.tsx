@@ -134,7 +134,7 @@ export function LeadDetailDialog({
           <DialogDescription>{lead.lead_number}</DialogDescription>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="l_first">First name</Label>
               <Input id="l_first" {...register("first_name")} />
@@ -151,7 +151,7 @@ export function LeadDetailDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="l_email">Email</Label>
               <Input id="l_email" type="email" {...register("email")} />
@@ -163,7 +163,7 @@ export function LeadDetailDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="space-y-1">
               <Label>Status</Label>
               <Select
@@ -209,7 +209,7 @@ export function LeadDetailDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="space-y-1">
               <Label htmlFor="l_debt">Est. debt ($)</Label>
               <Input
