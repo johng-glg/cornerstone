@@ -100,6 +100,9 @@ jobs:
       - name: Seed verification (synthetic data present + idempotent)
         run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f tests/db/seed_verify.test.sql
 
+      - name: Workflow engine (rules fire / gate / block)
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f tests/db/workflow_engine.test.sql
+
       - name: Stop Supabase
         if: always()
         run: npx supabase stop
