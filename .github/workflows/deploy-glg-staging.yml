@@ -13,7 +13,7 @@ name: Deploy — GLG staging (manual bucket)
 
 on:
   push:
-    branches: [claude/vibrant-bardeen-nwrt8]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
