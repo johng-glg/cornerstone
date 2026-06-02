@@ -124,14 +124,33 @@ export function NotesTab({
         emptyMessage="No notes yet."
       >
         <ul className="space-y-2">
-          {(notes.data ?? []).map((n) => (
-            <li key={n.id} className="rounded-md border p-3">
-              <p className="whitespace-pre-wrap text-sm">{n.content}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {new Date(n.created_at).toLocaleString()}
-              </p>
-            </li>
-          ))}
+          {(notes.data ?? []).map((n) => {
+            const tagged = (n.note_mentions ?? [])
+              .map((m) => (m.staff ? `${m.staff.first_name} ${m.staff.last_name}` : null))
+              .filter(Boolean) as string[];
+            return (
+              <li key={n.id} className="rounded-md border p-3">
+                <p className="whitespace-pre-wrap text-sm">{n.content}</p>
+                {tagged.length > 0 && (
+                  <p className="mt-1.5 flex flex-wrap items-center gap-1 text-xs">
+                    <AtSign className="h-3 w-3 text-muted-foreground" />
+                    {tagged.map((name) => (
+                      <span
+                        key={name}
+                        className="rounded bg-muted px-1.5 py-0.5 font-medium text-foreground"
+                      >
+                        {name}
+                      </span>
+                    ))}
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {n.author ? `${n.author.first_name} ${n.author.last_name} · ` : ""}
+                  {new Date(n.created_at).toLocaleString()}
+                </p>
+              </li>
+            );
+          })}
         </ul>
       </QueryState>
 

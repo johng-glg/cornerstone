@@ -13,6 +13,8 @@ export interface NoteRow {
   content: string;
   created_by: string;
   created_at: string;
+  author: { first_name: string; last_name: string } | null;
+  note_mentions: { staff: { first_name: string; last_name: string } | null }[];
 }
 export interface TaskRow {
   id: string;
@@ -50,12 +52,18 @@ export function useEntityNotes(
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notes")
-        .select("id, content, created_by, created_at")
+        .select(
+          "id, content, created_by, created_at, author:created_by(first_name, last_name), note_mentions(staff:mentioned_staff_id(first_name, last_name))",
+        )
         .eq("entity_type", entityType)
         .eq("entity_id", entityId!)
         .order("created_at", { ascending: false });
       if (error) throw new Error(error.message);
-      return (data ?? []) as unknown as NoteRow[];
+      const rows = (data ?? []) as unknown as NoteRow[];
+      return rows.map((n) => ({
+        ...n,
+        note_mentions: Array.isArray(n.note_mentions) ? n.note_mentions : [],
+      }));
     },
   });
 }
