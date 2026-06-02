@@ -5,9 +5,12 @@
 -- Safe to run multiple times. Run in the Supabase SQL editor.
 -- =====================================================================
 
--- Tenant + staff already exist:
+-- Prerequisite: run the base seed (seed.sql) first — it creates the tenant + staff:
 --   company  0a000000-0000-4000-8000-000000000001  Guardian Litigation Group
---   staff    d1..01 Nadia (admin) · d2..02 Theo (attorney) · d3..03 Priya (paralegal)
+--   staff    Nadia (admin) · Theo (attorney) · Priya (paralegal)
+-- Staff FKs (leads.assigned_to, billing_entries.staff_id, tasks.*, client_communications.staff_id)
+-- target staff.id (a random PK), so we resolve it from the stable staff.user_id (d1/d2/d3) via
+-- subquery rather than hardcoding — works regardless of the generated staff.id values.
 
 -- 1. Creditors (global directory) ----------------------------------------------
 INSERT INTO public.creditors (id, name, creditor_type, phone, email, state, is_active) VALUES
@@ -21,11 +24,11 @@ ON CONFLICT (id) DO NOTHING;
 
 -- 2. Leads (varied stages) -----------------------------------------------------
 INSERT INTO public.leads (id, lead_number, company_id, first_name, last_name, email, phone, source, status, interest_type, estimated_debt_amount, number_of_debts, state, assigned_to) VALUES
-  ('ab000000-0000-4000-8000-000000000001','LEAD-2026-2001','0a000000-0000-4000-8000-000000000001','Marcus','Reed','marcus.reed@example.com','555-0201','web_form','new','debt_resolution',42000,4,'TX','d2000000-0000-4000-8000-000000000002'),
-  ('ab000000-0000-4000-8000-000000000002','LEAD-2026-2002','0a000000-0000-4000-8000-000000000001','Elena','Ramos','elena.ramos@example.com','555-0202','referral','contacted','debt_resolution',58000,6,'CA','d3000000-0000-4000-8000-000000000003'),
-  ('ab000000-0000-4000-8000-000000000003','LEAD-2026-2003','0a000000-0000-4000-8000-000000000001','Derek','Okafor','derek.okafor@example.com','555-0203','phone','qualified','both',75000,7,'NY','d2000000-0000-4000-8000-000000000002'),
+  ('ab000000-0000-4000-8000-000000000001','LEAD-2026-2001','0a000000-0000-4000-8000-000000000001','Marcus','Reed','marcus.reed@example.com','555-0201','web_form','new','debt_resolution',42000,4,'TX',(SELECT id FROM public.staff WHERE user_id = 'd2000000-0000-4000-8000-000000000002')),
+  ('ab000000-0000-4000-8000-000000000002','LEAD-2026-2002','0a000000-0000-4000-8000-000000000001','Elena','Ramos','elena.ramos@example.com','555-0202','referral','contacted','debt_resolution',58000,6,'CA',(SELECT id FROM public.staff WHERE user_id = 'd3000000-0000-4000-8000-000000000003')),
+  ('ab000000-0000-4000-8000-000000000003','LEAD-2026-2003','0a000000-0000-4000-8000-000000000001','Derek','Okafor','derek.okafor@example.com','555-0203','phone','qualified','both',75000,7,'NY',(SELECT id FROM public.staff WHERE user_id = 'd2000000-0000-4000-8000-000000000002')),
   ('ab000000-0000-4000-8000-000000000004','LEAD-2026-2004','0a000000-0000-4000-8000-000000000001','Sophie','Tran','sophie.tran@example.com','555-0204','advertisement','lost','debt_resolution',18000,2,'AZ',NULL),
-  ('ab000000-0000-4000-8000-000000000005','LEAD-2026-2005','0a000000-0000-4000-8000-000000000001','Andre','Boateng','andre.b@example.com','555-0205','referral','qualified','litigation',91000,8,'FL','d2000000-0000-4000-8000-000000000002')
+  ('ab000000-0000-4000-8000-000000000005','LEAD-2026-2005','0a000000-0000-4000-8000-000000000001','Andre','Boateng','andre.b@example.com','555-0205','referral','qualified','litigation',91000,8,'FL',(SELECT id FROM public.staff WHERE user_id = 'd2000000-0000-4000-8000-000000000002'))
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.lead_debts (id, lead_id, creditor_name, account_type, original_balance, current_balance, is_enrolled) VALUES
@@ -80,18 +83,18 @@ ON CONFLICT (id) DO NOTHING;
 
 -- 7. Billing entries -----------------------------------------------------------
 INSERT INTO public.billing_entries (id, company_id, staff_id, client_id, client_service_id, entry_type, description, billing_date, duration_minutes, hourly_rate, total_amount, is_billable, status) VALUES
-  ('ba000000-0000-4000-8000-000000000001','0a000000-0000-4000-8000-000000000001','d2000000-0000-4000-8000-000000000002','ac000000-0000-4000-8000-000000000001','ad000000-0000-4000-8000-000000000001','time','Creditor negotiation call',  '2026-03-10',45,250,187.50,true,'approved'),
-  ('ba000000-0000-4000-8000-000000000002','0a000000-0000-4000-8000-000000000001','d2000000-0000-4000-8000-000000000002','ac000000-0000-4000-8000-000000000002','ad000000-0000-4000-8000-000000000002','time','Litigation response drafting','2026-04-02',90,250,375.00,true,'draft'),
-  ('ba000000-0000-4000-8000-000000000003','0a000000-0000-4000-8000-000000000001','d3000000-0000-4000-8000-000000000003','ac000000-0000-4000-8000-000000000001',NULL,'expense','Court filing fee','2026-04-05',NULL,NULL,95.00,true,'invoiced')
+  ('ba000000-0000-4000-8000-000000000001','0a000000-0000-4000-8000-000000000001',(SELECT id FROM public.staff WHERE user_id = 'd2000000-0000-4000-8000-000000000002'),'ac000000-0000-4000-8000-000000000001','ad000000-0000-4000-8000-000000000001','time','Creditor negotiation call',  '2026-03-10',45,250,187.50,true,'approved'),
+  ('ba000000-0000-4000-8000-000000000002','0a000000-0000-4000-8000-000000000001',(SELECT id FROM public.staff WHERE user_id = 'd2000000-0000-4000-8000-000000000002'),'ac000000-0000-4000-8000-000000000002','ad000000-0000-4000-8000-000000000002','time','Litigation response drafting','2026-04-02',90,250,375.00,true,'draft'),
+  ('ba000000-0000-4000-8000-000000000003','0a000000-0000-4000-8000-000000000001',(SELECT id FROM public.staff WHERE user_id = 'd3000000-0000-4000-8000-000000000003'),'ac000000-0000-4000-8000-000000000001',NULL,'expense','Court filing fee','2026-04-05',NULL,NULL,95.00,true,'invoiced')
 ON CONFLICT (id) DO NOTHING;
 
 -- 8. Tasks ---------------------------------------------------------------------
 INSERT INTO public.tasks (id, company_id, title, task_type, priority, status, assigned_to, created_by, due_date, entity_type, entity_id) VALUES
-  ('bb000000-0000-4000-8000-000000000001','0a000000-0000-4000-8000-000000000001','Follow up with Marcus Reed','follow_up','high','pending','d2000000-0000-4000-8000-000000000002','d1000000-0000-4000-8000-000000000001','2026-06-05','lead','ab000000-0000-4000-8000-000000000001'),
-  ('bb000000-0000-4000-8000-000000000002','0a000000-0000-4000-8000-000000000001','Collect bank statements','document_review','medium','in_progress','d3000000-0000-4000-8000-000000000003','d1000000-0000-4000-8000-000000000001','2026-06-08','client','ac000000-0000-4000-8000-000000000001'),
-  ('bb000000-0000-4000-8000-000000000003','0a000000-0000-4000-8000-000000000001','File answer to summons','court_deadline','urgent','pending','d2000000-0000-4000-8000-000000000002','d1000000-0000-4000-8000-000000000001','2026-06-03','client','ac000000-0000-4000-8000-000000000002'),
-  ('bb000000-0000-4000-8000-000000000004','0a000000-0000-4000-8000-000000000001','Settlement negotiation — Synchrony','settlement_negotiation','high','pending','d2000000-0000-4000-8000-000000000002','d1000000-0000-4000-8000-000000000001','2026-06-12','client','ac000000-0000-4000-8000-000000000002'),
-  ('bb000000-0000-4000-8000-000000000005','0a000000-0000-4000-8000-000000000001','Welcome call','client_call','low','completed','d3000000-0000-4000-8000-000000000003','d1000000-0000-4000-8000-000000000001','2026-04-16','client','ac000000-0000-4000-8000-000000000003')
+  ('bb000000-0000-4000-8000-000000000001','0a000000-0000-4000-8000-000000000001','Follow up with Marcus Reed','follow_up','high','pending',(SELECT id FROM public.staff WHERE user_id = 'd2000000-0000-4000-8000-000000000002'),(SELECT id FROM public.staff WHERE user_id = 'd1000000-0000-4000-8000-000000000001'),'2026-06-05','lead','ab000000-0000-4000-8000-000000000001'),
+  ('bb000000-0000-4000-8000-000000000002','0a000000-0000-4000-8000-000000000001','Collect bank statements','document_review','medium','in_progress',(SELECT id FROM public.staff WHERE user_id = 'd3000000-0000-4000-8000-000000000003'),(SELECT id FROM public.staff WHERE user_id = 'd1000000-0000-4000-8000-000000000001'),'2026-06-08','client','ac000000-0000-4000-8000-000000000001'),
+  ('bb000000-0000-4000-8000-000000000003','0a000000-0000-4000-8000-000000000001','File answer to summons','court_deadline','urgent','pending',(SELECT id FROM public.staff WHERE user_id = 'd2000000-0000-4000-8000-000000000002'),(SELECT id FROM public.staff WHERE user_id = 'd1000000-0000-4000-8000-000000000001'),'2026-06-03','client','ac000000-0000-4000-8000-000000000002'),
+  ('bb000000-0000-4000-8000-000000000004','0a000000-0000-4000-8000-000000000001','Settlement negotiation — Synchrony','settlement_negotiation','high','pending',(SELECT id FROM public.staff WHERE user_id = 'd2000000-0000-4000-8000-000000000002'),(SELECT id FROM public.staff WHERE user_id = 'd1000000-0000-4000-8000-000000000001'),'2026-06-12','client','ac000000-0000-4000-8000-000000000002'),
+  ('bb000000-0000-4000-8000-000000000005','0a000000-0000-4000-8000-000000000001','Welcome call','client_call','low','completed',(SELECT id FROM public.staff WHERE user_id = 'd3000000-0000-4000-8000-000000000003'),(SELECT id FROM public.staff WHERE user_id = 'd1000000-0000-4000-8000-000000000001'),'2026-04-16','client','ac000000-0000-4000-8000-000000000003')
 ON CONFLICT (id) DO NOTHING;
 
 -- 9. Litigation matters --------------------------------------------------------
@@ -101,8 +104,8 @@ ON CONFLICT (id) DO NOTHING;
 
 -- 10. Communications -----------------------------------------------------------
 INSERT INTO public.client_communications (id, client_id, communication_type, direction, subject, notes, outcome, staff_id, communication_date) VALUES
-  ('ca000000-0000-4000-8000-000000000001','ac000000-0000-4000-8000-000000000001','call','outbound','Program check-in','Reviewed escrow progress and next draft','Positive',  'd3000000-0000-4000-8000-000000000003','2026-04-20'),
-  ('ca000000-0000-4000-8000-000000000002','ac000000-0000-4000-8000-000000000002','email','inbound','Question about lawsuit','Client asked about Midland summons','Replied','d2000000-0000-4000-8000-000000000002','2026-05-02')
+  ('ca000000-0000-4000-8000-000000000001','ac000000-0000-4000-8000-000000000001','call','outbound','Program check-in','Reviewed escrow progress and next draft','Positive',  (SELECT id FROM public.staff WHERE user_id = 'd3000000-0000-4000-8000-000000000003'),'2026-04-20'),
+  ('ca000000-0000-4000-8000-000000000002','ac000000-0000-4000-8000-000000000002','email','inbound','Question about lawsuit','Client asked about Midland summons','Replied',(SELECT id FROM public.staff WHERE user_id = 'd2000000-0000-4000-8000-000000000002'),'2026-05-02')
 ON CONFLICT (id) DO NOTHING;
 
 -- 11. Feature requests ---------------------------------------------------------
