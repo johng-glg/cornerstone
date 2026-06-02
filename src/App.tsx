@@ -33,6 +33,7 @@ const Billing = lazy(() => import("@/pages/Billing"));
 const Tasks = lazy(() => import("@/pages/Tasks"));
 const TaskTemplates = lazy(() => import("@/pages/TaskTemplates"));
 const Workflows = lazy(() => import("@/pages/Workflows"));
+const Roles = lazy(() => import("@/pages/Roles"));
 const Creditors = lazy(() => import("@/pages/Creditors"));
 const Reports = lazy(() => import("@/pages/Reports"));
 const ReconciliationDashboard = lazy(() => import("@/pages/ReconciliationDashboard"));
@@ -71,6 +72,7 @@ const PROTECTED: Array<{ path: string; element: ReactNode }> = [
   { path: "/tasks", element: <Tasks /> },
   { path: "/task-templates", element: <TaskTemplates /> },
   { path: "/workflows", element: <Workflows /> },
+  { path: "/roles", element: <Roles /> },
   { path: "/payments", element: <Payments /> },
   { path: "/transactions", element: <Transactions /> },
   { path: "/creditors", element: <Creditors /> },

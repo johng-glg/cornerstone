@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 const CONFIG_LINKS = [
   { to: "/lead-rules", label: "Assignment Rules" },
   { to: "/workflows", label: "Workflows" },
+  { to: "/roles", label: "Roles & Permissions" },
   { to: "/task-templates", label: "Task Templates" },
   { to: "/litigation-teams", label: "Litigation Teams" },
   { to: "/templates", label: "Templates" },
