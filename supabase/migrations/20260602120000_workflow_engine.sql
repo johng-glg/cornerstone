@@ -1,28 +1,22 @@
 -- Workflow rule execution engine.
 --
--- The workflow_rules table (+ the When/If/Then/Settings builder) let admins author rules, but
--- nothing ran them. This adds the runtime: triggers on the workflow entity tables evaluate active
--- rules and execute their actions, recording every run in workflow_executions.
+-- Triggers on the workflow entity tables (leads, client_services, tasks) evaluate active
+-- workflow_rules and run their actions, recording each run in workflow_executions.
 --
--- SAFETY (critical): the non-blocking path is wrapped so a rule/action error can NEVER abort the
--- write that triggered it — a buggy rule degrades to "didn't fire" (recorded as 'failed'), not a
--- broken app. The only intentional abort is a blocking rule's block_transition (BEFORE UPDATE),
--- and even there, evaluation errors fail open. A transaction-local guard (cornerstone.wf_active)
--- stops the engine re-entering itself when an action writes another workflow entity.
+-- SAFETY: the action path is wrapped so a rule/action error can NEVER abort the triggering
+-- write (recorded as 'failed' instead). The only intentional abort is a matched blocking
+-- block_transition rule; even there, evaluation errors fail open. A transaction-local guard
+-- (cornerstone.wf_active) stops the engine re-entering itself.
 --
--- Scope (phase 1): entities with a direct company column — leads, client_services, tasks.
--- Actions implemented: create_task, send_notification (to the entity's active assignees),
--- block_transition. update_field / trigger_webhook / auto_graduate are recorded as 'skipped'
--- (deferred: recursion-safety, the http/webhook subsystem, and the graduation subsystem).
-
--- ── helpers ──────────────────────────────────────────────────────────────────
+-- NOTE: deliberately uses loop variables / a subquery instead of record-field accessors so the
+-- text contains no dotted id token (some editors' AI autocomplete corrupts those on paste) and is
+-- ASCII-only. Behaviour is identical to the tested original.
 
 CREATE OR REPLACE FUNCTION public.wf_is_active() RETURNS boolean
 LANGUAGE sql STABLE AS $$
   SELECT coalesce(current_setting('cornerstone.wf_active', true), '') = '1';
 $$;
 
--- Evaluate one {field, operator, value} condition against a row's jsonb.
 CREATE OR REPLACE FUNCTION public.wf_cond_matches(_row jsonb, _cond jsonb) RETURNS boolean
 LANGUAGE plpgsql IMMUTABLE AS $$
 DECLARE
@@ -54,7 +48,6 @@ BEGIN
 END;
 $$;
 
--- True when every condition in the rule matches (empty array = always).
 CREATE OR REPLACE FUNCTION public.wf_all_conditions_match(_row jsonb, _conditions jsonb) RETURNS boolean
 LANGUAGE sql STABLE AS $$
   SELECT NOT EXISTS (
@@ -63,7 +56,6 @@ LANGUAGE sql STABLE AS $$
   );
 $$;
 
--- True when the rule's from/to status-transition filter matches this change. Empty = any.
 CREATE OR REPLACE FUNCTION public.wf_transition_matches(_cfg jsonb, _old jsonb, _new jsonb) RETURNS boolean
 LANGUAGE plpgsql STABLE AS $$
 DECLARE _from jsonb := _cfg -> 'from_status'; _to jsonb := _cfg -> 'to_status';
@@ -76,51 +68,46 @@ BEGIN
 END;
 $$;
 
--- ── blocking pass (BEFORE UPDATE) ──────────────────────────────────────────────
--- Raises to abort the write when a blocking rule with a block_transition action matches.
--- Evaluation errors fail OPEN (swallowed) so only a real, matched block ever stops a write.
 CREATE OR REPLACE FUNCTION public.wf_enforce_blocks(
   _company uuid, _entity public.workflow_entity_type, _old jsonb, _new jsonb
 ) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE r record; _reason text;
+DECLARE
+  _rname text; _rtc jsonb; _rconds jsonb; _ractions jsonb; _reason text;
 BEGIN
-  FOR r IN
-    SELECT * FROM public.workflow_rules
+  FOR _rname, _rtc, _rconds, _ractions IN
+    SELECT name, trigger_config, conditions, actions FROM public.workflow_rules
     WHERE company_id = _company AND entity_type = _entity AND is_active AND is_blocking
       AND trigger_type = 'status_changed'
     ORDER BY priority
   LOOP
     BEGIN
-      CONTINUE WHEN NOT public.wf_transition_matches(r.trigger_config, _old, _new);
-      CONTINUE WHEN NOT public.wf_all_conditions_match(_new, r.conditions);
-      IF EXISTS (SELECT 1 FROM jsonb_array_elements(r.actions) a WHERE a ->> 'type' = 'block_transition') THEN
+      CONTINUE WHEN NOT public.wf_transition_matches(_rtc, _old, _new);
+      CONTINUE WHEN NOT public.wf_all_conditions_match(_new, _rconds);
+      IF EXISTS (SELECT 1 FROM jsonb_array_elements(_ractions) a WHERE a ->> 'type' = 'block_transition') THEN
         _reason := coalesce(
-          (SELECT a -> 'config' ->> 'reason' FROM jsonb_array_elements(r.actions) a
+          (SELECT a -> 'config' ->> 'reason' FROM jsonb_array_elements(_ractions) a
            WHERE a ->> 'type' = 'block_transition' AND a -> 'config' ->> 'reason' IS NOT NULL LIMIT 1),
-          r.name
-        );
-        RAISE EXCEPTION 'Workflow "%": %', r.name, _reason USING ERRCODE = 'check_violation';
+          _rname);
+        RAISE EXCEPTION 'Workflow "%": %', _rname, _reason USING ERRCODE = 'check_violation';
       END IF;
     EXCEPTION
-      WHEN check_violation THEN RAISE;  -- intentional block: propagate
-      WHEN OTHERS THEN NULL;            -- evaluation bug: fail open
+      WHEN check_violation THEN RAISE;
+      WHEN OTHERS THEN NULL;
     END;
   END LOOP;
 END;
 $$;
 
--- ── action pass (AFTER INSERT/UPDATE) ──────────────────────────────────────────
--- Never raises: every rule runs in its own sub-block; failures are recorded, not propagated.
 CREATE OR REPLACE FUNCTION public.wf_run_actions(
   _company uuid, _entity public.workflow_entity_type, _entity_id uuid,
   _trigger public.workflow_trigger_type, _old jsonb, _new jsonb
 ) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-  r record; a jsonb; _started timestamptz; _results jsonb; _res text;
-  _ent public.entity_type;
-  _title text; _prio public.task_priority;
+  _rid uuid; _rname text; _rtc jsonb; _rconds jsonb; _ractions jsonb;
+  a jsonb; _started timestamptz; _results jsonb; _res text;
+  _ent public.entity_type; _title text; _prio public.task_priority;
 BEGIN
   IF public.wf_is_active() THEN RETURN; END IF;
   PERFORM set_config('cornerstone.wf_active', '1', true);
@@ -130,24 +117,24 @@ BEGIN
     WHEN 'liabilities' THEN 'liability' WHEN 'litigation_matters' THEN 'litigation_matter'
     ELSE NULL END::public.entity_type;
 
-  FOR r IN
-    SELECT * FROM public.workflow_rules
+  FOR _rid, _rname, _rtc, _rconds, _ractions IN
+    SELECT id, name, trigger_config, conditions, actions FROM public.workflow_rules
     WHERE company_id = _company AND entity_type = _entity AND is_active AND NOT is_blocking
       AND trigger_type = _trigger
     ORDER BY priority
   LOOP
     BEGIN
       _started := clock_timestamp();
-      IF _trigger = 'status_changed' AND NOT public.wf_transition_matches(r.trigger_config, _old, _new) THEN
+      IF _trigger = 'status_changed' AND NOT public.wf_transition_matches(_rtc, _old, _new) THEN
         CONTINUE;
       END IF;
-      CONTINUE WHEN NOT public.wf_all_conditions_match(_new, r.conditions);
+      CONTINUE WHEN NOT public.wf_all_conditions_match(_new, _rconds);
 
       _results := '[]'::jsonb;
-      FOR a IN SELECT * FROM jsonb_array_elements(r.actions) LOOP
+      FOR a IN SELECT * FROM jsonb_array_elements(_ractions) LOOP
         CASE a ->> 'type'
           WHEN 'create_task' THEN
-            _title := coalesce(nullif(a -> 'config' ->> 'title', ''), r.name || ' — automated task');
+            _title := coalesce(nullif(a -> 'config' ->> 'title', ''), _rname || ' - automated task');
             BEGIN _prio := coalesce(nullif(a -> 'config' ->> 'priority', ''), 'medium')::public.task_priority;
             EXCEPTION WHEN OTHERS THEN _prio := 'medium'; END;
             INSERT INTO public.tasks (company_id, title, task_type, priority, status, entity_type, entity_id)
@@ -155,8 +142,9 @@ BEGIN
             _res := 'task_created';
           WHEN 'send_notification' THEN
             PERFORM public.create_notification(
-              s.user_id, 'system_alert', r.name, a -> 'config' ->> 'message', NULL, _entity::text, _entity_id)
-            FROM public.assignments asg JOIN public.staff s ON s.id = asg.staff_id
+              st.user_id, 'system_alert', _rname, a -> 'config' ->> 'message', NULL, _entity::text, _entity_id)
+            FROM public.assignments asg
+            JOIN LATERAL (SELECT user_id FROM public.staff WHERE id = asg.staff_id) st ON true
             WHERE asg.entity_id = _entity_id AND asg.is_active AND asg.entity_type = _ent;
             _res := 'notified_assignees';
           ELSE
@@ -167,37 +155,36 @@ BEGIN
 
       INSERT INTO public.workflow_executions
         (rule_id, entity_type, entity_id, status, trigger_data, condition_results, actions_executed, executed_at, duration_ms)
-      VALUES (r.id, _entity, _entity_id, 'success', _new, r.conditions, _results, now(),
+      VALUES (_rid, _entity, _entity_id, 'success', _new, _rconds, _results, now(),
               (extract(milliseconds from clock_timestamp() - _started))::int);
     EXCEPTION WHEN OTHERS THEN
       BEGIN
         INSERT INTO public.workflow_executions (rule_id, entity_type, entity_id, status, trigger_data, error_message)
-        VALUES (r.id, _entity, _entity_id, 'failed', _new, SQLERRM);
+        VALUES (_rid, _entity, _entity_id, 'failed', _new, SQLERRM);
       EXCEPTION WHEN OTHERS THEN NULL; END;
     END;
   END LOOP;
 
   PERFORM set_config('cornerstone.wf_active', '0', true);
 EXCEPTION WHEN OTHERS THEN
-  -- absolute backstop: the engine must never break the triggering write
   PERFORM set_config('cornerstone.wf_active', '0', true);
 END;
 $$;
 
--- ── generic trigger ────────────────────────────────────────────────────────────
--- Args: [0] = workflow_entity_type label, [1] = the row's company-id column name.
 CREATE OR REPLACE FUNCTION public.wf_trigger() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   _entity public.workflow_entity_type := TG_ARGV[0]::public.workflow_entity_type;
   _ccol text := TG_ARGV[1];
   _company uuid;
+  _nid uuid;
   _new jsonb := CASE WHEN TG_OP <> 'DELETE' THEN to_jsonb(NEW) ELSE NULL END;
   _old jsonb := CASE WHEN TG_OP <> 'INSERT' THEN to_jsonb(OLD) ELSE NULL END;
 BEGIN
   IF public.wf_is_active() THEN RETURN COALESCE(NEW, OLD); END IF;
   _company := (coalesce(_new, _old) ->> _ccol)::uuid;
   IF _company IS NULL THEN RETURN COALESCE(NEW, OLD); END IF;
+  _nid := (_new ->> 'id')::uuid;
 
   IF TG_WHEN = 'BEFORE' THEN
     IF TG_OP = 'UPDATE' AND (_old ->> 'status') IS DISTINCT FROM (_new ->> 'status') THEN
@@ -206,18 +193,17 @@ BEGIN
     RETURN NEW;
   ELSE
     IF TG_OP = 'INSERT' THEN
-      PERFORM public.wf_run_actions(_company, _entity, NEW.id, 'record_created', NULL, _new);
+      PERFORM public.wf_run_actions(_company, _entity, _nid, 'record_created', NULL, _new);
     ELSIF (_old ->> 'status') IS DISTINCT FROM (_new ->> 'status') THEN
-      PERFORM public.wf_run_actions(_company, _entity, NEW.id, 'status_changed', _old, _new);
+      PERFORM public.wf_run_actions(_company, _entity, _nid, 'status_changed', _old, _new);
     ELSE
-      PERFORM public.wf_run_actions(_company, _entity, NEW.id, 'field_updated', _old, _new);
+      PERFORM public.wf_run_actions(_company, _entity, _nid, 'field_updated', _old, _new);
     END IF;
     RETURN NULL;
   END IF;
 END;
 $$;
 
--- ── attach to entities with a direct company column ────────────────────────────
 DROP TRIGGER IF EXISTS wf_block ON public.leads;
 CREATE TRIGGER wf_block BEFORE UPDATE ON public.leads
   FOR EACH ROW EXECUTE FUNCTION public.wf_trigger('leads', 'company_id');
