@@ -130,6 +130,52 @@ export function useAddHearing(matterId: string): UseMutationResult<void, Error, 
   });
 }
 
+export interface NewFilingFee {
+  amount: number;
+  description: string;
+}
+export function useAddFilingFee(matterId: string): UseMutationResult<void, Error, NewFilingFee> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, NewFilingFee>({
+    mutationFn: async (input) => {
+      const { error } = await supabase.from("filing_fees").insert({
+        matter_id: matterId,
+        amount: input.amount,
+        description: input.description,
+        created_by: staff?.id ?? null,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["matter_fees", matterId] }),
+  });
+}
+
+export interface NewMatterDocument {
+  title: string;
+  document_type: string;
+  file_url?: string | null;
+}
+export function useAddMatterDocument(
+  matterId: string,
+): UseMutationResult<void, Error, NewMatterDocument> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, NewMatterDocument>({
+    mutationFn: async (input) => {
+      const { error } = await supabase.from("litigation_documents").insert({
+        matter_id: matterId,
+        title: input.title,
+        document_type: input.document_type,
+        file_url: input.file_url || null,
+        uploaded_by: staff?.id ?? null,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["matter_documents", matterId] }),
+  });
+}
+
 export interface NewMatterActivity {
   activity_type: string;
   description?: string | null;

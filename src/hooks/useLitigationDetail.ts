@@ -97,6 +97,30 @@ export function useMatterActivities(
   });
 }
 
+export interface FilingFeeRow {
+  id: string;
+  amount: number;
+  description: string;
+  status: string;
+  requested_date: string | null;
+  paid_date: string | null;
+}
+export function useFilingFees(id: string | undefined): UseQueryResult<FilingFeeRow[], Error> {
+  return useQuery({
+    queryKey: ["matter_fees", id ?? ""],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("filing_fees")
+        .select("id, amount, description, status, requested_date, paid_date")
+        .eq("matter_id", id!)
+        .order("requested_date", { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as FilingFeeRow[];
+    },
+  });
+}
+
 export function useMatterDocuments(
   id: string | undefined,
 ): UseQueryResult<MatterDocumentRow[], Error> {

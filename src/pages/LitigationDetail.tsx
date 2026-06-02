@@ -6,8 +6,14 @@ import {
   useMatterHearings,
   useMatterActivities,
   useMatterDocuments,
+  useFilingFees,
 } from "@/hooks/useLitigationDetail";
-import { useAddHearing, useAddMatterActivity } from "@/hooks/useModuleMutations";
+import {
+  useAddHearing,
+  useAddMatterActivity,
+  useAddFilingFee,
+  useAddMatterDocument,
+} from "@/hooks/useModuleMutations";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { QuickFormDialog } from "@/components/common/QuickFormDialog";
@@ -109,6 +115,75 @@ function LogMatterActivityAction({ matterId }: { matterId: string }) {
   );
 }
 
+function AddFilingFeeAction({ matterId }: { matterId: string }) {
+  const add = useAddFilingFee(matterId);
+  return (
+    <QuickFormDialog
+      trigger={
+        <Button size="sm" variant="outline">
+          Add filing fee
+        </Button>
+      }
+      title="Add filing fee"
+      pending={add.isPending}
+      fields={[
+        { name: "amount", label: "Amount ($)", type: "number", required: true },
+        { name: "description", label: "Description", required: true, full: true },
+      ]}
+      onSubmit={async (v) => {
+        try {
+          await add.mutateAsync({ amount: Number(v.amount) || 0, description: v.description });
+          toast.success("Filing fee added.");
+        } catch (e) {
+          toast.error((e as Error).message);
+          throw e;
+        }
+      }}
+    />
+  );
+}
+
+function AddMatterDocAction({ matterId }: { matterId: string }) {
+  const add = useAddMatterDocument(matterId);
+  return (
+    <QuickFormDialog
+      trigger={
+        <Button size="sm" variant="outline">
+          Add document
+        </Button>
+      }
+      title="Add document"
+      pending={add.isPending}
+      fields={[
+        { name: "title", label: "Title", required: true, full: true },
+        {
+          name: "document_type",
+          label: "Type",
+          type: "select",
+          defaultValue: "pleading",
+          options: ["pleading", "motion", "order", "correspondence", "evidence", "other"].map(
+            (v) => ({ value: v, label: titleCase(v) }),
+          ),
+        },
+        { name: "file_url", label: "Document URL", full: true, placeholder: "https://…" },
+      ]}
+      onSubmit={async (v) => {
+        try {
+          await add.mutateAsync({
+            title: v.title,
+            document_type: v.document_type,
+            file_url: v.file_url,
+          });
+          toast.success("Document added.");
+        } catch (e) {
+          toast.error((e as Error).message);
+          throw e;
+        }
+      }}
+    />
+  );
+}
+
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between py-1.5 text-sm">
@@ -124,6 +199,7 @@ export default function LitigationDetail() {
   const hearings = useMatterHearings(id);
   const activities = useMatterActivities(id);
   const documents = useMatterDocuments(id);
+  const fees = useFilingFees(id);
 
   return (
     <div className="space-y-5">
@@ -168,6 +244,7 @@ export default function LitigationDetail() {
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="hearings">Hearings</TabsTrigger>
                 <TabsTrigger value="activity">Activity</TabsTrigger>
+                <TabsTrigger value="fees">Filing Fees</TabsTrigger>
                 <TabsTrigger value="documents">Documents</TabsTrigger>
               </TabsList>
 
@@ -282,7 +359,53 @@ export default function LitigationDetail() {
                 </QueryState>
               </TabsContent>
 
-              <TabsContent value="documents">
+              <TabsContent value="fees" className="space-y-3">
+                {id && (
+                  <div className="flex justify-end">
+                    <AddFilingFeeAction matterId={id} />
+                  </div>
+                )}
+                <QueryState
+                  isLoading={fees.isLoading}
+                  error={fees.error}
+                  isEmpty={(fees.data ?? []).length === 0}
+                  emptyMessage="No filing fees recorded."
+                >
+                  <div className="overflow-x-auto rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead className="border-b bg-muted/50 text-left">
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Description</th>
+                          <th className="px-3 py-2 font-medium">Amount</th>
+                          <th className="px-3 py-2 font-medium">Status</th>
+                          <th className="px-3 py-2 font-medium">Requested</th>
+                          <th className="px-3 py-2 font-medium">Paid</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(fees.data ?? []).map((f) => (
+                          <tr key={f.id} className="border-b last:border-0">
+                            <td className="px-3 py-2">{f.description}</td>
+                            <td className="px-3 py-2">{formatCurrency(f.amount)}</td>
+                            <td className="px-3 py-2">
+                              <StatusBadge status={f.status} />
+                            </td>
+                            <td className="px-3 py-2">{formatDate(f.requested_date)}</td>
+                            <td className="px-3 py-2">{formatDate(f.paid_date)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </QueryState>
+              </TabsContent>
+
+              <TabsContent value="documents" className="space-y-3">
+                {id && (
+                  <div className="flex justify-end">
+                    <AddMatterDocAction matterId={id} />
+                  </div>
+                )}
                 <QueryState
                   isLoading={documents.isLoading}
                   error={documents.error}
