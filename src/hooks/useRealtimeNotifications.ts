@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { notificationKeys } from "./useDomains";
+import { domainKeys } from "./useDomains";
 
 /**
  * Subscribes to realtime changes on public.notifications and refetches the list when one
@@ -14,7 +14,7 @@ export function useRealtimeNotifications() {
     const channel = supabase
       .channel("notifications-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () =>
-        qc.invalidateQueries({ queryKey: notificationKeys.all }),
+        qc.invalidateQueries({ queryKey: domainKeys.notifications }),
       )
       .subscribe();
     return () => {
