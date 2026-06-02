@@ -102,7 +102,30 @@ export async function handler(req: Request): Promise<Response> {
       );
     }
 
-    // 2. Subscribe to call events on that webhook. Tolerate 409 (subscription already exists).
+    // 2. Call-event subscription. Company-level (no target) call subscriptions are capped at 10
+    //    per type by Dialpad, and POSTing doesn't dedupe — so repeated runs piled up duplicates and
+    //    hit the cap. Self-heal: delete every existing call subscription pointing at our webhook,
+    //    then create exactly one.
+    const subWhId = String(webhookId);
+    const existingSubs = items(
+      await (await fetch(`${DIALPAD_API}/subscriptions/call`, { headers }))
+        .json()
+        .catch(() => ({})),
+    ).filter(
+      (s) =>
+        String(s.webhook_id ?? s.webhook?.id ?? "") === subWhId ||
+        (s.hook_url ?? s.webhook?.hook_url) === hookUrl,
+    );
+    let removed = 0;
+    for (const s of existingSubs) {
+      if (!s.id) continue;
+      const del = await fetch(`${DIALPAD_API}/subscriptions/call/${s.id}`, {
+        method: "DELETE",
+        headers,
+      }).catch(() => null);
+      if (del?.ok) removed++;
+    }
+
     const subPayload: Record<string, unknown> = { webhook_id: webhookId, enabled: true };
     if (input.call_states?.length) subPayload.call_states = input.call_states;
     if (typeof input.group_calls === "boolean") subPayload.group_calls = input.group_calls;
@@ -112,36 +135,28 @@ export async function handler(req: Request): Promise<Response> {
       body: JSON.stringify(subPayload),
     });
     const subBody = await subResp.json().catch(() => ({}));
-    let subId = subBody.id ?? subBody.subscription_id ?? null;
     if (!subResp.ok) {
-      if (subResp.status === 409) {
-        // Already subscribed — find the existing call subscription for this webhook.
-        const subListResp = await fetch(`${DIALPAD_API}/subscriptions/call`, { headers });
-        const existingSub = items(await subListResp.json().catch(() => ({}))).find(
-          (s) => String(s.webhook_id ?? s.webhook?.id) === String(webhookId),
-        );
-        subId = existingSub?.id ?? subId;
-      } else {
-        return jsonResponse(
-          req,
-          {
-            success: false,
-            step: "create_subscription",
-            status: subResp.status,
-            error: subBody,
-            webhook_id: webhookId,
-          },
-          502,
-        );
-      }
+      return jsonResponse(
+        req,
+        {
+          success: false,
+          step: "create_subscription",
+          status: subResp.status,
+          error: subBody,
+          webhook_id: webhookId,
+          removed_stale_subscriptions: removed,
+        },
+        502,
+      );
     }
 
     return jsonResponse(req, {
       success: true,
       reused_existing_webhook: reused,
+      removed_stale_subscriptions: removed,
       hook_url: hookUrl,
       webhook_id: webhookId,
-      subscription_id: subId,
+      subscription_id: subBody.id ?? subBody.subscription_id ?? null,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
