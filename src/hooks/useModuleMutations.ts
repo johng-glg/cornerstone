@@ -538,6 +538,7 @@ export interface NewTask {
   priority?: string;
   due_date?: string | null;
   assigned_to?: string | null;
+  description?: string | null;
 }
 export function useUpdateTaskStatus(): UseMutationResult<
   void,
@@ -569,6 +570,7 @@ export function useAddTask(): UseMutationResult<void, Error, NewTask> {
         status: "pending",
         due_date: input.due_date || null,
         assigned_to: input.assigned_to || null,
+        description: input.description || null,
       });
       if (error) throw new Error(error.message);
     },

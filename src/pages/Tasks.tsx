@@ -19,6 +19,7 @@ const TASK_TYPES = [
   "general",
 ];
 const PRIORITIES = ["low", "medium", "high", "urgent"];
+const UNASSIGNED = "unassigned";
 
 function NewTaskAction() {
   const add = useAddTask();
@@ -48,8 +49,11 @@ function NewTaskAction() {
           name: "assigned_to",
           label: "Assign to",
           type: "select",
+          // Radix Select rejects an empty-string item value, so use a sentinel and map it
+          // back to null on submit (an empty value here crashed the dialog to a blank page).
+          defaultValue: UNASSIGNED,
           options: [
-            { value: "", label: "Unassigned" },
+            { value: UNASSIGNED, label: "Unassigned" },
             ...(staff.data ?? []).map((s) => ({
               value: s.id,
               label: `${s.first_name} ${s.last_name}`,
@@ -57,6 +61,7 @@ function NewTaskAction() {
           ],
         },
         { name: "due_date", label: "Due date", type: "date" },
+        { name: "description", label: "Description", type: "textarea" },
       ]}
       onSubmit={async (v) => {
         try {
@@ -64,8 +69,9 @@ function NewTaskAction() {
             title: v.title,
             task_type: v.task_type || "general",
             priority: v.priority || "medium",
-            assigned_to: v.assigned_to || null,
+            assigned_to: v.assigned_to && v.assigned_to !== UNASSIGNED ? v.assigned_to : null,
             due_date: v.due_date || null,
+            description: v.description || null,
           });
           toast.success("Task created.");
         } catch (e) {

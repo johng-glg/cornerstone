@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -227,17 +227,24 @@ function OpenMatterAction({
 
 export default function LiabilityDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const q = useLiability(id);
   const l = q.data;
 
+  // Go back to wherever we came from (e.g. a client record) when there's in-app history;
+  // fall back to the liabilities list on a fresh/direct load (location.key === "default").
+  const goBack = () => (location.key === "default" ? navigate("/liabilities") : navigate(-1));
+
   return (
     <div className="space-y-4">
-      <Link
-        to="/liabilities"
+      <button
+        type="button"
+        onClick={goBack}
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> Back to liabilities
-      </Link>
+        <ArrowLeft className="h-4 w-4" /> Back
+      </button>
 
       <QueryState
         isLoading={q.isLoading}
