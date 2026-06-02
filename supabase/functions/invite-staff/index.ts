@@ -67,10 +67,12 @@ export async function handler(req: Request): Promise<Response> {
   }
 
   // 1. Create the auth account (email-confirmed; no password — Google sign-in links by email).
+  //    `invited: true` tells the handle_new_user trigger to skip auto-provisioning, since this
+  //    function assigns the admin-chosen department + role below.
   const { data: created, error: createErr } = await admin.auth.admin.createUser({
     email: input.email,
     email_confirm: true,
-    user_metadata: { first_name: input.first_name, last_name: input.last_name },
+    user_metadata: { first_name: input.first_name, last_name: input.last_name, invited: true },
   });
   if (createErr || !created?.user?.id) {
     return jsonResponse(
