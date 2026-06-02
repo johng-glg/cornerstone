@@ -102,28 +102,26 @@ export async function handler(req: Request): Promise<Response> {
       );
     }
 
-    // 2. Call-event subscription. Company-level (no target) call subscriptions are capped at 10
-    //    per type by Dialpad, and POSTing doesn't dedupe — so repeated runs piled up duplicates and
-    //    hit the cap. Self-heal: delete every existing call subscription pointing at our webhook,
-    //    then create exactly one.
-    const subWhId = String(webhookId);
+    // 2. Call-event subscription. Company-level ("no target") call subscriptions are capped at 10
+    //    per type by Dialpad and POSTing doesn't dedupe, so repeated runs exhausted the cap. This
+    //    integration is the only thing that manages Dialpad call subscriptions for the account, so
+    //    delete *all* existing call subscriptions, then create exactly one. Self-healing.
     const existingSubs = items(
       await (await fetch(`${DIALPAD_API}/subscriptions/call`, { headers }))
         .json()
         .catch(() => ({})),
-    ).filter(
-      (s) =>
-        String(s.webhook_id ?? s.webhook?.id ?? "") === subWhId ||
-        (s.hook_url ?? s.webhook?.hook_url) === hookUrl,
     );
     let removed = 0;
+    const removalErrors: unknown[] = [];
     for (const s of existingSubs) {
-      if (!s.id) continue;
-      const del = await fetch(`${DIALPAD_API}/subscriptions/call/${s.id}`, {
+      const id = s?.id ?? s?.subscription_id;
+      if (!id) continue;
+      const del = await fetch(`${DIALPAD_API}/subscriptions/call/${id}`, {
         method: "DELETE",
         headers,
       }).catch(() => null);
       if (del?.ok) removed++;
+      else if (del) removalErrors.push({ id, status: del.status });
     }
 
     const subPayload: Record<string, unknown> = { webhook_id: webhookId, enabled: true };
@@ -144,7 +142,9 @@ export async function handler(req: Request): Promise<Response> {
           status: subResp.status,
           error: subBody,
           webhook_id: webhookId,
+          subscriptions_found: existingSubs.length,
           removed_stale_subscriptions: removed,
+          removal_errors: removalErrors,
         },
         502,
       );
