@@ -6,6 +6,7 @@ import { ProfileSettingsTab } from "@/components/settings/ProfileSettingsTab";
 import { NotificationSettingsTab } from "@/components/settings/NotificationSettingsTab";
 import { CompanySettingsTab } from "@/components/settings/CompanySettingsTab";
 import { ReminderSettingsTab } from "@/components/settings/ReminderSettingsTab";
+import { NsfRetrySettingsTab } from "@/components/settings/NsfRetrySettingsTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -57,6 +58,7 @@ export default function Settings() {
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           {isAdmin && <TabsTrigger value="reminders">Reminders</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="nsf">NSF Retry</TabsTrigger>}
           {isAdmin && <TabsTrigger value="company">Company</TabsTrigger>}
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="flags">Feature Flags</TabsTrigger>
@@ -72,6 +74,11 @@ export default function Settings() {
         {isAdmin && (
           <TabsContent value="reminders" className="max-w-2xl pt-4">
             <ReminderSettingsTab />
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="nsf" className="max-w-3xl pt-4">
+            <NsfRetrySettingsTab />
           </TabsContent>
         )}
         {isAdmin && (

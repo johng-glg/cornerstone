@@ -138,6 +138,58 @@ export function useSaveReminderSettings(): UseMutationResult<void, Error, Remind
   });
 }
 
+export interface NsfPolicy {
+  id: string;
+  name: string;
+  max_attempts: number;
+  delay_pattern: number[];
+  is_active: boolean;
+}
+export function useNsfPolicies(): UseQueryResult<NsfPolicy[], Error> {
+  const { staff } = useAuth();
+  return useQuery({
+    queryKey: ["nsf_policies", staff?.company_id],
+    enabled: !!staff?.company_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("nsf_retry_policies")
+        .select("id, name, max_attempts, delay_pattern, is_active")
+        .eq("company_id", staff!.company_id)
+        .order("created_at", { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as NsfPolicy[];
+    },
+  });
+}
+export interface NsfPolicyInput {
+  id?: string | null;
+  name: string;
+  max_attempts: number;
+  delay_pattern: number[];
+  is_active: boolean;
+}
+export function useSaveNsfPolicy(): UseMutationResult<void, Error, NsfPolicyInput> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, NsfPolicyInput>({
+    mutationFn: async (input) => {
+      if (!staff?.company_id) throw new Error("No active company.");
+      const payload = {
+        company_id: staff.company_id,
+        name: input.name,
+        max_attempts: input.max_attempts,
+        delay_pattern: input.delay_pattern,
+        is_active: input.is_active,
+      };
+      const { error } = input.id
+        ? await supabase.from("nsf_retry_policies").update(payload).eq("id", input.id)
+        : await supabase.from("nsf_retry_policies").insert(payload);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["nsf_policies"] }),
+  });
+}
+
 export interface CompanyInfo {
   id: string;
   name: string;
