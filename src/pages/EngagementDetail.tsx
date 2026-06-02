@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useEngagement, useClientLiabilities } from "@/hooks/useClientDetail";
 import { useClientPayments, useClientLitigation } from "@/hooks/useClientDetail";
 import { useSettlements, useAddSettlement } from "@/hooks/useSettlements";
+import { useRecordActivity } from "@/hooks/useActivityLog";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { QuickFormDialog } from "@/components/common/QuickFormDialog";
@@ -33,6 +34,7 @@ export default function EngagementDetail() {
   const liabilityIds = useMemo(() => (liabilities.data ?? []).map((l) => l.id), [liabilities.data]);
   const settlements = useSettlements(liabilityIds);
   const addOffer = useAddSettlement();
+  const record = useRecordActivity();
   const liabById = useMemo(
     () => Object.fromEntries((liabilities.data ?? []).map((l) => [l.id, l])),
     [liabilities.data],
@@ -215,6 +217,14 @@ export default function EngagementDetail() {
                             ? Number(v.number_of_payments)
                             : null,
                           notes: v.notes,
+                        });
+                        await record({
+                          entityType: "liability",
+                          entityId: v.liability_id,
+                          clientId: eng.data?.primary_client_id ?? null,
+                          category: "settlement",
+                          description: `Settlement offer of ${formatCurrency(amt)} created`,
+                          metadata: { offer_amount: amt },
                         });
                         toast.success("Offer added.");
                       } catch (e) {

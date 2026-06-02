@@ -1,12 +1,7 @@
 import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import {
-  useLiability,
-  useLiabilityActions,
-  useAddMatter,
-  useMyStaffId,
-} from "@/hooks/useLiabilityDetail";
+import { useLiability, useAddMatter, useMyStaffId } from "@/hooks/useLiabilityDetail";
 import {
   useSettlements,
   useAddSettlement,
@@ -296,34 +291,6 @@ function NotesTab({ liabilityId }: { liabilityId: string }) {
   );
 }
 
-function HistoryTab({ liabilityId }: { liabilityId: string }) {
-  const q = useLiabilityActions(liabilityId);
-  const rows = q.data ?? [];
-  return (
-    <QueryState
-      isLoading={q.isLoading}
-      error={q.error}
-      isEmpty={rows.length === 0}
-      emptyMessage="No recorded actions yet."
-    >
-      <ul className="space-y-2">
-        {rows.map((a) => (
-          <li key={a.id} className="flex items-start justify-between gap-4 rounded-md border p-3">
-            <div>
-              <p className="text-sm font-medium">{titleCase(a.action_type)}</p>
-              {a.description && <p className="text-sm text-muted-foreground">{a.description}</p>}
-            </div>
-            <div className="text-right text-xs text-muted-foreground">
-              {a.amount != null && <p>{formatCurrency(a.amount)}</p>}
-              <p>{formatDate(a.created_at)}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </QueryState>
-  );
-}
-
 function OpenMatterAction({
   liabilityId,
   clientServiceId,
@@ -480,7 +447,6 @@ export default function LiabilityDetail() {
                 <TabsTrigger value="assignments">Assignments</TabsTrigger>
                 <TabsTrigger value="activity">Activity</TabsTrigger>
                 <TabsTrigger value="notes">Notes</TabsTrigger>
-                <TabsTrigger value="history">History</TabsTrigger>
               </TabsList>
               <TabsContent value="settlements" className="pt-4">
                 <SettlementsTab liabilityId={l.id} clientId={clientId} />
@@ -493,9 +459,6 @@ export default function LiabilityDetail() {
               </TabsContent>
               <TabsContent value="notes" className="pt-4">
                 <NotesTab liabilityId={l.id} />
-              </TabsContent>
-              <TabsContent value="history" className="pt-4">
-                <HistoryTab liabilityId={l.id} />
               </TabsContent>
             </Tabs>
           </>
