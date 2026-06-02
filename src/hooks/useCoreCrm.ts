@@ -1,8 +1,18 @@
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseMutationResult,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type {
   ClientListRow,
+  ClientStatus,
   LeadListRow,
+  LeadStatus,
+  LeadSource,
+  LeadInterest,
   LiabilityListRow,
   ClientServiceListRow,
   TransactionListRow,
@@ -74,5 +84,120 @@ export function useTransactions(): UseQueryResult<TransactionListRow[], Error> {
   return useQuery({
     queryKey: coreCrmKeys.transactions,
     queryFn: () => fetchList<TransactionListRow>("transactions", TRANSACTION_COLS),
+  });
+}
+
+/**
+ * Fields a user supplies when creating a lead. The tenant (`company_id`) is stamped by the
+ * caller from the active staff profile; `lead_number`, `status`, score, and auto-assignment
+ * are all set server-side by triggers, so they are intentionally omitted here.
+ */
+export interface NewLeadInput {
+  first_name: string;
+  last_name: string;
+  email?: string | null;
+  phone?: string | null;
+  source: LeadSource;
+  interest_type: LeadInterest;
+  estimated_debt_amount?: number | null;
+  state?: string | null;
+  notes?: string | null;
+}
+
+/**
+ * Create a lead in the caller's company. RLS (`Staff can manage company leads`) enforces that
+ * `company_id` is the caller's own tenant. On success the leads list is invalidated so the new
+ * row appears immediately.
+ */
+export function useCreateLead(
+  companyId: string | undefined,
+): UseMutationResult<LeadListRow, Error, NewLeadInput> {
+  const qc = useQueryClient();
+  return useMutation<LeadListRow, Error, NewLeadInput>({
+    mutationFn: async (input) => {
+      if (!companyId) throw new Error("No active company — cannot create a lead.");
+      const { data, error } = await supabase
+        .from("leads")
+        .insert({ ...input, company_id: companyId })
+        .select(LEAD_COLS)
+        .single();
+      if (error) throw new Error(error.message);
+      return data as LeadListRow;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: coreCrmKeys.leads });
+    },
+  });
+}
+
+/** Editable lead fields. `id` selects the row; the rest are the patch. RLS-gated to own tenant. */
+export interface LeadUpdateInput {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string | null;
+  phone?: string | null;
+  status?: LeadStatus;
+  source?: LeadSource;
+  interest_type?: LeadInterest;
+  estimated_debt_amount?: number | null;
+  number_of_debts?: number | null;
+  monthly_income?: number | null;
+  employment_status?: string | null;
+  has_active_lawsuit?: boolean;
+  in_bankruptcy?: boolean;
+  state?: string | null;
+  notes?: string | null;
+}
+
+/** Update a lead. The `Staff can manage company leads` policy enforces tenant ownership. */
+export function useUpdateLead(): UseMutationResult<LeadListRow, Error, LeadUpdateInput> {
+  const qc = useQueryClient();
+  return useMutation<LeadListRow, Error, LeadUpdateInput>({
+    mutationFn: async ({ id, ...patch }) => {
+      const { data, error } = await supabase
+        .from("leads")
+        .update(patch)
+        .eq("id", id)
+        .select(LEAD_COLS)
+        .single();
+      if (error) throw new Error(error.message);
+      return data as LeadListRow;
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: coreCrmKeys.leads });
+      // Also refresh the single-lead detail query (keyed ["lead", id] in useLeadDetail).
+      qc.invalidateQueries({ queryKey: ["lead", variables.id] });
+    },
+  });
+}
+
+/** Fields a user supplies when creating a client. Tenant stamped from active staff. */
+export interface NewClientInput {
+  first_name: string;
+  last_name: string;
+  email?: string | null;
+  status: ClientStatus;
+}
+
+/** Create a client in the caller's company (RLS: `Staff can manage company clients`). */
+export function useCreateClient(
+  companyId: string | undefined,
+): UseMutationResult<ClientListRow, Error, NewClientInput> {
+  const qc = useQueryClient();
+  return useMutation<ClientListRow, Error, NewClientInput>({
+    mutationFn: async (input) => {
+      if (!companyId) throw new Error("No active company — cannot create a client.");
+      const { data, error } = await supabase
+        .from("clients")
+        .insert({ ...input, company_id: companyId, is_active: input.status === "active" })
+        .select(CLIENT_COLS)
+        .single();
+      if (error) throw new Error(error.message);
+      return data as ClientListRow;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: coreCrmKeys.clients });
+    },
   });
 }

@@ -41,6 +41,49 @@ export interface LeadListRow {
   created_at: string;
 }
 
+/** Fuller lead projection for the detail page (superset of the list row). */
+export interface LeadDetailRow extends LeadListRow {
+  number_of_debts: number | null;
+  has_active_lawsuit: boolean | null;
+  in_bankruptcy: boolean | null;
+  state: string | null;
+  notes: string | null;
+  disqualification_reason: string | null;
+  assigned_to: string | null;
+  monthly_income: number | null;
+  employment_status: string | null;
+  updated_at: string;
+  contacted_at: string | null;
+  qualified_at: string | null;
+  converted_at: string | null;
+}
+
+/** One row of public.lead_activities (timeline entry). */
+export interface LeadActivityRow {
+  id: string;
+  lead_id: string;
+  staff_id: string | null;
+  activity_type: string;
+  outcome: string | null;
+  notes: string | null;
+  next_action: string | null;
+  next_action_date: string | null;
+  created_at: string;
+}
+
+/** One row of public.lead_debts. */
+export interface LeadDebtRow {
+  id: string;
+  lead_id: string;
+  creditor_name: string;
+  account_type: string;
+  original_balance: number | null;
+  current_balance: number;
+  account_number_last4: string | null;
+  is_enrolled: boolean;
+  created_at: string;
+}
+
 export type LiabilityStatus =
   | "enrolled"
   | "in_negotiation"

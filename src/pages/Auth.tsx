@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Logo } from "@/components/common/Logo";
 import {
   Card,
   CardContent,
@@ -15,6 +16,10 @@ import {
 } from "@/components/ui/card";
 
 type Mode = "signin" | "signup";
+
+// When VITE_AUTH_GOOGLE_ONLY is set, hide the email/password form and only
+// offer Google sign-in (e.g. deployments locked to a Google Workspace domain).
+const googleOnly = import.meta.env.VITE_AUTH_GOOGLE_ONLY === "true";
 
 export default function Auth() {
   const { user, loading, signIn, signUp, signInWithGoogle } = useAuth();
@@ -60,10 +65,17 @@ export default function Auth() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-xl">Cornerstone</CardTitle>
+        <CardHeader className="items-center text-center">
+          <Logo tone="light" className="mb-2 h-10 w-auto" />
+          <CardTitle className="text-base font-semibold text-muted-foreground">
+            Cornerstone
+          </CardTitle>
           <CardDescription>
-            {mode === "signin" ? "Sign in to your account" : "Create your account"}
+            {googleOnly
+              ? "Sign in with your Guardian Litigation Group account"
+              : mode === "signin"
+                ? "Sign in to your account"
+                : "Create your account"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -77,86 +89,92 @@ export default function Auth() {
             Continue with Google
           </Button>
 
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="h-px flex-1 bg-border" />
-            or
-            <span className="h-px flex-1 bg-border" />
-          </div>
+          {!googleOnly && (
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              or
+              <span className="h-px flex-1 bg-border" />
+            </div>
+          )}
 
-          <form className="space-y-3" onSubmit={handleSubmit}>
-            {mode === "signup" && (
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label htmlFor="firstName">First name</Label>
-                  <Input
-                    id="firstName"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                  />
+          {!googleOnly && (
+            <form className="space-y-3" onSubmit={handleSubmit}>
+              {mode === "signup" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="firstName">First name</Label>
+                    <Input
+                      id="firstName"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="lastName">Last name</Label>
+                    <Input
+                      id="lastName"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="lastName">Last name</Label>
-                  <Input
-                    id="lastName"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                  />
-                </div>
+              )}
+              <div className="space-y-1">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
               </div>
-            )}
-            <div className="space-y-1">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={submitting}>
-              {mode === "signin" ? "Sign in" : "Sign up"}
-            </Button>
-          </form>
+              <div className="space-y-1">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={submitting}>
+                {mode === "signin" ? "Sign in" : "Sign up"}
+              </Button>
+            </form>
+          )}
         </CardContent>
-        <CardFooter className="flex-col items-start gap-2 text-sm">
-          {mode === "signin" ? (
-            <>
-              <Link to="/forgot-password" className="text-primary hover:underline">
-                Forgot password?
-              </Link>
+        {!googleOnly && (
+          <CardFooter className="flex-col items-start gap-2 text-sm">
+            {mode === "signin" ? (
+              <>
+                <Link to="/forgot-password" className="text-primary hover:underline">
+                  Forgot password?
+                </Link>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:underline"
+                  onClick={() => setMode("signup")}
+                >
+                  Need an account? Sign up
+                </button>
+              </>
+            ) : (
               <button
                 type="button"
                 className="text-muted-foreground hover:underline"
-                onClick={() => setMode("signup")}
+                onClick={() => setMode("signin")}
               >
-                Need an account? Sign up
+                Already have an account? Sign in
               </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="text-muted-foreground hover:underline"
-              onClick={() => setMode("signin")}
-            >
-              Already have an account? Sign in
-            </button>
-          )}
-        </CardFooter>
+            )}
+          </CardFooter>
+        )}
       </Card>
     </main>
   );

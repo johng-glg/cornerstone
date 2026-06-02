@@ -1,5 +1,11 @@
-import { useNotifications } from "@/hooks/useDomains";
+import { toast } from "sonner";
+import {
+  useNotifications,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+} from "@/hooks/useDomains";
 import { QueryState } from "@/components/common/QueryState";
+import { Button } from "@/components/ui/button";
 
 function fmtDateTime(d: string): string {
   return new Date(d).toLocaleString();
@@ -7,11 +13,36 @@ function fmtDateTime(d: string): string {
 
 export default function Notifications() {
   const { data, isLoading, error } = useNotifications();
+  const markRead = useMarkNotificationRead();
+  const markAll = useMarkAllNotificationsRead();
   const rows = data ?? [];
+  const unread = rows.filter((n) => !n.is_read).length;
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Notifications</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">
+          Notifications
+          {unread > 0 && (
+            <span className="ml-2 rounded-full bg-primary px-2 py-0.5 align-middle text-xs font-medium text-primary-foreground">
+              {unread} new
+            </span>
+          )}
+        </h1>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={unread === 0 || markAll.isPending}
+          onClick={() =>
+            markAll.mutate(undefined, {
+              onSuccess: () => toast.success("All notifications marked read."),
+              onError: (e) => toast.error(e.message),
+            })
+          }
+        >
+          Mark all read
+        </Button>
+      </div>
       <QueryState
         isLoading={isLoading}
         error={error}
@@ -36,6 +67,18 @@ export default function Notifications() {
               <time className="shrink-0 text-xs text-muted-foreground">
                 {fmtDateTime(n.created_at)}
               </time>
+              {!n.is_read && (
+                <button
+                  type="button"
+                  className="shrink-0 text-xs text-primary hover:underline disabled:opacity-50"
+                  disabled={markRead.isPending}
+                  onClick={() =>
+                    markRead.mutate({ id: n.id }, { onError: (e) => toast.error(e.message) })
+                  }
+                >
+                  Mark read
+                </button>
+              )}
             </li>
           ))}
         </ul>

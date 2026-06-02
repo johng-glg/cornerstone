@@ -34,6 +34,15 @@ function serviceClient() {
 }
 
 async function resolveCreds(companyId?: string): Promise<ForthCreds> {
+  // Env-first: the firm-wide FORTH_* secrets are the source of truth for this deployment. Only
+  // fall back to per-tenant encrypted config when env isn't set (true multi-tenant). This avoids
+  // a mock/seed processor config silently shadowing real Forth credentials.
+  const clientId = Deno.env.get("FORTH_CLIENT_ID");
+  const clientSecret = Deno.env.get("FORTH_API_KEY");
+  if (clientId && clientSecret) {
+    return { clientId, clientSecret, source: "env" };
+  }
+
   if (companyId) {
     try {
       const supabase = serviceClient();
@@ -47,16 +56,13 @@ async function resolveCreds(companyId?: string): Promise<ForthCreds> {
         }
       }
     } catch (e) {
-      console.warn("[forthAuth] tenant cred lookup failed, falling back to env:", e);
+      console.warn("[forthAuth] tenant cred lookup failed:", e);
     }
   }
 
-  const clientId = Deno.env.get("FORTH_CLIENT_ID");
-  const clientSecret = Deno.env.get("FORTH_API_KEY");
-  if (!clientId || !clientSecret) {
-    throw new Error("Missing FORTH_CLIENT_ID or FORTH_API_KEY secrets");
-  }
-  return { clientId, clientSecret, source: "env" };
+  throw new Error(
+    "Missing FORTH_CLIENT_ID / FORTH_API_KEY secrets (and no per-tenant processor config)",
+  );
 }
 
 /** Get a Forth OAuth access token, cached per company (or 'default' for env fallback). */
@@ -74,7 +80,10 @@ export async function getAccessToken(companyId?: string): Promise<string> {
   const resp = await fetch("https://api.forthcrm.com/v1/auth/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ client_id: clientId, client_secret: normalizeSecret(clientSecret) }),
+    body: JSON.stringify({
+      client_id: normalizeSecret(clientId),
+      client_secret: normalizeSecret(clientSecret),
+    }),
   });
   const text = await resp.text();
   if (!resp.ok) {

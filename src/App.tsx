@@ -1,138 +1,128 @@
+import { type ReactNode, lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
 import { AppLayout } from "@/components/layout/AppLayout";
-import Auth from "@/pages/Auth";
-import ForgotPassword from "@/pages/ForgotPassword";
-import ResetPassword from "@/pages/ResetPassword";
-import Dashboard from "@/pages/Dashboard";
-import Clients from "@/pages/Clients";
-import Leads from "@/pages/Leads";
-import Liabilities from "@/pages/Liabilities";
-import Engagements from "@/pages/Engagements";
-import Transactions from "@/pages/Transactions";
-import Litigation from "@/pages/Litigation";
-import Templates from "@/pages/Templates";
-import Signatures from "@/pages/Signatures";
-import Notifications from "@/pages/Notifications";
-import Settings from "@/pages/Settings";
-import NotFound from "@/pages/NotFound";
+
+// Lazy-loaded pages — each becomes its own chunk so the initial bundle stays small and
+// heavy deps (charts, the enrollment wizard) only load when their route is visited.
+const Auth = lazy(() => import("@/pages/Auth"));
+const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Clients = lazy(() => import("@/pages/Clients"));
+const ClientDetail = lazy(() => import("@/pages/ClientDetail"));
+const Leads = lazy(() => import("@/pages/Leads"));
+const LeadDetail = lazy(() => import("@/pages/LeadDetail"));
+const LeadMetrics = lazy(() => import("@/pages/LeadMetrics"));
+const EligibilityReviews = lazy(() => import("@/pages/EligibilityReviews"));
+const Liabilities = lazy(() => import("@/pages/Liabilities"));
+const LiabilityDetail = lazy(() => import("@/pages/LiabilityDetail"));
+const Engagements = lazy(() => import("@/pages/Engagements"));
+const EngagementDetail = lazy(() => import("@/pages/EngagementDetail"));
+const Payments = lazy(() => import("@/pages/Payments"));
+const Transactions = lazy(() => import("@/pages/Transactions"));
+const Litigation = lazy(() => import("@/pages/Litigation"));
+const LitigationDetail = lazy(() => import("@/pages/LitigationDetail"));
+const CourtCalendar = lazy(() => import("@/pages/CourtCalendar"));
+const LitigationTeams = lazy(() => import("@/pages/LitigationTeams"));
+const LeadRules = lazy(() => import("@/pages/LeadRules"));
+const Billing = lazy(() => import("@/pages/Billing"));
+const Tasks = lazy(() => import("@/pages/Tasks"));
+const TaskTemplates = lazy(() => import("@/pages/TaskTemplates"));
+const Workflows = lazy(() => import("@/pages/Workflows"));
+const Roles = lazy(() => import("@/pages/Roles"));
+const Creditors = lazy(() => import("@/pages/Creditors"));
+const Reports = lazy(() => import("@/pages/Reports"));
+const ReconciliationDashboard = lazy(() => import("@/pages/ReconciliationDashboard"));
+const Services = lazy(() => import("@/pages/Services"));
+const Companies = lazy(() => import("@/pages/Companies"));
+const Staff = lazy(() => import("@/pages/Staff"));
+const Integrations = lazy(() => import("@/pages/Integrations"));
+const Templates = lazy(() => import("@/pages/Templates"));
+const Signatures = lazy(() => import("@/pages/Signatures"));
+const Notifications = lazy(() => import("@/pages/Notifications"));
+const FeatureRequests = lazy(() => import("@/pages/FeatureRequests"));
+const DocsPortal = lazy(() => import("@/pages/docs"));
+const Settings = lazy(() => import("@/pages/Settings"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const queryClient = new QueryClient();
 
-/**
- * Application root. Public auth routes are open; everything else is wrapped in AppLayout,
- * which gates on authentication and arms the inactivity timeout. The route map grows as
- * modules land in Phase A (A5+).
- */
+const PROTECTED: Array<{ path: string; element: ReactNode }> = [
+  { path: "/", element: <Dashboard /> },
+  { path: "/leads", element: <Leads /> },
+  { path: "/leads/:id", element: <LeadDetail /> },
+  { path: "/lead-metrics", element: <LeadMetrics /> },
+  { path: "/eligibility-reviews", element: <EligibilityReviews /> },
+  { path: "/engagements", element: <Engagements /> },
+  { path: "/engagements/:id", element: <EngagementDetail /> },
+  { path: "/clients", element: <Clients /> },
+  { path: "/clients/:id", element: <ClientDetail /> },
+  { path: "/liabilities", element: <Liabilities /> },
+  { path: "/liabilities/:id", element: <LiabilityDetail /> },
+  { path: "/litigation", element: <Litigation /> },
+  { path: "/litigation/:id", element: <LitigationDetail /> },
+  { path: "/court-calendar", element: <CourtCalendar /> },
+  { path: "/litigation-teams", element: <LitigationTeams /> },
+  { path: "/lead-rules", element: <LeadRules /> },
+  { path: "/billing", element: <Billing /> },
+  { path: "/tasks", element: <Tasks /> },
+  { path: "/task-templates", element: <TaskTemplates /> },
+  { path: "/workflows", element: <Workflows /> },
+  { path: "/roles", element: <Roles /> },
+  { path: "/payments", element: <Payments /> },
+  { path: "/transactions", element: <Transactions /> },
+  { path: "/creditors", element: <Creditors /> },
+  { path: "/reports", element: <Reports /> },
+  { path: "/reports/reconciliation", element: <ReconciliationDashboard /> },
+  { path: "/services", element: <Services /> },
+  { path: "/companies", element: <Companies /> },
+  { path: "/staff", element: <Staff /> },
+  { path: "/integrations", element: <Integrations /> },
+  { path: "/templates", element: <Templates /> },
+  { path: "/signatures", element: <Signatures /> },
+  { path: "/notifications", element: <Notifications /> },
+  { path: "/feature-requests", element: <FeatureRequests /> },
+  { path: "/docs/*", element: <DocsPortal /> },
+  { path: "/documentation", element: <Navigate to="/docs" replace /> },
+  { path: "/settings", element: <Settings /> },
+];
+
+function PageFallback() {
+  return <p className="p-6 text-sm text-muted-foreground">Loading…</p>;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="light"
+        enableSystem={false}
+        forcedTheme="light"
+      >
         <Toaster />
         <BrowserRouter>
           <AuthProvider>
-            <Routes>
-              {/* Public */}
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
+            <Suspense fallback={<PageFallback />}>
+              <Routes>
+                {/* Public */}
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
 
-              {/* Protected */}
-              <Route
-                path="/"
-                element={
-                  <AppLayout>
-                    <Dashboard />
-                  </AppLayout>
-                }
-              />
-              <Route
-                path="/clients"
-                element={
-                  <AppLayout>
-                    <Clients />
-                  </AppLayout>
-                }
-              />
-              <Route
-                path="/leads"
-                element={
-                  <AppLayout>
-                    <Leads />
-                  </AppLayout>
-                }
-              />
-              <Route
-                path="/liabilities"
-                element={
-                  <AppLayout>
-                    <Liabilities />
-                  </AppLayout>
-                }
-              />
-              <Route
-                path="/engagements"
-                element={
-                  <AppLayout>
-                    <Engagements />
-                  </AppLayout>
-                }
-              />
-              <Route
-                path="/transactions"
-                element={
-                  <AppLayout>
-                    <Transactions />
-                  </AppLayout>
-                }
-              />
-              <Route
-                path="/litigation"
-                element={
-                  <AppLayout>
-                    <Litigation />
-                  </AppLayout>
-                }
-              />
-              <Route
-                path="/templates"
-                element={
-                  <AppLayout>
-                    <Templates />
-                  </AppLayout>
-                }
-              />
-              <Route
-                path="/signatures"
-                element={
-                  <AppLayout>
-                    <Signatures />
-                  </AppLayout>
-                }
-              />
-              <Route
-                path="/notifications"
-                element={
-                  <AppLayout>
-                    <Notifications />
-                  </AppLayout>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <AppLayout>
-                    <Settings />
-                  </AppLayout>
-                }
-              />
+                {/* Protected */}
+                {PROTECTED.map(({ path, element }) => (
+                  <Route key={path} path={path} element={<AppLayout>{element}</AppLayout>} />
+                ))}
 
-              {/* Catch-all */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                {/* Catch-all */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </AuthProvider>
         </BrowserRouter>
       </ThemeProvider>

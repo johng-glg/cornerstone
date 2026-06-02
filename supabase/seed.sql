@@ -57,13 +57,19 @@ BEGIN
       id, instance_id, aud, role, email,
       encrypted_password, email_confirmed_at,
       raw_app_meta_data, raw_user_meta_data,
-      created_at, updated_at
+      created_at, updated_at,
+      -- GoTrue scans these token columns as non-null text; NULL here causes
+      -- "Database error querying schema" at login, so seed them as ''.
+      confirmation_token, recovery_token, email_change,
+      email_change_token_new, email_change_token_current,
+      phone_change, phone_change_token, reauthentication_token
     )
     VALUES (
       _u.id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', _u.email,
       _pwd, _now,
       '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
-      _now, _now
+      _now, _now,
+      '', '', '', '', '', '', '', ''
     )
     ON CONFLICT (id) DO NOTHING;
 
@@ -149,9 +155,11 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO public.company_processor_configs (company_id, processor_id, is_default, api_key_encrypted, config)
 VALUES
   ('0a000000-0000-4000-8000-000000000001', 'da000000-0000-4000-8000-000000000001', true,
-     public.encrypt_pii('sk-local-fake-northstar')::text, '{"client_id":"local-northstar"}'::jsonb),
+     public.encrypt_pii('sk-local-fake-northstar')::text, '{}'::jsonb),
   ('0b000000-0000-4000-8000-000000000002', 'da000000-0000-4000-8000-000000000001', true,
-     public.encrypt_pii('sk-local-fake-beacon')::text,    '{"client_id":"local-beacon"}'::jsonb)
+     public.encrypt_pii('sk-local-fake-beacon')::text,    '{}'::jsonb)
+-- NB: config intentionally has no client_id — this is the mock *payment* processor, not Forth.
+-- A client_id here would be picked up by forthAuth and shadow the real FORTH_* env credentials.
 ON CONFLICT DO NOTHING;
 
 -- Integrations (per tenant, disabled by default) -----------------------------

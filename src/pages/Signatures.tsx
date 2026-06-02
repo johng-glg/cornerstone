@@ -1,9 +1,7 @@
 import { useSignatureRequests } from "@/hooks/useDomains";
 import { QueryState } from "@/components/common/QueryState";
-
-function fmtDate(d: string | null): string {
-  return d ? new Date(d).toLocaleDateString() : "—";
-}
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { formatDate, titleCase } from "@/lib/format";
 
 export default function Signatures() {
   const { data, isLoading, error } = useSignatureRequests();
@@ -32,9 +30,11 @@ export default function Signatures() {
               {rows.map((r) => (
                 <tr key={r.id} className="border-b last:border-0">
                   <td className="px-3 py-2">{r.title}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{r.entity_type}</td>
-                  <td className="px-3 py-2">{r.status}</td>
-                  <td className="px-3 py-2">{fmtDate(r.completed_at)}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{titleCase(r.entity_type)}</td>
+                  <td className="px-3 py-2">
+                    <StatusBadge status={r.status} />
+                  </td>
+                  <td className="px-3 py-2">{formatDate(r.completed_at)}</td>
                 </tr>
               ))}
             </tbody>

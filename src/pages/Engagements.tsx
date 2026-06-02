@@ -1,56 +1,30 @@
+import { useNavigate } from "react-router-dom";
 import { useClientServices } from "@/hooks/useCoreCrm";
-import { QueryState } from "@/components/common/QueryState";
-
-const usd = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
-
-function fmtDate(d: string | null): string {
-  return d ? new Date(d).toLocaleDateString() : "—";
-}
+import { ListPage } from "@/components/common/ListPage";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import { formatCurrency, formatDate, titleCase } from "@/lib/format";
 
 export default function Engagements() {
-  const { data, isLoading, error } = useClientServices();
-  const rows = data ?? [];
-
+  const q = useClientServices();
+  const navigate = useNavigate();
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Engagements</h1>
-      <QueryState
-        isLoading={isLoading}
-        error={error}
-        isEmpty={rows.length === 0}
-        emptyMessage="No engagements yet."
-      >
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead className="border-b bg-muted/50 text-left">
-              <tr>
-                <th className="px-3 py-2 font-medium">Engagement #</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Program</th>
-                <th className="px-3 py-2 font-medium">Enrolled</th>
-                <th className="px-3 py-2 font-medium">PLSA balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((s) => (
-                <tr key={s.id} className="border-b last:border-0">
-                  <td className="px-3 py-2 font-mono text-xs">{s.service_number}</td>
-                  <td className="px-3 py-2">{s.status}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{s.program_type ?? "—"}</td>
-                  <td className="px-3 py-2">{fmtDate(s.enrolled_date)}</td>
-                  <td className="px-3 py-2">
-                    {s.escrow_balance != null ? usd.format(s.escrow_balance) : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </QueryState>
-    </div>
+    <ListPage
+      title="Engagements"
+      description="Active client service programs."
+      query={q}
+      empty="No engagements yet."
+      onRowClick={(s) => navigate(`/engagements/${s.id}`)}
+      columns={[
+        {
+          header: "Service #",
+          cell: (s) => <span className="font-mono text-xs">{s.service_number}</span>,
+        },
+        { header: "Status", cell: (s) => <StatusBadge status={s.status} /> },
+        { header: "Program", cell: (s) => (s.program_type ? titleCase(s.program_type) : "—") },
+        { header: "Enrolled", cell: (s) => formatDate(s.enrolled_date) },
+        { header: "Escrow", cell: (s) => formatCurrency(s.escrow_balance) },
+        { header: "Provider", cell: (s) => s.plsa_provider_id },
+      ]}
+    />
   );
 }
