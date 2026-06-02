@@ -2,8 +2,16 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeft, Target, Pencil, ArrowRightCircle } from "lucide-react";
-import { useLead, useLeadActivities, useLeadDebts, useDeleteLeadDebt } from "@/hooks/useLeadDetail";
+import {
+  useLead,
+  useLeadActivities,
+  useLeadDebts,
+  useDeleteLeadDebt,
+  useLeadDocuments,
+} from "@/hooks/useLeadDetail";
 import { useUpdateLead } from "@/hooks/useCoreCrm";
+import { useAddLeadDocument } from "@/hooks/useModuleMutations";
+import { QuickFormDialog } from "@/components/common/QuickFormDialog";
 import type { LeadDetailRow, LeadStatus } from "@/lib/db-types";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -66,6 +74,8 @@ export default function LeadDetail() {
   const debts = useLeadDebts(id);
   const updateLead = useUpdateLead();
   const deleteDebt = useDeleteLeadDebt(id ?? "");
+  const documents = useLeadDocuments(id);
+  const addDoc = useAddLeadDocument(id ?? "");
   const [editing, setEditing] = useState(false);
   const [converting, setConverting] = useState(false);
 
@@ -339,13 +349,91 @@ export default function LeadDetail() {
               <TabsContent value="budget">{id && <BudgetTab leadId={id} />}</TabsContent>
 
               {/* DOCS */}
-              <TabsContent value="docs">
-                <Card>
-                  <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                    Document uploads arrive with the secure-storage wiring (alongside the enrollment
-                    flow). Debts and budget capture the financials in the meantime.
-                  </CardContent>
-                </Card>
+              <TabsContent value="docs" className="space-y-3">
+                <div className="flex justify-end">
+                  <QuickFormDialog
+                    trigger={
+                      <Button size="sm" variant="outline">
+                        Add document
+                      </Button>
+                    }
+                    title="Add document"
+                    description="Link a document by URL (file upload arrives with storage wiring)."
+                    pending={addDoc.isPending}
+                    fields={[
+                      { name: "title", label: "Title", required: true, full: true },
+                      {
+                        name: "document_type",
+                        label: "Type",
+                        type: "select",
+                        defaultValue: "other",
+                        options: ["id", "statement", "agreement", "correspondence", "other"].map(
+                          (v) => ({ value: v, label: titleCase(v) }),
+                        ),
+                      },
+                      {
+                        name: "file_url",
+                        label: "Document URL",
+                        required: true,
+                        full: true,
+                        placeholder: "https://…",
+                      },
+                    ]}
+                    onSubmit={async (v) => {
+                      try {
+                        await addDoc.mutateAsync({
+                          title: v.title,
+                          document_type: v.document_type,
+                          file_url: v.file_url,
+                        });
+                        toast.success("Document added.");
+                      } catch (e) {
+                        toast.error((e as Error).message);
+                        throw e;
+                      }
+                    }}
+                  />
+                </div>
+                <QueryState
+                  isLoading={documents.isLoading}
+                  error={documents.error}
+                  isEmpty={(documents.data ?? []).length === 0}
+                  emptyMessage="No documents attached."
+                >
+                  <div className="overflow-x-auto rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead className="border-b bg-muted/50 text-left">
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Title</th>
+                          <th className="px-3 py-2 font-medium">Type</th>
+                          <th className="px-3 py-2 font-medium">Added</th>
+                          <th className="px-3 py-2" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(documents.data ?? []).map((d) => (
+                          <tr key={d.id} className="border-b last:border-0">
+                            <td className="px-3 py-2">{d.title}</td>
+                            <td className="px-3 py-2 text-muted-foreground">
+                              {titleCase(d.document_type)}
+                            </td>
+                            <td className="px-3 py-2">{formatDate(d.created_at)}</td>
+                            <td className="px-3 py-2 text-right">
+                              <a
+                                href={d.file_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-guardian-gold hover:underline"
+                              >
+                                Open
+                              </a>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </QueryState>
               </TabsContent>
 
               {/* ACTIVITY */}

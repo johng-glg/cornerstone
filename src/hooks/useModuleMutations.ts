@@ -176,6 +176,53 @@ export function useAddMatterDocument(
   });
 }
 
+export function useReviewEligibility(): UseMutationResult<
+  void,
+  Error,
+  { id: string; status: string; decline_reason?: string | null }
+> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, { id: string; status: string; decline_reason?: string | null }>({
+    mutationFn: async ({ id, status, decline_reason }) => {
+      const { error } = await supabase
+        .from("eligibility_reviews")
+        .update({
+          status,
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: staff?.id ?? null,
+          decline_reason: decline_reason ?? null,
+        })
+        .eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["eligibility_reviews"] }),
+  });
+}
+
+export interface NewLeadDocument {
+  title: string;
+  document_type: string;
+  file_url: string;
+}
+export function useAddLeadDocument(
+  leadId: string,
+): UseMutationResult<void, Error, NewLeadDocument> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, NewLeadDocument>({
+    mutationFn: async (input) => {
+      const { error } = await supabase.from("lead_documents").insert({
+        lead_id: leadId,
+        uploaded_by: staff?.id ?? null,
+        ...input,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["lead_documents", leadId] }),
+  });
+}
+
 export interface NewMatterActivity {
   activity_type: string;
   description?: string | null;

@@ -121,6 +121,31 @@ export function useDeleteLeadDebt(leadId: string): UseMutationResult<void, Error
   });
 }
 
+export interface LeadDocumentRow {
+  id: string;
+  title: string;
+  document_type: string;
+  file_url: string;
+  created_at: string;
+}
+export function useLeadDocuments(
+  leadId: string | undefined,
+): UseQueryResult<LeadDocumentRow[], Error> {
+  return useQuery({
+    queryKey: ["lead_documents", leadId ?? ""],
+    enabled: !!leadId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lead_documents")
+        .select("id, title, document_type, file_url, created_at")
+        .eq("lead_id", leadId!)
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as LeadDocumentRow[];
+    },
+  });
+}
+
 export interface NewActivityInput {
   lead_id: string;
   staff_id: string | null;
