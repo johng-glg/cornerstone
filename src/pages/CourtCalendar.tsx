@@ -17,7 +17,7 @@ function fmtDay(d: string): string {
 export default function CourtCalendar() {
   const q = useCourtCalendar();
   const navigate = useNavigate();
-  const rows = q.data ?? [];
+  const rows = useMemo(() => q.data ?? [], [q.data]);
 
   const byDay = useMemo(() => {
     const groups = new Map<string, CalendarHearingRow[]>();
