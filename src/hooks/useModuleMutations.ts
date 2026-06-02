@@ -399,6 +399,36 @@ export function useAddMatterActivity(
   });
 }
 
+export interface NewTaskTemplate {
+  name: string;
+  default_title: string;
+  task_type?: string;
+  priority?: string;
+  default_due_days?: number | null;
+  description?: string | null;
+}
+export function useAddTaskTemplate(): UseMutationResult<void, Error, NewTaskTemplate> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, NewTaskTemplate>({
+    mutationFn: async (input) => {
+      if (!staff?.company_id) throw new Error("No active company.");
+      const { error } = await supabase.from("task_templates").insert({
+        company_id: staff.company_id,
+        created_by: staff.id ?? null,
+        name: input.name,
+        default_title: input.default_title,
+        task_type: input.task_type || "general",
+        priority: input.priority || "medium",
+        default_due_days: input.default_due_days ?? null,
+        description: input.description || null,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["task_templates"] }),
+  });
+}
+
 export interface NewTask {
   title: string;
   task_type?: string;

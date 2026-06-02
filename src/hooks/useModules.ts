@@ -297,6 +297,27 @@ export const useReconciliation = (): UseQueryResult<ReconciliationRow[], Error> 
       ),
   });
 
+export interface TaskTemplateRow {
+  id: string;
+  name: string;
+  task_type: string;
+  priority: string;
+  default_title: string;
+  default_due_days: number | null;
+  is_active: boolean;
+}
+export const useTaskTemplates = (): UseQueryResult<TaskTemplateRow[], Error> =>
+  useQuery({
+    queryKey: ["task_templates"],
+    queryFn: () =>
+      list<TaskTemplateRow>(
+        "task_templates",
+        "id, name, task_type, priority, default_title, default_due_days, is_active",
+        "name",
+        true,
+      ),
+  });
+
 export interface ServiceCatalogRow {
   id: string;
   name: string;
