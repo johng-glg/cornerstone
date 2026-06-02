@@ -15,6 +15,10 @@ import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 
 const DIALPAD_API = "https://dialpad.com/api/v2";
 
+// Dialpad requires a non-empty call_states on a call subscription. Default to the full call
+// lifecycle so the webhook receives connect + terminal (hangup) events our handler logs.
+const DEFAULT_CALL_STATES = ["preanswer", "ringing", "connected", "hangup"];
+
 // Optional overrides; defaults subscribe to all call states.
 const InputSchema = z
   .object({
@@ -124,8 +128,11 @@ export async function handler(req: Request): Promise<Response> {
       else if (del) removalErrors.push({ id, status: del.status });
     }
 
-    const subPayload: Record<string, unknown> = { webhook_id: webhookId, enabled: true };
-    if (input.call_states?.length) subPayload.call_states = input.call_states;
+    const subPayload: Record<string, unknown> = {
+      webhook_id: webhookId,
+      enabled: true,
+      call_states: input.call_states?.length ? input.call_states : DEFAULT_CALL_STATES,
+    };
     if (typeof input.group_calls === "boolean") subPayload.group_calls = input.group_calls;
     const subResp = await fetch(`${DIALPAD_API}/subscriptions/call`, {
       method: "POST",
