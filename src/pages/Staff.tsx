@@ -10,6 +10,9 @@ export default function Staff() {
       title="Staff"
       description="People in your firm."
       query={q}
+      searchText={(s) =>
+        `${s.first_name} ${s.last_name} ${s.email} ${s.department} ${s.job_title ?? ""}`
+      }
       empty="No staff yet."
       columns={[
         { header: "Name", cell: (s) => `${s.first_name} ${s.last_name}` },

@@ -62,6 +62,7 @@ export default function Creditors() {
       description="Creditor directory."
       query={q}
       action={<AddCreditorAction />}
+      searchText={(c) => `${c.name} ${c.creditor_type ?? ""} ${c.state ?? ""} ${c.email ?? ""}`}
       empty="No creditors yet."
       columns={[
         { header: "Name", cell: (c) => c.name },

@@ -399,6 +399,53 @@ export function useAddMatterActivity(
   });
 }
 
+export interface NewService {
+  name: string;
+  service_type: string;
+  description?: string | null;
+}
+export function useAddService(): UseMutationResult<void, Error, NewService> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, NewService>({
+    mutationFn: async (input) => {
+      if (!staff?.company_id) throw new Error("No active company.");
+      const { error } = await supabase.from("services").insert({
+        company_id: staff.company_id,
+        name: input.name,
+        service_type: input.service_type,
+        description: input.description || null,
+        is_active: true,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["services_catalog"] }),
+  });
+}
+
+export interface NewCompany {
+  name: string;
+  company_type: string;
+  city?: string | null;
+  state?: string | null;
+}
+export function useAddCompany(): UseMutationResult<void, Error, NewCompany> {
+  const qc = useQueryClient();
+  return useMutation<void, Error, NewCompany>({
+    mutationFn: async (input) => {
+      const { error } = await supabase.from("companies").insert({
+        name: input.name,
+        company_type: input.company_type,
+        city: input.city || null,
+        state: input.state || null,
+        is_active: true,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["companies_all"] }),
+  });
+}
+
 export interface NewTaskTemplate {
   name: string;
   default_title: string;

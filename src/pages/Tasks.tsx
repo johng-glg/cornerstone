@@ -68,6 +68,7 @@ export default function Tasks() {
       description="Work items across leads, clients, and matters."
       query={q}
       action={<NewTaskAction />}
+      searchText={(t) => `${t.title} ${t.task_type} ${t.status} ${t.priority}`}
       empty="No tasks yet."
       columns={[
         { header: "Title", cell: (t) => t.title },
