@@ -34,6 +34,8 @@ import { Logo } from "@/components/common/Logo";
 import { cn } from "@/lib/utils";
 import { useInactivityTimeout } from "@/hooks/useInactivityTimeout";
 import { InactivityTimeoutDialog } from "@/components/auth/InactivityTimeoutDialog";
+import { useNotifications } from "@/hooks/useDomains";
+import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
 
 interface NavItem {
   to: string;
@@ -122,6 +124,9 @@ function AppShell({ children }: { children: ReactNode }) {
   const { staff, signOut, isRealAdmin, impersonatedView, setImpersonatedView } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  useRealtimeNotifications();
+  const notifications = useNotifications();
+  const unread = (notifications.data ?? []).filter((n) => !n.is_read).length;
 
   const handleTimeout = useCallback(() => {
     void signOut().then(() => {
@@ -220,10 +225,15 @@ function AppShell({ children }: { children: ReactNode }) {
             )}
             <NavLink
               to="/notifications"
-              className="text-muted-foreground hover:text-foreground"
+              className="relative text-muted-foreground hover:text-foreground"
               aria-label="Notifications"
             >
               <Bell className="h-5 w-5" />
+              {unread > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-guardian-gold px-1 text-[10px] font-semibold text-guardian-navy">
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
             </NavLink>
             {staff && (
               <span className="hidden text-sm text-muted-foreground sm:inline">{staff.email}</span>
