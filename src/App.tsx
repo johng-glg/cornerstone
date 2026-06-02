@@ -1,6 +1,6 @@
 import { type ReactNode, lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
@@ -41,7 +41,7 @@ const Templates = lazy(() => import("@/pages/Templates"));
 const Signatures = lazy(() => import("@/pages/Signatures"));
 const Notifications = lazy(() => import("@/pages/Notifications"));
 const FeatureRequests = lazy(() => import("@/pages/FeatureRequests"));
-const Documentation = lazy(() => import("@/pages/Documentation"));
+const DocsPortal = lazy(() => import("@/pages/docs"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
@@ -78,7 +78,8 @@ const PROTECTED: Array<{ path: string; element: ReactNode }> = [
   { path: "/signatures", element: <Signatures /> },
   { path: "/notifications", element: <Notifications /> },
   { path: "/feature-requests", element: <FeatureRequests /> },
-  { path: "/documentation", element: <Documentation /> },
+  { path: "/docs/*", element: <DocsPortal /> },
+  { path: "/documentation", element: <Navigate to="/docs" replace /> },
   { path: "/settings", element: <Settings /> },
 ];
 

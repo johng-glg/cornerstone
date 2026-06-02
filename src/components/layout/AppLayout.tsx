@@ -71,7 +71,7 @@ const ADMINISTRATION: NavItem[] = [
   { to: "/integrations", label: "Integrations", icon: Plug },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
   { to: "/feature-requests", label: "Feature Requests", icon: Lightbulb },
-  { to: "/documentation", label: "Documentation", icon: BookOpen },
+  { to: "/docs", label: "Documentation", icon: BookOpen },
 ];
 
 const IDLE_MS = 30 * 60 * 1000;
