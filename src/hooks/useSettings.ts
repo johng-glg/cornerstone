@@ -190,6 +190,119 @@ export function useSaveNsfPolicy(): UseMutationResult<void, Error, NsfPolicyInpu
   });
 }
 
+export interface ScoringProfile {
+  id: string;
+  name: string;
+  description: string | null;
+  interest_type: string | null;
+  source: string | null;
+  is_default: boolean;
+  is_active: boolean;
+}
+export function useScoringProfiles(): UseQueryResult<ScoringProfile[], Error> {
+  const { staff } = useAuth();
+  return useQuery({
+    queryKey: ["scoring_profiles", staff?.company_id],
+    enabled: !!staff?.company_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lead_scoring_profiles")
+        .select("id, name, description, interest_type, source, is_default, is_active")
+        .eq("company_id", staff!.company_id)
+        .order("created_at", { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as ScoringProfile[];
+    },
+  });
+}
+export interface ScoringProfileInput {
+  id?: string | null;
+  name: string;
+  description?: string | null;
+  interest_type?: string | null;
+  source?: string | null;
+  is_default: boolean;
+  is_active: boolean;
+}
+export function useSaveScoringProfile(): UseMutationResult<void, Error, ScoringProfileInput> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, ScoringProfileInput>({
+    mutationFn: async (input) => {
+      if (!staff?.company_id) throw new Error("No active company.");
+      const payload = {
+        company_id: staff.company_id,
+        name: input.name,
+        description: input.description || null,
+        interest_type: input.interest_type || null,
+        source: input.source || null,
+        is_default: input.is_default,
+        is_active: input.is_active,
+      };
+      const { error } = input.id
+        ? await supabase.from("lead_scoring_profiles").update(payload).eq("id", input.id)
+        : await supabase.from("lead_scoring_profiles").insert(payload);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["scoring_profiles"] }),
+  });
+}
+
+export interface DocusealTemplate {
+  id: string;
+  name: string;
+  docuseal_template_id: number;
+  description: string | null;
+  signer_roles: string[];
+  is_active: boolean;
+}
+export function useDocusealTemplates(): UseQueryResult<DocusealTemplate[], Error> {
+  const { staff } = useAuth();
+  return useQuery({
+    queryKey: ["docuseal_templates", staff?.company_id],
+    enabled: !!staff?.company_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("docuseal_templates")
+        .select("id, name, docuseal_template_id, description, signer_roles, is_active")
+        .eq("company_id", staff!.company_id)
+        .order("created_at", { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as DocusealTemplate[];
+    },
+  });
+}
+export interface DocusealTemplateInput {
+  id?: string | null;
+  name: string;
+  docuseal_template_id: number;
+  description?: string | null;
+  signer_roles: string[];
+  is_active: boolean;
+}
+export function useSaveDocusealTemplate(): UseMutationResult<void, Error, DocusealTemplateInput> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, DocusealTemplateInput>({
+    mutationFn: async (input) => {
+      if (!staff?.company_id) throw new Error("No active company.");
+      const payload = {
+        company_id: staff.company_id,
+        name: input.name,
+        docuseal_template_id: input.docuseal_template_id,
+        description: input.description || null,
+        signer_roles: input.signer_roles,
+        is_active: input.is_active,
+      };
+      const { error } = input.id
+        ? await supabase.from("docuseal_templates").update(payload).eq("id", input.id)
+        : await supabase.from("docuseal_templates").insert(payload);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["docuseal_templates"] }),
+  });
+}
+
 export interface CompanyInfo {
   id: string;
   name: string;

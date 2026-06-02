@@ -7,6 +7,8 @@ import { NotificationSettingsTab } from "@/components/settings/NotificationSetti
 import { CompanySettingsTab } from "@/components/settings/CompanySettingsTab";
 import { ReminderSettingsTab } from "@/components/settings/ReminderSettingsTab";
 import { NsfRetrySettingsTab } from "@/components/settings/NsfRetrySettingsTab";
+import { ScoringProfilesSettingsTab } from "@/components/settings/ScoringProfilesSettingsTab";
+import { EsignTemplatesSettingsTab } from "@/components/settings/EsignTemplatesSettingsTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -59,6 +61,8 @@ export default function Settings() {
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           {isAdmin && <TabsTrigger value="reminders">Reminders</TabsTrigger>}
           {isAdmin && <TabsTrigger value="nsf">NSF Retry</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="scoring">Scoring</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="esign">E-sign</TabsTrigger>}
           {isAdmin && <TabsTrigger value="company">Company</TabsTrigger>}
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="flags">Feature Flags</TabsTrigger>
@@ -79,6 +83,16 @@ export default function Settings() {
         {isAdmin && (
           <TabsContent value="nsf" className="max-w-3xl pt-4">
             <NsfRetrySettingsTab />
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="scoring" className="max-w-3xl pt-4">
+            <ScoringProfilesSettingsTab />
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="esign" className="max-w-3xl pt-4">
+            <EsignTemplatesSettingsTab />
           </TabsContent>
         )}
         {isAdmin && (
