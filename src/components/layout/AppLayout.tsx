@@ -27,6 +27,10 @@ import {
   Bell,
   Menu,
   X,
+  Users2,
+  Shuffle,
+  ArrowLeftRight,
+  PenLine,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth, ROLE_VIEWS } from "@/lib/auth";
@@ -66,8 +70,12 @@ const ADMINISTRATION: NavItem[] = [
   { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/companies", label: "Companies", icon: Building },
   { to: "/staff", label: "Staff", icon: UserCog },
+  { to: "/litigation-teams", label: "Litigation Teams", icon: Users2 },
+  { to: "/lead-rules", label: "Assignment Rules", icon: Shuffle },
   { to: "/payments", label: "Payments", icon: CreditCard },
+  { to: "/transactions", label: "Transactions", icon: ArrowLeftRight },
   { to: "/templates", label: "Templates", icon: FileText },
+  { to: "/signatures", label: "Signatures", icon: PenLine },
   { to: "/integrations", label: "Integrations", icon: Plug },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
   { to: "/feature-requests", label: "Feature Requests", icon: Lightbulb },

@@ -398,3 +398,30 @@ export function useAddMatterActivity(
     onSuccess: () => qc.invalidateQueries({ queryKey: ["matter_activities", matterId] }),
   });
 }
+
+export interface NewTask {
+  title: string;
+  task_type?: string;
+  priority?: string;
+  due_date?: string | null;
+}
+export function useAddTask(): UseMutationResult<void, Error, NewTask> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, NewTask>({
+    mutationFn: async (input) => {
+      if (!staff?.company_id) throw new Error("No active company.");
+      const { error } = await supabase.from("tasks").insert({
+        company_id: staff.company_id,
+        created_by: staff.id ?? null,
+        title: input.title,
+        task_type: input.task_type || "general",
+        priority: input.priority || "medium",
+        status: "pending",
+        due_date: input.due_date || null,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks_all"] }),
+  });
+}
