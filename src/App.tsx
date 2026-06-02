@@ -19,6 +19,7 @@ const LeadDetail = lazy(() => import("@/pages/LeadDetail"));
 const LeadMetrics = lazy(() => import("@/pages/LeadMetrics"));
 const EligibilityReviews = lazy(() => import("@/pages/EligibilityReviews"));
 const Liabilities = lazy(() => import("@/pages/Liabilities"));
+const LiabilityDetail = lazy(() => import("@/pages/LiabilityDetail"));
 const Engagements = lazy(() => import("@/pages/Engagements"));
 const EngagementDetail = lazy(() => import("@/pages/EngagementDetail"));
 const Payments = lazy(() => import("@/pages/Payments"));
@@ -58,6 +59,7 @@ const PROTECTED: Array<{ path: string; element: ReactNode }> = [
   { path: "/clients", element: <Clients /> },
   { path: "/clients/:id", element: <ClientDetail /> },
   { path: "/liabilities", element: <Liabilities /> },
+  { path: "/liabilities/:id", element: <LiabilityDetail /> },
   { path: "/litigation", element: <Litigation /> },
   { path: "/litigation/:id", element: <LitigationDetail /> },
   { path: "/court-calendar", element: <CourtCalendar /> },

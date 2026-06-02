@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useLiabilities } from "@/hooks/useCoreCrm";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -5,6 +6,7 @@ import { formatCurrency, titleCase } from "@/lib/format";
 
 export default function Liabilities() {
   const { data, isLoading, error } = useLiabilities();
+  const navigate = useNavigate();
   const rows = data ?? [];
 
   return (
@@ -28,7 +30,11 @@ export default function Liabilities() {
             </thead>
             <tbody>
               {rows.map((l) => (
-                <tr key={l.id} className="border-b last:border-0">
+                <tr
+                  key={l.id}
+                  onClick={() => navigate(`/liabilities/${l.id}`)}
+                  className="cursor-pointer border-b last:border-0 hover:bg-muted/40"
+                >
                   <td className="px-3 py-2">{titleCase(l.liability_type)}</td>
                   <td className="px-3 py-2">
                     <StatusBadge status={l.status} />
