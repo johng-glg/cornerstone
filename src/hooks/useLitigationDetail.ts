@@ -1,4 +1,10 @@
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseMutationResult,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface MatterRow {
@@ -9,6 +15,7 @@ export interface MatterRow {
   state: string | null;
   opposing_party: string | null;
   opposing_counsel: string | null;
+  opposing_creditor_id: string | null;
   status: string;
   service_date: string | null;
   response_deadline: string | null;
@@ -53,12 +60,40 @@ export function useMatter(id: string | undefined): UseQueryResult<MatterRow, Err
       const { data, error } = await supabase
         .from("litigation_matters")
         .select(
-          "id, case_number, court_name, county, state, opposing_party, opposing_counsel, status, service_date, response_deadline, next_hearing_date, judgment_amount, settlement_amount, notes, client_service_id, liability_id",
+          "id, case_number, court_name, county, state, opposing_party, opposing_counsel, opposing_creditor_id, status, service_date, response_deadline, next_hearing_date, judgment_amount, settlement_amount, notes, client_service_id, liability_id",
         )
         .eq("id", id!)
         .single();
       if (error) throw new Error(error.message);
       return data as unknown as MatterRow;
+    },
+  });
+}
+
+export interface MatterPatch {
+  case_number?: string | null;
+  court_name?: string | null;
+  county?: string | null;
+  state?: string | null;
+  opposing_party?: string | null;
+  opposing_counsel?: string | null;
+  opposing_creditor_id?: string | null;
+  service_date?: string | null;
+  response_deadline?: string | null;
+  judgment_amount?: number | null;
+  settlement_amount?: number | null;
+  notes?: string | null;
+}
+export function useUpdateMatter(matterId: string): UseMutationResult<void, Error, MatterPatch> {
+  const qc = useQueryClient();
+  return useMutation<void, Error, MatterPatch>({
+    mutationFn: async (patch) => {
+      const { error } = await supabase.from("litigation_matters").update(patch).eq("id", matterId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["matter", matterId] });
+      qc.invalidateQueries({ queryKey: ["litigation_matters"] });
     },
   });
 }
