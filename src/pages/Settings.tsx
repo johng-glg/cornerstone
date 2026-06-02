@@ -1,5 +1,6 @@
 import { useAuth } from "@/lib/auth";
 import { MfaCard } from "@/components/settings/MfaCard";
+import { FeatureFlagsCard } from "@/components/settings/FeatureFlagsCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Settings() {
@@ -28,6 +29,8 @@ export default function Settings() {
           </p>
         </CardContent>
       </Card>
+
+      <FeatureFlagsCard />
 
       <MfaCard />
     </div>

@@ -7,7 +7,11 @@ import {
   useClientSignatures,
   useClientCommunications,
 } from "@/hooks/useClientDetail";
-import { useAddCommunication, useAddClientDocument } from "@/hooks/useModuleMutations";
+import {
+  useAddCommunication,
+  useAddClientDocument,
+  useAddSignatureRequest,
+} from "@/hooks/useModuleMutations";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { QuickFormDialog } from "@/components/common/QuickFormDialog";
@@ -274,28 +278,59 @@ export function ClientDocumentsTab({ clientId }: { clientId: string }) {
   );
 }
 
+function RequestSignatureAction({ clientId }: { clientId: string }) {
+  const add = useAddSignatureRequest(clientId);
+  return (
+    <QuickFormDialog
+      trigger={
+        <Button size="sm" variant="outline">
+          Request signature
+        </Button>
+      }
+      title="Request signature"
+      description="Creates a DocuSeal signature request (sends once the integration is deployed)."
+      pending={add.isPending}
+      fields={[{ name: "title", label: "Document title", required: true, full: true }]}
+      onSubmit={async (v) => {
+        try {
+          await add.mutateAsync({ title: v.title });
+          toast.success("Signature request created.");
+        } catch (e) {
+          toast.error((e as Error).message);
+          throw e;
+        }
+      }}
+    />
+  );
+}
+
 export function ClientSignaturesTab({ clientId }: { clientId: string }) {
   const q = useClientSignatures(clientId);
   return (
-    <QueryState
-      isLoading={q.isLoading}
-      error={q.error}
-      isEmpty={(q.data ?? []).length === 0}
-      emptyMessage="No signature requests."
-    >
-      <Table head={["Title", "Status", "Completed", "Created"]}>
-        {(q.data ?? []).map((s) => (
-          <tr key={s.id} className="border-b last:border-0">
-            <td className="px-3 py-2">{s.title}</td>
-            <td className="px-3 py-2">
-              <StatusBadge status={s.status} />
-            </td>
-            <td className="px-3 py-2">{formatDate(s.completed_at)}</td>
-            <td className="px-3 py-2 text-muted-foreground">{formatDate(s.created_at)}</td>
-          </tr>
-        ))}
-      </Table>
-    </QueryState>
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <RequestSignatureAction clientId={clientId} />
+      </div>
+      <QueryState
+        isLoading={q.isLoading}
+        error={q.error}
+        isEmpty={(q.data ?? []).length === 0}
+        emptyMessage="No signature requests."
+      >
+        <Table head={["Title", "Status", "Completed", "Created"]}>
+          {(q.data ?? []).map((s) => (
+            <tr key={s.id} className="border-b last:border-0">
+              <td className="px-3 py-2">{s.title}</td>
+              <td className="px-3 py-2">
+                <StatusBadge status={s.status} />
+              </td>
+              <td className="px-3 py-2">{formatDate(s.completed_at)}</td>
+              <td className="px-3 py-2 text-muted-foreground">{formatDate(s.created_at)}</td>
+            </tr>
+          ))}
+        </Table>
+      </QueryState>
+    </div>
   );
 }
 

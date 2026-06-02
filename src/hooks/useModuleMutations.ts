@@ -176,6 +176,30 @@ export function useAddMatterDocument(
   });
 }
 
+export function useAddSignatureRequest(
+  clientId: string,
+): UseMutationResult<void, Error, { title: string }> {
+  const qc = useQueryClient();
+  const { staff } = useAuth();
+  return useMutation<void, Error, { title: string }>({
+    mutationFn: async ({ title }) => {
+      if (!staff?.company_id) throw new Error("No active company.");
+      const token = (crypto.randomUUID?.() ?? `${Date.now()}${Math.random()}`)
+        .replace(/-/g, "")
+        .slice(0, 12);
+      const { error } = await supabase.from("signature_requests").insert({
+        company_id: staff.company_id,
+        entity_type: "client",
+        entity_id: clientId,
+        title,
+        short_token: token,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["client_signatures", clientId] }),
+  });
+}
+
 export function useReviewEligibility(): UseMutationResult<
   void,
   Error,
