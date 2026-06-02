@@ -32,6 +32,7 @@ import {
   ArrowLeftRight,
   PenLine,
   ListChecks,
+  Workflow,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth, ROLE_VIEWS } from "@/lib/auth";
@@ -74,6 +75,7 @@ const ADMINISTRATION: NavItem[] = [
   { to: "/litigation-teams", label: "Litigation Teams", icon: Users2 },
   { to: "/lead-rules", label: "Assignment Rules", icon: Shuffle },
   { to: "/task-templates", label: "Task Templates", icon: ListChecks },
+  { to: "/workflows", label: "Workflows", icon: Workflow },
   { to: "/payments", label: "Payments", icon: CreditCard },
   { to: "/transactions", label: "Transactions", icon: ArrowLeftRight },
   { to: "/templates", label: "Templates", icon: FileText },
