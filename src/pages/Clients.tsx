@@ -1,13 +1,22 @@
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useClients } from "@/hooks/useCoreCrm";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { NewClientDialog } from "@/components/clients/NewClientDialog";
+import { Input } from "@/components/ui/input";
 
 export default function Clients() {
   const { data, isLoading, error } = useClients();
   const navigate = useNavigate();
-  const rows = data ?? [];
+  const [search, setSearch] = useState("");
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return data ?? [];
+    return (data ?? []).filter((c) =>
+      `${c.first_name} ${c.last_name} ${c.email ?? ""}`.toLowerCase().includes(q),
+    );
+  }, [data, search]);
 
   return (
     <div className="space-y-4">
@@ -15,11 +24,19 @@ export default function Clients() {
         <h1 className="text-2xl font-semibold">Clients</h1>
         <NewClientDialog />
       </div>
+      {(data?.length ?? 0) > 0 && (
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or email…"
+          className="max-w-xs"
+        />
+      )}
       <QueryState
         isLoading={isLoading}
         error={error}
         isEmpty={rows.length === 0}
-        emptyMessage="No clients yet."
+        emptyMessage={search ? "No matches." : "No clients yet."}
       >
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">

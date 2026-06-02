@@ -1,13 +1,24 @@
+import { useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useLitigationMatters } from "@/hooks/useDomains";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { Input } from "@/components/ui/input";
 import { formatDate } from "@/lib/format";
 
 export default function Litigation() {
   const { data, isLoading, error } = useLitigationMatters();
   const navigate = useNavigate();
-  const rows = data ?? [];
+  const [search, setSearch] = useState("");
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return data ?? [];
+    return (data ?? []).filter((m) =>
+      `${m.case_number ?? ""} ${m.court_name ?? ""} ${m.opposing_party ?? ""} ${m.status}`
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [data, search]);
 
   return (
     <div className="space-y-4">
@@ -22,11 +33,19 @@ export default function Litigation() {
           </Link>
         </div>
       </div>
+      {(data?.length ?? 0) > 0 && (
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search case #, court, opposing party…"
+          className="max-w-xs"
+        />
+      )}
       <QueryState
         isLoading={isLoading}
         error={error}
         isEmpty={rows.length === 0}
-        emptyMessage="No litigation matters yet."
+        emptyMessage={search ? "No matches." : "No litigation matters yet."}
       >
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
