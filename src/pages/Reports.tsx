@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import {
   Bar,
   BarChart,
@@ -56,9 +57,14 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Reports</h1>
-        <p className="text-sm text-muted-foreground">Operational analytics across the firm.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Reports</h1>
+          <p className="text-sm text-muted-foreground">Operational analytics across the firm.</p>
+        </div>
+        <Link to="/reports/reconciliation" className="text-sm text-guardian-gold hover:underline">
+          Reconciliation
+        </Link>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

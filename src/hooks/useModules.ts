@@ -277,3 +277,41 @@ export const useCourtCalendar = (): UseQueryResult<CalendarHearingRow[], Error> 
       return (data ?? []) as unknown as CalendarHearingRow[];
     },
   });
+
+export interface ReconciliationRow {
+  id: string;
+  detector: string;
+  severity: string;
+  entity_type: string | null;
+  summary: string;
+  status: string;
+  created_at: string;
+}
+export const useReconciliation = (): UseQueryResult<ReconciliationRow[], Error> =>
+  useQuery({
+    queryKey: ["reconciliation_findings"],
+    queryFn: () =>
+      list<ReconciliationRow>(
+        "reconciliation_findings",
+        "id, detector, severity, entity_type, summary, status, created_at",
+      ),
+  });
+
+export interface ServiceCatalogRow {
+  id: string;
+  name: string;
+  service_type: string;
+  description: string | null;
+  is_active: boolean;
+}
+export const useServiceCatalog = (): UseQueryResult<ServiceCatalogRow[], Error> =>
+  useQuery({
+    queryKey: ["services_catalog"],
+    queryFn: () =>
+      list<ServiceCatalogRow>(
+        "services",
+        "id, name, service_type, description, is_active",
+        "name",
+        true,
+      ),
+  });

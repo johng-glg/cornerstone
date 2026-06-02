@@ -16,6 +16,7 @@ import {
   Building2,
   BarChart3,
   Building,
+  Package,
   UserCog,
   CreditCard,
   Plug,
@@ -60,6 +61,7 @@ const MAIN_MENU: NavItem[] = [
 ];
 
 const ADMINISTRATION: NavItem[] = [
+  { to: "/services", label: "Services", icon: Package },
   { to: "/creditors", label: "Creditors", icon: Building2 },
   { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/companies", label: "Companies", icon: Building },

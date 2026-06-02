@@ -271,7 +271,7 @@ export default function LitigationDetail() {
             </div>
 
             <Tabs defaultValue="overview">
-              <TabsList className="flex-wrap">
+              <TabsList className="w-full justify-start overflow-x-auto">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="hearings">Hearings</TabsTrigger>
                 <TabsTrigger value="activity">Activity</TabsTrigger>

@@ -171,7 +171,7 @@ export default function LeadDetail() {
             </div>
 
             <Tabs defaultValue="details">
-              <TabsList className="flex-wrap">
+              <TabsList className="w-full justify-start overflow-x-auto">
                 <TabsTrigger value="details">Details</TabsTrigger>
                 <TabsTrigger value="notes">Notes</TabsTrigger>
                 <TabsTrigger value="tasks">Tasks</TabsTrigger>

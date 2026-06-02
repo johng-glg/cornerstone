@@ -97,7 +97,7 @@ export default function EngagementDetail() {
             </div>
 
             <Tabs defaultValue="overview">
-              <TabsList className="flex-wrap">
+              <TabsList className="w-full justify-start overflow-x-auto">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="liabilities">Liabilities</TabsTrigger>
                 <TabsTrigger value="offers">Offers</TabsTrigger>
