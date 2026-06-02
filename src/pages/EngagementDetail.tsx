@@ -6,6 +6,10 @@ import { useEngagement, useClientLiabilities } from "@/hooks/useClientDetail";
 import { useClientPayments, useClientLitigation } from "@/hooks/useClientDetail";
 import { useSettlements, useAddSettlement } from "@/hooks/useSettlements";
 import { useRecordActivity } from "@/hooks/useActivityLog";
+import { AssignmentsPanel } from "@/components/common/AssignmentsPanel";
+import { ActivityFeed } from "@/components/common/ActivityFeed";
+import { StatusChanger } from "@/components/common/StatusChanger";
+import { STATUS_OPTIONS } from "@/lib/statuses";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { QuickFormDialog } from "@/components/common/QuickFormDialog";
@@ -65,7 +69,18 @@ export default function EngagementDetail() {
               <div>
                 <div className="flex items-center gap-3">
                   <h1 className="font-mono text-2xl font-semibold">{eng.data.service_number}</h1>
-                  <StatusBadge status={eng.data.status} />
+                  {id && (
+                    <StatusChanger
+                      table="client_services"
+                      id={id}
+                      current={eng.data.status}
+                      options={STATUS_OPTIONS.client_services}
+                      entityType="engagement"
+                      entityId={id}
+                      clientId={eng.data.primary_client_id}
+                      invalidateKeys={[["engagement", id]]}
+                    />
+                  )}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {planLabel} · {eng.data.term_months ?? "—"} mo · {eng.data.program_type ?? "—"}
@@ -105,6 +120,8 @@ export default function EngagementDetail() {
                 <TabsTrigger value="offers">Offers</TabsTrigger>
                 <TabsTrigger value="payments">Payments</TabsTrigger>
                 <TabsTrigger value="litigation">Litigation</TabsTrigger>
+                <TabsTrigger value="assignments">Assignments</TabsTrigger>
+                <TabsTrigger value="activity">Activity</TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview">
@@ -339,6 +356,18 @@ export default function EngagementDetail() {
                     ))}
                   </div>
                 </QueryState>
+              </TabsContent>
+              <TabsContent value="assignments" className="pt-2">
+                {id && (
+                  <AssignmentsPanel
+                    entityType="engagement"
+                    entityId={id}
+                    clientId={eng.data.primary_client_id}
+                  />
+                )}
+              </TabsContent>
+              <TabsContent value="activity" className="pt-2">
+                {id && <ActivityFeed entityType="engagement" entityId={id} />}
               </TabsContent>
             </Tabs>
           </>

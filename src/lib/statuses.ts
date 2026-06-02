@@ -1,0 +1,40 @@
+// Canonical status values per entity (mirror the Postgres enums). Single source of truth for the
+// status-change controls and the workflow builder's from/to status chips.
+export const STATUS_OPTIONS: Record<string, string[]> = {
+  leads: [
+    "new",
+    "contacted",
+    "qualified",
+    "intake",
+    "credit_review",
+    "plan_selection",
+    "qc_pending",
+    "docs_pending",
+    "eligibility_review",
+    "converted",
+    "lost",
+  ],
+  client_services: [
+    "prospect",
+    "pending",
+    "active",
+    "suspended",
+    "graduated",
+    "dropped",
+    "closed",
+    "cancelled",
+  ],
+  liabilities: ["enrolled", "in_negotiation", "settled", "in_litigation", "dismissed", "cancelled"],
+  litigation_matters: [
+    "new",
+    "pre_response",
+    "post_response",
+    "judgment",
+    "settled",
+    "dismissed",
+    "declined",
+    "dropped",
+  ],
+  tasks: ["pending", "in_progress", "completed", "cancelled"],
+  settlements: ["offered", "accepted", "rejected", "completed", "defaulted", "cancelled"],
+};
