@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { toast } from "sonner";
 import { useTasksList, useStaffList } from "@/hooks/useModules";
 import { useAddTask } from "@/hooks/useModuleMutations";
 import { ListPage } from "@/components/common/ListPage";
+import { QueryState } from "@/components/common/QueryState";
 import { QuickFormDialog } from "@/components/common/QuickFormDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { TaskKanban } from "@/components/tasks/TaskKanban";
 import { Button } from "@/components/ui/button";
 import { formatDate, titleCase } from "@/lib/format";
 
@@ -76,12 +79,59 @@ function NewTaskAction() {
 
 export default function Tasks() {
   const q = useTasksList();
+  const [view, setView] = useState<"list" | "board">("list");
+
+  const toggle = (
+    <div className="flex overflow-hidden rounded-md border text-sm">
+      <button
+        className={`px-3 py-1.5 ${view === "list" ? "bg-guardian-navy text-white" : "text-muted-foreground"}`}
+        onClick={() => setView("list")}
+      >
+        List
+      </button>
+      <button
+        className={`px-3 py-1.5 ${view === "board" ? "bg-guardian-navy text-white" : "text-muted-foreground"}`}
+        onClick={() => setView("board")}
+      >
+        Board
+      </button>
+    </div>
+  );
+  const actions = (
+    <>
+      {toggle}
+      <NewTaskAction />
+    </>
+  );
+
+  if (view === "board") {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold">Tasks</h1>
+            <p className="text-sm text-muted-foreground">Drag a card to change its status.</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">{actions}</div>
+        </div>
+        <QueryState
+          isLoading={q.isLoading}
+          error={q.error}
+          isEmpty={(q.data ?? []).length === 0}
+          emptyMessage="No tasks yet."
+        >
+          <TaskKanban tasks={q.data ?? []} />
+        </QueryState>
+      </div>
+    );
+  }
+
   return (
     <ListPage
       title="Tasks"
       description="Work items across leads, clients, and matters."
       query={q}
-      action={<NewTaskAction />}
+      action={actions}
       searchText={(t) => `${t.title} ${t.task_type} ${t.status} ${t.priority}`}
       exportRow={(t) => ({
         Title: t.title,

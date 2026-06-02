@@ -539,6 +539,21 @@ export interface NewTask {
   due_date?: string | null;
   assigned_to?: string | null;
 }
+export function useUpdateTaskStatus(): UseMutationResult<
+  void,
+  Error,
+  { id: string; status: string }
+> {
+  const qc = useQueryClient();
+  return useMutation<void, Error, { id: string; status: string }>({
+    mutationFn: async ({ id, status }) => {
+      const { error } = await supabase.from("tasks").update({ status }).eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks_all"] }),
+  });
+}
+
 export function useAddTask(): UseMutationResult<void, Error, NewTask> {
   const qc = useQueryClient();
   const { staff } = useAuth();
