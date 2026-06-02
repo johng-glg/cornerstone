@@ -1,5 +1,5 @@
 import { toast } from "sonner";
-import { useTasksList } from "@/hooks/useModules";
+import { useTasksList, useStaffList } from "@/hooks/useModules";
 import { useAddTask } from "@/hooks/useModuleMutations";
 import { ListPage } from "@/components/common/ListPage";
 import { QuickFormDialog } from "@/components/common/QuickFormDialog";
@@ -19,6 +19,7 @@ const PRIORITIES = ["low", "medium", "high", "urgent"];
 
 function NewTaskAction() {
   const add = useAddTask();
+  const staff = useStaffList();
   return (
     <QuickFormDialog
       trigger={<Button size="sm">New task</Button>}
@@ -40,6 +41,18 @@ function NewTaskAction() {
           defaultValue: "medium",
           options: PRIORITIES.map((p) => ({ value: p, label: titleCase(p) })),
         },
+        {
+          name: "assigned_to",
+          label: "Assign to",
+          type: "select",
+          options: [
+            { value: "", label: "Unassigned" },
+            ...(staff.data ?? []).map((s) => ({
+              value: s.id,
+              label: `${s.first_name} ${s.last_name}`,
+            })),
+          ],
+        },
         { name: "due_date", label: "Due date", type: "date" },
       ]}
       onSubmit={async (v) => {
@@ -48,6 +61,7 @@ function NewTaskAction() {
             title: v.title,
             task_type: v.task_type || "general",
             priority: v.priority || "medium",
+            assigned_to: v.assigned_to || null,
             due_date: v.due_date || null,
           });
           toast.success("Task created.");

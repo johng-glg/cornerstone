@@ -537,6 +537,7 @@ export interface NewTask {
   task_type?: string;
   priority?: string;
   due_date?: string | null;
+  assigned_to?: string | null;
 }
 export function useAddTask(): UseMutationResult<void, Error, NewTask> {
   const qc = useQueryClient();
@@ -552,6 +553,7 @@ export function useAddTask(): UseMutationResult<void, Error, NewTask> {
         priority: input.priority || "medium",
         status: "pending",
         due_date: input.due_date || null,
+        assigned_to: input.assigned_to || null,
       });
       if (error) throw new Error(error.message);
     },

@@ -8,7 +8,13 @@ const orderMock = vi.fn();
 const eq2 = vi.fn(() => ({ order: orderMock }));
 const eq1 = vi.fn(() => ({ eq: eq2, order: orderMock }));
 const selectMock = vi.fn(() => ({ eq: eq1 }));
-const insertMock = vi.fn(() => Promise.resolve({ error: null }));
+// insert(...) is awaited directly by some hooks, and chained .select("id").single() by
+// useAddNote. Return a Promise that also carries a select() chain.
+const insertSingle = vi.fn(() => Promise.resolve({ data: { id: "n1" }, error: null }));
+const insertSelect = vi.fn(() => ({ single: insertSingle }));
+const insertMock = vi.fn(() =>
+  Object.assign(Promise.resolve({ error: null }), { select: insertSelect }),
+);
 const updEq = vi.fn(() => Promise.resolve({ error: null }));
 const updateMock = vi.fn(() => ({ eq: updEq }));
 const delEq = vi.fn(() => Promise.resolve({ error: null }));

@@ -60,20 +60,30 @@ export function useEntityNotes(
   });
 }
 
-/** Add a note to any entity. `created_by` must be the caller's staff id (RLS). */
+/** Add a note to any entity, optionally @-tagging staff (note_mentions → notifications). */
 export function useAddNote(
   entityType: string,
   entityId: string,
   staffId: string | undefined,
-): UseMutationResult<void, Error, { content: string }> {
+): UseMutationResult<void, Error, { content: string; mentioned_staff_ids?: string[] }> {
   const qc = useQueryClient();
-  return useMutation<void, Error, { content: string }>({
-    mutationFn: async ({ content }) => {
+  return useMutation<void, Error, { content: string; mentioned_staff_ids?: string[] }>({
+    mutationFn: async ({ content, mentioned_staff_ids }) => {
       if (!staffId) throw new Error("No staff profile — cannot add a note.");
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("notes")
-        .insert({ entity_type: entityType, entity_id: entityId, content, created_by: staffId });
+        .insert({ entity_type: entityType, entity_id: entityId, content, created_by: staffId })
+        .select("id")
+        .single();
       if (error) throw new Error(error.message);
+      const ids = (mentioned_staff_ids ?? []).filter((s) => s && s !== staffId);
+      if (ids.length) {
+        const noteId = (data as { id: string }).id;
+        const { error: mErr } = await supabase
+          .from("note_mentions")
+          .insert(ids.map((sid) => ({ note_id: noteId, mentioned_staff_id: sid })));
+        if (mErr) throw new Error(mErr.message);
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: leadTabKeys.notes(entityType, entityId) }),
   });
