@@ -399,6 +399,62 @@ export function useAddMatterActivity(
   });
 }
 
+export interface CreditorPatch {
+  id: string;
+  name: string;
+  creditor_type: string;
+  state?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  is_active: boolean;
+}
+export function useUpdateCreditor(): UseMutationResult<void, Error, CreditorPatch> {
+  const qc = useQueryClient();
+  return useMutation<void, Error, CreditorPatch>({
+    mutationFn: async ({ id, ...p }) => {
+      const { error } = await supabase
+        .from("creditors")
+        .update({
+          name: p.name,
+          creditor_type: p.creditor_type,
+          state: p.state || null,
+          phone: p.phone || null,
+          email: p.email || null,
+          is_active: p.is_active,
+        })
+        .eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["creditors"] }),
+  });
+}
+
+export interface ServicePatch {
+  id: string;
+  name: string;
+  service_type: string;
+  description?: string | null;
+  is_active: boolean;
+}
+export function useUpdateService(): UseMutationResult<void, Error, ServicePatch> {
+  const qc = useQueryClient();
+  return useMutation<void, Error, ServicePatch>({
+    mutationFn: async ({ id, ...p }) => {
+      const { error } = await supabase
+        .from("services")
+        .update({
+          name: p.name,
+          service_type: p.service_type,
+          description: p.description || null,
+          is_active: p.is_active,
+        })
+        .eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["services_catalog"] }),
+  });
+}
+
 export interface NewService {
   name: string;
   service_type: string;

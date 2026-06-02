@@ -1,6 +1,6 @@
 import { toast } from "sonner";
-import { useCreditors } from "@/hooks/useModules";
-import { useAddCreditor } from "@/hooks/useModuleMutations";
+import { useCreditors, type CreditorRow } from "@/hooks/useModules";
+import { useAddCreditor, useUpdateCreditor } from "@/hooks/useModuleMutations";
 import { ListPage } from "@/components/common/ListPage";
 import { QuickFormDialog } from "@/components/common/QuickFormDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -13,6 +13,62 @@ const TYPES = [
   { value: "debt_buyer", label: "Debt Buyer" },
   { value: "law_firm", label: "Law Firm" },
 ];
+const ACTIVE_OPTS = [
+  { value: "true", label: "Active" },
+  { value: "false", label: "Inactive" },
+];
+
+function EditCreditorAction({ c }: { c: CreditorRow }) {
+  const update = useUpdateCreditor();
+  return (
+    <QuickFormDialog
+      trigger={
+        <Button size="sm" variant="ghost" className="h-7 text-xs">
+          Edit
+        </Button>
+      }
+      title="Edit creditor"
+      pending={update.isPending}
+      fields={[
+        { name: "name", label: "Name", required: true, full: true, defaultValue: c.name },
+        {
+          name: "creditor_type",
+          label: "Type",
+          type: "select",
+          options: TYPES,
+          defaultValue: c.creditor_type ?? "original_creditor",
+        },
+        { name: "state", label: "State", defaultValue: c.state ?? "" },
+        { name: "phone", label: "Phone", defaultValue: c.phone ?? "" },
+        { name: "email", label: "Email", type: "email", defaultValue: c.email ?? "" },
+        {
+          name: "is_active",
+          label: "Status",
+          type: "select",
+          options: ACTIVE_OPTS,
+          defaultValue: c.is_active ? "true" : "false",
+        },
+      ]}
+      onSubmit={async (v) => {
+        try {
+          await update.mutateAsync({
+            id: c.id,
+            name: v.name,
+            creditor_type: v.creditor_type,
+            state: v.state,
+            phone: v.phone,
+            email: v.email,
+            is_active: v.is_active === "true",
+          });
+          toast.success("Creditor updated.");
+        } catch (e) {
+          toast.error((e as Error).message);
+          throw e;
+        }
+      }}
+    />
+  );
+}
 
 function AddCreditorAction() {
   const add = useAddCreditor();
@@ -74,6 +130,7 @@ export default function Creditors() {
           header: "Active",
           cell: (c) => <StatusBadge status={c.is_active ? "active" : "inactive"} />,
         },
+        { header: "", cell: (c) => <EditCreditorAction c={c} /> },
       ]}
     />
   );
