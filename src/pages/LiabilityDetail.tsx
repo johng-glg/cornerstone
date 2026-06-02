@@ -10,6 +10,7 @@ import {
 import { useSettlements, useAddSettlement } from "@/hooks/useSettlements";
 import { useEntityNotes, useAddNote } from "@/hooks/useLeadTabs";
 import { useLitigationTeams, useStaffList } from "@/hooks/useModules";
+import { AssignmentsPanel } from "@/components/common/AssignmentsPanel";
 import { QueryState } from "@/components/common/QueryState";
 import { QuickFormDialog } from "@/components/common/QuickFormDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -293,11 +294,15 @@ export default function LiabilityDetail() {
             <Tabs defaultValue="settlements">
               <TabsList className="w-full justify-start overflow-x-auto">
                 <TabsTrigger value="settlements">Settlements</TabsTrigger>
+                <TabsTrigger value="assignments">Assignments</TabsTrigger>
                 <TabsTrigger value="notes">Notes</TabsTrigger>
                 <TabsTrigger value="history">History</TabsTrigger>
               </TabsList>
               <TabsContent value="settlements" className="pt-4">
                 <SettlementsTab liabilityId={l.id} />
+              </TabsContent>
+              <TabsContent value="assignments" className="pt-4">
+                <AssignmentsPanel entityType="liability" entityId={l.id} />
               </TabsContent>
               <TabsContent value="notes" className="pt-4">
                 <NotesTab liabilityId={l.id} />
