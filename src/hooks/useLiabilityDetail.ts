@@ -23,6 +23,7 @@ export interface LiabilityDetailRow {
   client_service_id: string;
   summons_received_at: string | null;
   creditor: { name: string } | null;
+  client_service: { primary_client_id: string | null } | null;
 }
 
 export function useLiability(id: string | undefined): UseQueryResult<LiabilityDetailRow, Error> {
@@ -33,7 +34,7 @@ export function useLiability(id: string | undefined): UseQueryResult<LiabilityDe
       const { data, error } = await supabase
         .from("liabilities")
         .select(
-          "id, account_number, liability_type, status, original_balance, current_balance, enrolled_balance, notes, client_service_id, summons_received_at, creditor:creditors!current_creditor_id(name)",
+          "id, account_number, liability_type, status, original_balance, current_balance, enrolled_balance, notes, client_service_id, summons_received_at, creditor:creditors!current_creditor_id(name), client_service:client_services!client_service_id(primary_client_id)",
         )
         .eq("id", id!)
         .single();

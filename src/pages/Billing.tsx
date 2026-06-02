@@ -7,10 +7,19 @@ import { ListPage } from "@/components/common/ListPage";
 import { QuickFormDialog } from "@/components/common/QuickFormDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
+import type { BillingListRow } from "@/hooks/useModules";
 import { formatCurrency, formatDate, titleCase } from "@/lib/format";
 
 // Radix Select rejects empty-string values, so "not linked" uses this sentinel (mapped to null).
 const NONE = "__none__";
+
+/** Short label for whatever a billing entry is associated with. */
+function linkedLabel(b: BillingListRow): string {
+  if (b.litigation_matter) return `Matter ${b.litigation_matter.case_number ?? ""}`.trim();
+  if (b.client_service) return `Engagement ${b.client_service.service_number}`;
+  if (b.client) return `${b.client.first_name} ${b.client.last_name}`;
+  return "—";
+}
 
 function AddBillingAction() {
   const add = useAddBillingEntry();
@@ -126,6 +135,7 @@ export default function Billing() {
         { header: "Date", cell: (b) => formatDate(b.billing_date) },
         { header: "Type", cell: (b) => titleCase(b.entry_type) },
         { header: "Description", cell: (b) => b.description },
+        { header: "Linked to", cell: (b) => linkedLabel(b) },
         { header: "Amount", cell: (b) => formatCurrency(b.total_amount) },
         { header: "Billable", cell: (b) => (b.is_billable ? "Yes" : "No") },
         { header: "Status", cell: (b) => <StatusBadge status={b.status} /> },

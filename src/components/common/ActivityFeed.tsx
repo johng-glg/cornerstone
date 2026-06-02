@@ -1,13 +1,10 @@
-import { useActivityLog } from "@/hooks/useActivityLog";
+import type { UseQueryResult } from "@tanstack/react-query";
+import { useActivityLog, useClientActivity, type ActivityRow } from "@/hooks/useActivityLog";
 import { QueryState } from "@/components/common/QueryState";
 import { formatDateTime, titleCase } from "@/lib/format";
 
-/**
- * Reusable activity timeline for any record. Reads the unified activity_log for the given entity
- * and renders newest-first, showing who did what and when.
- */
-export function ActivityFeed({ entityType, entityId }: { entityType: string; entityId: string }) {
-  const q = useActivityLog(entityType, entityId);
+/** Presentational timeline (newest-first), shared by the per-entity and client-rollup feeds. */
+function ActivityList({ q }: { q: UseQueryResult<ActivityRow[], Error> }) {
   const rows = q.data ?? [];
   return (
     <QueryState
@@ -38,4 +35,14 @@ export function ActivityFeed({ entityType, entityId }: { entityType: string; ent
       </ul>
     </QueryState>
   );
+}
+
+/** Activity timeline for a single record (e.g. a liability or matter). */
+export function ActivityFeed({ entityType, entityId }: { entityType: string; entityId: string }) {
+  return <ActivityList q={useActivityLog(entityType, entityId)} />;
+}
+
+/** Rolled-up activity timeline for a client (its own events + stamped child-record events). */
+export function ClientActivityFeed({ clientId }: { clientId: string }) {
+  return <ActivityList q={useClientActivity(clientId)} />;
 }

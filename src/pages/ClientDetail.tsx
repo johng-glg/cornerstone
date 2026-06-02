@@ -10,6 +10,7 @@ import {
 } from "@/hooks/useClientDetail";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { ClientActivityFeed } from "@/components/common/ActivityFeed";
 import { NotesTab } from "@/components/leads/tabs/NotesTab";
 import { TasksTab } from "@/components/leads/tabs/TasksTab";
 import { ClientEditDialog } from "@/components/clients/ClientEditDialog";
@@ -102,6 +103,7 @@ export default function ClientDetail() {
                 <TabsTrigger value="signatures">Signatures</TabsTrigger>
                 <TabsTrigger value="notes">Notes</TabsTrigger>
                 <TabsTrigger value="comms">Comms</TabsTrigger>
+                <TabsTrigger value="activity">Activity</TabsTrigger>
               </TabsList>
 
               {/* OVERVIEW */}
@@ -286,6 +288,9 @@ export default function ClientDetail() {
                 {id && <TasksTab entityId={id} entityType="client" />}
               </TabsContent>
               <TabsContent value="comms">{id && <ClientCommsTab clientId={id} />}</TabsContent>
+              <TabsContent value="activity">
+                {id && <ClientActivityFeed clientId={id} />}
+              </TabsContent>
             </Tabs>
 
             <ClientEditDialog client={client.data} open={editing} onOpenChange={setEditing} />

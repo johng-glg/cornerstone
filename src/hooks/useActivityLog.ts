@@ -40,6 +40,30 @@ export function useActivityLog(
   });
 }
 
+/**
+ * Rolled-up feed for a client: events recorded directly against the client, plus child-record
+ * events (a liability's assignments/settlements, etc.) stamped with this client_id.
+ */
+export function useClientActivity(
+  clientId: string | undefined,
+): UseQueryResult<ActivityRow[], Error> {
+  return useQuery({
+    queryKey: ["activity_log_client", clientId],
+    enabled: !!clientId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activity_log")
+        .select(
+          "id, entity_type, entity_id, category, description, metadata, created_at, performed_by, staff:performed_by(first_name, last_name)",
+        )
+        .or(`client_id.eq.${clientId},and(entity_type.eq.client,entity_id.eq.${clientId})`)
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as ActivityRow[];
+    },
+  });
+}
+
 export interface ActivityInput {
   entityType: string;
   entityId: string;

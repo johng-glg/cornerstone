@@ -64,6 +64,9 @@ export interface BillingListRow {
   total_amount: number;
   is_billable: boolean;
   status: string;
+  client: { first_name: string; last_name: string } | null;
+  client_service: { service_number: string } | null;
+  litigation_matter: { case_number: string | null } | null;
 }
 export const useBillingList = (): UseQueryResult<BillingListRow[], Error> =>
   useQuery({
@@ -71,7 +74,7 @@ export const useBillingList = (): UseQueryResult<BillingListRow[], Error> =>
     queryFn: () =>
       list<BillingListRow>(
         "billing_entries",
-        "id, entry_type, description, billing_date, total_amount, is_billable, status",
+        "id, entry_type, description, billing_date, total_amount, is_billable, status, client:clients!client_id(first_name, last_name), client_service:client_services!client_service_id(service_number), litigation_matter:litigation_matters!litigation_matter_id(case_number)",
         "billing_date",
       ),
   });

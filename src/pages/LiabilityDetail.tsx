@@ -39,7 +39,15 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function SettlementActions({ s, liabilityId }: { s: SettlementRow; liabilityId: string }) {
+function SettlementActions({
+  s,
+  liabilityId,
+  clientId,
+}: {
+  s: SettlementRow;
+  liabilityId: string;
+  clientId?: string | null;
+}) {
   const update = useUpdateSettlementStatus();
   const record = useRecordActivity();
   const run = (transition: SettlementTransition, description: string, toastMsg: string) =>
@@ -50,6 +58,7 @@ function SettlementActions({ s, liabilityId }: { s: SettlementRow; liabilityId: 
           void record({
             entityType: "liability",
             entityId: liabilityId,
+            clientId,
             category: "settlement",
             description,
             metadata: { settlement_id: s.id, transition },
@@ -116,7 +125,13 @@ function SettlementActions({ s, liabilityId }: { s: SettlementRow; liabilityId: 
   return btns.length ? <span className="flex flex-wrap gap-1">{btns}</span> : <span>—</span>;
 }
 
-function SettlementsTab({ liabilityId }: { liabilityId: string }) {
+function SettlementsTab({
+  liabilityId,
+  clientId,
+}: {
+  liabilityId: string;
+  clientId?: string | null;
+}) {
   const q = useSettlements([liabilityId]);
   const add = useAddSettlement();
   const record = useRecordActivity();
@@ -172,6 +187,7 @@ function SettlementsTab({ liabilityId }: { liabilityId: string }) {
               await record({
                 entityType: "liability",
                 entityId: liabilityId,
+                clientId,
                 category: "settlement",
                 description: `Settlement offer of ${formatCurrency(amount)} created`,
                 metadata: { offer_amount: amount, payment_type: v.payment_type },
@@ -223,7 +239,7 @@ function SettlementsTab({ liabilityId }: { liabilityId: string }) {
                   </td>
                   <td className="px-3 py-2">{formatDate(s.offered_date)}</td>
                   <td className="px-3 py-2">
-                    <SettlementActions s={s} liabilityId={liabilityId} />
+                    <SettlementActions s={s} liabilityId={liabilityId} clientId={clientId} />
                   </td>
                 </tr>
               ))}
@@ -390,6 +406,7 @@ export default function LiabilityDetail() {
   const location = useLocation();
   const q = useLiability(id);
   const l = q.data;
+  const clientId = l?.client_service?.primary_client_id ?? null;
 
   // Go back to wherever we came from (e.g. a client record) when there's in-app history;
   // fall back to the liabilities list on a fresh/direct load (location.key === "default").
@@ -466,10 +483,10 @@ export default function LiabilityDetail() {
                 <TabsTrigger value="history">History</TabsTrigger>
               </TabsList>
               <TabsContent value="settlements" className="pt-4">
-                <SettlementsTab liabilityId={l.id} />
+                <SettlementsTab liabilityId={l.id} clientId={clientId} />
               </TabsContent>
               <TabsContent value="assignments" className="pt-4">
-                <AssignmentsPanel entityType="liability" entityId={l.id} />
+                <AssignmentsPanel entityType="liability" entityId={l.id} clientId={clientId} />
               </TabsContent>
               <TabsContent value="activity" className="pt-4">
                 <ActivityFeed entityType="liability" entityId={l.id} />
