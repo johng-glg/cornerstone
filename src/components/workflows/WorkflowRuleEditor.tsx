@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Plus, X } from "lucide-react";
 import {
   useSaveWorkflowRule,
+  useWorkflowGroups,
   WORKFLOW_ENTITIES,
   WORKFLOW_TRIGGERS,
   WORKFLOW_ACTIONS,
@@ -13,6 +14,8 @@ import {
   type WfCondition,
   type WfAction,
 } from "@/hooks/useWorkflows";
+
+const NO_GROUP = "__none__";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -117,6 +120,9 @@ export function WorkflowRuleEditor({ rule }: { rule?: WorkflowRule }) {
   const [actions, setActions] = useState<WfAction[]>(
     rule?.actions?.length ? rule.actions : [{ type: "create_task", config: {} }],
   );
+  const [groupId, setGroupId] = useState(rule?.group_id ?? NO_GROUP);
+  const groups = useWorkflowGroups();
+  const entityGroups = (groups.data ?? []).filter((g) => g.entity_type === entity);
 
   const statusOptions = ENTITY_STATUS_OPTIONS[entity] ?? [];
   const showTransition = trigger === "status_changed";
@@ -156,6 +162,7 @@ export function WorkflowRuleEditor({ rule }: { rule?: WorkflowRule }) {
         conditions: conditions.filter((c) => c.field.trim()),
         actions,
         trigger_config: showTransition ? { from_status: fromStatus, to_status: toStatus } : {},
+        group_id: groupId && groupId !== NO_GROUP ? groupId : null,
       });
       toast.success(editing ? "Rule updated." : "Rule created.");
       setOpen(false);
@@ -360,6 +367,27 @@ export function WorkflowRuleEditor({ rule }: { rule?: WorkflowRule }) {
                   Active
                 </label>
               </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Group</Label>
+              <Select value={groupId} onValueChange={setGroupId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="No group" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_GROUP}>No group</SelectItem>
+                  {entityGroups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      {g.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {entityGroups.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No groups for this entity yet — create one on the Workflows page.
+                </p>
+              )}
             </div>
             <div className="space-y-1">
               <Label>Description</Label>

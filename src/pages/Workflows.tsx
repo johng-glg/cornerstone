@@ -1,7 +1,15 @@
 import { toast } from "sonner";
-import { useWorkflowRules, useToggleWorkflowRule, type WorkflowRule } from "@/hooks/useWorkflows";
+import {
+  useWorkflowRules,
+  useToggleWorkflowRule,
+  useWorkflowGroups,
+  useCreateWorkflowGroup,
+  WORKFLOW_ENTITIES,
+  type WorkflowRule,
+} from "@/hooks/useWorkflows";
 import { WorkflowRuleEditor } from "@/components/workflows/WorkflowRuleEditor";
 import { ListPage } from "@/components/common/ListPage";
+import { QuickFormDialog } from "@/components/common/QuickFormDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { titleCase } from "@/lib/format";
@@ -29,17 +37,69 @@ function ToggleRule({ rule }: { rule: WorkflowRule }) {
   );
 }
 
+function NewGroupAction() {
+  const create = useCreateWorkflowGroup();
+  return (
+    <QuickFormDialog
+      trigger={
+        <Button size="sm" variant="outline">
+          New group
+        </Button>
+      }
+      title="New workflow group"
+      description="Group related rules (e.g. by state or matter type), per entity."
+      pending={create.isPending}
+      fields={[
+        { name: "name", label: "Group name", required: true, full: true },
+        {
+          name: "entity_type",
+          label: "Entity",
+          type: "select",
+          defaultValue: "leads",
+          options: WORKFLOW_ENTITIES.map((e) => ({ value: e, label: titleCase(e) })),
+        },
+        { name: "color", label: "Color (optional)", placeholder: "#1F3A5C" },
+        { name: "description", label: "Description", type: "textarea" },
+      ]}
+      onSubmit={async (v) => {
+        try {
+          await create.mutateAsync({
+            name: v.name,
+            entity_type: v.entity_type || "leads",
+            color: v.color || null,
+            description: v.description || null,
+          });
+          toast.success("Group created.");
+        } catch (e) {
+          toast.error((e as Error).message);
+          throw e;
+        }
+      }}
+    />
+  );
+}
+
 export default function Workflows() {
   const q = useWorkflowRules();
+  const groups = useWorkflowGroups();
+  const groupName = (id: string | null) =>
+    id ? ((groups.data ?? []).find((g) => g.id === id)?.name ?? "—") : "—";
+
   return (
     <ListPage
       title="Workflows"
-      description="Automation rules: when a trigger fires on an entity, run an action."
+      description="Automation rules: when a trigger fires on an entity, run an action. Group related rules to organize them."
       query={q}
-      action={<WorkflowRuleEditor />}
-      searchText={(r) => `${r.name} ${r.entity_type} ${r.trigger_type}`}
+      action={
+        <span className="flex gap-2">
+          <NewGroupAction />
+          <WorkflowRuleEditor />
+        </span>
+      }
+      searchText={(r) => `${r.name} ${r.entity_type} ${r.trigger_type} ${groupName(r.group_id)}`}
       exportRow={(r) => ({
         Name: r.name,
+        Group: groupName(r.group_id),
         Entity: titleCase(r.entity_type),
         Trigger: titleCase(r.trigger_type),
         Actions: (r.actions ?? []).map((a) => a.type).join("; "),
@@ -51,6 +111,7 @@ export default function Workflows() {
       empty="No workflow rules yet."
       columns={[
         { header: "Name", cell: (r) => r.name },
+        { header: "Group", cell: (r) => groupName(r.group_id) },
         { header: "Entity", cell: (r) => titleCase(r.entity_type) },
         { header: "Trigger", cell: (r) => titleCase(r.trigger_type) },
         {
