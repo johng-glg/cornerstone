@@ -109,6 +109,9 @@ jobs:
       - name: Workflow actions (update_field / auto_graduate)
         run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f tests/db/workflow_actions.test.sql
 
+      - name: Lead-assignment engine (auto-route on create)
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f tests/db/lead_assignment.test.sql
+
       - name: Stop Supabase
         if: always()
         run: npx supabase stop
