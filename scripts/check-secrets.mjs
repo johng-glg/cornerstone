@@ -4,8 +4,10 @@
  * credential never lands in a commit; full history scanning (gitleaks) + SAST (CodeQL)
  * are added in Phase D per the seed.
  *
- * Fails on high-signal patterns: private key blocks, AWS access keys, and Supabase/JWT
- * service-role tokens. Skips this script, the env template, and verbatim reference docs.
+ * Fails on high-signal patterns: private key blocks, AWS access keys, and Supabase
+ * **service_role** JWTs. The publishable `anon` JWT is safe to embed in the frontend, so
+ * JWT-shaped tokens are decoded and only flagged when their role claim is `service_role`.
+ * Skips this script, the env template, and verbatim reference docs.
  *
  * Exit 0 = clean. Exit 1 = potential secret found.
  */
@@ -25,14 +27,21 @@ const PATTERNS = [
   { name: "Private key block", re: /-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----/ },
   { name: "AWS access key id", re: /\bAKIA[0-9A-Z]{16}\b/ },
   {
-    name: "Supabase/JWT service token",
-    re: /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/,
-  },
-  {
     name: "Generic hardcoded secret assignment",
     re: /(?:service_role_key|secret_key|api[_-]?secret)\s*[:=]\s*["'][A-Za-z0-9/+=_-]{24,}["']/i,
   },
 ];
+
+// JWTs are decoded and only flagged when the role claim is service_role (anon is publishable).
+const JWT_RE = /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g;
+function jwtRole(token) {
+  try {
+    const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(Buffer.from(payload, "base64").toString("utf8")).role ?? null;
+  } catch {
+    return null;
+  }
+}
 
 const tracked = execSync("git ls-files", { encoding: "utf8" })
   .split("\n")
@@ -50,6 +59,11 @@ for (const file of tracked) {
   }
   for (const { name, re } of PATTERNS) {
     if (re.test(content)) findings.push({ file, name });
+  }
+  for (const m of content.matchAll(JWT_RE)) {
+    if (jwtRole(m[0]) === "service_role") {
+      findings.push({ file, name: "Supabase service_role JWT" });
+    }
   }
 }
 
