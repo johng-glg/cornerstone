@@ -17,6 +17,8 @@ import { ActivityFeed } from "@/components/common/ActivityFeed";
 import { QueryState } from "@/components/common/QueryState";
 import { QuickFormDialog } from "@/components/common/QuickFormDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { StatusChanger } from "@/components/common/StatusChanger";
+import { STATUS_OPTIONS } from "@/lib/statuses";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -401,7 +403,16 @@ export default function LiabilityDetail() {
               <div>
                 <h1 className="flex items-center gap-2 text-2xl font-semibold">
                   {titleCase(l.liability_type)}
-                  <StatusBadge status={l.status} />
+                  <StatusChanger
+                    table="liabilities"
+                    id={l.id}
+                    current={l.status}
+                    options={STATUS_OPTIONS.liabilities}
+                    entityType="liability"
+                    entityId={l.id}
+                    clientId={clientId}
+                    invalidateKeys={[["liability", l.id]]}
+                  />
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   {l.creditor?.name ?? "—"}

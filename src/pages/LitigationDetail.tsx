@@ -18,6 +18,10 @@ import {
 } from "@/hooks/useModuleMutations";
 import { QueryState } from "@/components/common/QueryState";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { StatusChanger } from "@/components/common/StatusChanger";
+import { AssignmentsPanel } from "@/components/common/AssignmentsPanel";
+import { ActivityFeed } from "@/components/common/ActivityFeed";
+import { STATUS_OPTIONS } from "@/lib/statuses";
 import { QuickFormDialog } from "@/components/common/QuickFormDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -253,7 +257,17 @@ export default function LitigationDetail() {
               <div>
                 <div className="flex items-center gap-3">
                   <h1 className="text-2xl font-semibold">{matter.data.case_number ?? "Matter"}</h1>
-                  <StatusBadge status={matter.data.status} />
+                  {id && (
+                    <StatusChanger
+                      table="litigation_matters"
+                      id={id}
+                      current={matter.data.status}
+                      options={STATUS_OPTIONS.litigation_matters}
+                      entityType="litigation_matter"
+                      entityId={id}
+                      invalidateKeys={[["matter", id], ["litigation_matters"]]}
+                    />
+                  )}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {matter.data.court_name ?? "—"}
@@ -274,6 +288,8 @@ export default function LitigationDetail() {
               <TabsList className="w-full justify-start overflow-x-auto">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="hearings">Hearings</TabsTrigger>
+                <TabsTrigger value="assignments">Assignments</TabsTrigger>
+                <TabsTrigger value="timeline">Timeline</TabsTrigger>
                 <TabsTrigger value="activity">Activity</TabsTrigger>
                 <TabsTrigger value="appearances">Appearances</TabsTrigger>
                 <TabsTrigger value="fees">Filing Fees</TabsTrigger>
@@ -356,6 +372,14 @@ export default function LitigationDetail() {
                     ))}
                   </div>
                 </QueryState>
+              </TabsContent>
+
+              <TabsContent value="assignments" className="pt-2">
+                {id && <AssignmentsPanel entityType="litigation_matter" entityId={id} />}
+              </TabsContent>
+
+              <TabsContent value="timeline" className="pt-2">
+                {id && <ActivityFeed entityType="litigation_matter" entityId={id} />}
               </TabsContent>
 
               <TabsContent value="activity" className="space-y-3">

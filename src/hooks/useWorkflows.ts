@@ -36,17 +36,10 @@ export const WORKFLOW_ACTIONS = [
 export const WORKFLOW_OPERATORS = ["eq", "neq", "gt", "gte", "lt", "lte", "contains", "in"];
 
 /**
- * Status values per entity, used by the "When" step's from/to status-transition chips. These are
- * starting sets an admin can match against; the settlement set mirrors the settlement_status enum.
+ * Status values per entity, used by the "When" step's from/to status-transition chips.
+ * Sourced from the canonical enum mirror in src/lib/statuses.ts.
  */
-export const ENTITY_STATUS_OPTIONS: Record<string, string[]> = {
-  leads: ["new", "contacted", "qualified", "nurturing", "converted", "lost"],
-  client_services: ["prospect", "pending", "active", "hold", "cancelled", "graduated"],
-  liabilities: ["active", "in_negotiation", "settled", "litigation", "closed"],
-  litigation_matters: ["pre_litigation", "filed", "discovery", "hearing", "settled", "closed"],
-  tasks: ["pending", "in_progress", "completed", "cancelled"],
-  settlements: ["offered", "accepted", "rejected", "completed", "defaulted", "cancelled"],
-};
+export { STATUS_OPTIONS as ENTITY_STATUS_OPTIONS } from "@/lib/statuses";
 
 /** Config fields each action type needs (key + label). auto_graduate has none. */
 export const ACTION_FIELDS: Record<string, { key: string; label: string }[]> = {
