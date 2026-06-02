@@ -6,6 +6,7 @@ import { z } from "https://esm.sh/zod@3.23.8";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { enforceRateLimit, clientIp } from "../_shared/rateLimit.ts";
 import { verifyHmacSha256Base64 } from "../_shared/hmac.ts";
+import { looksLikeJwt, verifyHs256Jwt } from "../_shared/jwt.ts";
 import { logIntegrationEvent } from "../_shared/integrations.ts";
 import {
   normalizeE164,
@@ -34,10 +35,33 @@ export async function handler(req: Request): Promise<Response> {
   if (limited) return limited;
 
   const raw = await req.text();
-  const signature =
-    req.headers.get("x-dialpad-signature") ?? req.headers.get("X-Dialpad-Signature") ?? "";
   const secret = Deno.env.get("DIALPAD_WEBHOOK_SECRET") ?? "";
-  if (!(await verifyHmacSha256Base64(raw, secret, signature))) {
+
+  // Dialpad signs events as an HS256 JWT (the body *is* the token) when a secret is set; the
+  // claims are the event. The legacy/mock path is raw JSON + a base64 HMAC in x-dialpad-signature.
+  // Either proves authenticity; anything else is rejected. HMAC/JWT is the trust boundary.
+  let evt: Evt | null = null;
+  const trimmed = raw.trim();
+  if (looksLikeJwt(trimmed)) {
+    const payload = await verifyHs256Jwt(trimmed, secret);
+    if (payload) {
+      const parsed = EvtSchema.safeParse(payload);
+      if (parsed.success) evt = parsed.data as Evt;
+    }
+  }
+  if (evt === null) {
+    const signature =
+      req.headers.get("x-dialpad-signature") ?? req.headers.get("X-Dialpad-Signature") ?? "";
+    if (signature && (await verifyHmacSha256Base64(raw, secret, signature))) {
+      try {
+        const parsed = EvtSchema.safeParse(JSON.parse(raw));
+        if (parsed.success) evt = parsed.data as Evt;
+      } catch {
+        /* tolerate non-JSON / malformed bodies */
+      }
+    }
+  }
+  if (evt === null) {
     await logIntegrationEvent({
       providerKey: "dialpad",
       eventType: "inbound_webhook",
@@ -46,14 +70,6 @@ export async function handler(req: Request): Promise<Response> {
       errorMessage: "invalid signature",
     });
     return jsonResponse(req, { error: "invalid signature" }, 401);
-  }
-
-  let evt: Evt = {};
-  try {
-    const parsed = EvtSchema.safeParse(JSON.parse(raw));
-    if (parsed.success) evt = parsed.data as Evt;
-  } catch {
-    /* tolerate non-JSON / malformed bodies */
   }
 
   const admin = createClient(

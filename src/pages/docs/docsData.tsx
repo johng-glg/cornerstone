@@ -796,7 +796,16 @@ export const EDGE_FUNCTIONS: EdgeFnDoc[] = [
   { name: "forth-contact-close", vendor: "Forth", desc: "Closes a Forth contact." },
   { name: "forth-test-connection", vendor: "Forth", desc: "Validates Forth credentials." },
   { name: "dialpad-initiate", vendor: "Dialpad", desc: "Starts an outbound call." },
-  { name: "dialpad-webhook", vendor: "Dialpad", desc: "Receives call events → dialpad_calls." },
+  {
+    name: "dialpad-webhook",
+    vendor: "Dialpad",
+    desc: "Receives JWT-signed call events → dialpad_calls.",
+  },
+  {
+    name: "dialpad-register-webhook",
+    vendor: "Dialpad",
+    desc: "One-time: creates the Dialpad webhook + call-event subscription via the API.",
+  },
   { name: "dialpad-test-connection", vendor: "Dialpad", desc: "Validates Dialpad credentials." },
   { name: "docuseal-send", vendor: "DocuSeal", desc: "Sends a document for signature." },
   {
