@@ -22,12 +22,23 @@ interface DryRunResult {
   mappable: number;
   already_imported: number;
   would_import: number;
+  debts_found: number;
+  offers_found: number;
+  debt_source: string;
+  offer_source: string;
+  raw_debt_sample: unknown;
   errors: { id: string; error: string }[];
-  previews: { client: { last_name: string; email: string }; service: { status: string } }[];
+  previews: {
+    client: { last_name: string; email: string };
+    service: { status: string };
+    liabilities: { settlements: unknown[] }[];
+  }[];
 }
 interface ImportResult {
   imported: number;
   already_imported: number;
+  debts_imported: number;
+  offers_imported: number;
   records: { service_number: string | null }[];
   errors: { id: string; error: string }[];
 }
@@ -106,10 +117,14 @@ export function ForthImportButton({
     if (dry) {
       const d = data as DryRunResult;
       setPreview(d);
-      toast.success(`Preview: ${d.would_import} new, ${d.already_imported} already imported.`);
+      toast.success(
+        `Preview: ${d.would_import} new · ${d.debts_found} debts · ${d.offers_found} offers.`,
+      );
     } else {
       const d = data as ImportResult;
-      toast.success(`Imported ${d.imported} anonymized client(s).`);
+      toast.success(
+        `Imported ${d.imported} client(s), ${d.debts_imported} debts, ${d.offers_imported} offers.`,
+      );
       setOpen(false);
       reset();
     }
@@ -155,11 +170,29 @@ export function ForthImportButton({
                 {preview.would_import} would import · {preview.already_imported} already imported ·{" "}
                 {preview.errors.length} error(s)
               </p>
+              <p className="mt-1 text-muted-foreground">
+                {preview.debts_found} debts · {preview.offers_found} offers
+                {preview.debt_source !== "none" ? ` · debts via ${preview.debt_source}` : ""}
+                {preview.offer_source !== "none" ? ` · offers via ${preview.offer_source}` : ""}
+              </p>
+              {preview.would_import > 0 && preview.debts_found === 0 && (
+                <p className="mt-1 text-amber-600">
+                  No debts found at the probed Forth endpoints. The masked raw sample below shows
+                  what Forth returned — share it so the field mapping can be corrected.
+                </p>
+              )}
+              {preview.debts_found === 0 && preview.raw_debt_sample != null && (
+                <pre className="mt-2 max-h-32 overflow-auto rounded bg-background p-2 text-[10px] leading-tight">
+                  {JSON.stringify(preview.raw_debt_sample, null, 1)}
+                </pre>
+              )}
               {preview.previews.length > 0 && (
                 <ul className="mt-2 space-y-0.5 text-muted-foreground">
                   {preview.previews.slice(0, 5).map((p, i) => (
                     <li key={i}>
-                      {p.client.last_name} · {p.client.email} · {p.service.status}
+                      {p.client.last_name} · {p.client.email} · {p.service.status} ·{" "}
+                      {p.liabilities.length} debt(s),{" "}
+                      {p.liabilities.reduce((n, l) => n + l.settlements.length, 0)} offer(s)
                     </li>
                   ))}
                 </ul>
