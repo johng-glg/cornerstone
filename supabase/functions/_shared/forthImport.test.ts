@@ -111,11 +111,43 @@ Deno.test("mapDebts maps the real Forth debt shape", () => {
   assert(!blob.includes("12345678") && !blob.includes("6033912")); // account numbers scrubbed
 });
 
-Deno.test("liabilityStatusFromDebt derives status from flags", () => {
+Deno.test(
+  "mapDebts handles the live enrolled-debt shape (string numbers, debt_type object)",
+  () => {
+    const d = mapDebts([
+      {
+        id: "412566458",
+        original_debt_amount: "6229.00",
+        current_debt_amount: "6229.00",
+        creditor: { object: "creditors", company_name: "Capital One\t", first_name: "***" },
+        legal_account: "***",
+        has_summons: "0",
+        settled: "0",
+        settlement_id: null,
+        enrolled: "1",
+        debt_type: { type_id: "1", label: "Credit Card", est_settlement: "0.00" },
+        og_account_num: "***",
+        creditor_account_num: "***",
+        settlement_offers: [],
+      },
+    ])[0];
+    assertEquals(d.current_balance, 6229); // string "6229.00" parsed
+    assertEquals(d.original_balance, 6229);
+    assertEquals(d.creditor_name, "Capital One"); // trailing tab trimmed
+    assertEquals(d.liability_type, "credit_card"); // from debt_type.label
+    assertEquals(d.status, "enrolled");
+    assertEquals(d.settlements.length, 0);
+  },
+);
+
+Deno.test("liabilityStatusFromDebt derives status from flags (incl. Forth string booleans)", () => {
   assertEquals(liabilityStatusFromDebt({ settled: true }), "settled");
+  assertEquals(liabilityStatusFromDebt({ settled: "1" }), "settled");
   assertEquals(liabilityStatusFromDebt({ settlement_id: 4200 }), "settled");
   assertEquals(liabilityStatusFromDebt({ has_summons: true }), "in_litigation");
+  assertEquals(liabilityStatusFromDebt({ has_summons: "1" }), "in_litigation");
   assertEquals(liabilityStatusFromDebt({ legal_account: "Yes" }), "in_litigation");
+  assertEquals(liabilityStatusFromDebt({ settled: "0", has_summons: "0" }), "enrolled");
   assertEquals(liabilityStatusFromDebt({}), "enrolled");
 });
 
