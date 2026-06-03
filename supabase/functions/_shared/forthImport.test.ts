@@ -1,8 +1,10 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
 import {
   anonKey,
+  dummyFirstName,
   extractContactId,
   hashId,
+  isEnrolledDebt,
   mapContact,
   mapDebts,
   mapForthStatusToService,
@@ -59,15 +61,29 @@ Deno.test("mapContact strips every PII / contact field", () => {
   }
 });
 
-Deno.test("mapContact emits obvious dummy PII", () => {
+Deno.test("mapContact emits a realistic 'First Test' dummy name", () => {
   const m = mapContact(RAW)!;
-  assertEquals(m.client.first_name, "Test");
+  assertEquals(m.client.last_name, "Test"); // surname always "Test"
+  assert(m.client.first_name.length > 0 && m.client.first_name !== "Test"); // realistic first name
+  assertEquals(m.client.first_name, dummyFirstName(hashId("884412"))); // deterministic
   assert(m.client.email.endsWith("@example.com"));
   assertEquals(m.client.ssn_last4, null);
   assertEquals(m.client.middle_name, null);
   assertEquals(m.client.date_of_birth, "1984-01-01"); // year only, no exact DOB
   assert(m.client.forth_crm_id.startsWith("ANON-"));
   assertEquals(m.source_key, anonKey(884412));
+});
+
+Deno.test("isEnrolledDebt keeps enrolled, drops excluded", () => {
+  assert(isEnrolledDebt({ enrolled: true }));
+  assert(isEnrolledDebt({ is_enrolled: 1 }));
+  assert(isEnrolledDebt({ status: "Enrolled" }));
+  assert(isEnrolledDebt({ status: "active" }));
+  assert(!isEnrolledDebt({ enrolled: false }));
+  assert(!isEnrolledDebt({ is_enrolled: 0 }));
+  assert(!isEnrolledDebt({ status: "excluded" }));
+  assert(!isEnrolledDebt({ status: "not enrolled" }));
+  assert(isEnrolledDebt({ balance: 100 })); // unknown shape -> keep
 });
 
 Deno.test("mapContact preserves non-PII program structure", () => {

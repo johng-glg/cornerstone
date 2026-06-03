@@ -25,6 +25,66 @@ export function anonKey(realId: string | number): string {
   return "ANON-" + hashId(String(realId));
 }
 
+// Realistic-but-fake first names; surname is always "Test" so anonymized records read like
+// "John Test", "George Test" and are obviously not real people. Picked deterministically by hash.
+const FIRST_NAMES = [
+  "John",
+  "George",
+  "Mary",
+  "James",
+  "Patricia",
+  "Robert",
+  "Jennifer",
+  "Michael",
+  "Linda",
+  "William",
+  "Elizabeth",
+  "David",
+  "Barbara",
+  "Richard",
+  "Susan",
+  "Joseph",
+  "Jessica",
+  "Thomas",
+  "Sarah",
+  "Charles",
+  "Karen",
+  "Christopher",
+  "Nancy",
+  "Daniel",
+  "Lisa",
+  "Matthew",
+  "Betty",
+  "Anthony",
+  "Margaret",
+  "Mark",
+  "Sandra",
+  "Donald",
+  "Ashley",
+  "Steven",
+  "Kimberly",
+  "Paul",
+  "Emily",
+  "Andrew",
+  "Donna",
+  "Joshua",
+  "Carol",
+  "Kenneth",
+  "Michelle",
+  "Kevin",
+  "Amanda",
+  "Brian",
+  "Melissa",
+  "Edward",
+  "Deborah",
+  "Ronald",
+];
+
+/** Deterministic realistic first name from a hash (so re-imports are stable). */
+export function dummyFirstName(h: string): string {
+  return FIRST_NAMES[parseInt(h, 36) % FIRST_NAMES.length];
+}
+
 // ---- defensive extraction from an opaque Forth contact object ---------------------------------
 
 // deno-lint-ignore no-explicit-any
@@ -204,6 +264,24 @@ export interface AnonLiability {
   settlements: AnonSettlement[];
 }
 
+/**
+ * Whether a Forth debt is enrolled in the program (we only import enrolled debts). Checks the
+ * common flag/status shapes; defaults to true so an unknown field name doesn't silently drop
+ * everything (the dry-run raw sample confirms the real field).
+ * TODO(forth-docs): confirm the enrolled flag once the live debt JSON is seen.
+ */
+export function isEnrolledDebt(d: Raw): boolean {
+  const flag = firstDefined(d?.enrolled, d?.is_enrolled, d?.in_program, d?.included);
+  if (flag === true || flag === 1 || /^(1|true|yes|y)$/i.test(String(flag ?? ""))) return true;
+  if (flag === false || flag === 0 || /^(0|false|no|n)$/i.test(String(flag ?? ""))) return false;
+  const s = String(
+    firstDefined(d?.status, d?.debt_status, d?.enrollment_status) ?? "",
+  ).toLowerCase();
+  if (/(exclud|removed|not.?enrolled|un.?enroll|dropped|deleted|inactive)/.test(s)) return false;
+  if (/(enroll|active|in.?program|included)/.test(s)) return true;
+  return true; // unknown shape -> keep; confirm against the raw sample
+}
+
 /** Map Forth offer objects -> anonymized settlement rows. `balance` lets us infer percentage. */
 export function mapOffers(rawOffers: Raw[], balance: number | null, tag = ""): AnonSettlement[] {
   const out: AnonSettlement[] = [];
@@ -332,7 +410,6 @@ export function mapContact(raw: Raw, opts: MapOptions = {}): MappedContact | nul
 
   const h = hashId(realId);
   const key = "ANON-" + h;
-  const suffix = h.toUpperCase();
 
   // ---- scrub: obvious dummy PII, derived from the hash so it's stable across re-imports --------
   // (the clients table holds no phone column — phones live elsewhere — so none is emitted here.)
@@ -379,8 +456,8 @@ export function mapContact(raw: Raw, opts: MapOptions = {}): MappedContact | nul
 
   const client: AnonClient = {
     forth_crm_id: key,
-    first_name: "Test",
-    last_name: `Sample-${suffix}`,
+    first_name: dummyFirstName(h),
+    last_name: "Test",
     middle_name: null,
     email: `forth-import+${h}@example.com`,
     date_of_birth: yob ? `${yob}-01-01` : null,

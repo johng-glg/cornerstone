@@ -19,6 +19,7 @@ import { buildForthHeaders, forthFetch, getAccessToken } from "../_shared/forthA
 import {
   type AnonLiability,
   extractContactId,
+  isEnrolledDebt,
   mapContact,
   type MappedContact,
   mapDebts,
@@ -206,10 +207,40 @@ interface Prepared {
   offer_source: string;
 }
 
+/** Resolve a creditor row id by name (real creditor names from Forth debts), creating it if new.
+ *  Cached per-invocation so repeated creditors aren't re-queried. */
+async function getCreditorId(
+  supabase: Supabase,
+  cache: Map<string, string | null>,
+  name: string | null,
+): Promise<string | null> {
+  if (!name) return null;
+  const k = name.trim().toLowerCase();
+  if (cache.has(k)) return cache.get(k) ?? null;
+  const { data: found } = await supabase
+    .from("creditors")
+    .select("id")
+    .ilike("name", name.trim())
+    .limit(1)
+    .maybeSingle();
+  let id = (found?.id as string | undefined) ?? null;
+  if (!id) {
+    const { data: created } = await supabase
+      .from("creditors")
+      .insert({ name: name.trim(), creditor_type: "original_creditor" })
+      .select("id")
+      .single();
+    id = (created?.id as string | undefined) ?? null;
+  }
+  cache.set(k, id);
+  return id;
+}
+
 async function persist(
   supabase: Supabase,
   companyId: string,
   p: Prepared,
+  creditorCache: Map<string, string | null>,
 ): Promise<{ client_id: string; service_number: string | null; debts: number; offers: number }> {
   const m = p.map;
   const { data: client, error: cErr } = await supabase
@@ -262,10 +293,12 @@ async function persist(
   let debtsInserted = 0;
   let offersInserted = 0;
   for (const liab of p.liabilities) {
+    const creditorId = await getCreditorId(supabase, creditorCache, liab.creditor_name);
     const { data: row, error: lErr } = await supabase
       .from("liabilities")
       .insert({
         client_service_id: svc.id,
+        current_creditor_id: creditorId, // real creditor name from the Forth debt
         account_number: liab.account_number,
         liability_type: liab.liability_type,
         original_balance: liab.original_balance,
@@ -369,13 +402,19 @@ export async function handler(req: Request): Promise<Response> {
         continue;
       }
       // pull debts + offers, then fold them onto the contact so the engagement total reflects them
-      const { debts, debtSource, offerSource } = await gatherDebtsAndOffers(
-        forthId,
-        r,
-        headers,
-        input.company_id,
-        { debts: input.include_debts, offers: input.include_offers },
-      );
+      const {
+        debts: allDebts,
+        debtSource,
+        offerSource,
+      } = await gatherDebtsAndOffers(forthId, r, headers, input.company_id, {
+        debts: input.include_debts,
+        offers: input.include_offers,
+      });
+      // capture a masked sample of a real debt (BEFORE filtering) so the live shape can be confirmed
+      if (rawSample === null && allDebts.length) rawSample = maskPII(allDebts[0]);
+      // only import enrolled debts
+      const debts = allDebts.filter(isEnrolledDebt);
+
       const c = unwrapContact(r);
       if (debts.length) c.debts = debts;
       const map = mapContact(r, { importTag, defaultPlanType: input.default_plan_type });
@@ -383,7 +422,6 @@ export async function handler(req: Request): Promise<Response> {
         errors.push({ id: forthId, error: "unmappable (no id)" });
         continue;
       }
-      if (rawSample === null && debts.length) rawSample = maskPII(debts[0]);
       prepared.push({
         map,
         liabilities: mapDebts(debts, importTag),
@@ -442,9 +480,10 @@ export async function handler(req: Request): Promise<Response> {
       offers: number;
       source_key: string;
     }[] = [];
+    const creditorCache = new Map<string, string | null>();
     for (const p of fresh) {
       try {
-        const r = await persist(supabase, input.company_id, p);
+        const r = await persist(supabase, input.company_id, p, creditorCache);
         imported.push({ ...r, source_key: p.map.source_key });
       } catch (e) {
         errors.push({ id: p.map.source_key, error: e instanceof Error ? e.message : String(e) });
