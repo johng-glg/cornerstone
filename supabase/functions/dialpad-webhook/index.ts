@@ -1,8 +1,8 @@
 // dialpad-webhook — HMAC-verified inbound Dialpad events. Upserts dialpad_calls, links inbound
 // calls to a client/lead by phone, and on terminal states appends a call activity to
 // client_communications (client surface) or entity_communications (polymorphic).
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { z } from "https://esm.sh/zod@3.23.8";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { z } from "npm:zod@3.23.8";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { enforceRateLimit, clientIp } from "../_shared/rateLimit.ts";
 import { verifyHmacSha256Base64 } from "../_shared/hmac.ts";

@@ -1,8 +1,8 @@
 // forth-cancel-draft — cancel a Forth Pay draft for a local transaction.
 // Enforces the 7-day lock window and status guards before calling Forth.
 // TODO(forth-docs): confirm the cancel endpoint shape against the Forth Pay API spec.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { z } from "https://esm.sh/zod@3.23.8";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { z } from "npm:zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { getAccessToken, buildForthHeaders, forthFetch } from "../_shared/forthAuth.ts";

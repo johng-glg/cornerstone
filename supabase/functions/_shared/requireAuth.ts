@@ -1,7 +1,7 @@
 // Shared edge-function auth gate.
 // Rejects anonymous callers. Accepts a valid user JWT, or the service-role key for
 // internal/scheduler-to-function calls. Returns the validated user id (null for service role).
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "./cors.ts";
 
 export interface AuthContext {

@@ -1,7 +1,7 @@
 // dialpad-initiate — click-to-call. Requires the dialpad integration enabled + the caller's
 // staff.dialpad_user_id; rings the staff device and records a queued dialpad_calls row.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { z } from "https://esm.sh/zod@3.23.8";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { z } from "npm:zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
 import { enforceRateLimit } from "../_shared/rateLimit.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";

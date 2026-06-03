@@ -1,8 +1,8 @@
 // forth-contact-close — close a Forth CRM contact (PUT /close, falling back to DELETE), then set
 // the local clients.forth_status = 'closed'. No-ops the Forth call if not linked.
 // TODO(forth-docs): confirm close vs delete semantics.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { z } from "https://esm.sh/zod@3.23.8";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { z } from "npm:zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { getAccessToken, buildForthHeaders, forthFetch } from "../_shared/forthAuth.ts";

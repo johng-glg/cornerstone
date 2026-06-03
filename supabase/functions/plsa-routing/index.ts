@@ -4,7 +4,7 @@
 //
 // Pure logic (schema, provider registry, resolvers) lives in ./logic.ts and is unit-tested;
 // this module is the supabase-js + auth + HTTP wiring.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { requireAuth } from "../_shared/requireAuth.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import {

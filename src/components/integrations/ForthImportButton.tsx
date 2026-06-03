@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -25,6 +26,8 @@ interface DryRunResult {
   would_skip: number;
   debts_found: number;
   offers_found: number;
+  notes_found: number;
+  note_author_resolved: boolean;
   debt_source: string;
   offer_source: string;
   raw_debt_sample: unknown;
@@ -41,6 +44,7 @@ interface ImportResult {
   skipped: number;
   debts_imported: number;
   offers_imported: number;
+  notes_imported: number;
   records: { service_number: string | null }[];
   errors: { id: string; error: string }[];
 }
@@ -80,6 +84,7 @@ export function ForthImportButton({
   providerKey: string;
   companyId?: string;
 }) {
+  const { staff } = useAuth();
   const [open, setOpen] = useState(false);
   const [ids, setIds] = useState("");
   const [pending, setPending] = useState(false);
@@ -105,7 +110,7 @@ export function ForthImportButton({
     }
     setPending(true);
     const { data, error } = await supabase.functions.invoke("forth-import-anonymized", {
-      body: { company_id: companyId, contact_ids, dry_run: dry },
+      body: { company_id: companyId, contact_ids, dry_run: dry, import_staff_id: staff?.id },
     });
     setPending(false);
     if (error) {
@@ -120,12 +125,12 @@ export function ForthImportButton({
       const d = data as DryRunResult;
       setPreview(d);
       toast.success(
-        `Preview: ${d.would_create} new, ${d.would_update} update · ${d.debts_found} debts · ${d.offers_found} offers.`,
+        `Preview: ${d.would_create} new, ${d.would_update} update · ${d.debts_found} debts · ${d.offers_found} offers · ${d.notes_found} notes.`,
       );
     } else {
       const d = data as ImportResult;
       toast.success(
-        `Imported ${d.imported} client(s) (${d.updated} updated), ${d.debts_imported} debts, ${d.offers_imported} offers.`,
+        `Imported ${d.imported} client(s) (${d.updated} updated), ${d.debts_imported} debts, ${d.offers_imported} offers, ${d.notes_imported} notes.`,
       );
       setOpen(false);
       reset();
@@ -174,10 +179,16 @@ export function ForthImportButton({
                 {preview.errors.length} error(s)
               </p>
               <p className="mt-1 text-muted-foreground">
-                {preview.debts_found} debts · {preview.offers_found} offers
+                {preview.debts_found} debts · {preview.offers_found} offers · {preview.notes_found}{" "}
+                notes
                 {preview.debt_source !== "none" ? ` · debts via ${preview.debt_source}` : ""}
                 {preview.offer_source !== "none" ? ` · offers via ${preview.offer_source}` : ""}
               </p>
+              {preview.notes_found > 0 && !preview.note_author_resolved && (
+                <p className="mt-1 text-amber-600">
+                  Notes can't be imported — no staff record found to attribute them to.
+                </p>
+              )}
               {preview.would_create + preview.would_update > 0 && preview.debts_found === 0 && (
                 <p className="mt-1 text-amber-600">
                   No debts found at the probed Forth endpoints. The masked raw sample below shows

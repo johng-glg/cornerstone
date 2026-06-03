@@ -1,8 +1,8 @@
 // docuseal-webhook — HMAC-verified inbound DocuSeal events. Advances signer + request status
 // (form.viewed/completed/declined, submission.completed/expired), stores the executed PDF +
 // certificate on completion, and appends a signature_event. HMAC is the trust boundary.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { z } from "https://esm.sh/zod@3.23.8";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { z } from "npm:zod@3.23.8";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { enforceRateLimit, clientIp } from "../_shared/rateLimit.ts";
 import { verifyHmacSha256Hex } from "../_shared/hmac.ts";

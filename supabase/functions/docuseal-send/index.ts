@@ -1,8 +1,8 @@
 // docuseal-send — dispatch a drafted signature_request to DocuSeal. Creates a DocuSeal
 // submission from the request's docuseal_template_id + its signer rows, then records the
 // submission/submitter ids, signing URLs, and a 'sent' signature_event.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { z } from "https://esm.sh/zod@3.23.8";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { z } from "npm:zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
 import { enforceRateLimit } from "../_shared/rateLimit.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
