@@ -317,7 +317,13 @@ export default function ClientDetail() {
                                 className="cursor-pointer border-b last:border-0 hover:bg-muted/40"
                               >
                                 <td className="px-3 py-2">
-                                  {l.notes ?? (l.account_number ? `••••${l.account_number}` : "—")}
+                                  {l.current_creditor?.name
+                                    ? `${l.current_creditor.name}${
+                                        l.account_number ? ` ••••${l.account_number}` : ""
+                                      }`
+                                    : l.account_number
+                                      ? `••••${l.account_number}`
+                                      : "—"}
                                 </td>
                                 <td className="px-3 py-2">{titleCase(l.liability_type)}</td>
                                 <td className="px-3 py-2">{formatCurrency(l.original_balance)}</td>

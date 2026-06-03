@@ -47,6 +47,7 @@ const InputSchema = z
     hydrate: z.boolean().default(true),
     include_debts: z.boolean().default(true),
     include_offers: z.boolean().default(true),
+    update_existing: z.boolean().default(true), // re-import updates existing records (vs. skip)
     dry_run: z.boolean().default(true),
     default_plan_type: z.enum(["glg_standard", "glg_adjustable", "glg_exception"]).optional(),
   })
@@ -121,6 +122,26 @@ async function fetchOne(
   } catch {
     return null;
   }
+}
+
+/** Fetch the GET /debts/types lookup as { id -> title } so debt_type codes map to real types. */
+async function fetchDebtTypeMap(
+  headers: Record<string, string>,
+  companyId: string,
+): Promise<Record<string, string>> {
+  const items = await fetchItems(`${FORTH}/debts/types`, headers, companyId);
+  const map: Record<string, string> = {};
+  for (const t of items) {
+    if (t?.id != null && t?.title) map[String(t.id)] = String(t.title);
+  }
+  return map;
+}
+
+/** Parse a Forth money string/number ("500.00") to a number, or null. */
+function money(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = typeof v === "number" ? v : Number(String(v).replace(/[$,]/g, ""));
+  return Number.isFinite(n) ? n : null;
 }
 
 /** Has a debt object been hydrated with its detail fields (vs. just an id stub)? */
@@ -213,7 +234,9 @@ async function gatherDebtsAndOffers(
         if (
           ref &&
           typeof ref === "object" &&
-          (ref.offer_amount !== undefined || ref.amount !== undefined)
+          (ref.settlement_amount !== undefined ||
+            ref.offer_amount !== undefined ||
+            ref.amount !== undefined)
         ) {
           objs.push(ref);
           continue;
@@ -320,51 +343,106 @@ async function persist(
   creditorCache: Map<string, string | null>,
 ): Promise<{ client_id: string; service_number: string | null; debts: number; offers: number }> {
   const m = p.map;
-  const { data: client, error: cErr } = await supabase
-    .from("clients")
-    .insert({
-      company_id: companyId,
-      first_name: m.client.first_name,
-      last_name: m.client.last_name,
-      middle_name: m.client.middle_name,
-      email: m.client.email,
-      date_of_birth: m.client.date_of_birth,
-      ssn_last4: m.client.ssn_last4,
-      status: m.client.status,
-      is_active: m.client.is_active,
-      forth_crm_id: m.client.forth_crm_id, // ANON-… (de-identified, not reversible)
-      forth_status: m.service.status,
-      notes: m.client.notes,
-    })
-    .select("id")
-    .single();
-  if (cErr || !client) throw new Error(`client insert failed: ${cErr?.message ?? "no row"}`);
+  const clientFields = {
+    company_id: companyId,
+    first_name: m.client.first_name,
+    last_name: m.client.last_name,
+    middle_name: m.client.middle_name,
+    email: m.client.email,
+    date_of_birth: m.client.date_of_birth,
+    ssn_last4: m.client.ssn_last4,
+    status: m.client.status,
+    is_active: m.client.is_active,
+    forth_crm_id: m.client.forth_crm_id, // real Forth contact id (dedupe + re-fetch key)
+    forth_status: m.service.status,
+    notes: m.client.notes,
+  };
 
-  const { data: svc, error: sErr } = await supabase
+  // upsert the client by (company_id, forth_crm_id)
+  const { data: existingClient } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("forth_crm_id", m.client.forth_crm_id)
+    .maybeSingle();
+  let clientId: string;
+  if (existingClient?.id) {
+    const { error } = await supabase
+      .from("clients")
+      .update(clientFields)
+      .eq("id", existingClient.id);
+    if (error) throw new Error(`client update failed: ${error.message}`);
+    clientId = existingClient.id as string;
+  } else {
+    const { data: created, error } = await supabase
+      .from("clients")
+      .insert(clientFields)
+      .select("id")
+      .single();
+    if (error || !created) throw new Error(`client insert failed: ${error?.message ?? "no row"}`);
+    clientId = created.id as string;
+  }
+
+  const serviceFields = {
+    owning_company_id: companyId,
+    originating_company_id: companyId,
+    primary_client_id: clientId,
+    status: m.service.status,
+    program_type: m.service.program_type,
+    plan_type: m.service.plan_type,
+    payment_frequency: m.service.payment_frequency,
+    term_months: m.service.term_months,
+    monthly_payment: m.service.monthly_payment,
+    total_enrolled_debt: m.service.total_enrolled_debt,
+    settlement_fee_percentage: m.service.settlement_fee_percentage,
+    escrow_balance: m.service.escrow_balance,
+    enrolled_date: m.service.enrolled_date,
+    program_start_date: m.service.program_start_date,
+    estimated_completion_date: m.service.estimated_completion_date,
+    notes: m.service.notes,
+  };
+
+  // upsert the (single) imported engagement for this client
+  const { data: existingSvc } = await supabase
     .from("client_services")
-    .insert({
-      owning_company_id: companyId,
-      originating_company_id: companyId,
-      primary_client_id: client.id,
-      status: m.service.status,
-      program_type: m.service.program_type,
-      plan_type: m.service.plan_type,
-      payment_frequency: m.service.payment_frequency,
-      term_months: m.service.term_months,
-      monthly_payment: m.service.monthly_payment,
-      total_enrolled_debt: m.service.total_enrolled_debt,
-      settlement_fee_percentage: m.service.settlement_fee_percentage,
-      escrow_balance: m.service.escrow_balance,
-      enrolled_date: m.service.enrolled_date,
-      program_start_date: m.service.program_start_date,
-      estimated_completion_date: m.service.estimated_completion_date,
-      notes: m.service.notes,
-    })
     .select("id, service_number")
-    .single();
-  if (sErr || !svc) {
-    await supabase.from("clients").delete().eq("id", client.id);
-    throw new Error(`engagement insert failed: ${sErr?.message ?? "no row"}`);
+    .eq("owning_company_id", companyId)
+    .eq("primary_client_id", clientId)
+    .maybeSingle();
+  let svcId: string;
+  let svcNumber: string | null;
+  if (existingSvc?.id) {
+    const { error } = await supabase
+      .from("client_services")
+      .update(serviceFields)
+      .eq("id", existingSvc.id);
+    if (error) throw new Error(`engagement update failed: ${error.message}`);
+    svcId = existingSvc.id as string;
+    svcNumber = (existingSvc.service_number ?? null) as string | null;
+    // re-sync: drop previously-imported liabilities (+ their settlements) so re-import doesn't dup.
+    // scoped to imported rows (notes prefix) so manually-added debts are left intact.
+    const { data: oldLiabs } = await supabase
+      .from("liabilities")
+      .select("id")
+      .eq("client_service_id", svcId)
+      .like("notes", "Imported from Forth%");
+    const oldIds = (oldLiabs ?? []).map((r) => r.id);
+    if (oldIds.length) {
+      await supabase.from("settlements").delete().in("liability_id", oldIds);
+      await supabase.from("liabilities").delete().in("id", oldIds);
+    }
+  } else {
+    const { data: created, error } = await supabase
+      .from("client_services")
+      .insert(serviceFields)
+      .select("id, service_number")
+      .single();
+    if (error || !created) {
+      if (!existingClient) await supabase.from("clients").delete().eq("id", clientId);
+      throw new Error(`engagement insert failed: ${error?.message ?? "no row"}`);
+    }
+    svcId = created.id as string;
+    svcNumber = (created.service_number ?? null) as string | null;
   }
 
   let debtsInserted = 0;
@@ -374,7 +452,7 @@ async function persist(
     const { data: row, error: lErr } = await supabase
       .from("liabilities")
       .insert({
-        client_service_id: svc.id,
+        client_service_id: svcId,
         current_creditor_id: creditorId, // real creditor name from the Forth debt
         account_number: liab.account_number,
         liability_type: liab.liability_type,
@@ -400,6 +478,8 @@ async function persist(
         offered_date: s.offered_date ?? undefined, // let DB default (today) when unknown
         accepted_date: s.accepted_date,
         completed_date: s.completed_date,
+        first_payment_date: s.first_payment_date,
+        payment_schedule: s.payment_schedule,
         notes: s.notes,
       }));
       const { count, error: stErr } = await supabase
@@ -411,13 +491,13 @@ async function persist(
 
   await supabase.from("plsa_sync_log").insert({
     entity_type: "client",
-    entity_id: client.id,
+    entity_id: clientId,
     action: "sync",
     provider_id: "forth",
     success: true,
     request_payload: { source_key: m.source_key, import: "anonymized" },
     response_payload: {
-      service_number: svc.service_number ?? null,
+      service_number: svcNumber,
       debts: debtsInserted,
       offers: offersInserted,
       debt_source: p.debt_source,
@@ -426,8 +506,8 @@ async function persist(
   });
 
   return {
-    client_id: client.id as string,
-    service_number: (svc.service_number ?? null) as string | null,
+    client_id: clientId,
+    service_number: svcNumber,
     debts: debtsInserted,
     offers: offersInserted,
   };
@@ -466,6 +546,9 @@ export async function handler(req: Request): Promise<Response> {
     const token = await getAccessToken(input.company_id);
     const headers = buildForthHeaders(token);
 
+    // one-time lookup so debt_type codes resolve to real liability types
+    const typeMap = input.include_debts ? await fetchDebtTypeMap(headers, input.company_id) : {};
+
     const { raw, errors } = await gatherContacts(input, headers);
 
     const importTag = new Date().toISOString().slice(0, 10);
@@ -495,14 +578,33 @@ export async function handler(req: Request): Promise<Response> {
 
       const c = unwrapContact(r);
       if (debts.length) c.debts = debts;
-      const map = mapContact(r, { importTag, defaultPlanType: input.default_plan_type });
+
+      // engagement financials + escrow live on separate Forth endpoints
+      const programDetails = await fetchOne(
+        `${FORTH}/contacts/${forthId}/program-details`,
+        headers,
+        input.company_id,
+      );
+      const escrowRaw = await fetchOne(
+        `${FORTH}/enrollment/${forthId}/balance`,
+        headers,
+        input.company_id,
+      );
+      const escrowBalance = money(escrowRaw?.balance ?? escrowRaw?.data?.balance);
+
+      const map = mapContact(r, {
+        importTag,
+        defaultPlanType: input.default_plan_type,
+        programDetails,
+        escrowBalance,
+      });
       if (!map) {
         errors.push({ id: forthId, error: "unmappable (no id)" });
         continue;
       }
       prepared.push({
         map,
-        liabilities: mapDebts(debts, importTag),
+        liabilities: mapDebts(debts, importTag, typeMap),
         debt_source: debtSource,
         offer_source: offerSource,
       });
@@ -520,7 +622,9 @@ export async function handler(req: Request): Promise<Response> {
       for (const row of rows ?? []) if (row.forth_crm_id) existing.add(row.forth_crm_id as string);
     }
     const fresh = prepared.filter((p) => !existing.has(p.map.source_key));
-    const skipped = prepared.length - fresh.length;
+    const alreadyThere = prepared.length - fresh.length;
+    // with update_existing we process everything (existing rows get updated); otherwise skip them
+    const toProcess = input.update_existing ? prepared : fresh;
 
     const debtsFound = prepared.reduce((n, p) => n + p.liabilities.length, 0);
     const offersFound = prepared.reduce(
@@ -535,15 +639,16 @@ export async function handler(req: Request): Promise<Response> {
         mode: input.contact_ids?.length ? "ids" : "list",
         fetched: raw.length,
         mappable: prepared.length,
-        already_imported: skipped,
-        would_import: fresh.length,
+        would_create: fresh.length,
+        would_update: input.update_existing ? alreadyThere : 0,
+        would_skip: input.update_existing ? 0 : alreadyThere,
         debts_found: debtsFound,
         offers_found: offersFound,
         debt_source: prepared.find((p) => p.debt_source !== "none")?.debt_source ?? "none",
         offer_source: prepared.find((p) => p.offer_source !== "none")?.offer_source ?? "none",
         raw_debt_sample: rawSample, // PII-masked — confirms Forth's real shape
         errors,
-        previews: fresh.slice(0, 25).map((p) => ({
+        previews: toProcess.slice(0, 25).map((p) => ({
           client: p.map.client,
           service: p.map.service,
           liabilities: p.liabilities,
@@ -559,7 +664,7 @@ export async function handler(req: Request): Promise<Response> {
       source_key: string;
     }[] = [];
     const creditorCache = new Map<string, string | null>();
-    for (const p of fresh) {
+    for (const p of toProcess) {
       try {
         const r = await persist(supabase, input.company_id, p, creditorCache);
         imported.push({ ...r, source_key: p.map.source_key });
@@ -573,7 +678,8 @@ export async function handler(req: Request): Promise<Response> {
       dry_run: false,
       mode: input.contact_ids?.length ? "ids" : "list",
       fetched: raw.length,
-      already_imported: skipped,
+      updated: input.update_existing ? alreadyThere : 0,
+      skipped: input.update_existing ? 0 : alreadyThere,
       imported: imported.length,
       debts_imported: imported.reduce((n, r) => n + r.debts, 0),
       offers_imported: imported.reduce((n, r) => n + r.offers, 0),

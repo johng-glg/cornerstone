@@ -11,6 +11,7 @@ import {
   mapForthStatusToService,
   mapLiabilityType,
   mapOffers,
+  mapProgramDetails,
   mapSettlementStatus,
   maskPII,
   parseContactList,
@@ -107,7 +108,7 @@ Deno.test("mapDebts maps the real Forth debt shape", () => {
   assertEquals(d.original_balance, 7500);
   assertEquals(d.enrolled_balance, 7000);
   assertEquals(d.creditor_name, "Chase");
-  assertEquals(d.account_number, null);
+  assert(/^\d{4}$/.test(d.account_number!)); // dummy last-4, not the real PII account number
   assertEquals(d.liability_type, "credit_card");
   assertEquals(d.status, "enrolled");
   assertEquals(d.settlements.length, 1);
@@ -143,6 +144,82 @@ Deno.test(
     assertEquals(d.settlements.length, 0);
   },
 );
+
+Deno.test("mapOffers maps the live settlement_offer shape", () => {
+  const o = {
+    id: "253123",
+    settlement_amount: "5500.00",
+    debt_amount: "8500.55",
+    offer_status: { status_id: "1", label: "In-Review" },
+    offer_status_date: "2016-06-30",
+    offer_valid_date: "2016-07-04",
+    settlementSchedule: [
+      { due_date: "2024-11-20", amount: "50", status: "Pending" },
+      { due_date: "2024-12-20", amount: "50", status: "Pending" },
+    ],
+  };
+  const s = mapOffers([o], 8500.55)[0];
+  assertEquals(s.offer_amount, 5500); // from settlement_amount
+  assertEquals(s.offer_percentage, 64.7); // settlement_amount / debt_amount
+  assertEquals(s.status, "offered"); // In-Review -> offered
+  assertEquals(s.payment_type, "payment_plan"); // 2 scheduled payments
+  assertEquals(s.number_of_payments, 2);
+  assertEquals(s.first_payment_date, "2024-11-20");
+  assertEquals(s.payment_schedule.length, 2);
+  assertEquals(s.payment_schedule[0].amount, 50);
+});
+
+Deno.test("mapOffers maps a voided offer to cancelled", () => {
+  const s = mapOffers(
+    [{ settlement_amount: "120", debt_amount: "8500.55", offer_status: { label: "Voided" } }],
+    null,
+  )[0];
+  assertEquals(s.status, "cancelled");
+});
+
+Deno.test("mapProgramDetails maps engagement financials", () => {
+  const pd = mapProgramDetails({
+    program_cost: 15453,
+    estimated_savings: 3400.77,
+    time_in_program: 24,
+    payment: 454.98,
+    payment_schedule: [{ payment_num: "1", payment_date: "2022-05-06" }],
+  });
+  assertEquals(pd.monthly_payment, 454.98);
+  assertEquals(pd.term_months, 24);
+  assertEquals(pd.program_start_date, "2022-05-06");
+  assertEquals(pd.estimated_completion_date, "2024-05-06");
+});
+
+Deno.test("mapContact folds in program-details + escrow", () => {
+  const m = mapContact(
+    { id: 5, enrolled: 1, total_debt: 22500, enrolled_date: "2017-02-08" },
+    {
+      programDetails: {
+        payment: 454.98,
+        time_in_program: 24,
+        payment_schedule: [{ payment_date: "2022-05-06" }],
+      },
+      escrowBalance: 500,
+    },
+  )!;
+  assertEquals(m.service.monthly_payment, 454.98);
+  assertEquals(m.service.term_months, 24);
+  assertEquals(m.service.escrow_balance, 500);
+  assertEquals(m.service.program_start_date, "2022-05-06");
+});
+
+Deno.test("mapDebts resolves debt_type via the types lookup", () => {
+  const typeMap = { "1": "Credit Card", "2": "Personal Loan" };
+  const byCode = mapDebts([{ id: "9", current_debt_amount: "100", debt_type: 2 }], "", typeMap)[0];
+  assertEquals(byCode.liability_type, "personal_loan");
+  const byLabel = mapDebts(
+    [{ id: "9", current_debt_amount: "100", debt_type: { type_id: "2", label: "Personal Loan" } }],
+    "",
+    typeMap,
+  )[0];
+  assertEquals(byLabel.liability_type, "personal_loan");
+});
 
 Deno.test("liabilityStatusFromDebt derives status from flags (incl. Forth string booleans)", () => {
   assertEquals(liabilityStatusFromDebt({ settled: true }), "settled");
@@ -290,14 +367,15 @@ Deno.test("mapDebts builds anonymized liabilities with nested settlements", () =
   );
   assertEquals(debts.length, 1);
   const d = debts[0];
-  assertEquals(d.account_number, null); // scrubbed
+  assert(/^\d{4}$/.test(d.account_number!)); // dummy last-4
+  assert(d.account_number !== "1234567890"); // real account number scrubbed
   assertEquals(d.liability_type, "credit_card");
   assertEquals(d.current_balance, 8200);
   assertEquals(d.original_balance, 9000);
   assertEquals(d.enrolled_balance, 8200); // falls back to current
   assertEquals(d.status, "in_negotiation");
-  assertEquals(d.creditor_name, "Chase"); // institution kept (not PII)
-  assert(d.notes.includes("Creditor: Chase"));
+  assertEquals(d.creditor_name, "Chase"); // institution kept (not PII), linked via creditor record
+  assert(d.notes.includes("Forth debt 1")); // provenance note references the Forth debt id
   assertEquals(d.settlements.length, 2);
   assertEquals(d.settlements[0].offer_amount, 4100);
   assertEquals(d.settlements[0].payment_type, "payment_plan"); // 2 payments

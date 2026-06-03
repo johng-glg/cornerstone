@@ -294,11 +294,13 @@ export interface AnonSettlement {
   offered_date: string | null;
   accepted_date: string | null;
   completed_date: string | null;
+  first_payment_date: string | null;
+  payment_schedule: { date: string | null; amount: number | null; status?: string }[];
   notes: string;
 }
 
 export interface AnonLiability {
-  account_number: null; // scrubbed (PII)
+  account_number: string | null; // dummy last-4 (the real og_account_num / creditor_account_num are PII)
   liability_type: string;
   original_balance: number | null;
   current_balance: number | null;
@@ -328,34 +330,76 @@ export function isEnrolledDebt(d: Raw): boolean {
   return true; // unknown shape -> keep; confirm against the raw sample
 }
 
-/** Map Forth offer objects -> anonymized settlement rows. `balance` lets us infer percentage. */
+/**
+ * Map Forth settlement_offer objects -> anonymized settlement rows. Forth's shape:
+ *   settlement_amount, debt_amount, offer_status:{label}, offer_status_date, offer_valid_date,
+ *   settlementSchedule:[{due_date, amount, status}]. `balance` is a fallback for the percentage.
+ */
 export function mapOffers(rawOffers: Raw[], balance: number | null, tag = ""): AnonSettlement[] {
   const out: AnonSettlement[] = [];
   for (const o of rawOffers ?? []) {
     const amount = firstDefined(
+      toNumber(o?.settlement_amount),
       toNumber(o?.offer_amount),
       toNumber(o?.amount),
-      toNumber(o?.settlement_amount),
       toNumber(o?.total_amount),
     );
     if (amount === undefined || amount === null) continue; // offer_amount is NOT NULL
+
+    const schedule = Array.isArray(o?.settlementSchedule) ? o.settlementSchedule : [];
     const count =
-      firstDefined(
-        toNumber(o?.number_of_payments),
-        toNumber(o?.num_payments),
-        toNumber(o?.payments),
-      ) ?? 1;
+      (schedule.length ||
+        firstDefined(
+          toNumber(o?.number_of_payments),
+          toNumber(o?.num_payments),
+          Array.isArray(o?.json?.payments) ? o.json.payments.length : undefined,
+        )) ??
+      1;
+
+    const debtAmount = firstDefined(toNumber(o?.debt_amount), balance ?? undefined);
     let pct = firstDefined(toNumber(o?.offer_percentage), toNumber(o?.percentage)) ?? null;
-    if (pct === null && balance && balance > 0) pct = Number(((amount / balance) * 100).toFixed(2));
+    if (pct === null && debtAmount && debtAmount > 0) {
+      pct = Number(((amount / debtAmount) * 100).toFixed(2));
+    }
+
+    const status = mapSettlementStatus(
+      firstDefined(
+        typeof o?.offer_status === "object" ? o?.offer_status?.label : o?.offer_status,
+        o?.status,
+        o?.settlement_status,
+      ),
+    );
+    const offered = isoDate(
+      firstDefined(
+        o?.offer_status_date,
+        o?.offered_date,
+        o?.offer_date,
+        o?.created_at,
+        o?.created_date,
+      ),
+    );
+    const firstPayment = isoDate(
+      firstDefined(schedule[0]?.due_date, o?.json?.start_date, o?.offer_valid_date),
+    );
+
     out.push({
       offer_amount: amount,
       offer_percentage: pct,
       payment_type: count > 1 ? "payment_plan" : "lump_sum",
       number_of_payments: Math.max(1, Math.round(count)),
-      status: mapSettlementStatus(firstDefined(o?.status, o?.offer_status, o?.settlement_status)),
-      offered_date: isoDate(firstDefined(o?.offered_date, o?.offer_date, o?.created_date, o?.date)),
-      accepted_date: isoDate(firstDefined(o?.accepted_date, o?.approved_date)),
-      completed_date: isoDate(firstDefined(o?.completed_date, o?.paid_date, o?.settled_date)),
+      status,
+      offered_date: offered,
+      accepted_date: status === "accepted" ? offered : isoDate(o?.accepted_date),
+      completed_date:
+        status === "completed"
+          ? isoDate(firstDefined(o?.completed_date, o?.offer_status_date))
+          : isoDate(firstDefined(o?.completed_date, o?.paid_date, o?.settled_date)),
+      first_payment_date: firstPayment,
+      payment_schedule: schedule.map((s: Raw) => ({
+        date: isoDate(s?.due_date ?? s?.process_date),
+        amount: toNumber(s?.amount),
+        status: typeof s?.status === "string" ? s.status : undefined,
+      })),
       notes: `Imported from Forth (anonymized)${tag ? " " + tag : ""}.`,
     });
   }
@@ -366,9 +410,21 @@ export function mapOffers(rawOffers: Raw[], balance: number | null, tag = ""): A
  * Map Forth debt objects -> anonymized liability rows (with nested settlements). Each debt may
  * carry its offers under `__offers` (attached by the caller) or a nested offers/settlements field.
  */
-export function mapDebts(rawDebts: Raw[], tag = ""): AnonLiability[] {
+export function mapDebts(
+  rawDebts: Raw[],
+  tag = "",
+  typeMap?: Record<string, string>,
+): AnonLiability[] {
   const out: AnonLiability[] = [];
   for (const d of rawDebts ?? []) {
+    const debtId = d?.id ?? d?.debt_id;
+    // realistic-looking dummy account last-4 (the real account numbers are PII and dropped)
+    const acctLast4 =
+      debtId != null
+        ? (parseInt(hashId(String(debtId)), 36) % 10000).toString().padStart(4, "0")
+        : null;
+    const debtTypeId =
+      d?.debt_type && typeof d.debt_type === "object" ? d.debt_type.type_id : d?.debt_type;
     const current =
       firstDefined(
         toNumber(d?.current_debt_amount),
@@ -396,13 +452,15 @@ export function mapDebts(rawDebts: Raw[], tag = ""): AnonLiability[] {
         d?.account_type,
         // Forth debt_type is an object { type_id, label } (or sometimes a numeric code/string)
         d?.debt_type && typeof d.debt_type === "object" ? d.debt_type.label : undefined,
+        // fall back to the debts/types lookup (id -> title) when only a code is present
+        typeMap && debtTypeId != null ? typeMap[String(debtTypeId)] : undefined,
         d?.debt_type_label,
         d?.type,
         typeof d?.debt_type === "string" ? d.debt_type : undefined,
       ),
     );
     out.push({
-      account_number: null, // og_account_num / creditor_account_num are PII — scrubbed
+      account_number: acctLast4, // dummy last-4 for realistic display
       liability_type: liabilityType,
       original_balance: original,
       current_balance: current,
@@ -412,7 +470,7 @@ export function mapDebts(rawDebts: Raw[], tag = ""): AnonLiability[] {
       creditor_name: creditor,
       notes:
         `Imported from Forth (anonymized)${tag ? " " + tag : ""}.` +
-        (creditor ? ` Creditor: ${creditor}.` : ""),
+        (debtId != null ? ` Forth debt ${debtId}.` : ""),
       settlements: mapOffers(Array.isArray(rawOffers) ? rawOffers : [], enrolled ?? current, tag),
     });
   }
@@ -460,6 +518,33 @@ export interface MappedContact {
 export interface MapOptions {
   importTag?: string; // e.g. an ISO date, embedded in notes for traceability
   defaultPlanType?: string;
+  programDetails?: Raw; // GET contacts/{id}/program-details (engagement financials)
+  escrowBalance?: number | null; // GET enrollment/{id}/balance
+}
+
+export interface ProgramDetails {
+  monthly_payment: number | null;
+  term_months: number | null;
+  program_start_date: string | null;
+  estimated_completion_date: string | null;
+  program_cost: number | null;
+  estimated_savings: number | null;
+}
+
+/** Map Forth program-details -> engagement financial fields. */
+export function mapProgramDetails(pd: Raw): ProgramDetails {
+  const payment = toNumber(pd?.payment);
+  const term = toNumber(pd?.time_in_program);
+  const sched = Array.isArray(pd?.payment_schedule) ? pd.payment_schedule : [];
+  const start = isoDate(sched[0]?.payment_date);
+  return {
+    monthly_payment: payment,
+    term_months: term,
+    program_start_date: start,
+    estimated_completion_date: addMonths(start, term),
+    program_cost: toNumber(pd?.program_cost),
+    estimated_savings: toNumber(pd?.estimated_savings),
+  };
 }
 
 /**
@@ -517,6 +602,14 @@ export function mapContact(raw: Raw, opts: MapOptions = {}): MappedContact | nul
 
   const serviceStatus = serviceStatusFromContact(c);
 
+  // engagement financials come from program-details when available (richer than the contact)
+  const pd = opts.programDetails ? mapProgramDetails(opts.programDetails) : null;
+  const finalTerm = pd?.term_months ?? term;
+  const finalMonthly = pd?.monthly_payment ?? monthly;
+  const programStart = pd?.program_start_date ?? enrolled;
+  const completion = pd?.estimated_completion_date ?? addMonths(programStart, finalTerm);
+  const escrow = opts.escrowBalance ?? 0;
+
   const client: AnonClient = {
     forth_crm_id: realId, // keep the real Forth contact id so the record can be re-fetched later
     first_name: dummyFirstName(h),
@@ -535,15 +628,15 @@ export function mapContact(raw: Raw, opts: MapOptions = {}): MappedContact | nul
     program_type: "debt_settlement",
     plan_type: opts.defaultPlanType ?? "glg_standard",
     payment_frequency: "monthly",
-    term_months: term,
-    monthly_payment: monthly,
+    term_months: finalTerm,
+    monthly_payment: finalMonthly,
     total_enrolled_debt: Number(totalDebt.toFixed(2)),
     settlement_fee_percentage: feePct,
     estimated_settlement_percentage: null,
-    escrow_balance: 0,
+    escrow_balance: escrow,
     enrolled_date: enrolled,
-    program_start_date: enrolled,
-    estimated_completion_date: addMonths(enrolled, term),
+    program_start_date: programStart,
+    estimated_completion_date: completion,
     notes:
       `Imported from Forth (anonymized)${tag ? " " + tag : ""}. ` +
       `${debtCount} enrolled debt(s), total $${Number(totalDebt.toFixed(2))}.`,

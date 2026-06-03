@@ -20,8 +20,9 @@ import {
 interface DryRunResult {
   fetched: number;
   mappable: number;
-  already_imported: number;
-  would_import: number;
+  would_create: number;
+  would_update: number;
+  would_skip: number;
   debts_found: number;
   offers_found: number;
   debt_source: string;
@@ -36,7 +37,8 @@ interface DryRunResult {
 }
 interface ImportResult {
   imported: number;
-  already_imported: number;
+  updated: number;
+  skipped: number;
   debts_imported: number;
   offers_imported: number;
   records: { service_number: string | null }[];
@@ -118,12 +120,12 @@ export function ForthImportButton({
       const d = data as DryRunResult;
       setPreview(d);
       toast.success(
-        `Preview: ${d.would_import} new · ${d.debts_found} debts · ${d.offers_found} offers.`,
+        `Preview: ${d.would_create} new, ${d.would_update} update · ${d.debts_found} debts · ${d.offers_found} offers.`,
       );
     } else {
       const d = data as ImportResult;
       toast.success(
-        `Imported ${d.imported} client(s), ${d.debts_imported} debts, ${d.offers_imported} offers.`,
+        `Imported ${d.imported} client(s) (${d.updated} updated), ${d.debts_imported} debts, ${d.offers_imported} offers.`,
       );
       setOpen(false);
       reset();
@@ -167,7 +169,8 @@ export function ForthImportButton({
           {preview && (
             <div className="rounded-md border bg-muted/40 p-3 text-xs">
               <p className="font-medium">
-                {preview.would_import} would import · {preview.already_imported} already imported ·{" "}
+                {preview.would_create} new · {preview.would_update} update
+                {preview.would_skip ? ` · ${preview.would_skip} skip` : ""} ·{" "}
                 {preview.errors.length} error(s)
               </p>
               <p className="mt-1 text-muted-foreground">
@@ -175,7 +178,7 @@ export function ForthImportButton({
                 {preview.debt_source !== "none" ? ` · debts via ${preview.debt_source}` : ""}
                 {preview.offer_source !== "none" ? ` · offers via ${preview.offer_source}` : ""}
               </p>
-              {preview.would_import > 0 && preview.debts_found === 0 && (
+              {preview.would_create + preview.would_update > 0 && preview.debts_found === 0 && (
                 <p className="mt-1 text-amber-600">
                   No debts found at the probed Forth endpoints. The masked raw sample below shows
                   what Forth returned — share it so the field mapping can be corrected.
@@ -220,10 +223,10 @@ export function ForthImportButton({
             {pending ? "Working…" : "Preview (dry run)"}
           </Button>
           <Button
-            disabled={pending || !preview || preview.would_import === 0}
+            disabled={pending || !preview || preview.would_create + preview.would_update === 0}
             onClick={() => run(false)}
           >
-            {preview ? `Import ${preview.would_import}` : "Import"}
+            {preview ? `Import ${preview.would_create + preview.would_update}` : "Import"}
           </Button>
         </DialogFooter>
       </DialogContent>
