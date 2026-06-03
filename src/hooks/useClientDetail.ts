@@ -49,6 +49,7 @@ export interface ClientLiabilityRow {
   enrolled_balance: number | null;
   status: string;
   notes: string | null;
+  current_creditor: { name: string } | null;
 }
 export interface ClientPhoneRow {
   id: string;
@@ -146,7 +147,7 @@ export function useClientLiabilities(
       const { data, error } = await supabase
         .from("liabilities")
         .select(
-          "id, client_service_id, account_number, liability_type, original_balance, current_balance, enrolled_balance, status, notes",
+          "id, client_service_id, account_number, liability_type, original_balance, current_balance, enrolled_balance, status, notes, current_creditor:creditors!current_creditor_id(name)",
         )
         .in("client_service_id", serviceIds)
         .order("current_balance", { ascending: false });
