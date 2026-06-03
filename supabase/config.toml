@@ -449,6 +449,9 @@ verify_jwt = false
 [functions.forth-payment-to-creditor]
 verify_jwt = false
 
+[functions.forth-import-anonymized]
+verify_jwt = false
+
 [functions.plsa-nsf-retry]
 verify_jwt = false
 
