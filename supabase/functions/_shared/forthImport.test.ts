@@ -374,8 +374,8 @@ Deno.test("mapDebts builds anonymized liabilities with nested settlements", () =
   assertEquals(d.original_balance, 9000);
   assertEquals(d.enrolled_balance, 8200); // falls back to current
   assertEquals(d.status, "in_negotiation");
-  assertEquals(d.creditor_name, "Chase"); // institution kept (not PII)
-  assert(d.notes.includes("Creditor: Chase"));
+  assertEquals(d.creditor_name, "Chase"); // institution kept (not PII), linked via creditor record
+  assert(d.notes.includes("Forth debt 1")); // provenance note references the Forth debt id
   assertEquals(d.settlements.length, 2);
   assertEquals(d.settlements[0].offer_amount, 4100);
   assertEquals(d.settlements[0].payment_type, "payment_plan"); // 2 payments
