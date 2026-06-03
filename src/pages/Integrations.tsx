@@ -5,6 +5,7 @@ import { useIntegrationProviders, useCompanyIntegrations } from "@/hooks/useModu
 import { useSetIntegration } from "@/hooks/useModuleMutations";
 import { useAuth } from "@/lib/auth";
 import { QueryState } from "@/components/common/QueryState";
+import { ForthImportButton } from "@/components/integrations/ForthImportButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { titleCase } from "@/lib/format";
@@ -103,7 +104,7 @@ export default function Integrations() {
   const providers = useIntegrationProviders();
   const company = useCompanyIntegrations();
   const setIntegration = useSetIntegration();
-  const { roles } = useAuth();
+  const { roles, staff } = useAuth();
   const isAdmin = roles.includes("admin");
 
   const enabledMap = useMemo(
@@ -145,6 +146,12 @@ export default function Integrations() {
                   <div className="flex shrink-0 items-center gap-2">
                     {enabled && isAdmin && (
                       <RegisterDialpadWebhookButton providerKey={p.provider_key} />
+                    )}
+                    {enabled && isAdmin && (
+                      <ForthImportButton
+                        providerKey={p.provider_key}
+                        companyId={staff?.company_id}
+                      />
                     )}
                     {enabled && <TestButton providerKey={p.provider_key} />}
                     <label className="flex cursor-pointer items-center gap-2 text-xs">
