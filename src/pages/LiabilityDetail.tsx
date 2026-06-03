@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { useLiability, useAddMatter, useMyStaffId } from "@/hooks/useLiabilityDetail";
+import { useLiability, useAddMatter } from "@/hooks/useLiabilityDetail";
 import {
   useSettlements,
   useAddSettlement,
@@ -9,8 +9,8 @@ import {
   type SettlementRow,
   type SettlementTransition,
 } from "@/hooks/useSettlements";
-import { useEntityNotes, useAddNote } from "@/hooks/useLeadTabs";
 import { useLitigationTeams, useStaffList, useCreditors } from "@/hooks/useModules";
+import { NotesTab } from "@/components/leads/tabs/NotesTab";
 import { useRecordActivity } from "@/hooks/useActivityLog";
 import { AssignmentsPanel } from "@/components/common/AssignmentsPanel";
 import { ActivityFeed } from "@/components/common/ActivityFeed";
@@ -21,7 +21,6 @@ import { StatusChanger } from "@/components/common/StatusChanger";
 import { STATUS_OPTIONS } from "@/lib/statuses";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatDate, titleCase } from "@/lib/format";
 
 // Radix Select rejects empty-string values, so "no creditor" uses this sentinel.
@@ -122,7 +121,80 @@ function SettlementActions({
   return btns.length ? <span className="flex flex-wrap gap-1">{btns}</span> : <span>—</span>;
 }
 
-function SettlementsTab({
+function NewOfferButton({
+  liabilityId,
+  clientId,
+}: {
+  liabilityId: string;
+  clientId?: string | null;
+}) {
+  const add = useAddSettlement();
+  const record = useRecordActivity();
+  return (
+    <QuickFormDialog
+      trigger={<Button size="sm">New offer</Button>}
+      title="New settlement offer"
+      description="Lump-sum or a payment plan. A plan auto-builds an equal monthly schedule."
+      pending={add.isPending}
+      fields={[
+        { name: "offer_amount", label: "Offer amount ($)", type: "number", required: true },
+        { name: "offer_percentage", label: "Offer %", type: "number" },
+        {
+          name: "payment_type",
+          label: "Payment type",
+          type: "select",
+          defaultValue: "lump_sum",
+          options: [
+            { value: "lump_sum", label: "Lump sum" },
+            { value: "payment_plan", label: "Payment plan" },
+          ],
+        },
+        { name: "number_of_payments", label: "# payments (plan)", type: "number" },
+        { name: "first_payment_date", label: "First payment date", type: "date" },
+        {
+          name: "fee_collection_method",
+          label: "Fee collection",
+          type: "select",
+          defaultValue: "split",
+          options: [
+            { value: "split", label: "Split across payments" },
+            { value: "lump_sum", label: "Lump sum" },
+          ],
+        },
+        { name: "notes", label: "Notes", type: "textarea" },
+      ]}
+      onSubmit={async (v) => {
+        try {
+          const amount = Number(v.offer_amount);
+          await add.mutateAsync({
+            liability_id: liabilityId,
+            offer_amount: amount,
+            offer_percentage: v.offer_percentage ? Number(v.offer_percentage) : null,
+            payment_type: v.payment_type || "lump_sum",
+            number_of_payments: v.number_of_payments ? Number(v.number_of_payments) : 1,
+            first_payment_date: v.first_payment_date || null,
+            fee_collection_method: v.fee_collection_method || "split",
+            notes: v.notes || null,
+          });
+          await record({
+            entityType: "liability",
+            entityId: liabilityId,
+            clientId,
+            category: "settlement",
+            description: `Settlement offer of ${formatCurrency(amount)} created`,
+            metadata: { offer_amount: amount, payment_type: v.payment_type },
+          });
+          toast.success("Settlement offer added.");
+        } catch (e) {
+          toast.error((e as Error).message);
+          throw e;
+        }
+      }}
+    />
+  );
+}
+
+function SettlementsTable({
   liabilityId,
   clientId,
 }: {
@@ -130,166 +202,55 @@ function SettlementsTab({
   clientId?: string | null;
 }) {
   const q = useSettlements([liabilityId]);
-  const add = useAddSettlement();
-  const record = useRecordActivity();
   const rows = q.data ?? [];
   return (
-    <div className="space-y-3">
-      <div className="flex justify-end">
-        <QuickFormDialog
-          trigger={<Button size="sm">New offer</Button>}
-          title="New settlement offer"
-          description="Lump-sum or a payment plan. A plan auto-builds an equal monthly schedule."
-          pending={add.isPending}
-          fields={[
-            { name: "offer_amount", label: "Offer amount ($)", type: "number", required: true },
-            { name: "offer_percentage", label: "Offer %", type: "number" },
-            {
-              name: "payment_type",
-              label: "Payment type",
-              type: "select",
-              defaultValue: "lump_sum",
-              options: [
-                { value: "lump_sum", label: "Lump sum" },
-                { value: "payment_plan", label: "Payment plan" },
-              ],
-            },
-            { name: "number_of_payments", label: "# payments (plan)", type: "number" },
-            { name: "first_payment_date", label: "First payment date", type: "date" },
-            {
-              name: "fee_collection_method",
-              label: "Fee collection",
-              type: "select",
-              defaultValue: "split",
-              options: [
-                { value: "split", label: "Split across payments" },
-                { value: "lump_sum", label: "Lump sum" },
-              ],
-            },
-            { name: "notes", label: "Notes", type: "textarea" },
-          ]}
-          onSubmit={async (v) => {
-            try {
-              const amount = Number(v.offer_amount);
-              await add.mutateAsync({
-                liability_id: liabilityId,
-                offer_amount: amount,
-                offer_percentage: v.offer_percentage ? Number(v.offer_percentage) : null,
-                payment_type: v.payment_type || "lump_sum",
-                number_of_payments: v.number_of_payments ? Number(v.number_of_payments) : 1,
-                first_payment_date: v.first_payment_date || null,
-                fee_collection_method: v.fee_collection_method || "split",
-                notes: v.notes || null,
-              });
-              await record({
-                entityType: "liability",
-                entityId: liabilityId,
-                clientId,
-                category: "settlement",
-                description: `Settlement offer of ${formatCurrency(amount)} created`,
-                metadata: { offer_amount: amount, payment_type: v.payment_type },
-              });
-              toast.success("Settlement offer added.");
-            } catch (e) {
-              toast.error((e as Error).message);
-              throw e;
-            }
-          }}
-        />
-      </div>
-      <QueryState
-        isLoading={q.isLoading}
-        error={q.error}
-        isEmpty={rows.length === 0}
-        emptyMessage="No settlement offers yet."
-      >
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead className="border-b bg-muted/50 text-left">
-              <tr>
-                <th className="px-3 py-2 font-medium">Amount</th>
-                <th className="px-3 py-2 font-medium">%</th>
-                <th className="px-3 py-2 font-medium">Type</th>
-                <th className="px-3 py-2 font-medium">Schedule</th>
-                <th className="px-3 py-2 font-medium">Attorney</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Offered</th>
-                <th className="px-3 py-2 font-medium" />
+    <QueryState
+      isLoading={q.isLoading}
+      error={q.error}
+      isEmpty={rows.length === 0}
+      emptyMessage="No settlement offers yet."
+    >
+      <div className="overflow-x-auto rounded-md border">
+        <table className="w-full text-sm">
+          <thead className="border-b bg-muted/50 text-left">
+            <tr>
+              <th className="px-3 py-2 font-medium">Amount</th>
+              <th className="px-3 py-2 font-medium">%</th>
+              <th className="px-3 py-2 font-medium">Type</th>
+              <th className="px-3 py-2 font-medium">Schedule</th>
+              <th className="px-3 py-2 font-medium">Attorney</th>
+              <th className="px-3 py-2 font-medium">Status</th>
+              <th className="px-3 py-2 font-medium">Offered</th>
+              <th className="px-3 py-2 font-medium" />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((s) => (
+              <tr key={s.id} className="border-b last:border-0 align-top">
+                <td className="px-3 py-2">{formatCurrency(s.offer_amount)}</td>
+                <td className="px-3 py-2">{s.offer_percentage ?? "—"}</td>
+                <td className="px-3 py-2">{titleCase(s.payment_type)}</td>
+                <td className="px-3 py-2">
+                  {s.payment_type === "payment_plan"
+                    ? `${s.number_of_payments ?? 0} payment(s)${
+                        s.first_payment_date ? ` from ${formatDate(s.first_payment_date)}` : ""
+                      }`
+                    : "—"}
+                </td>
+                <td className="px-3 py-2">{s.attorney_approved ? "Approved" : "—"}</td>
+                <td className="px-3 py-2">
+                  <StatusBadge status={s.status} />
+                </td>
+                <td className="px-3 py-2">{formatDate(s.offered_date)}</td>
+                <td className="px-3 py-2">
+                  <SettlementActions s={s} liabilityId={liabilityId} clientId={clientId} />
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {rows.map((s) => (
-                <tr key={s.id} className="border-b last:border-0 align-top">
-                  <td className="px-3 py-2">{formatCurrency(s.offer_amount)}</td>
-                  <td className="px-3 py-2">{s.offer_percentage ?? "—"}</td>
-                  <td className="px-3 py-2">{titleCase(s.payment_type)}</td>
-                  <td className="px-3 py-2">
-                    {s.payment_type === "payment_plan"
-                      ? `${s.number_of_payments ?? 0} payment(s)${
-                          s.first_payment_date ? ` from ${formatDate(s.first_payment_date)}` : ""
-                        }`
-                      : "—"}
-                  </td>
-                  <td className="px-3 py-2">{s.attorney_approved ? "Approved" : "—"}</td>
-                  <td className="px-3 py-2">
-                    <StatusBadge status={s.status} />
-                  </td>
-                  <td className="px-3 py-2">{formatDate(s.offered_date)}</td>
-                  <td className="px-3 py-2">
-                    <SettlementActions s={s} liabilityId={liabilityId} clientId={clientId} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </QueryState>
-    </div>
-  );
-}
-
-function NotesTab({ liabilityId }: { liabilityId: string }) {
-  const staffId = useMyStaffId();
-  const q = useEntityNotes("liability", liabilityId);
-  const add = useAddNote("liability", liabilityId, staffId);
-  const rows = q.data ?? [];
-  return (
-    <div className="space-y-3">
-      <div className="flex justify-end">
-        <QuickFormDialog
-          trigger={<Button size="sm">New note</Button>}
-          title="Add note"
-          pending={add.isPending}
-          fields={[
-            { name: "content", label: "Note", type: "textarea", required: true, full: true },
-          ]}
-          onSubmit={async (v) => {
-            try {
-              await add.mutateAsync({ content: v.content });
-              toast.success("Note added.");
-            } catch (e) {
-              toast.error((e as Error).message);
-              throw e;
-            }
-          }}
-        />
+            ))}
+          </tbody>
+        </table>
       </div>
-      <QueryState
-        isLoading={q.isLoading}
-        error={q.error}
-        isEmpty={rows.length === 0}
-        emptyMessage="No notes yet."
-      >
-        <ul className="space-y-2">
-          {rows.map((n) => (
-            <li key={n.id} className="rounded-md border p-3">
-              <p className="whitespace-pre-wrap text-sm">{n.content}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{formatDate(n.created_at)}</p>
-            </li>
-          ))}
-        </ul>
-      </QueryState>
-    </div>
+    </QueryState>
   );
 }
 
@@ -312,7 +273,11 @@ function OpenMatterAction({
   }));
   return (
     <QuickFormDialog
-      trigger={<Button size="sm">Open litigation matter</Button>}
+      trigger={
+        <Button size="sm" variant="outline">
+          Mark Legal
+        </Button>
+      }
       title="Open litigation matter"
       description="Creates a matter on this debt and routes it to a team and attorney."
       pending={add.isPending}
@@ -419,7 +384,10 @@ export default function LiabilityDetail() {
                   {l.account_number ? ` · acct ${l.account_number}` : ""}
                 </p>
               </div>
-              <OpenMatterAction liabilityId={l.id} clientServiceId={l.client_service_id} />
+              <div className="flex flex-wrap items-center gap-2">
+                <NewOfferButton liabilityId={l.id} clientId={clientId} />
+                <OpenMatterAction liabilityId={l.id} clientServiceId={l.client_service_id} />
+              </div>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
@@ -452,26 +420,42 @@ export default function LiabilityDetail() {
               </Card>
             </div>
 
-            <Tabs defaultValue="settlements">
-              <TabsList className="w-full justify-start overflow-x-auto">
-                <TabsTrigger value="settlements">Settlements</TabsTrigger>
-                <TabsTrigger value="assignments">Assignments</TabsTrigger>
-                <TabsTrigger value="activity">Activity</TabsTrigger>
-                <TabsTrigger value="notes">Notes</TabsTrigger>
-              </TabsList>
-              <TabsContent value="settlements" className="pt-4">
-                <SettlementsTab liabilityId={l.id} clientId={clientId} />
-              </TabsContent>
-              <TabsContent value="assignments" className="pt-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Settlements (offers)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <SettlementsTable liabilityId={l.id} clientId={clientId} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Assignments</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <AssignmentsPanel entityType="liability" entityId={l.id} clientId={clientId} />
-              </TabsContent>
-              <TabsContent value="activity" className="pt-4">
-                <ActivityFeed entityType="liability" entityId={l.id} />
-              </TabsContent>
-              <TabsContent value="notes" className="pt-4">
-                <NotesTab liabilityId={l.id} />
-              </TabsContent>
-            </Tabs>
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Activity</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ActivityFeed entityType="liability" entityId={l.id} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Notes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <NotesTab entityType="liability" entityId={l.id} />
+                </CardContent>
+              </Card>
+            </div>
           </>
         )}
       </QueryState>
