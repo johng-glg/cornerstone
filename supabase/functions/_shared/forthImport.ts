@@ -5,9 +5,10 @@
 // "structure" (debt totals, monthly payment, term, status, dates) is preserved for realistic
 // testing. Kept free of remote imports so it can be unit-tested offline (matches forthLogic.ts).
 //
-// Anonymization is deterministic from a one-way hash of the real Forth id, so:
-//   * re-imports are idempotent (same anon key => dedupe), and
-//   * the stored forth_crm_id ("ANON-xxxx") cannot be reversed back to the real contact.
+// Dummy PII is generated deterministically from a hash of the real Forth id, so re-imports are
+// stable and idempotent. The REAL Forth contact id is kept in clients.forth_crm_id so the imported
+// record can be re-fetched from Forth later (it's the dedupe key too). Note this is a
+// re-identification link back to Forth, but the stored name/email/SSN/DOB/address are still dummy.
 //
 // TODO(forth-docs): confirm the exact GET /contacts/{id} response shape. Field extraction below is
 // intentionally defensive (tries several key paths) because the live shape isn't pinned in-repo.
@@ -19,10 +20,6 @@ export function hashId(input: string): string {
     h = ((h << 5) + h + input.charCodeAt(i)) >>> 0;
   }
   return h.toString(36).padStart(7, "0");
-}
-
-export function anonKey(realId: string | number): string {
-  return "ANON-" + hashId(String(realId));
 }
 
 // Realistic-but-fake first names; surname is always "Test" so anonymized records read like
@@ -455,7 +452,7 @@ export interface AnonService {
 }
 
 export interface MappedContact {
-  source_key: string; // anon key (also stored as forth_crm_id)
+  source_key: string; // the real Forth contact id (also stored as forth_crm_id; the dedupe key)
   client: AnonClient;
   service: AnonService;
 }
@@ -474,8 +471,7 @@ export function mapContact(raw: Raw, opts: MapOptions = {}): MappedContact | nul
   const realId = extractContactId(raw);
   if (!realId) return null;
 
-  const h = hashId(realId);
-  const key = "ANON-" + h;
+  const h = hashId(realId); // deterministic seed for the dummy name/email (stable across re-imports)
 
   // ---- scrub: obvious dummy PII, derived from the hash so it's stable across re-imports --------
   // (the clients table holds no phone column — phones live elsewhere — so none is emitted here.)
@@ -522,7 +518,7 @@ export function mapContact(raw: Raw, opts: MapOptions = {}): MappedContact | nul
   const serviceStatus = serviceStatusFromContact(c);
 
   const client: AnonClient = {
-    forth_crm_id: key,
+    forth_crm_id: realId, // keep the real Forth contact id so the record can be re-fetched later
     first_name: dummyFirstName(h),
     last_name: "Test",
     middle_name: null,
@@ -531,7 +527,7 @@ export function mapContact(raw: Raw, opts: MapOptions = {}): MappedContact | nul
     ssn_last4: null,
     status: clientStatusFor(serviceStatus),
     is_active: clientStatusFor(serviceStatus) === "active",
-    notes: `Imported from Forth (anonymized)${tag ? " " + tag : ""}. Source key ${key}.`,
+    notes: `Imported from Forth (anonymized)${tag ? " " + tag : ""}. Forth contact ${realId}.`,
   };
 
   const service: AnonService = {
@@ -553,5 +549,5 @@ export function mapContact(raw: Raw, opts: MapOptions = {}): MappedContact | nul
       `${debtCount} enrolled debt(s), total $${Number(totalDebt.toFixed(2))}.`,
   };
 
-  return { source_key: key, client, service };
+  return { source_key: realId, client, service };
 }
