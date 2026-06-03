@@ -1,6 +1,6 @@
 // Stamp company_integrations.last_connected_at / last_connection_error after a test-connection.
 // Handles shared-credential providers (e.g. forth_pay + forth_crm) via a provider-key list.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 /** Resolve the caller's company_id from their JWT (for stamping their own integration rows). */
 export async function resolveCompanyId(authHeader: string | null): Promise<string | undefined> {

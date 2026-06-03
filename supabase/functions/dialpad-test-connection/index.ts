@@ -1,5 +1,5 @@
 // dialpad-test-connection — pings the Dialpad users endpoint and stamps the dialpad integration.
-import { z } from "https://esm.sh/zod@3.23.8";
+import { z } from "npm:zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
 import { enforceRateLimit } from "../_shared/rateLimit.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";

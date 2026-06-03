@@ -3,8 +3,8 @@
 // service role: create the auth user (email-confirmed; they sign in via Google), then insert the
 // staff row + role. The new user signs in with their @guardianlit.com Google identity, which
 // links to this pre-created account by email.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { z } from "https://esm.sh/zod@3.23.8";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { z } from "npm:zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
 import { enforceRateLimit } from "../_shared/rateLimit.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";

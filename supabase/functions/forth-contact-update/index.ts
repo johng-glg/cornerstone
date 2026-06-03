@@ -1,7 +1,7 @@
 // forth-contact-update — PUT mutable contact fields to Forth CRM. No-ops if not yet linked.
 // TODO(forth-docs): confirm PUT vs PATCH + exact field names.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { z } from "https://esm.sh/zod@3.23.8";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { z } from "npm:zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { getAccessToken, buildForthHeaders, forthFetch } from "../_shared/forthAuth.ts";

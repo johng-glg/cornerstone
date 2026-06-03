@@ -3,7 +3,7 @@
 // Mirrors the requireAuth pattern: returns a 429 Response when the caller is over the limit,
 // or null to proceed. Fail-open on infrastructure error (a limiter outage must not take down
 // the function) — but that path is logged so it's visible.
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "./cors.ts";
 
 export interface RateLimitOptions {

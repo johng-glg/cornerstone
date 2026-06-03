@@ -1,7 +1,7 @@
 // PLSA routing — pure logic (Zod schema, provider registry, resolvers). Imports ONLY Zod so it
 // can be unit-tested under `deno test` without pulling the supabase-js type graph (which drags in
 // Node types). The HTTP/server wiring + supabase client live in index.ts.
-import { z } from "https://esm.sh/zod@3.23.8";
+import { z } from "npm:zod@3.23.8";
 
 // The 12 canonical operations (ADR-009 §Outbound operations + auth_test/poll/pause).
 export const OPERATIONS = [

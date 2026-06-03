@@ -1,7 +1,7 @@
 // forth-pause-resume — pause or resume a client's drafts in Forth CRM.
 // TODO(forth-docs): confirm the pause/resume endpoints.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { z } from "https://esm.sh/zod@3.23.8";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { z } from "npm:zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { getAccessToken, buildForthHeaders, forthFetch } from "../_shared/forthAuth.ts";

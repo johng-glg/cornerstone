@@ -6,7 +6,7 @@
 //
 // Access tokens are cached per company (or 'default') in module memory; Forth tokens last ~10 days
 // so we cache for 9. Pure parsing/backoff helpers live in ./forth.ts (unit-tested).
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import {
   backoffWaitMs,
   extractAccessToken,

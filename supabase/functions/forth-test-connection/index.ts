@@ -1,6 +1,6 @@
 // forth-test-connection — force a fresh Forth OAuth and stamp both forth_pay + forth_crm rows
 // (shared credentials). No new secrets required.
-import { z } from "https://esm.sh/zod@3.23.8";
+import { z } from "npm:zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { getAccessToken, clearTokenCache } from "../_shared/forthAuth.ts";

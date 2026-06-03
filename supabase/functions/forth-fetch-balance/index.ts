@@ -1,8 +1,8 @@
 // forth-fetch-balance — read a client's Forth Pay balance and reconcile against the local escrow
 // projection; logs an escrow_drift audit event on material drift.
 // TODO(forth-docs): confirm the balance endpoint + response shape.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { z } from "https://esm.sh/zod@3.23.8";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { z } from "npm:zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { getAccessToken, buildForthHeaders, forthFetch } from "../_shared/forthAuth.ts";

@@ -11,8 +11,8 @@
 //
 // Debts/offers are separate Forth resources (not nested in the contact), so we probe a few likely
 // endpoints and report which one worked — TODO(forth-docs): pin these down once confirmed.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { z } from "https://esm.sh/zod@3.23.8";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { z } from "npm:zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { buildForthHeaders, forthFetch, getAccessToken } from "../_shared/forthAuth.ts";

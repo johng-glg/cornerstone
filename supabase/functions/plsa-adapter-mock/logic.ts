@@ -1,6 +1,6 @@
 // PLSA mock adapter — pure logic (Zod input schema + canned ADR-009-shaped responses).
 // Imports ONLY Zod so it is unit-testable under `deno test` without the supabase-js type graph.
-import { z } from "https://esm.sh/zod@3.23.8";
+import { z } from "npm:zod@3.23.8";
 
 export const OPERATIONS = [
   "auth_test",

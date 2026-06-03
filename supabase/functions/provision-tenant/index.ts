@@ -2,8 +2,8 @@
 // user via the Auth admin API, then calls public.provision_tenant to wire up company + staff +
 // admin role atomically. The caller must be a platform admin (public.is_platform_admin); the
 // DB function re-checks this, so authorization is enforced server-side regardless of the edge layer.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { z } from "https://esm.sh/zod@3.23.8";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { z } from "npm:zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
 import { enforceRateLimit } from "../_shared/rateLimit.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
