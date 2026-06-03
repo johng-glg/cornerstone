@@ -232,10 +232,11 @@ export function creditorName(d: Raw): string | null {
   );
 }
 
-/** Derive liability_status from a Forth debt's flags (numeric debt_status codes are ignored). */
+/** Derive liability_status from a Forth debt's flags (numeric debt_status codes are ignored).
+ *  Forth sends string booleans ("0"/"1"), so truthiness is checked loosely. */
 export function liabilityStatusFromDebt(d: Raw): string {
-  if (d?.settled === true || (toNumber(d?.settlement_id) ?? 0) > 0) return "settled";
-  if (d?.has_summons === true || /^yes$/i.test(String(d?.legal_account ?? ""))) {
+  if (truthy(d?.settled) || (toNumber(d?.settlement_id) ?? 0) > 0) return "settled";
+  if (truthy(d?.has_summons) || /^yes$/i.test(String(d?.legal_account ?? ""))) {
     return "in_litigation";
   }
   const s = firstDefined<string>(d?.status, d?.debt_status_label, d?.status_label);
@@ -396,6 +397,8 @@ export function mapDebts(rawDebts: Raw[], tag = ""): AnonLiability[] {
     const liabilityType = mapLiabilityType(
       firstDefined(
         d?.account_type,
+        // Forth debt_type is an object { type_id, label } (or sometimes a numeric code/string)
+        d?.debt_type && typeof d.debt_type === "object" ? d.debt_type.label : undefined,
         d?.debt_type_label,
         d?.type,
         typeof d?.debt_type === "string" ? d.debt_type : undefined,

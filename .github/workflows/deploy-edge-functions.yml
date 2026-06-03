@@ -44,4 +44,27 @@ jobs:
         with:
           version: latest
       - name: Deploy all functions
-        run: supabase functions deploy --project-ref "$PROJECT_REF"
+        # The deploy bundles every function, fetching their esm.sh imports. esm.sh intermittently
+        # returns 522 (Cloudflare timeout) on one function or another, which fails the whole run
+        # through no fault of our code. Retry with backoff so a transient blip doesn't block deploys;
+        # unchanged functions are skipped on retries ("No change found"), so retries are cheap.
+        run: |
+          set +e
+          attempts=5
+          for i in $(seq 1 $attempts); do
+            echo "::group::Deploy attempt $i/$attempts"
+            supabase functions deploy --project-ref "$PROJECT_REF"
+            code=$?
+            echo "::endgroup::"
+            if [ $code -eq 0 ]; then
+              echo "Deploy succeeded on attempt $i"
+              exit 0
+            fi
+            if [ $i -lt $attempts ]; then
+              wait=$((i * 15))
+              echo "::warning::Deploy attempt $i failed (exit $code) — likely a transient esm.sh 522; retrying in ${wait}s"
+              sleep $wait
+            fi
+          done
+          echo "::error::Deploy failed after $attempts attempts"
+          exit 1
