@@ -1,8 +1,12 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
 import {
   anonKey,
+  creditorName,
+  dummyFirstName,
   extractContactId,
   hashId,
+  isEnrolledDebt,
+  liabilityStatusFromDebt,
   mapContact,
   mapDebts,
   mapForthStatusToService,
@@ -12,6 +16,7 @@ import {
   maskPII,
   parseContactList,
   parseList,
+  serviceStatusFromContact,
   unwrapContact,
 } from "./forthImport.ts";
 
@@ -59,15 +64,98 @@ Deno.test("mapContact strips every PII / contact field", () => {
   }
 });
 
-Deno.test("mapContact emits obvious dummy PII", () => {
+Deno.test("mapContact emits a realistic 'First Test' dummy name", () => {
   const m = mapContact(RAW)!;
-  assertEquals(m.client.first_name, "Test");
+  assertEquals(m.client.last_name, "Test"); // surname always "Test"
+  assert(m.client.first_name.length > 0 && m.client.first_name !== "Test"); // realistic first name
+  assertEquals(m.client.first_name, dummyFirstName(hashId("884412"))); // deterministic
   assert(m.client.email.endsWith("@example.com"));
   assertEquals(m.client.ssn_last4, null);
   assertEquals(m.client.middle_name, null);
   assertEquals(m.client.date_of_birth, "1984-01-01"); // year only, no exact DOB
   assert(m.client.forth_crm_id.startsWith("ANON-"));
   assertEquals(m.source_key, anonKey(884412));
+});
+
+Deno.test("mapDebts maps the real Forth debt shape", () => {
+  const d = mapDebts([
+    {
+      id: 167172123,
+      original_debt_amount: 7500,
+      current_debt_amount: 7000,
+      creditor: {
+        object: "creditor",
+        company_name: "Chase",
+        first_name: "First",
+        last_name: "Last",
+      },
+      og_account_num: "12345678",
+      creditor_account_num: "6033912",
+      legal_account: "No",
+      has_summons: false,
+      settled: false,
+      settlement_id: 0,
+      debt_type: 0, // numeric Forth code -> default type
+      __offers: [{ offer_amount: 3500, status: "accepted" }],
+    },
+  ])[0];
+  assertEquals(d.current_balance, 7000);
+  assertEquals(d.original_balance, 7500);
+  assertEquals(d.enrolled_balance, 7000);
+  assertEquals(d.creditor_name, "Chase");
+  assertEquals(d.account_number, null);
+  assertEquals(d.liability_type, "credit_card");
+  assertEquals(d.status, "enrolled");
+  assertEquals(d.settlements.length, 1);
+  const blob = JSON.stringify(d);
+  assert(!blob.includes("12345678") && !blob.includes("6033912")); // account numbers scrubbed
+});
+
+Deno.test("liabilityStatusFromDebt derives status from flags", () => {
+  assertEquals(liabilityStatusFromDebt({ settled: true }), "settled");
+  assertEquals(liabilityStatusFromDebt({ settlement_id: 4200 }), "settled");
+  assertEquals(liabilityStatusFromDebt({ has_summons: true }), "in_litigation");
+  assertEquals(liabilityStatusFromDebt({ legal_account: "Yes" }), "in_litigation");
+  assertEquals(liabilityStatusFromDebt({}), "enrolled");
+});
+
+Deno.test("creditorName reads the nested creditor object", () => {
+  assertEquals(creditorName({ creditor: { company_name: "Chase" } }), "Chase");
+  assertEquals(creditorName({ creditor: { first_name: "Jane", last_name: "Doe" } }), "Jane Doe");
+  assertEquals(creditorName({ debt_buyer: { company_name: "Buyer Co" } }), "Buyer Co");
+  assertEquals(creditorName({ creditor_name: "Legacy" }), "Legacy");
+  assertEquals(creditorName({}), null);
+});
+
+Deno.test("serviceStatusFromContact uses lifecycle flags then labels", () => {
+  assertEquals(serviceStatusFromContact({ enrolled: 1 }), "active");
+  assertEquals(serviceStatusFromContact({ graduated: 1 }), "graduated");
+  assertEquals(serviceStatusFromContact({ dropped: 1 }), "dropped");
+  assertEquals(serviceStatusFromContact({ paused: 1 }), "suspended");
+  assertEquals(serviceStatusFromContact({ enrolled: 0, stage_label: "Lead" }), "prospect");
+});
+
+Deno.test("maskPII redacts Forth account-number fields", () => {
+  const m = maskPII({
+    og_account_num: "12345678",
+    creditor_account_num: "999",
+    current_debt_amount: 7000,
+  });
+  assertEquals(m.og_account_num, "***");
+  assertEquals(m.creditor_account_num, "***");
+  assertEquals(m.current_debt_amount, 7000);
+});
+
+Deno.test("isEnrolledDebt keeps enrolled, drops excluded", () => {
+  assert(isEnrolledDebt({ enrolled: true }));
+  assert(isEnrolledDebt({ is_enrolled: 1 }));
+  assert(isEnrolledDebt({ status: "Enrolled" }));
+  assert(isEnrolledDebt({ status: "active" }));
+  assert(!isEnrolledDebt({ enrolled: false }));
+  assert(!isEnrolledDebt({ is_enrolled: 0 }));
+  assert(!isEnrolledDebt({ status: "excluded" }));
+  assert(!isEnrolledDebt({ status: "not enrolled" }));
+  assert(isEnrolledDebt({ balance: 100 })); // unknown shape -> keep
 });
 
 Deno.test("mapContact preserves non-PII program structure", () => {

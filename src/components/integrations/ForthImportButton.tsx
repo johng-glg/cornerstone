@@ -181,10 +181,15 @@ export function ForthImportButton({
                   what Forth returned — share it so the field mapping can be corrected.
                 </p>
               )}
-              {preview.debts_found === 0 && preview.raw_debt_sample != null && (
-                <pre className="mt-2 max-h-32 overflow-auto rounded bg-background p-2 text-[10px] leading-tight">
-                  {JSON.stringify(preview.raw_debt_sample, null, 1)}
-                </pre>
+              {preview.raw_debt_sample != null && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-muted-foreground">
+                    Raw debt sample (PII-masked) — share to confirm field mapping
+                  </summary>
+                  <pre className="mt-1 max-h-40 overflow-auto rounded bg-background p-2 text-[10px] leading-tight">
+                    {JSON.stringify(preview.raw_debt_sample, null, 1)}
+                  </pre>
+                </details>
               )}
               {preview.previews.length > 0 && (
                 <ul className="mt-2 space-y-0.5 text-muted-foreground">

@@ -19,6 +19,7 @@ import { buildForthHeaders, forthFetch, getAccessToken } from "../_shared/forthA
 import {
   type AnonLiability,
   extractContactId,
+  isEnrolledDebt,
   mapContact,
   type MappedContact,
   mapDebts,
@@ -70,82 +71,159 @@ async function fetchContactById(id: string, headers: Record<string, string>, com
   return await resp.json().catch(() => ({}));
 }
 
-/** GET a Forth list endpoint; returns the parsed array (empty + ok:false on non-2xx). */
-async function fetchList(url: string, headers: Record<string, string>, companyId?: string) {
+/** GET a Forth endpoint and return its items as an array (handles list envelopes AND a single
+ *  `{response:{...}}` object, which some endpoints return). */
+async function fetchItems(
+  url: string,
+  headers: Record<string, string>,
+  companyId?: string,
+): Promise<Raw[]> {
   try {
     const resp = await forthFetch(
       url,
       { method: "GET", headers },
       {
-        caller: "forth-import-anonymized:list-sub",
+        caller: "forth-import-anonymized:items",
         companyId,
       },
     );
-    if (!resp.ok) return { ok: false, items: [] as Raw[] };
+    if (!resp.ok) return [];
     const body = await resp.json().catch(() => ({}));
-    return { ok: true, items: parseList(body) };
+    const arr = parseList(body);
+    if (arr.length) return arr;
+    const one = unwrapContact(body);
+    return one && typeof one === "object" && (one.id ?? one.debt_id ?? one.settlement_id) != null
+      ? [one]
+      : [];
   } catch {
-    return { ok: false, items: [] as Raw[] };
+    return [];
   }
 }
 
+/** GET a single Forth resource and unwrap the `{response: {...}}` envelope (null on failure). */
+async function fetchOne(
+  url: string,
+  headers: Record<string, string>,
+  companyId?: string,
+): Promise<Raw | null> {
+  try {
+    const resp = await forthFetch(
+      url,
+      { method: "GET", headers },
+      {
+        caller: "forth-import-anonymized:get-one",
+        companyId,
+      },
+    );
+    if (!resp.ok) return null;
+    const body = await resp.json().catch(() => ({}));
+    return unwrapContact(body);
+  } catch {
+    return null;
+  }
+}
+
+/** Has a debt object been hydrated with its detail fields (vs. just an id stub)? */
+function isFullDebt(d: Raw): boolean {
+  return (
+    !!d &&
+    typeof d === "object" &&
+    (d.current_debt_amount !== undefined ||
+      d.original_debt_amount !== undefined ||
+      d.creditor !== undefined)
+  );
+}
+
+function refId(ref: Raw): string | number | null {
+  if (ref == null) return null;
+  if (typeof ref === "object") return ref.id ?? ref.debt_id ?? ref.settlement_id ?? null;
+  return ref;
+}
+
 /**
- * Find a contact's debts (and each debt's offers) by probing the likely Forth endpoints in order
- * and using the first that yields data. Attaches offers onto each debt as `__offers`.
+ * Gather a contact's enrolled debts and each debt's settlement offers using Forth's documented
+ * endpoints:
+ *   GET contacts/{id}/debts/enrolled   -> enrolled debts (falls back to .../debts = all debts)
+ *   GET debts/{id}                     -> hydrate a debt stub to the full object
+ *   GET debts/{id}/settlement_offers   -> the debt's offers (else the debt's settlement_offers ids)
+ *   GET settlement_offers/{id}         -> hydrate an offer stub/id to the full object
+ * Resolved offer objects are attached onto each debt as `__offers`.
  */
 async function gatherDebtsAndOffers(
   forthId: string,
-  contactRaw: Raw,
+  _contactRaw: Raw,
   headers: Record<string, string>,
   companyId: string,
   opts: { debts: boolean; offers: boolean },
 ): Promise<{ debts: Raw[]; debtSource: string; offerSource: string }> {
   if (!opts.debts) return { debts: [], debtSource: "disabled", offerSource: "disabled" };
 
-  const nested = unwrapContact(contactRaw)?.debts;
-  let debts: Raw[] = Array.isArray(nested) ? nested : [];
-  let debtSource = debts.length ? "contact.debts" : "none";
-
-  if (!debts.length) {
-    const candidates: [string, string][] = [
-      [`${FORTH}/debts?client_id=${forthId}`, "debts?client_id"],
-      [`${FORTH}/debts?contact_id=${forthId}`, "debts?contact_id"],
-      [`${FORTH}/contacts/${forthId}/debts`, "contacts/{id}/debts"],
-    ];
-    for (const [url, label] of candidates) {
-      const r = await fetchList(url, headers, companyId);
-      if (r.ok && r.items.length) {
-        debts = r.items;
-        debtSource = label;
-        break;
-      }
+  // 1) enrolled debts for the contact (this endpoint already returns only enrolled debts)
+  let refs: Raw[] = [];
+  let debtSource = "none";
+  const debtCands: [string, string][] = [
+    [`${FORTH}/contacts/${forthId}/debts/enrolled`, "contacts/{id}/debts/enrolled"],
+    [`${FORTH}/contacts/${forthId}/debts`, "contacts/{id}/debts"],
+  ];
+  for (const [url, label] of debtCands) {
+    const items = await fetchItems(url, headers, companyId);
+    if (items.length) {
+      refs = items;
+      debtSource = label;
+      break;
     }
   }
 
+  // 2) hydrate each debt to a full object (the list may return id stubs)
+  const debts: Raw[] = [];
+  for (const ref of refs) {
+    if (isFullDebt(ref)) {
+      debts.push(ref);
+      continue;
+    }
+    const id = refId(ref);
+    if (id == null) continue;
+    const full = await fetchOne(`${FORTH}/debts/${id}`, headers, companyId);
+    if (full) debts.push(full);
+  }
+
+  // 3) offers per debt
   let offerSource = "none";
   if (opts.offers) {
     for (const d of debts) {
-      const nestedOffers = d?.offers ?? d?.settlements ?? d?.settlement_offers;
-      if (Array.isArray(nestedOffers) && nestedOffers.length) {
-        d.__offers = nestedOffers;
-        offerSource = "debt.offers";
-        continue;
-      }
       const debtId = d?.id ?? d?.debt_id;
-      if (debtId === undefined || debtId === null) continue;
-      const candidates: [string, string][] = [
-        [`${FORTH}/debts/${debtId}/offers`, "debts/{id}/offers"],
-        [`${FORTH}/debts/${debtId}/settlements`, "debts/{id}/settlements"],
-        [`${FORTH}/offers?debt_id=${debtId}`, "offers?debt_id"],
-      ];
-      for (const [url, label] of candidates) {
-        const r = await fetchList(url, headers, companyId);
-        if (r.ok && r.items.length) {
-          d.__offers = r.items;
-          offerSource = label;
-          break;
+      let offerRefs: Raw[] = [];
+      if (debtId != null) {
+        const listed = await fetchItems(
+          `${FORTH}/debts/${debtId}/settlement_offers`,
+          headers,
+          companyId,
+        );
+        if (listed.length) {
+          offerRefs = listed;
+          offerSource = "debts/{id}/settlement_offers";
         }
       }
+      if (!offerRefs.length && Array.isArray(d?.settlement_offers) && d.settlement_offers.length) {
+        offerRefs = d.settlement_offers;
+        offerSource = "debt.settlement_offers";
+      }
+      const objs: Raw[] = [];
+      for (const ref of offerRefs) {
+        if (
+          ref &&
+          typeof ref === "object" &&
+          (ref.offer_amount !== undefined || ref.amount !== undefined)
+        ) {
+          objs.push(ref);
+          continue;
+        }
+        const oid = refId(ref);
+        if (oid == null) continue;
+        const o = await fetchOne(`${FORTH}/settlement_offers/${oid}`, headers, companyId);
+        if (o) objs.push(o);
+      }
+      if (objs.length) d.__offers = objs;
     }
   }
 
@@ -206,10 +284,40 @@ interface Prepared {
   offer_source: string;
 }
 
+/** Resolve a creditor row id by name (real creditor names from Forth debts), creating it if new.
+ *  Cached per-invocation so repeated creditors aren't re-queried. */
+async function getCreditorId(
+  supabase: Supabase,
+  cache: Map<string, string | null>,
+  name: string | null,
+): Promise<string | null> {
+  if (!name) return null;
+  const k = name.trim().toLowerCase();
+  if (cache.has(k)) return cache.get(k) ?? null;
+  const { data: found } = await supabase
+    .from("creditors")
+    .select("id")
+    .ilike("name", name.trim())
+    .limit(1)
+    .maybeSingle();
+  let id = (found?.id as string | undefined) ?? null;
+  if (!id) {
+    const { data: created } = await supabase
+      .from("creditors")
+      .insert({ name: name.trim(), creditor_type: "original_creditor" })
+      .select("id")
+      .single();
+    id = (created?.id as string | undefined) ?? null;
+  }
+  cache.set(k, id);
+  return id;
+}
+
 async function persist(
   supabase: Supabase,
   companyId: string,
   p: Prepared,
+  creditorCache: Map<string, string | null>,
 ): Promise<{ client_id: string; service_number: string | null; debts: number; offers: number }> {
   const m = p.map;
   const { data: client, error: cErr } = await supabase
@@ -262,10 +370,12 @@ async function persist(
   let debtsInserted = 0;
   let offersInserted = 0;
   for (const liab of p.liabilities) {
+    const creditorId = await getCreditorId(supabase, creditorCache, liab.creditor_name);
     const { data: row, error: lErr } = await supabase
       .from("liabilities")
       .insert({
         client_service_id: svc.id,
+        current_creditor_id: creditorId, // real creditor name from the Forth debt
         account_number: liab.account_number,
         liability_type: liab.liability_type,
         original_balance: liab.original_balance,
@@ -369,13 +479,20 @@ export async function handler(req: Request): Promise<Response> {
         continue;
       }
       // pull debts + offers, then fold them onto the contact so the engagement total reflects them
-      const { debts, debtSource, offerSource } = await gatherDebtsAndOffers(
-        forthId,
-        r,
-        headers,
-        input.company_id,
-        { debts: input.include_debts, offers: input.include_offers },
-      );
+      const {
+        debts: allDebts,
+        debtSource,
+        offerSource,
+      } = await gatherDebtsAndOffers(forthId, r, headers, input.company_id, {
+        debts: input.include_debts,
+        offers: input.include_offers,
+      });
+      // capture a masked sample of a real debt (BEFORE filtering) so the live shape can be confirmed
+      if (rawSample === null && allDebts.length) rawSample = maskPII(allDebts[0]);
+      // the .../debts/enrolled endpoint already returns only enrolled debts; the all-debts
+      // fallback still needs filtering.
+      const debts = debtSource.includes("enrolled") ? allDebts : allDebts.filter(isEnrolledDebt);
+
       const c = unwrapContact(r);
       if (debts.length) c.debts = debts;
       const map = mapContact(r, { importTag, defaultPlanType: input.default_plan_type });
@@ -383,7 +500,6 @@ export async function handler(req: Request): Promise<Response> {
         errors.push({ id: forthId, error: "unmappable (no id)" });
         continue;
       }
-      if (rawSample === null && debts.length) rawSample = maskPII(debts[0]);
       prepared.push({
         map,
         liabilities: mapDebts(debts, importTag),
@@ -442,9 +558,10 @@ export async function handler(req: Request): Promise<Response> {
       offers: number;
       source_key: string;
     }[] = [];
+    const creditorCache = new Map<string, string | null>();
     for (const p of fresh) {
       try {
-        const r = await persist(supabase, input.company_id, p);
+        const r = await persist(supabase, input.company_id, p, creditorCache);
         imported.push({ ...r, source_key: p.map.source_key });
       } catch (e) {
         errors.push({ id: p.map.source_key, error: e instanceof Error ? e.message : String(e) });
