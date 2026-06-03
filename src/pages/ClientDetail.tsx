@@ -225,12 +225,22 @@ export default function ClientDetail() {
                     </CardContent>
                   </Card>
                 )}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">Client Notes</CardTitle>
-                  </CardHeader>
-                  <CardContent>{id && <NotesTab entityId={id} entityType="client" />}</CardContent>
-                </Card>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Client Notes</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {id && <NotesTab entityId={id} entityType="client" />}
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Activity Log</CardTitle>
+                    </CardHeader>
+                    <CardContent>{id && <ClientActivityFeed clientId={id} />}</CardContent>
+                  </Card>
+                </div>
               </TabsContent>
 
               {/* ENGAGEMENTS */}
