@@ -71,22 +71,32 @@ async function fetchContactById(id: string, headers: Record<string, string>, com
   return await resp.json().catch(() => ({}));
 }
 
-/** GET a Forth list endpoint; returns the parsed array (empty + ok:false on non-2xx). */
-async function fetchList(url: string, headers: Record<string, string>, companyId?: string) {
+/** GET a Forth endpoint and return its items as an array (handles list envelopes AND a single
+ *  `{response:{...}}` object, which some endpoints return). */
+async function fetchItems(
+  url: string,
+  headers: Record<string, string>,
+  companyId?: string,
+): Promise<Raw[]> {
   try {
     const resp = await forthFetch(
       url,
       { method: "GET", headers },
       {
-        caller: "forth-import-anonymized:list-sub",
+        caller: "forth-import-anonymized:items",
         companyId,
       },
     );
-    if (!resp.ok) return { ok: false, items: [] as Raw[] };
+    if (!resp.ok) return [];
     const body = await resp.json().catch(() => ({}));
-    return { ok: true, items: parseList(body) };
+    const arr = parseList(body);
+    if (arr.length) return arr;
+    const one = unwrapContact(body);
+    return one && typeof one === "object" && (one.id ?? one.debt_id ?? one.settlement_id) != null
+      ? [one]
+      : [];
   } catch {
-    return { ok: false, items: [] as Raw[] };
+    return [];
   }
 }
 
@@ -113,69 +123,107 @@ async function fetchOne(
   }
 }
 
+/** Has a debt object been hydrated with its detail fields (vs. just an id stub)? */
+function isFullDebt(d: Raw): boolean {
+  return (
+    !!d &&
+    typeof d === "object" &&
+    (d.current_debt_amount !== undefined ||
+      d.original_debt_amount !== undefined ||
+      d.creditor !== undefined)
+  );
+}
+
+function refId(ref: Raw): string | number | null {
+  if (ref == null) return null;
+  if (typeof ref === "object") return ref.id ?? ref.debt_id ?? ref.settlement_id ?? null;
+  return ref;
+}
+
 /**
- * Find a contact's debts (and each debt's offers) by probing the likely Forth endpoints in order
- * and using the first that yields data. Forth debts carry `settlement_offers` as an array of offer
- * IDs, so each offer is fetched individually. Resolved offer objects are attached as `__offers`.
+ * Gather a contact's enrolled debts and each debt's settlement offers using Forth's documented
+ * endpoints:
+ *   GET contacts/{id}/debts/enrolled   -> enrolled debts (falls back to .../debts = all debts)
+ *   GET debts/{id}                     -> hydrate a debt stub to the full object
+ *   GET debts/{id}/settlement_offers   -> the debt's offers (else the debt's settlement_offers ids)
+ *   GET settlement_offers/{id}         -> hydrate an offer stub/id to the full object
+ * Resolved offer objects are attached onto each debt as `__offers`.
  */
 async function gatherDebtsAndOffers(
   forthId: string,
-  contactRaw: Raw,
+  _contactRaw: Raw,
   headers: Record<string, string>,
   companyId: string,
   opts: { debts: boolean; offers: boolean },
 ): Promise<{ debts: Raw[]; debtSource: string; offerSource: string }> {
   if (!opts.debts) return { debts: [], debtSource: "disabled", offerSource: "disabled" };
 
-  const nested = unwrapContact(contactRaw)?.debts;
-  let debts: Raw[] = Array.isArray(nested) ? nested : [];
-  let debtSource = debts.length ? "contact.debts" : "none";
-
-  if (!debts.length) {
-    const candidates: [string, string][] = [
-      [`${FORTH}/debts?client_id=${forthId}`, "debts?client_id"],
-      [`${FORTH}/debts?contact_id=${forthId}`, "debts?contact_id"],
-      [`${FORTH}/contacts/${forthId}/debts`, "contacts/{id}/debts"],
-    ];
-    for (const [url, label] of candidates) {
-      const r = await fetchList(url, headers, companyId);
-      if (r.ok && r.items.length) {
-        debts = r.items;
-        debtSource = label;
-        break;
-      }
+  // 1) enrolled debts for the contact (this endpoint already returns only enrolled debts)
+  let refs: Raw[] = [];
+  let debtSource = "none";
+  const debtCands: [string, string][] = [
+    [`${FORTH}/contacts/${forthId}/debts/enrolled`, "contacts/{id}/debts/enrolled"],
+    [`${FORTH}/contacts/${forthId}/debts`, "contacts/{id}/debts"],
+  ];
+  for (const [url, label] of debtCands) {
+    const items = await fetchItems(url, headers, companyId);
+    if (items.length) {
+      refs = items;
+      debtSource = label;
+      break;
     }
   }
 
+  // 2) hydrate each debt to a full object (the list may return id stubs)
+  const debts: Raw[] = [];
+  for (const ref of refs) {
+    if (isFullDebt(ref)) {
+      debts.push(ref);
+      continue;
+    }
+    const id = refId(ref);
+    if (id == null) continue;
+    const full = await fetchOne(`${FORTH}/debts/${id}`, headers, companyId);
+    if (full) debts.push(full);
+  }
+
+  // 3) offers per debt
   let offerSource = "none";
   if (opts.offers) {
     for (const d of debts) {
-      const refs = d?.settlement_offers ?? d?.offers ?? d?.settlements;
-      if (Array.isArray(refs) && refs.length) {
-        if (typeof refs[0] === "object") {
-          d.__offers = refs; // already nested objects
-          offerSource = "debt.settlement_offers";
+      const debtId = d?.id ?? d?.debt_id;
+      let offerRefs: Raw[] = [];
+      if (debtId != null) {
+        const listed = await fetchItems(
+          `${FORTH}/debts/${debtId}/settlement_offers`,
+          headers,
+          companyId,
+        );
+        if (listed.length) {
+          offerRefs = listed;
+          offerSource = "debts/{id}/settlement_offers";
+        }
+      }
+      if (!offerRefs.length && Array.isArray(d?.settlement_offers) && d.settlement_offers.length) {
+        offerRefs = d.settlement_offers;
+        offerSource = "debt.settlement_offers";
+      }
+      const objs: Raw[] = [];
+      for (const ref of offerRefs) {
+        if (
+          ref &&
+          typeof ref === "object" &&
+          (ref.offer_amount !== undefined || ref.amount !== undefined)
+        ) {
+          objs.push(ref);
           continue;
         }
-        // array of offer IDs -> fetch each individually
-        const objs: Raw[] = [];
-        for (const oid of refs) {
-          const cands: [string, string][] = [
-            [`${FORTH}/settlement_offers/${oid}`, "settlement_offers/{id}"],
-            [`${FORTH}/settlements/${oid}`, "settlements/{id}"],
-            [`${FORTH}/offers/${oid}`, "offers/{id}"],
-          ];
-          for (const [url, label] of cands) {
-            const obj = await fetchOne(url, headers, companyId);
-            if (obj) {
-              objs.push(obj);
-              offerSource = label;
-              break;
-            }
-          }
-        }
-        if (objs.length) d.__offers = objs;
+        const oid = refId(ref);
+        if (oid == null) continue;
+        const o = await fetchOne(`${FORTH}/settlement_offers/${oid}`, headers, companyId);
+        if (o) objs.push(o);
       }
+      if (objs.length) d.__offers = objs;
     }
   }
 
@@ -441,8 +489,9 @@ export async function handler(req: Request): Promise<Response> {
       });
       // capture a masked sample of a real debt (BEFORE filtering) so the live shape can be confirmed
       if (rawSample === null && allDebts.length) rawSample = maskPII(allDebts[0]);
-      // only import enrolled debts
-      const debts = allDebts.filter(isEnrolledDebt);
+      // the .../debts/enrolled endpoint already returns only enrolled debts; the all-debts
+      // fallback still needs filtering.
+      const debts = debtSource.includes("enrolled") ? allDebts : allDebts.filter(isEnrolledDebt);
 
       const c = unwrapContact(r);
       if (debts.length) c.debts = debts;
