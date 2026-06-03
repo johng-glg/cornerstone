@@ -19,12 +19,14 @@ import { buildForthHeaders, forthFetch, getAccessToken } from "../_shared/forthA
 import {
   type AnonLiability,
   extractContactId,
+  type ForthNote,
   isEnrolledDebt,
   mapContact,
   type MappedContact,
   mapDebts,
   maskPII,
   parseContactList,
+  parseForthNotes,
   parseList,
   unwrapContact,
 } from "../_shared/forthImport.ts";
@@ -47,6 +49,8 @@ const InputSchema = z
     hydrate: z.boolean().default(true),
     include_debts: z.boolean().default(true),
     include_offers: z.boolean().default(true),
+    include_notes: z.boolean().default(true), // import Forth contact notes verbatim
+    import_staff_id: z.string().uuid().optional(), // author for imported notes (created_by)
     update_existing: z.boolean().default(true), // re-import updates existing records (vs. skip)
     dry_run: z.boolean().default(true),
     default_plan_type: z.enum(["glg_standard", "glg_adjustable", "glg_exception"]).optional(),
@@ -303,6 +307,7 @@ async function gatherContacts(
 interface Prepared {
   map: MappedContact;
   liabilities: AnonLiability[];
+  forthNotes: ForthNote[];
   debt_source: string;
   offer_source: string;
 }
@@ -341,7 +346,14 @@ async function persist(
   companyId: string,
   p: Prepared,
   creditorCache: Map<string, string | null>,
-): Promise<{ client_id: string; service_number: string | null; debts: number; offers: number }> {
+  noteAuthorId: string | null,
+): Promise<{
+  client_id: string;
+  service_number: string | null;
+  debts: number;
+  offers: number;
+  notes: number;
+}> {
   const m = p.map;
   const clientFields = {
     company_id: companyId,
@@ -489,6 +501,35 @@ async function persist(
     }
   }
 
+  // Forth contact notes -> client notes (verbatim). Re-sync by source so re-import doesn't dup.
+  let notesInserted = 0;
+  if (p.forthNotes.length && noteAuthorId) {
+    try {
+      await supabase
+        .from("notes")
+        .delete()
+        .eq("entity_type", "client")
+        .eq("entity_id", clientId)
+        .eq("source", "forth");
+      const noteRows = p.forthNotes.map((n) => ({
+        entity_type: "client",
+        entity_id: clientId,
+        content: n.content,
+        created_by: noteAuthorId,
+        created_at: n.created_at ?? undefined,
+        source: "forth",
+        external_id: n.external_id,
+      }));
+      const { count, error: nErr } = await supabase
+        .from("notes")
+        .insert(noteRows, { count: "exact" });
+      if (!nErr) notesInserted = count ?? noteRows.length;
+    } catch {
+      // notes are best-effort (e.g. before the source/external_id migration applies)
+      notesInserted = 0;
+    }
+  }
+
   await supabase.from("plsa_sync_log").insert({
     entity_type: "client",
     entity_id: clientId,
@@ -500,6 +541,7 @@ async function persist(
       service_number: svcNumber,
       debts: debtsInserted,
       offers: offersInserted,
+      notes: notesInserted,
       debt_source: p.debt_source,
       offer_source: p.offer_source,
     },
@@ -510,6 +552,7 @@ async function persist(
     service_number: svcNumber,
     debts: debtsInserted,
     offers: offersInserted,
+    notes: notesInserted,
   };
 }
 
@@ -548,6 +591,19 @@ export async function handler(req: Request): Promise<Response> {
 
     // one-time lookup so debt_type codes resolve to real liability types
     const typeMap = input.include_debts ? await fetchDebtTypeMap(headers, input.company_id) : {};
+
+    // imported notes need a Cornerstone staff author (notes.created_by is NOT NULL): use the
+    // provided staff id, else fall back to any staff in the company.
+    let noteAuthorId: string | null = input.import_staff_id ?? null;
+    if (input.include_notes && !noteAuthorId) {
+      const { data: anyStaff } = await supabase
+        .from("staff")
+        .select("id")
+        .eq("company_id", input.company_id)
+        .limit(1)
+        .maybeSingle();
+      noteAuthorId = (anyStaff?.id as string | undefined) ?? null;
+    }
 
     const { raw, errors } = await gatherContacts(input, headers);
 
@@ -602,9 +658,22 @@ export async function handler(req: Request): Promise<Response> {
         errors.push({ id: forthId, error: "unmappable (no id)" });
         continue;
       }
+
+      // contact notes (verbatim) — only when an author staff id is available
+      let forthNotes: ForthNote[] = [];
+      if (input.include_notes && noteAuthorId) {
+        const notesRaw = await fetchOne(
+          `${FORTH}/contacts/${forthId}/notes`,
+          headers,
+          input.company_id,
+        );
+        if (notesRaw) forthNotes = parseForthNotes(notesRaw);
+      }
+
       prepared.push({
         map,
         liabilities: mapDebts(debts, importTag, typeMap),
+        forthNotes,
         debt_source: debtSource,
         offer_source: offerSource,
       });
@@ -631,6 +700,7 @@ export async function handler(req: Request): Promise<Response> {
       (n, p) => n + p.liabilities.reduce((m, l) => m + l.settlements.length, 0),
       0,
     );
+    const notesFound = prepared.reduce((n, p) => n + p.forthNotes.length, 0);
 
     if (input.dry_run) {
       return jsonResponse(req, {
@@ -644,6 +714,8 @@ export async function handler(req: Request): Promise<Response> {
         would_skip: input.update_existing ? 0 : alreadyThere,
         debts_found: debtsFound,
         offers_found: offersFound,
+        notes_found: notesFound,
+        note_author_resolved: !!noteAuthorId,
         debt_source: prepared.find((p) => p.debt_source !== "none")?.debt_source ?? "none",
         offer_source: prepared.find((p) => p.offer_source !== "none")?.offer_source ?? "none",
         raw_debt_sample: rawSample, // PII-masked — confirms Forth's real shape
@@ -661,12 +733,13 @@ export async function handler(req: Request): Promise<Response> {
       service_number: string | null;
       debts: number;
       offers: number;
+      notes: number;
       source_key: string;
     }[] = [];
     const creditorCache = new Map<string, string | null>();
     for (const p of toProcess) {
       try {
-        const r = await persist(supabase, input.company_id, p, creditorCache);
+        const r = await persist(supabase, input.company_id, p, creditorCache, noteAuthorId);
         imported.push({ ...r, source_key: p.map.source_key });
       } catch (e) {
         errors.push({ id: p.map.source_key, error: e instanceof Error ? e.message : String(e) });
@@ -683,6 +756,7 @@ export async function handler(req: Request): Promise<Response> {
       imported: imported.length,
       debts_imported: imported.reduce((n, r) => n + r.debts, 0),
       offers_imported: imported.reduce((n, r) => n + r.offers, 0),
+      notes_imported: imported.reduce((n, r) => n + r.notes, 0),
       records: imported,
       errors,
     });

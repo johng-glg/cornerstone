@@ -146,6 +146,39 @@ function isoDate(v: unknown): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
+/** Full ISO timestamp (preserves time), or null. Forth sends "YYYY-MM-DD HH:MM:SS". */
+function isoDateTime(v: unknown): string | null {
+  if (!v) return null;
+  const s = String(v).replace(" ", "T");
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/** A Forth contact note, ready to insert into public.notes (content kept verbatim). */
+export interface ForthNote {
+  content: string;
+  created_at: string | null;
+  external_id: string;
+}
+
+/** Extract notes from a GET contacts/{id}/notes response. Skips empty-content notes. */
+export function parseForthNotes(raw: Raw): ForthNote[] {
+  const r = unwrapContact(raw);
+  const list = Array.isArray(r?.results) ? r.results : Array.isArray(r) ? r : parseList(raw);
+  const out: ForthNote[] = [];
+  for (const n of list) {
+    const content = typeof n?.content === "string" ? n.content.trim() : "";
+    const id = n?.note_id ?? n?.id;
+    if (!content || id == null) continue;
+    out.push({
+      content,
+      created_at: isoDateTime(n?.note_created_date ?? n?.created_at ?? n?.created),
+      external_id: String(id),
+    });
+  }
+  return out;
+}
+
 function addMonths(isoDay: string | null, months: number | null): string | null {
   if (!isoDay || !months) return null;
   const d = new Date(isoDay + "T00:00:00Z");

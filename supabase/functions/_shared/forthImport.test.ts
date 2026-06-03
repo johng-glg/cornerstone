@@ -15,6 +15,7 @@ import {
   mapSettlementStatus,
   maskPII,
   parseContactList,
+  parseForthNotes,
   parseList,
   serviceStatusFromContact,
   unwrapContact,
@@ -219,6 +220,29 @@ Deno.test("mapDebts resolves debt_type via the types lookup", () => {
     typeMap,
   )[0];
   assertEquals(byLabel.liability_type, "personal_loan");
+});
+
+Deno.test("parseForthNotes extracts content + skips empties", () => {
+  const raw = {
+    response: {
+      results: [
+        {
+          note_id: "397728630",
+          content: "File Approved: ",
+          note_created_date: "2020-02-21 15:59:03",
+        },
+        { note_id: "397743564", content: "", note_created_date: "2020-02-21 16:26:49" }, // empty -> skip
+        { note_id: "405329517", note_created_date: "2020-03-12 17:16:41" }, // no content -> skip
+      ],
+      count: "35",
+    },
+    status: { code: 200 },
+  };
+  const notes = parseForthNotes(raw);
+  assertEquals(notes.length, 1);
+  assertEquals(notes[0].content, "File Approved:"); // trimmed, verbatim
+  assertEquals(notes[0].external_id, "397728630");
+  assertEquals(notes[0].created_at, "2020-02-21T15:59:03.000Z");
 });
 
 Deno.test("liabilityStatusFromDebt derives status from flags (incl. Forth string booleans)", () => {
