@@ -175,6 +175,21 @@ export function mapForthStatusToService(status: unknown): string {
   return "active";
 }
 
+function truthy(v: unknown): boolean {
+  return v === true || v === 1 || v === "1";
+}
+
+/** Derive the engagement (service_status) from a Forth contact's lifecycle flags + labels. */
+export function serviceStatusFromContact(c: Raw): string {
+  if (truthy(c?.graduated)) return "graduated";
+  if (truthy(c?.dropped)) return "dropped";
+  if (truthy(c?.paused)) return "suspended";
+  if (truthy(c?.enrolled)) return "active";
+  return mapForthStatusToService(
+    firstDefined(c?.status_label, c?.stage_label, c?.status, c?.contact_status),
+  );
+}
+
 /** clients.status enum is only active|inactive. */
 function clientStatusFor(serviceStatus: string): "active" | "inactive" {
   return ["active", "graduated", "suspended", "pending"].includes(serviceStatus)
@@ -182,7 +197,8 @@ function clientStatusFor(serviceStatus: string): "active" | "inactive" {
     : "inactive";
 }
 
-/** Map a Forth debt account-type string onto our liability_type enum. */
+/** Map a Forth debt account-type string onto our liability_type enum. Forth's numeric debt_type
+ *  codes can't be resolved without a lookup, so numbers fall back to the credit_card default. */
 export function mapLiabilityType(t: unknown): string {
   const s = String(t ?? "").toLowerCase();
   if (/(medical|hospital)/.test(s)) return "medical";
@@ -191,7 +207,39 @@ export function mapLiabilityType(t: unknown): string {
   if (/(mortgage|home)/.test(s)) return "mortgage";
   if (/(personal|installment|signature)/.test(s)) return "personal_loan";
   if (/(credit.?card|card|revolving|visa|mastercard|amex|discover)/.test(s)) return "credit_card";
-  return s ? "other" : "credit_card";
+  return s && !/^\d+$/.test(s) ? "other" : "credit_card";
+}
+
+/** Extract a creditor's display name from a Forth debt (creditor is a nested object). */
+export function creditorName(d: Raw): string | null {
+  const fromObj = (c: Raw): string | null => {
+    if (!c) return null;
+    if (typeof c === "string") return c.trim() || null;
+    if (typeof c === "object") {
+      const company = typeof c.company_name === "string" ? c.company_name.trim() : "";
+      if (company) return company;
+      const person = [c.first_name, c.last_name].filter(Boolean).join(" ").trim();
+      return person || null;
+    }
+    return null;
+  };
+  return (
+    fromObj(d?.creditor) ??
+    fromObj(d?.original_creditor) ??
+    fromObj(d?.debt_buyer) ??
+    (typeof d?.creditor_name === "string" ? d.creditor_name : null) ??
+    null
+  );
+}
+
+/** Derive liability_status from a Forth debt's flags (numeric debt_status codes are ignored). */
+export function liabilityStatusFromDebt(d: Raw): string {
+  if (d?.settled === true || (toNumber(d?.settlement_id) ?? 0) > 0) return "settled";
+  if (d?.has_summons === true || /^yes$/i.test(String(d?.legal_account ?? ""))) {
+    return "in_litigation";
+  }
+  const s = firstDefined<string>(d?.status, d?.debt_status_label, d?.status_label);
+  return s ? mapLiabilityStatus(s) : "enrolled"; // we only import enrolled debts
 }
 
 /** Map a Forth debt status onto our liability_status enum. Defaults to 'enrolled'. */
@@ -229,7 +277,7 @@ export function maskPII(value: Raw, depth = 0): Raw {
   if (Array.isArray(value)) return value.slice(0, 3).map((v) => maskPII(v, depth + 1));
   if (typeof value !== "object") return value;
   const PII =
-    /(ssn|social|tax_id|account_number|routing|first_name|last_name|middle_name|full_name|^name$|email|phone|fax|dob|birth|address|street|city|state|zip|postal)/i;
+    /(ssn|social|tax_id|account|acct|routing|first_name|last_name|middle_name|full_name|^name$|email|phone|fax|dob|birth|address|street|city|state|zip|postal)/i;
   const out: Record<string, Raw> = {};
   for (const [k, v] of Object.entries(value)) {
     out[k] = PII.test(k) ? "***" : maskPII(v, depth + 1);
@@ -323,28 +371,43 @@ export function mapOffers(rawOffers: Raw[], balance: number | null, tag = ""): A
 export function mapDebts(rawDebts: Raw[], tag = ""): AnonLiability[] {
   const out: AnonLiability[] = [];
   for (const d of rawDebts ?? []) {
-    const current = firstDefined(toNumber(d?.current_balance), toNumber(d?.balance)) ?? null;
-    const original =
-      firstDefined(toNumber(d?.original_balance), toNumber(d?.original_amount)) ?? current;
-    const enrolled =
-      firstDefined(toNumber(d?.enrolled_balance), toNumber(d?.enrolled_amount)) ?? current;
-    const creditor =
-      firstDefined<string>(
-        d?.creditor_name,
-        d?.creditor,
-        d?.original_creditor,
-        d?.current_creditor,
-        d?.collector_name,
+    const current =
+      firstDefined(
+        toNumber(d?.current_debt_amount),
+        toNumber(d?.current_balance),
+        toNumber(d?.balance),
+        toNumber(d?.verified_debt_amount),
       ) ?? null;
-    const rawOffers =
-      firstDefined<Raw[]>(d?.__offers, d?.offers, d?.settlements, d?.settlement_offers) ?? [];
+    const original =
+      firstDefined(
+        toNumber(d?.original_debt_amount),
+        toNumber(d?.original_balance),
+        toNumber(d?.original_amount),
+      ) ?? current;
+    const enrolled =
+      firstDefined(
+        toNumber(d?.enrolled_balance),
+        toNumber(d?.enrolled_amount),
+        toNumber(d?.current_debt_amount),
+      ) ?? current;
+    const creditor = creditorName(d);
+    // offer objects are attached as __offers by the caller (Forth debts only carry offer IDs)
+    const rawOffers = firstDefined<Raw[]>(d?.__offers, d?.offers, d?.settlements) ?? [];
+    const liabilityType = mapLiabilityType(
+      firstDefined(
+        d?.account_type,
+        d?.debt_type_label,
+        d?.type,
+        typeof d?.debt_type === "string" ? d.debt_type : undefined,
+      ),
+    );
     out.push({
-      account_number: null,
-      liability_type: mapLiabilityType(firstDefined(d?.account_type, d?.debt_type, d?.type)),
+      account_number: null, // og_account_num / creditor_account_num are PII — scrubbed
+      liability_type: liabilityType,
       original_balance: original,
       current_balance: current,
       enrolled_balance: enrolled,
-      status: mapLiabilityStatus(firstDefined(d?.status, d?.debt_status)),
+      status: liabilityStatusFromDebt(d),
       priority: toNumber(d?.priority) ?? 0,
       creditor_name: creditor,
       notes:
@@ -419,15 +482,18 @@ export function mapContact(raw: Raw, opts: MapOptions = {}): MappedContact | nul
   // ---- keep: non-PII program structure --------------------------------------------------------
   const debts = Array.isArray(c?.debts) ? c.debts : [];
   const debtSum = debts.reduce(
-    (acc: number, d: Raw) => acc + (toNumber(d?.current_balance ?? d?.balance) ?? 0),
+    (acc: number, d: Raw) =>
+      acc + (toNumber(d?.current_debt_amount ?? d?.current_balance ?? d?.balance) ?? 0),
     0,
   );
+  // prefer the sum of the (enrolled) debts we imported; fall back to the contact-level total
   const totalDebt =
     firstDefined(
+      debtSum > 0 ? debtSum : undefined,
       toNumber(c?.total_enrolled_debt),
+      toNumber(c?.total_debt),
       toNumber(c?.enrolled_debt),
       toNumber(c?.debt_total),
-      debtSum > 0 ? debtSum : undefined,
     ) ?? 0;
   const debtCount =
     firstDefined(
@@ -450,9 +516,7 @@ export function mapContact(raw: Raw, opts: MapOptions = {}): MappedContact | nul
     firstDefined(c?.enrolled_date, c?.enrollment_date, c?.date_added, c?.created_date),
   );
 
-  const serviceStatus = mapForthStatusToService(
-    firstDefined(c?.status, c?.contact_status, c?.enrollment_status, c?.file_status),
-  );
+  const serviceStatus = serviceStatusFromContact(c);
 
   const client: AnonClient = {
     forth_crm_id: key,

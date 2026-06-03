@@ -90,9 +90,33 @@ async function fetchList(url: string, headers: Record<string, string>, companyId
   }
 }
 
+/** GET a single Forth resource and unwrap the `{response: {...}}` envelope (null on failure). */
+async function fetchOne(
+  url: string,
+  headers: Record<string, string>,
+  companyId?: string,
+): Promise<Raw | null> {
+  try {
+    const resp = await forthFetch(
+      url,
+      { method: "GET", headers },
+      {
+        caller: "forth-import-anonymized:get-one",
+        companyId,
+      },
+    );
+    if (!resp.ok) return null;
+    const body = await resp.json().catch(() => ({}));
+    return unwrapContact(body);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Find a contact's debts (and each debt's offers) by probing the likely Forth endpoints in order
- * and using the first that yields data. Attaches offers onto each debt as `__offers`.
+ * and using the first that yields data. Forth debts carry `settlement_offers` as an array of offer
+ * IDs, so each offer is fetched individually. Resolved offer objects are attached as `__offers`.
  */
 async function gatherDebtsAndOffers(
   forthId: string,
@@ -126,26 +150,31 @@ async function gatherDebtsAndOffers(
   let offerSource = "none";
   if (opts.offers) {
     for (const d of debts) {
-      const nestedOffers = d?.offers ?? d?.settlements ?? d?.settlement_offers;
-      if (Array.isArray(nestedOffers) && nestedOffers.length) {
-        d.__offers = nestedOffers;
-        offerSource = "debt.offers";
-        continue;
-      }
-      const debtId = d?.id ?? d?.debt_id;
-      if (debtId === undefined || debtId === null) continue;
-      const candidates: [string, string][] = [
-        [`${FORTH}/debts/${debtId}/offers`, "debts/{id}/offers"],
-        [`${FORTH}/debts/${debtId}/settlements`, "debts/{id}/settlements"],
-        [`${FORTH}/offers?debt_id=${debtId}`, "offers?debt_id"],
-      ];
-      for (const [url, label] of candidates) {
-        const r = await fetchList(url, headers, companyId);
-        if (r.ok && r.items.length) {
-          d.__offers = r.items;
-          offerSource = label;
-          break;
+      const refs = d?.settlement_offers ?? d?.offers ?? d?.settlements;
+      if (Array.isArray(refs) && refs.length) {
+        if (typeof refs[0] === "object") {
+          d.__offers = refs; // already nested objects
+          offerSource = "debt.settlement_offers";
+          continue;
         }
+        // array of offer IDs -> fetch each individually
+        const objs: Raw[] = [];
+        for (const oid of refs) {
+          const cands: [string, string][] = [
+            [`${FORTH}/settlement_offers/${oid}`, "settlement_offers/{id}"],
+            [`${FORTH}/settlements/${oid}`, "settlements/{id}"],
+            [`${FORTH}/offers/${oid}`, "offers/{id}"],
+          ];
+          for (const [url, label] of cands) {
+            const obj = await fetchOne(url, headers, companyId);
+            if (obj) {
+              objs.push(obj);
+              offerSource = label;
+              break;
+            }
+          }
+        }
+        if (objs.length) d.__offers = objs;
       }
     }
   }
