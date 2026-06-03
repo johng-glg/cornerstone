@@ -1,6 +1,5 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
 import {
-  anonKey,
   creditorName,
   dummyFirstName,
   extractContactId,
@@ -73,8 +72,13 @@ Deno.test("mapContact emits a realistic 'First Test' dummy name", () => {
   assertEquals(m.client.ssn_last4, null);
   assertEquals(m.client.middle_name, null);
   assertEquals(m.client.date_of_birth, "1984-01-01"); // year only, no exact DOB
-  assert(m.client.forth_crm_id.startsWith("ANON-"));
-  assertEquals(m.source_key, anonKey(884412));
+});
+
+Deno.test("mapContact keeps the real Forth contact id (for later re-fetch)", () => {
+  const m = mapContact(RAW)!;
+  assertEquals(m.client.forth_crm_id, "884412"); // real id, not an ANON hash
+  assertEquals(m.source_key, "884412"); // dedupe key == real id
+  assert(m.client.notes.includes("Forth contact 884412"));
 });
 
 Deno.test("mapDebts maps the real Forth debt shape", () => {
