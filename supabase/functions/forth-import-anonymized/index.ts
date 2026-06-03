@@ -1,27 +1,31 @@
-// forth-import-anonymized — pull real Forth CRM contacts and load them into Cornerstone as
-// de-identified clients + engagements (client_services). Every PII / contact field is replaced
-// with obvious dummy data; the non-PII program structure (debt totals, payment, term, status,
-// dates) is preserved. Intended for seeding a dev/staging tenant with realistic-but-safe records.
+// forth-import-anonymized — pull real Forth CRM contacts (with their debts + settlement offers)
+// into Cornerstone as de-identified clients + engagements + liabilities + settlements. Every PII /
+// contact field is replaced with obvious dummy data; the non-PII structure (debt balances, offer
+// amounts, payment terms, statuses, dates, creditor names) is preserved.
 //
-//   Safety: dry_run defaults to TRUE — the first call returns exactly what *would* be written,
-//           with PII already scrubbed, and writes nothing. Re-call with dry_run:false to persist.
+//   Safety: dry_run defaults to TRUE — returns a PII-free preview of what *would* be written,
+//           including how many debts/offers were found, which Forth endpoint supplied them, and a
+//           PII-masked sample of the raw shape. Re-call with dry_run:false to persist.
 //
-//   Sources (pick one):
-//     contact_ids: [...]   reliable — fetches each via the proven GET /contacts/{id}
-//     list: {limit,page}   best-effort bulk list (GET /contacts?...). TODO(forth-docs): confirm
-//                          the list endpoint + params; shape parsing is defensive.
+//   Sources (pick one): contact_ids[] (reliable, GET /contacts/{id}) or list{} (best-effort bulk).
 //
-// All anonymization/mapping logic lives in ../_shared/forthImport.ts (pure, unit-tested offline).
+// Debts/offers are separate Forth resources (not nested in the contact), so we probe a few likely
+// endpoints and report which one worked — TODO(forth-docs): pin these down once confirmed.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { buildForthHeaders, forthFetch, getAccessToken } from "../_shared/forthAuth.ts";
 import {
+  type AnonLiability,
   extractContactId,
   mapContact,
   type MappedContact,
+  mapDebts,
+  maskPII,
   parseContactList,
+  parseList,
+  unwrapContact,
 } from "../_shared/forthImport.ts";
 
 const FORTH = "https://api.forthcrm.com/v1";
@@ -39,8 +43,10 @@ const InputSchema = z
         page: z.number().int().min(1).default(1),
       })
       .optional(),
-    hydrate: z.boolean().default(true), // in list mode, re-GET each contact for full detail
-    dry_run: z.boolean().default(true), // SAFE default: don't write
+    hydrate: z.boolean().default(true),
+    include_debts: z.boolean().default(true),
+    include_offers: z.boolean().default(true),
+    dry_run: z.boolean().default(true),
     default_plan_type: z.enum(["glg_standard", "glg_adjustable", "glg_exception"]).optional(),
   })
   .refine((v) => !!v.contact_ids?.length || !!v.list, {
@@ -64,6 +70,88 @@ async function fetchContactById(id: string, headers: Record<string, string>, com
   return await resp.json().catch(() => ({}));
 }
 
+/** GET a Forth list endpoint; returns the parsed array (empty + ok:false on non-2xx). */
+async function fetchList(url: string, headers: Record<string, string>, companyId?: string) {
+  try {
+    const resp = await forthFetch(
+      url,
+      { method: "GET", headers },
+      {
+        caller: "forth-import-anonymized:list-sub",
+        companyId,
+      },
+    );
+    if (!resp.ok) return { ok: false, items: [] as Raw[] };
+    const body = await resp.json().catch(() => ({}));
+    return { ok: true, items: parseList(body) };
+  } catch {
+    return { ok: false, items: [] as Raw[] };
+  }
+}
+
+/**
+ * Find a contact's debts (and each debt's offers) by probing the likely Forth endpoints in order
+ * and using the first that yields data. Attaches offers onto each debt as `__offers`.
+ */
+async function gatherDebtsAndOffers(
+  forthId: string,
+  contactRaw: Raw,
+  headers: Record<string, string>,
+  companyId: string,
+  opts: { debts: boolean; offers: boolean },
+): Promise<{ debts: Raw[]; debtSource: string; offerSource: string }> {
+  if (!opts.debts) return { debts: [], debtSource: "disabled", offerSource: "disabled" };
+
+  const nested = unwrapContact(contactRaw)?.debts;
+  let debts: Raw[] = Array.isArray(nested) ? nested : [];
+  let debtSource = debts.length ? "contact.debts" : "none";
+
+  if (!debts.length) {
+    const candidates: [string, string][] = [
+      [`${FORTH}/debts?client_id=${forthId}`, "debts?client_id"],
+      [`${FORTH}/debts?contact_id=${forthId}`, "debts?contact_id"],
+      [`${FORTH}/contacts/${forthId}/debts`, "contacts/{id}/debts"],
+    ];
+    for (const [url, label] of candidates) {
+      const r = await fetchList(url, headers, companyId);
+      if (r.ok && r.items.length) {
+        debts = r.items;
+        debtSource = label;
+        break;
+      }
+    }
+  }
+
+  let offerSource = "none";
+  if (opts.offers) {
+    for (const d of debts) {
+      const nestedOffers = d?.offers ?? d?.settlements ?? d?.settlement_offers;
+      if (Array.isArray(nestedOffers) && nestedOffers.length) {
+        d.__offers = nestedOffers;
+        offerSource = "debt.offers";
+        continue;
+      }
+      const debtId = d?.id ?? d?.debt_id;
+      if (debtId === undefined || debtId === null) continue;
+      const candidates: [string, string][] = [
+        [`${FORTH}/debts/${debtId}/offers`, "debts/{id}/offers"],
+        [`${FORTH}/debts/${debtId}/settlements`, "debts/{id}/settlements"],
+        [`${FORTH}/offers?debt_id=${debtId}`, "offers?debt_id"],
+      ];
+      for (const [url, label] of candidates) {
+        const r = await fetchList(url, headers, companyId);
+        if (r.ok && r.items.length) {
+          d.__offers = r.items;
+          offerSource = label;
+          break;
+        }
+      }
+    }
+  }
+
+  return { debts, debtSource, offerSource };
+}
+
 /** Gather raw Forth contacts from either explicit ids or the (best-effort) list endpoint. */
 async function gatherContacts(
   input: z.infer<typeof InputSchema>,
@@ -84,7 +172,6 @@ async function gatherContacts(
     return { raw, errors };
   }
 
-  // list mode
   const { limit, page } = input.list!;
   const resp = await forthFetch(
     `${FORTH}/contacts?limit=${limit}&page=${page}`,
@@ -112,11 +199,19 @@ async function gatherContacts(
   return { raw, errors };
 }
 
+interface Prepared {
+  map: MappedContact;
+  liabilities: AnonLiability[];
+  debt_source: string;
+  offer_source: string;
+}
+
 async function persist(
   supabase: Supabase,
   companyId: string,
-  m: MappedContact,
-): Promise<{ client_id: string; service_number: string | null }> {
+  p: Prepared,
+): Promise<{ client_id: string; service_number: string | null; debts: number; offers: number }> {
+  const m = p.map;
   const { data: client, error: cErr } = await supabase
     .from("clients")
     .insert({
@@ -156,14 +251,52 @@ async function persist(
       program_start_date: m.service.program_start_date,
       estimated_completion_date: m.service.estimated_completion_date,
       notes: m.service.notes,
-      // service_number is generated by a BEFORE INSERT trigger; plsa_provider_id defaults to 'forth'
     })
-    .select("service_number")
+    .select("id, service_number")
     .single();
-  if (sErr) {
-    // engagement failed — remove the orphan client so a retry is clean
+  if (sErr || !svc) {
     await supabase.from("clients").delete().eq("id", client.id);
-    throw new Error(`engagement insert failed: ${sErr.message}`);
+    throw new Error(`engagement insert failed: ${sErr?.message ?? "no row"}`);
+  }
+
+  let debtsInserted = 0;
+  let offersInserted = 0;
+  for (const liab of p.liabilities) {
+    const { data: row, error: lErr } = await supabase
+      .from("liabilities")
+      .insert({
+        client_service_id: svc.id,
+        account_number: liab.account_number,
+        liability_type: liab.liability_type,
+        original_balance: liab.original_balance,
+        current_balance: liab.current_balance,
+        enrolled_balance: liab.enrolled_balance,
+        status: liab.status,
+        priority: liab.priority,
+        notes: liab.notes,
+      })
+      .select("id")
+      .single();
+    if (lErr || !row) continue; // skip the debt but keep going; surfaced via counts
+    debtsInserted++;
+    if (liab.settlements.length) {
+      const rows = liab.settlements.map((s) => ({
+        liability_id: row.id,
+        offer_amount: s.offer_amount,
+        offer_percentage: s.offer_percentage,
+        payment_type: s.payment_type,
+        number_of_payments: s.number_of_payments,
+        status: s.status,
+        offered_date: s.offered_date ?? undefined, // let DB default (today) when unknown
+        accepted_date: s.accepted_date,
+        completed_date: s.completed_date,
+        notes: s.notes,
+      }));
+      const { count, error: stErr } = await supabase
+        .from("settlements")
+        .insert(rows, { count: "exact" });
+      if (!stErr) offersInserted += count ?? rows.length;
+    }
   }
 
   await supabase.from("plsa_sync_log").insert({
@@ -173,12 +306,20 @@ async function persist(
     provider_id: "forth",
     success: true,
     request_payload: { source_key: m.source_key, import: "anonymized" },
-    response_payload: { service_number: svc?.service_number ?? null },
+    response_payload: {
+      service_number: svc.service_number ?? null,
+      debts: debtsInserted,
+      offers: offersInserted,
+      debt_source: p.debt_source,
+      offer_source: p.offer_source,
+    },
   });
 
   return {
     client_id: client.id as string,
-    service_number: (svc?.service_number ?? null) as string | null,
+    service_number: (svc.service_number ?? null) as string | null,
+    debts: debtsInserted,
+    offers: offersInserted,
   };
 }
 
@@ -203,7 +344,6 @@ export async function handler(req: Request): Promise<Response> {
   );
 
   try {
-    // company must exist (also a guard against importing into a stray uuid)
     const { data: company, error: coErr } = await supabase
       .from("companies")
       .select("id")
@@ -219,15 +359,41 @@ export async function handler(req: Request): Promise<Response> {
     const { raw, errors } = await gatherContacts(input, headers);
 
     const importTag = new Date().toISOString().slice(0, 10);
-    const mapped: MappedContact[] = [];
+    const prepared: Prepared[] = [];
+    let rawSample: unknown = null; // PII-masked sample of the first debt+offers, for diagnostics
+
     for (const r of raw) {
-      const m = mapContact(r, { importTag, defaultPlanType: input.default_plan_type });
-      if (m) mapped.push(m);
-      else errors.push({ id: extractContactId(r) ?? "unknown", error: "unmappable (no id)" });
+      const forthId = extractContactId(r);
+      if (!forthId) {
+        errors.push({ id: "unknown", error: "unmappable (no id)" });
+        continue;
+      }
+      // pull debts + offers, then fold them onto the contact so the engagement total reflects them
+      const { debts, debtSource, offerSource } = await gatherDebtsAndOffers(
+        forthId,
+        r,
+        headers,
+        input.company_id,
+        { debts: input.include_debts, offers: input.include_offers },
+      );
+      const c = unwrapContact(r);
+      if (debts.length) c.debts = debts;
+      const map = mapContact(r, { importTag, defaultPlanType: input.default_plan_type });
+      if (!map) {
+        errors.push({ id: forthId, error: "unmappable (no id)" });
+        continue;
+      }
+      if (rawSample === null && debts.length) rawSample = maskPII(debts[0]);
+      prepared.push({
+        map,
+        liabilities: mapDebts(debts, importTag),
+        debt_source: debtSource,
+        offer_source: offerSource,
+      });
     }
 
     // de-dupe against anything already imported into this company (idempotent re-runs)
-    const keys = mapped.map((m) => m.source_key);
+    const keys = prepared.map((p) => p.map.source_key);
     const existing = new Set<string>();
     if (keys.length) {
       const { data: rows } = await supabase
@@ -237,8 +403,14 @@ export async function handler(req: Request): Promise<Response> {
         .in("forth_crm_id", keys);
       for (const row of rows ?? []) if (row.forth_crm_id) existing.add(row.forth_crm_id as string);
     }
-    const fresh = mapped.filter((m) => !existing.has(m.source_key));
-    const skipped = mapped.length - fresh.length;
+    const fresh = prepared.filter((p) => !existing.has(p.map.source_key));
+    const skipped = prepared.length - fresh.length;
+
+    const debtsFound = prepared.reduce((n, p) => n + p.liabilities.length, 0);
+    const offersFound = prepared.reduce(
+      (n, p) => n + p.liabilities.reduce((m, l) => m + l.settlements.length, 0),
+      0,
+    );
 
     if (input.dry_run) {
       return jsonResponse(req, {
@@ -246,21 +418,36 @@ export async function handler(req: Request): Promise<Response> {
         dry_run: true,
         mode: input.contact_ids?.length ? "ids" : "list",
         fetched: raw.length,
-        mappable: mapped.length,
+        mappable: prepared.length,
         already_imported: skipped,
         would_import: fresh.length,
+        debts_found: debtsFound,
+        offers_found: offersFound,
+        debt_source: prepared.find((p) => p.debt_source !== "none")?.debt_source ?? "none",
+        offer_source: prepared.find((p) => p.offer_source !== "none")?.offer_source ?? "none",
+        raw_debt_sample: rawSample, // PII-masked — confirms Forth's real shape
         errors,
-        previews: fresh.slice(0, 25), // PII-free
+        previews: fresh.slice(0, 25).map((p) => ({
+          client: p.map.client,
+          service: p.map.service,
+          liabilities: p.liabilities,
+        })),
       });
     }
 
-    const imported: { client_id: string; service_number: string | null; source_key: string }[] = [];
-    for (const m of fresh) {
+    const imported: {
+      client_id: string;
+      service_number: string | null;
+      debts: number;
+      offers: number;
+      source_key: string;
+    }[] = [];
+    for (const p of fresh) {
       try {
-        const r = await persist(supabase, input.company_id, m);
-        imported.push({ ...r, source_key: m.source_key });
+        const r = await persist(supabase, input.company_id, p);
+        imported.push({ ...r, source_key: p.map.source_key });
       } catch (e) {
-        errors.push({ id: m.source_key, error: e instanceof Error ? e.message : String(e) });
+        errors.push({ id: p.map.source_key, error: e instanceof Error ? e.message : String(e) });
       }
     }
 
@@ -271,6 +458,8 @@ export async function handler(req: Request): Promise<Response> {
       fetched: raw.length,
       already_imported: skipped,
       imported: imported.length,
+      debts_imported: imported.reduce((n, r) => n + r.debts, 0),
+      offers_imported: imported.reduce((n, r) => n + r.offers, 0),
       records: imported,
       errors,
     });

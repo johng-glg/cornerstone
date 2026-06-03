@@ -4,8 +4,14 @@ import {
   extractContactId,
   hashId,
   mapContact,
+  mapDebts,
   mapForthStatusToService,
+  mapLiabilityType,
+  mapOffers,
+  mapSettlementStatus,
+  maskPII,
   parseContactList,
+  parseList,
   unwrapContact,
 } from "./forthImport.ts";
 
@@ -116,4 +122,104 @@ Deno.test("parseContactList pulls arrays out of common envelopes", () => {
 
 Deno.test("mapContact returns null when no usable id", () => {
   assertEquals(mapContact({ first_name: "x", email: "y@z.com" }), null);
+});
+
+Deno.test("mapLiabilityType maps Forth account types onto the enum", () => {
+  assertEquals(mapLiabilityType("Credit Card"), "credit_card");
+  assertEquals(mapLiabilityType("Visa"), "credit_card");
+  assertEquals(mapLiabilityType("Medical Bill"), "medical");
+  assertEquals(mapLiabilityType("Auto Loan"), "auto_loan");
+  assertEquals(mapLiabilityType("Student Loan"), "student_loan");
+  assertEquals(mapLiabilityType("Personal Loan"), "personal_loan");
+  assertEquals(mapLiabilityType("Mortgage"), "mortgage");
+  assertEquals(mapLiabilityType("Timeshare"), "other");
+  assertEquals(mapLiabilityType(""), "credit_card"); // default
+});
+
+Deno.test("mapSettlementStatus maps onto the settlement_status enum", () => {
+  assertEquals(mapSettlementStatus("accepted"), "accepted");
+  assertEquals(mapSettlementStatus("rejected"), "rejected");
+  assertEquals(mapSettlementStatus("completed"), "completed");
+  assertEquals(mapSettlementStatus("NSF"), "defaulted");
+  assertEquals(mapSettlementStatus("cancelled"), "cancelled");
+  assertEquals(mapSettlementStatus("pending"), "offered"); // default
+});
+
+Deno.test("mapDebts builds anonymized liabilities with nested settlements", () => {
+  const debts = mapDebts(
+    [
+      {
+        id: 1,
+        creditor_name: "Chase",
+        account_type: "Credit Card",
+        account_number: "1234567890",
+        current_balance: 8200,
+        original_balance: 9000,
+        status: "in negotiation",
+        __offers: [
+          { offer_amount: 4100, status: "accepted", number_of_payments: 2 },
+          { amount: 3000, status: "offered" },
+        ],
+      },
+    ],
+    "2026-06-03",
+  );
+  assertEquals(debts.length, 1);
+  const d = debts[0];
+  assertEquals(d.account_number, null); // scrubbed
+  assertEquals(d.liability_type, "credit_card");
+  assertEquals(d.current_balance, 8200);
+  assertEquals(d.original_balance, 9000);
+  assertEquals(d.enrolled_balance, 8200); // falls back to current
+  assertEquals(d.status, "in_negotiation");
+  assertEquals(d.creditor_name, "Chase"); // institution kept (not PII)
+  assert(d.notes.includes("Creditor: Chase"));
+  assertEquals(d.settlements.length, 2);
+  assertEquals(d.settlements[0].offer_amount, 4100);
+  assertEquals(d.settlements[0].payment_type, "payment_plan"); // 2 payments
+  assertEquals(d.settlements[0].status, "accepted");
+  assertEquals(d.settlements[0].offer_percentage, 50); // 4100 / 8200
+  assertEquals(d.settlements[1].payment_type, "lump_sum");
+});
+
+Deno.test("mapDebts scrubs no PII into the output", () => {
+  const blob = JSON.stringify(
+    mapDebts([
+      {
+        id: 9,
+        creditor_name: "Capital One",
+        account_number: "9999000011112222",
+        current_balance: 500,
+      },
+    ]),
+  );
+  assert(!blob.includes("9999000011112222"));
+});
+
+Deno.test("mapOffers skips offers with no amount and infers percentage", () => {
+  const offers = mapOffers([{ status: "offered" }, { offer_amount: 250 }], 1000);
+  assertEquals(offers.length, 1);
+  assertEquals(offers[0].offer_amount, 250);
+  assertEquals(offers[0].offer_percentage, 25); // 250 / 1000
+});
+
+Deno.test("parseList pulls arrays out of Forth list envelopes", () => {
+  assertEquals(parseList({ response: { data: [1, 2, 3] } }).length, 3);
+  assertEquals(parseList({ data: [1] }).length, 1);
+  assertEquals(parseList([1, 2]).length, 2);
+  assertEquals(parseList({ nope: true }).length, 0);
+});
+
+Deno.test("maskPII redacts identifying keys, keeps structure", () => {
+  const masked = maskPII({
+    first_name: "Maria",
+    account_number: "12345",
+    current_balance: 8200,
+    nested: { ssn: "111-22-3333", offer_amount: 400 },
+  });
+  assertEquals(masked.first_name, "***");
+  assertEquals(masked.account_number, "***");
+  assertEquals(masked.current_balance, 8200);
+  assertEquals(masked.nested.ssn, "***");
+  assertEquals(masked.nested.offer_amount, 400);
 });

@@ -122,6 +122,162 @@ function clientStatusFor(serviceStatus: string): "active" | "inactive" {
     : "inactive";
 }
 
+/** Map a Forth debt account-type string onto our liability_type enum. */
+export function mapLiabilityType(t: unknown): string {
+  const s = String(t ?? "").toLowerCase();
+  if (/(medical|hospital)/.test(s)) return "medical";
+  if (/(\bauto\b|vehicle|\bcar\b)/.test(s)) return "auto_loan";
+  if (/(student|education)/.test(s)) return "student_loan";
+  if (/(mortgage|home)/.test(s)) return "mortgage";
+  if (/(personal|installment|signature)/.test(s)) return "personal_loan";
+  if (/(credit.?card|card|revolving|visa|mastercard|amex|discover)/.test(s)) return "credit_card";
+  return s ? "other" : "credit_card";
+}
+
+/** Map a Forth debt status onto our liability_status enum. Defaults to 'enrolled'. */
+export function mapLiabilityStatus(status: unknown): string {
+  const s = String(status ?? "").toLowerCase();
+  if (/(settl|paid|complet|resolved)/.test(s)) return "settled";
+  if (/(negotiat|offer|in.?progress|working)/.test(s)) return "in_negotiation";
+  if (/(litig|lawsuit|summons|legal)/.test(s)) return "in_litigation";
+  if (/(dismiss)/.test(s)) return "dismissed";
+  if (/(cancel|removed|dropped|excluded)/.test(s)) return "cancelled";
+  return "enrolled";
+}
+
+/** Map a Forth offer/settlement status onto our settlement_status enum. Defaults to 'offered'. */
+export function mapSettlementStatus(status: unknown): string {
+  const s = String(status ?? "").toLowerCase();
+  if (/(accept|approv)/.test(s)) return "accepted";
+  if (/(reject|declin)/.test(s)) return "rejected";
+  if (/(complet|paid|settl|fulfil)/.test(s)) return "completed";
+  if (/(default|nsf|fail)/.test(s)) return "defaulted";
+  if (/(cancel|void|withdraw)/.test(s)) return "cancelled";
+  return "offered";
+}
+
+/** Pull an array out of a Forth list response from any of the common envelopes. */
+export function parseList(raw: Raw): Raw[] {
+  const candidates = [raw?.response?.data, raw?.response, raw?.data, raw?.results, raw];
+  for (const c of candidates) if (Array.isArray(c)) return c;
+  return [];
+}
+
+/** Recursively redact obvious PII so a raw Forth sample can be shown safely for diagnostics. */
+export function maskPII(value: Raw, depth = 0): Raw {
+  if (depth > 6 || value === null || value === undefined) return value;
+  if (Array.isArray(value)) return value.slice(0, 3).map((v) => maskPII(v, depth + 1));
+  if (typeof value !== "object") return value;
+  const PII =
+    /(ssn|social|tax_id|account_number|routing|first_name|last_name|middle_name|full_name|^name$|email|phone|fax|dob|birth|address|street|city|state|zip|postal)/i;
+  const out: Record<string, Raw> = {};
+  for (const [k, v] of Object.entries(value)) {
+    out[k] = PII.test(k) ? "***" : maskPII(v, depth + 1);
+  }
+  return out;
+}
+
+// ---- debts -> liabilities, offers -> settlements (anonymized; structure kept) -----------------
+
+export interface AnonSettlement {
+  offer_amount: number;
+  offer_percentage: number | null;
+  payment_type: "lump_sum" | "payment_plan";
+  number_of_payments: number;
+  status: string;
+  offered_date: string | null;
+  accepted_date: string | null;
+  completed_date: string | null;
+  notes: string;
+}
+
+export interface AnonLiability {
+  account_number: null; // scrubbed (PII)
+  liability_type: string;
+  original_balance: number | null;
+  current_balance: number | null;
+  enrolled_balance: number | null;
+  status: string;
+  priority: number;
+  creditor_name: string | null; // institution name kept (not PII)
+  notes: string;
+  settlements: AnonSettlement[];
+}
+
+/** Map Forth offer objects -> anonymized settlement rows. `balance` lets us infer percentage. */
+export function mapOffers(rawOffers: Raw[], balance: number | null, tag = ""): AnonSettlement[] {
+  const out: AnonSettlement[] = [];
+  for (const o of rawOffers ?? []) {
+    const amount = firstDefined(
+      toNumber(o?.offer_amount),
+      toNumber(o?.amount),
+      toNumber(o?.settlement_amount),
+      toNumber(o?.total_amount),
+    );
+    if (amount === undefined || amount === null) continue; // offer_amount is NOT NULL
+    const count =
+      firstDefined(
+        toNumber(o?.number_of_payments),
+        toNumber(o?.num_payments),
+        toNumber(o?.payments),
+      ) ?? 1;
+    let pct = firstDefined(toNumber(o?.offer_percentage), toNumber(o?.percentage)) ?? null;
+    if (pct === null && balance && balance > 0) pct = Number(((amount / balance) * 100).toFixed(2));
+    out.push({
+      offer_amount: amount,
+      offer_percentage: pct,
+      payment_type: count > 1 ? "payment_plan" : "lump_sum",
+      number_of_payments: Math.max(1, Math.round(count)),
+      status: mapSettlementStatus(firstDefined(o?.status, o?.offer_status, o?.settlement_status)),
+      offered_date: isoDate(firstDefined(o?.offered_date, o?.offer_date, o?.created_date, o?.date)),
+      accepted_date: isoDate(firstDefined(o?.accepted_date, o?.approved_date)),
+      completed_date: isoDate(firstDefined(o?.completed_date, o?.paid_date, o?.settled_date)),
+      notes: `Imported from Forth (anonymized)${tag ? " " + tag : ""}.`,
+    });
+  }
+  return out;
+}
+
+/**
+ * Map Forth debt objects -> anonymized liability rows (with nested settlements). Each debt may
+ * carry its offers under `__offers` (attached by the caller) or a nested offers/settlements field.
+ */
+export function mapDebts(rawDebts: Raw[], tag = ""): AnonLiability[] {
+  const out: AnonLiability[] = [];
+  for (const d of rawDebts ?? []) {
+    const current = firstDefined(toNumber(d?.current_balance), toNumber(d?.balance)) ?? null;
+    const original =
+      firstDefined(toNumber(d?.original_balance), toNumber(d?.original_amount)) ?? current;
+    const enrolled =
+      firstDefined(toNumber(d?.enrolled_balance), toNumber(d?.enrolled_amount)) ?? current;
+    const creditor =
+      firstDefined<string>(
+        d?.creditor_name,
+        d?.creditor,
+        d?.original_creditor,
+        d?.current_creditor,
+        d?.collector_name,
+      ) ?? null;
+    const rawOffers =
+      firstDefined<Raw[]>(d?.__offers, d?.offers, d?.settlements, d?.settlement_offers) ?? [];
+    out.push({
+      account_number: null,
+      liability_type: mapLiabilityType(firstDefined(d?.account_type, d?.debt_type, d?.type)),
+      original_balance: original,
+      current_balance: current,
+      enrolled_balance: enrolled,
+      status: mapLiabilityStatus(firstDefined(d?.status, d?.debt_status)),
+      priority: toNumber(d?.priority) ?? 0,
+      creditor_name: creditor,
+      notes:
+        `Imported from Forth (anonymized)${tag ? " " + tag : ""}.` +
+        (creditor ? ` Creditor: ${creditor}.` : ""),
+      settlements: mapOffers(Array.isArray(rawOffers) ? rawOffers : [], enrolled ?? current, tag),
+    });
+  }
+  return out;
+}
+
 // ---- the mapper -------------------------------------------------------------------------------
 
 export interface AnonClient {
