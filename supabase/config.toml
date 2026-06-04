@@ -452,6 +452,9 @@ verify_jwt = false
 [functions.forth-import-anonymized]
 verify_jwt = false
 
+[functions.forecast-engine]
+verify_jwt = false
+
 [functions.plsa-nsf-retry]
 verify_jwt = false
 
