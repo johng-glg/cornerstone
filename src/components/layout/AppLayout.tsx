@@ -14,26 +14,15 @@ import {
   CalendarDays,
   ReceiptText,
   CheckSquare,
-  Building2,
   BarChart3,
-  Building,
-  Package,
-  UserCog,
   CreditCard,
-  Plug,
   Settings as SettingsIcon,
   Lightbulb,
   BookOpen,
-  FileText,
   Bell,
   Menu,
   X,
-  Users2,
-  Shuffle,
   ArrowLeftRight,
-  PenLine,
-  ListChecks,
-  Workflow,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth, ROLE_VIEWS } from "@/lib/auth";
@@ -76,21 +65,12 @@ const LITIGATION: NavItem[] = [
   // Coverages lands here once added.
 ];
 
+// Setup/config pages live under Settings → Configuration (which links them all), keeping this list
+// short. Administration here is just finance/reporting + system.
 const ADMINISTRATION: NavItem[] = [
-  { to: "/services", label: "Services", icon: Package },
-  { to: "/creditors", label: "Creditors", icon: Building2 },
   { to: "/reports", label: "Reports", icon: BarChart3 },
-  { to: "/companies", label: "Companies", icon: Building },
-  { to: "/staff", label: "Staff", icon: UserCog },
-  { to: "/litigation-teams", label: "Litigation Teams", icon: Users2 },
-  { to: "/lead-rules", label: "Assignment Rules", icon: Shuffle },
-  { to: "/task-templates", label: "Task Templates", icon: ListChecks },
-  { to: "/workflows", label: "Workflows", icon: Workflow },
   { to: "/payments", label: "Payments", icon: CreditCard },
   { to: "/transactions", label: "Transactions", icon: ArrowLeftRight },
-  { to: "/templates", label: "Templates", icon: FileText },
-  { to: "/signatures", label: "Signatures", icon: PenLine },
-  { to: "/integrations", label: "Integrations", icon: Plug },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
   { to: "/feature-requests", label: "Feature Requests", icon: Lightbulb },
   { to: "/docs", label: "Documentation", icon: BookOpen },
