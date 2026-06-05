@@ -15,6 +15,11 @@ name: Deploy — database (migrations)
 
 on:
   workflow_dispatch:
+    inputs:
+      reconcile_baseline:
+        description: "One-time: mark all pre-existing migrations as applied (for a DB whose Supabase migration-history table is empty), then push only the new ones."
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths: ["supabase/migrations/**"]
@@ -42,11 +47,36 @@ jobs:
             echo "::error::Set SUPABASE_ACCESS_TOKEN and SUPABASE_DB_PASSWORD under Settings → Secrets and variables → Actions → Secrets, then re-run."
             exit 1
           fi
+      # Strip stray CR/LF/leading/trailing whitespace from the DB password (a trailing newline in the
+      # GitHub secret is the usual cause of a SASL 28P01 with an otherwise-correct password). Re-export
+      # the cleaned value for the link/push steps and print only its length (never the value) so the
+      # length can be sanity-checked against the real password.
+      - name: Sanitize DB password
+        run: |
+          CLEAN="$(printf '%s' "$SUPABASE_DB_PASSWORD" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+          echo "::add-mask::$CLEAN"
+          echo "SUPABASE_DB_PASSWORD=$CLEAN" >> "$GITHUB_ENV"
+          echo "DB password length (raw=${#SUPABASE_DB_PASSWORD}, cleaned=${#CLEAN})"
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
           version: latest
       - name: Link project
         run: supabase link --project-ref "$PROJECT_REF" -p "$SUPABASE_DB_PASSWORD"
+      # One-time reconciliation: this project's schema predates Supabase migration tracking, so the
+      # remote history is empty and `db push` would try to replay every migration and collide with
+      # existing objects. Mark all migrations EXCEPT the new forecasting ones as already-applied, so
+      # the push that follows applies only 20260604180000 + 20260605120000. Safe to leave off after.
+      - name: Reconcile baseline history (one-time)
+        if: ${{ inputs.reconcile_baseline }}
+        run: |
+          # The schema already exists (created out-of-band); mark ALL local migrations as applied so
+          # the history table matches reality. The push that follows is then a no-op.
+          VERS=$(ls supabase/migrations/*.sql 2>/dev/null \
+            | xargs -n1 basename \
+            | grep -oE '^[0-9]{14}' \
+            | sort -u | tr '\n' ' ')
+          echo "Marking as already-applied: $VERS"
+          supabase migration repair --status applied $VERS
       - name: Push migrations
         run: supabase db push -p "$SUPABASE_DB_PASSWORD"

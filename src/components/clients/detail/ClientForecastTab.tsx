@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import {
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ReferenceLine,
@@ -82,10 +83,25 @@ export function ClientForecastTab({
   };
 
   const floor = floorQ.data ?? 100;
-  const chartData = useMemo(
-    () => (timeline.data ?? []).map((p) => ({ date: p.process_date, balance: p.running_balance })),
-    [timeline.data],
-  );
+  // Split the line at today so the past renders muted and the projection renders solid. The last
+  // past point is duplicated into the future series so the two segments join with no gap.
+  const chartData = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const pts = timeline.data ?? [];
+    let lastPastIdx = -1;
+    pts.forEach((p, i) => {
+      if (p.process_date <= today) lastPastIdx = i;
+    });
+    return pts.map((p, i) => ({
+      date: p.process_date,
+      past: p.process_date <= today ? p.running_balance : null,
+      future: p.process_date >= today || i === lastPastIdx ? p.running_balance : null,
+    }));
+  }, [timeline.data]);
+  const todayMarker = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return (timeline.data ?? []).find((p) => p.process_date >= today)?.process_date ?? null;
+  }, [timeline.data]);
 
   if (forthContactId == null) {
     return (
@@ -140,13 +156,33 @@ export function ClientForecastTab({
                 <XAxis dataKey="date" fontSize={11} minTickGap={24} />
                 <YAxis fontSize={11} width={64} tickFormatter={(n) => formatCurrency(Number(n))} />
                 <Tooltip formatter={(n) => formatCurrency(Number(n))} />
+                <Legend />
                 <ReferenceLine y={floor} stroke="#dc2626" strokeDasharray="4 4" label="Floor" />
+                {todayMarker && (
+                  <ReferenceLine
+                    x={todayMarker}
+                    stroke="#64748b"
+                    strokeDasharray="3 3"
+                    label={{ value: "Today", position: "insideTopRight", fontSize: 11 }}
+                  />
+                )}
                 <Line
                   type="monotone"
-                  dataKey="balance"
+                  dataKey="past"
+                  name="Past"
+                  stroke="#94a3b8"
+                  dot={false}
+                  strokeWidth={2}
+                  connectNulls
+                />
+                <Line
+                  type="monotone"
+                  dataKey="future"
+                  name="Projected"
                   stroke="#1e3a5f"
                   dot={false}
                   strokeWidth={2}
+                  connectNulls
                 />
               </LineChart>
             </ResponsiveContainer>
