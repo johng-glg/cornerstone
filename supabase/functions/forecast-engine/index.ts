@@ -5,26 +5,25 @@
 //   action: "project_client"   — Mode B: project a client's pool (no prospective lines)
 //           "evaluate_offer"   — Mode A: feasibility of one prospective offer
 //           "evaluate_offers"  — Mode A batch: a set of prospective offers (multi-offer hazard, §5)
-//
-// PR 1 of the engine (core + Modes A/B). Event handler, alerts, AR earning, and the modification
-// solver land in PR 2.
+//           "solve"            — §9 modification solver: propose how to cure a projected breach
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { z } from "npm:zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
+import { solveModification, type TimelineRow } from "../_shared/forecastSolver.ts";
 
 const Id = z.union([z.string(), z.number()]);
 
 const InputSchema = z
   .object({
-    action: z.enum(["project_client", "evaluate_offer", "evaluate_offers"]),
+    action: z.enum(["project_client", "evaluate_offer", "evaluate_offers", "solve"]),
     contact_id: Id.optional(),
     offer_id: Id.optional(),
     offer_ids: z.array(Id).optional(),
     floor: z.number().optional(), // override; defaults to system_setting.min_balance_floor
   })
-  .refine((v) => v.action !== "project_client" || v.contact_id != null, {
-    message: "project_client requires contact_id",
+  .refine((v) => !["project_client", "solve"].includes(v.action) || v.contact_id != null, {
+    message: "project_client / solve require contact_id",
   })
   .refine((v) => v.action !== "evaluate_offer" || v.offer_id != null, {
     message: "evaluate_offer requires offer_id",
@@ -36,6 +35,17 @@ const InputSchema = z
 // deno-lint-ignore no-explicit-any
 type Supabase = any;
 const num = (v: unknown) => Number(v);
+
+/** Read the configured min-balance floor (system_setting), defaulting to 100. */
+async function getFloor(supabase: Supabase): Promise<number> {
+  const { data } = await supabase
+    .from("system_setting")
+    .select("value")
+    .eq("key", "min_balance_floor")
+    .maybeSingle();
+  const n = data?.value != null ? Number(data.value) : NaN;
+  return Number.isFinite(n) ? n : 100;
+}
 
 interface Verdict {
   min_balance: number | null;
@@ -93,6 +103,36 @@ export async function handler(req: Request): Promise<Response> {
         action: input.action,
         contact_id: contactId,
         verdict: v,
+      });
+    }
+
+    if (input.action === "solve") {
+      const contactId = num(input.contact_id);
+      const floor = input.floor ?? (await getFloor(supabase));
+      // Mode-B timeline of the current plan (no prospective offers).
+      const { data, error } = await supabase.rpc("fn_project_balance", {
+        p_contact_id: contactId,
+        p_prospective_offer_ids: null,
+        p_floor: null,
+        p_incidental: null,
+      });
+      if (error) throw new Error(error.message);
+      const today = new Date().toISOString().slice(0, 10);
+      const timeline: TimelineRow[] = (data ?? []).map((r: Record<string, unknown>) => ({
+        date: String(r.process_date),
+        runningBalance: Number(r.running_balance),
+        // A future client inflow draft is the only line the solver may scale up.
+        isFutureDraft:
+          r.record_source === "EXISTING_TRANSACTION" &&
+          Number(r.net_amount) > 0 &&
+          String(r.process_date) >= today,
+      }));
+      const result = solveModification(timeline, floor, today);
+      return jsonResponse(req, {
+        success: true,
+        action: input.action,
+        contact_id: contactId,
+        ...result,
       });
     }
 
