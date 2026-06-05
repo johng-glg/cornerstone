@@ -89,6 +89,9 @@ export interface NewSettlement {
   number_of_payments?: number | null;
   first_payment_date?: string | null;
   fee_collection_method?: string | null;
+  fee_start_offset_months?: number | null;
+  /** Explicit (rich-builder) schedule. When omitted, an equal monthly schedule is auto-built. */
+  payment_schedule?: ScheduledPayment[] | null;
   notes?: string | null;
 }
 
@@ -98,7 +101,18 @@ export function useAddSettlement(): UseMutationResult<void, Error, NewSettlement
     mutationFn: async (input) => {
       const paymentType = input.payment_type || "lump_sum";
       const isPlan = paymentType === "payment_plan";
-      const count = isPlan ? (input.number_of_payments ?? 1) : 1;
+      // Prefer an explicit (edited) schedule; otherwise auto-build an equal monthly plan.
+      const schedule =
+        input.payment_schedule && input.payment_schedule.length
+          ? input.payment_schedule
+          : isPlan
+            ? buildSchedule(
+                input.offer_amount,
+                input.number_of_payments ?? 1,
+                input.first_payment_date ?? null,
+              )
+            : [];
+      const count = schedule.length || (isPlan ? (input.number_of_payments ?? 1) : 1);
       const { error } = await supabase.from("settlements").insert({
         liability_id: input.liability_id,
         offer_amount: input.offer_amount,
@@ -107,15 +121,39 @@ export function useAddSettlement(): UseMutationResult<void, Error, NewSettlement
         number_of_payments: count,
         first_payment_date: input.first_payment_date || null,
         fee_collection_method: input.fee_collection_method || "split",
-        payment_schedule: isPlan
-          ? buildSchedule(input.offer_amount, count, input.first_payment_date ?? null)
-          : [],
+        fee_start_offset_months: input.fee_start_offset_months ?? 0,
+        payment_schedule: schedule,
         notes: input.notes ?? null,
         status: "offered",
       });
       if (error) throw new Error(error.message);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["settlements"] }),
+  });
+}
+
+export interface ClientServiceContext {
+  escrow_balance: number | null;
+  monthly_payment: number | null;
+  settlement_fee_percentage: number | null;
+}
+
+/** Escrow balance, recurring draft, and fee rate for the engagement a liability belongs to. */
+export function useClientServiceContext(
+  clientServiceId: string | null | undefined,
+): UseQueryResult<ClientServiceContext | null, Error> {
+  return useQuery({
+    queryKey: ["client_service_context", clientServiceId ?? ""],
+    enabled: !!clientServiceId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("client_services")
+        .select("escrow_balance, monthly_payment, settlement_fee_percentage")
+        .eq("id", clientServiceId!)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return (data ?? null) as ClientServiceContext | null;
+    },
   });
 }
 
