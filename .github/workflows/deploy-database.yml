@@ -70,10 +70,11 @@ jobs:
       - name: Reconcile baseline history (one-time)
         if: ${{ inputs.reconcile_baseline }}
         run: |
+          # The schema already exists (created out-of-band); mark ALL local migrations as applied so
+          # the history table matches reality. The push that follows is then a no-op.
           VERS=$(ls supabase/migrations/*.sql 2>/dev/null \
             | xargs -n1 basename \
             | grep -oE '^[0-9]{14}' \
-            | grep -vE '^(20260604180000|20260605120000)$' \
             | sort -u | tr '\n' ' ')
           echo "Marking as already-applied: $VERS"
           supabase migration repair --status applied $VERS
