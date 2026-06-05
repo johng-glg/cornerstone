@@ -30,7 +30,6 @@ import { useRecordActivity } from "@/hooks/useActivityLog";
 import { formatCurrency } from "@/lib/format";
 import {
   buildCadenceSchedule,
-  grossSavings,
   netSavings,
   performanceFee,
   projectOfferFeasibility,
@@ -119,8 +118,7 @@ export function SettlementBuilderDialog({
   }, [paymentType, offer, count, cadence, firstDate]);
 
   const pct = settlementPercent(offer, enrolled);
-  const savings = grossSavings(enrolled, offer);
-  const defaultFee = performanceFee(savings, feeRate); // CONFIRM basis with GLG (rate × savings)
+  const defaultFee = performanceFee(enrolled, feeRate); // fee = rate × enrolled debt (GLG)
   const fee = feeOverride !== "" ? Number(feeOverride) || 0 : defaultFee;
   const net = netSavings(enrolled, offer, fee);
   const feePerPayment = useMemo(
@@ -219,7 +217,27 @@ export function SettlementBuilderDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {/* Headline verdict — the decision this form exists to support */}
+        {offer > 0 && (
+          <div
+            className={
+              !hasTimeline
+                ? "rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+                : feas.feasible
+                  ? "rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-800"
+                  : "rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-800"
+            }
+          >
+            {!hasTimeline
+              ? "Run the Forth sync for this client to check funds availability."
+              : feas.feasible
+                ? `Client stays funded — minimum balance ${formatCurrency(feas.minRunningBalance)}.`
+                : `Client goes short — needs ${formatCurrency(feas.additionalFundsNeeded)} more (dips to ${formatCurrency(feas.minRunningBalance)}).`}
+          </div>
+        )}
+
         {/* Offer inputs */}
+        <p className="text-sm font-medium">Offer terms</p>
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
             <Label htmlFor="offer">Offer amount ($)</Label>
@@ -288,7 +306,7 @@ export function SettlementBuilderDialog({
           <Metric label="Original" value={formatCurrency(enrolled)} />
           <Metric label="Settlement %" value={pct != null ? `${pct}%` : "—"} />
           <Metric
-            label={`Settlement fee${feeRate != null ? ` (${feeRate}%)` : ""}`}
+            label={`Settlement fee${feeRate != null ? ` (${feeRate}% of enrolled)` : ""}`}
             value={formatCurrency(fee)}
           />
           <Metric
@@ -409,6 +427,7 @@ export function SettlementBuilderDialog({
         </div>
 
         {/* Fee collection */}
+        <p className="text-sm font-medium">Performance fee</p>
         <div className="grid gap-3 sm:grid-cols-4">
           <div>
             <Label htmlFor="fee">Settlement fee ($)</Label>
