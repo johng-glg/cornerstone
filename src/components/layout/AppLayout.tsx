@@ -56,17 +56,24 @@ interface NavItem {
 
 const MAIN_MENU: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/leads", label: "Leads", icon: UserPlus },
-  { to: "/lead-metrics", label: "Lead Metrics", icon: TrendingUp },
-  { to: "/eligibility-reviews", label: "Eligibility Reviews", icon: ClipboardCheck },
   { to: "/engagements", label: "Engagements", icon: Briefcase },
   { to: "/clients", label: "Clients", icon: Users },
   { to: "/early-warning", label: "Early Warning", icon: AlertTriangle },
   { to: "/liabilities", label: "Liabilities", icon: DollarSign },
+  { to: "/tasks", label: "Tasks", icon: CheckSquare },
+];
+
+const ENROLLMENT: NavItem[] = [
+  { to: "/leads", label: "Leads", icon: UserPlus },
+  { to: "/lead-metrics", label: "Lead Metrics", icon: TrendingUp },
+  { to: "/eligibility-reviews", label: "Eligibility Reviews", icon: ClipboardCheck },
+];
+
+const LITIGATION: NavItem[] = [
   { to: "/litigation", label: "Litigation", icon: Scale },
   { to: "/court-calendar", label: "Court Calendar", icon: CalendarDays },
   { to: "/billing", label: "Billing", icon: ReceiptText },
-  { to: "/tasks", label: "Tasks", icon: CheckSquare },
+  // Coverages lands here once added.
 ];
 
 const ADMINISTRATION: NavItem[] = [
@@ -187,6 +194,8 @@ function AppShell({ children }: { children: ReactNode }) {
         </div>
         <div className="flex-1 overflow-y-auto py-2">
           <NavSection label="Main Menu" items={MAIN_MENU} onNavigate={closeMobile} />
+          <NavSection label="Enrollment" items={ENROLLMENT} onNavigate={closeMobile} />
+          <NavSection label="Litigation" items={LITIGATION} onNavigate={closeMobile} />
           <NavSection label="Administration" items={ADMINISTRATION} onNavigate={closeMobile} />
         </div>
         <div className="border-t border-white/10 p-3 text-xs text-white/60">
