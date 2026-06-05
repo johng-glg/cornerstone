@@ -42,6 +42,16 @@ jobs:
             echo "::error::Set SUPABASE_ACCESS_TOKEN and SUPABASE_DB_PASSWORD under Settings → Secrets and variables → Actions → Secrets, then re-run."
             exit 1
           fi
+      # Strip stray CR/LF/leading/trailing whitespace from the DB password (a trailing newline in the
+      # GitHub secret is the usual cause of a SASL 28P01 with an otherwise-correct password). Re-export
+      # the cleaned value for the link/push steps and print only its length (never the value) so the
+      # length can be sanity-checked against the real password.
+      - name: Sanitize DB password
+        run: |
+          CLEAN="$(printf '%s' "$SUPABASE_DB_PASSWORD" | tr -d '\r\n' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+          echo "::add-mask::$CLEAN"
+          echo "SUPABASE_DB_PASSWORD=$CLEAN" >> "$GITHUB_ENV"
+          echo "DB password length (raw=${#SUPABASE_DB_PASSWORD}, cleaned=${#CLEAN})"
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
