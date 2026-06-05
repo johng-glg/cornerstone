@@ -4,11 +4,11 @@ import { toast } from "sonner";
 import { useLiability, useAddMatter } from "@/hooks/useLiabilityDetail";
 import {
   useSettlements,
-  useAddSettlement,
   useUpdateSettlementStatus,
   type SettlementRow,
   type SettlementTransition,
 } from "@/hooks/useSettlements";
+import { SettlementBuilderDialog } from "@/components/settlements/SettlementBuilderDialog";
 import { useLitigationTeams, useStaffList, useCreditors } from "@/hooks/useModules";
 import { NotesTab } from "@/components/leads/tabs/NotesTab";
 import { useRecordActivity } from "@/hooks/useActivityLog";
@@ -119,79 +119,6 @@ function SettlementActions({
     );
   }
   return btns.length ? <span className="flex flex-wrap gap-1">{btns}</span> : <span>—</span>;
-}
-
-function NewOfferButton({
-  liabilityId,
-  clientId,
-}: {
-  liabilityId: string;
-  clientId?: string | null;
-}) {
-  const add = useAddSettlement();
-  const record = useRecordActivity();
-  return (
-    <QuickFormDialog
-      trigger={<Button size="sm">New offer</Button>}
-      title="New settlement offer"
-      description="Lump-sum or a payment plan. A plan auto-builds an equal monthly schedule."
-      pending={add.isPending}
-      fields={[
-        { name: "offer_amount", label: "Offer amount ($)", type: "number", required: true },
-        { name: "offer_percentage", label: "Offer %", type: "number" },
-        {
-          name: "payment_type",
-          label: "Payment type",
-          type: "select",
-          defaultValue: "lump_sum",
-          options: [
-            { value: "lump_sum", label: "Lump sum" },
-            { value: "payment_plan", label: "Payment plan" },
-          ],
-        },
-        { name: "number_of_payments", label: "# payments (plan)", type: "number" },
-        { name: "first_payment_date", label: "First payment date", type: "date" },
-        {
-          name: "fee_collection_method",
-          label: "Fee collection",
-          type: "select",
-          defaultValue: "split",
-          options: [
-            { value: "split", label: "Split across payments" },
-            { value: "lump_sum", label: "Lump sum" },
-          ],
-        },
-        { name: "notes", label: "Notes", type: "textarea" },
-      ]}
-      onSubmit={async (v) => {
-        try {
-          const amount = Number(v.offer_amount);
-          await add.mutateAsync({
-            liability_id: liabilityId,
-            offer_amount: amount,
-            offer_percentage: v.offer_percentage ? Number(v.offer_percentage) : null,
-            payment_type: v.payment_type || "lump_sum",
-            number_of_payments: v.number_of_payments ? Number(v.number_of_payments) : 1,
-            first_payment_date: v.first_payment_date || null,
-            fee_collection_method: v.fee_collection_method || "split",
-            notes: v.notes || null,
-          });
-          await record({
-            entityType: "liability",
-            entityId: liabilityId,
-            clientId,
-            category: "settlement",
-            description: `Settlement offer of ${formatCurrency(amount)} created`,
-            metadata: { offer_amount: amount, payment_type: v.payment_type },
-          });
-          toast.success("Settlement offer added.");
-        } catch (e) {
-          toast.error((e as Error).message);
-          throw e;
-        }
-      }}
-    />
-  );
 }
 
 function SettlementsTable({
@@ -385,7 +312,15 @@ export default function LiabilityDetail() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <NewOfferButton liabilityId={l.id} clientId={clientId} />
+                <SettlementBuilderDialog
+                  liabilityId={l.id}
+                  clientServiceId={l.client_service_id}
+                  clientId={clientId}
+                  enrolledBalance={l.enrolled_balance}
+                  currentBalance={l.current_balance}
+                  creditorName={l.creditor?.name ?? null}
+                  accountNumber={l.account_number}
+                />
                 <OpenMatterAction liabilityId={l.id} clientServiceId={l.client_service_id} />
               </div>
             </div>
