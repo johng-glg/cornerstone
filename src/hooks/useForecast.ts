@@ -212,9 +212,28 @@ export function useMirrorSync() {
       const { data, error } = await supabase.functions.invoke("forth-mirror-sync", {
         body: { client_id: clientId },
       });
-      const d = data as { success?: boolean; error?: string } | null;
-      if (error || d?.success === false) {
-        throw new Error(error?.message ?? d?.error ?? "Sync failed");
+      // Surface the real reason: a 5xx carries it in error.context; a 200 with success:false
+      // carries per-client failures in errors[] (don't bury them behind a generic message).
+      if (error) {
+        let msg = error.message;
+        const ctx = (error as { context?: Response }).context;
+        if (ctx && typeof ctx.json === "function") {
+          try {
+            const body = (await ctx.json()) as { error?: string };
+            if (body?.error) msg = body.error;
+          } catch {
+            /* keep error.message */
+          }
+        }
+        throw new Error(msg);
+      }
+      const d = data as {
+        success?: boolean;
+        error?: string;
+        errors?: { client_id: string; error: string }[];
+      } | null;
+      if (d?.success === false) {
+        throw new Error(d.errors?.[0]?.error ?? d.error ?? "Sync failed");
       }
       return d;
     },
