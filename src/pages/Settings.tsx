@@ -20,6 +20,7 @@ const CONFIG_LINKS = [
   { to: "/task-templates", label: "Task Templates" },
   { to: "/litigation-teams", label: "Litigation Teams" },
   { to: "/templates", label: "Templates" },
+  { to: "/signatures", label: "Signatures" },
   { to: "/integrations", label: "Integrations" },
   { to: "/creditors", label: "Creditors" },
   { to: "/services", label: "Services" },
