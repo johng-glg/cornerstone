@@ -20,9 +20,10 @@ test.describe("authenticated app", () => {
 
   test("can navigate to a protected module page", async ({ page }) => {
     await signInAsTestUser(page);
-    await page.goto("/");
+    // Workflows is a protected route reachable from Settings → Configuration (not a top-level
+    // sidebar link), so navigate to it directly and confirm the authed page renders.
+    await page.goto("/workflows");
 
-    await page.getByRole("link", { name: "Workflows" }).click();
     await expect(page).toHaveURL(/\/workflows$/);
     await expect(page.getByRole("heading", { name: "Workflows" })).toBeVisible();
     await expect(page.getByText("No workflow rules yet.")).toBeVisible();
