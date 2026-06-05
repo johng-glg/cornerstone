@@ -9,6 +9,8 @@ import { QueryState } from "@/components/common/QueryState";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
+const PAGE_SIZE = 10;
+
 interface StaffOption {
   id: string;
   first_name: string;
@@ -45,6 +47,7 @@ export function NotesTab({
   const [draft, setDraft] = useState("");
   const [tagged, setTagged] = useState<Set<string>>(new Set());
   const [mention, setMention] = useState<{ start: number; query: string } | null>(null);
+  const [page, setPage] = useState(0);
 
   const others = useMemo<StaffOption[]>(
     () => (staffList.data ?? []).filter((s) => s.id !== staff?.id),
@@ -102,6 +105,7 @@ export function NotesTab({
           setDraft("");
           setTagged(new Set());
           setMention(null);
+          setPage(0); // jump to the newest note
         },
         onError: (e) => toast.error(e.message),
       },
@@ -183,35 +187,71 @@ export function NotesTab({
         isEmpty={(notes.data ?? []).length === 0}
         emptyMessage="No notes yet."
       >
-        <ul className="space-y-2">
-          {(notes.data ?? []).map((n) => {
-            const mentions = (n.note_mentions ?? [])
-              .map((m) => (m.staff ? `${m.staff.first_name} ${m.staff.last_name}` : null))
-              .filter(Boolean) as string[];
-            return (
-              <li key={n.id} className="rounded-md border p-3">
-                <p className="whitespace-pre-wrap text-sm">{n.content}</p>
-                {mentions.length > 0 && (
-                  <p className="mt-1.5 flex flex-wrap items-center gap-1 text-xs">
-                    <AtSign className="h-3 w-3 text-muted-foreground" />
-                    {mentions.map((name) => (
-                      <span
-                        key={name}
-                        className="rounded bg-muted px-1.5 py-0.5 font-medium text-foreground"
-                      >
-                        {name}
-                      </span>
-                    ))}
-                  </p>
-                )}
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {n.author ? `${n.author.first_name} ${n.author.last_name} · ` : ""}
-                  {new Date(n.created_at).toLocaleString()}
-                </p>
-              </li>
-            );
-          })}
-        </ul>
+        {(() => {
+          const all = notes.data ?? [];
+          const pageCount = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
+          const safePage = Math.min(page, pageCount - 1);
+          const visible = all.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+          return (
+            <>
+              <ul className="space-y-2">
+                {visible.map((n) => {
+                  const mentions = (n.note_mentions ?? [])
+                    .map((m) => (m.staff ? `${m.staff.first_name} ${m.staff.last_name}` : null))
+                    .filter(Boolean) as string[];
+                  return (
+                    <li key={n.id} className="rounded-md border p-3">
+                      <p className="whitespace-pre-wrap text-sm">{n.content}</p>
+                      {mentions.length > 0 && (
+                        <p className="mt-1.5 flex flex-wrap items-center gap-1 text-xs">
+                          <AtSign className="h-3 w-3 text-muted-foreground" />
+                          {mentions.map((name) => (
+                            <span
+                              key={name}
+                              className="rounded bg-muted px-1.5 py-0.5 font-medium text-foreground"
+                            >
+                              {name}
+                            </span>
+                          ))}
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {n.author ? `${n.author.first_name} ${n.author.last_name} · ` : ""}
+                        {new Date(n.created_at).toLocaleString()}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+              {pageCount > 1 && (
+                <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    {all.length} note{all.length === 1 ? "" : "s"} · page {safePage + 1} of{" "}
+                    {pageCount}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={safePage === 0}
+                      onClick={() => setPage(safePage - 1)}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={safePage >= pageCount - 1}
+                      onClick={() => setPage(safePage + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
       </QueryState>
 
       {(notes.data ?? []).length === 0 && !notes.isLoading && (
