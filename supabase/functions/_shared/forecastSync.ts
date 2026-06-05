@@ -46,7 +46,8 @@ const OUTFLOW_TYPE_RE = /fee|settlement|creditor|custodial|disburse|payment|refu
 /** Normalize direction to 'O' (outflow to creditor/fee) or 'I' (inflow / client draft). */
 export function normalizeInOut(raw: Raw): "O" | "I" {
   const v = String(pick(raw, ["in_out", "inout", "direction", "io"]) ?? "").toLowerCase();
-  if (v === "o" || v === "out" || v === "outbound" || v === "withdrawal") return "O";
+  if (v === "o" || v === "out" || v === "outbound" || v === "debit" || v === "withdrawal")
+    return "O";
   if (v === "i" || v === "in" || v === "inbound" || v === "credit" || v === "deposit") return "I";
   // Explicit signed net/amount wins next.
   const net = numOrNull(pick(raw, ["net_amount", "net"]));
