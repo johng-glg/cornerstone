@@ -218,6 +218,13 @@ async function syncClient(
     }
   }
 
+  // Recognize earned EPF for any offer whose first creditor payment has now cleared (spec §7.1).
+  // Runs after the upserts so freshly-synced cleared payments are visible to the gate.
+  const { data: earned } = await supabase.rpc("fn_recognize_earned_fees", {
+    p_contact_id: forthId,
+  });
+  const feesEarned = typeof earned === "number" ? earned : 0;
+
   const projection = await refreshProjection(supabase, forthId, client.company_id, horizonDays);
 
   await supabase.from("plsa_sync_log").insert({
@@ -230,6 +237,7 @@ async function syncClient(
       forth_contact_id: forthId,
       transactions: transactions.length,
       offers: offers.length,
+      fees_earned: feesEarned,
       ...projection,
     },
   });
@@ -239,6 +247,7 @@ async function syncClient(
     forth_contact_id: forthId,
     transactions: transactions.length,
     offers: offers.length,
+    fees_earned: feesEarned,
     ...projection,
   };
 }
