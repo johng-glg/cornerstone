@@ -22,6 +22,7 @@ import { ClientActivityFeed } from "@/components/common/ActivityFeed";
 import { NotesTab } from "@/components/leads/tabs/NotesTab";
 import { TasksTab } from "@/components/leads/tabs/TasksTab";
 import { ClientEditDialog } from "@/components/clients/ClientEditDialog";
+import { ClientForecastTab } from "@/components/clients/detail/ClientForecastTab";
 import {
   ClientLitigationTab,
   ClientPaymentsTab,
@@ -135,6 +136,7 @@ export default function ClientDetail() {
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="engagements">Engagements</TabsTrigger>
                 <TabsTrigger value="liabilities">Liabilities</TabsTrigger>
+                <TabsTrigger value="forecast">Forecast</TabsTrigger>
                 <TabsTrigger value="litigation">Litigation</TabsTrigger>
                 <TabsTrigger value="payments">Payments</TabsTrigger>
                 <TabsTrigger value="billing">Billing</TabsTrigger>
@@ -350,6 +352,16 @@ export default function ClientDetail() {
                     </QueryState>
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              <TabsContent value="forecast">
+                <ClientForecastTab
+                  forthContactId={
+                    client.data.forth_crm_id && Number.isFinite(Number(client.data.forth_crm_id))
+                      ? Number(client.data.forth_crm_id)
+                      : null
+                  }
+                />
               </TabsContent>
 
               <TabsContent value="litigation">
