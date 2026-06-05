@@ -61,6 +61,46 @@ Deno.test("mapForthTransaction prefers explicit net_amount and uses fallback con
   assertEquals(row.amount, 100);
 });
 
+Deno.test(
+  "mapForthTransaction maps the forthpay reports/transactions shape (client_id, sub_type)",
+  () => {
+    // Client deposit (inflow) — type implies direction, amount unsigned.
+    const inflow = mapForthTransaction(
+      {
+        id: 5002,
+        client_id: 42,
+        transaction_type: "ACH Client Debit",
+        sub_type: "Recurring",
+        amount: 529.67,
+        transaction_status: "Cleared",
+        process_date: "2026-07-10",
+      },
+      CO,
+    )!;
+    assertEquals(inflow.contact_id, 42); // forthpay client_id == Forth contact id
+    assertEquals(inflow.inout, "I");
+    assertEquals(inflow.net_amount, 529.67);
+    assertEquals(inflow.transaction_subtype_name, "Recurring");
+
+    // Custodial fee (outflow) — inferred from the type name.
+    const fee = mapForthTransaction(
+      { id: 5003, client_id: 42, transaction_type: "FORTH Custodial Fee", amount: 10.95 },
+      CO,
+    )!;
+    assertEquals(fee.inout, "O");
+    assertEquals(fee.net_amount, -10.95);
+
+    // Signed amount wins regardless of type.
+    const signed = mapForthTransaction(
+      { id: 5004, client_id: 42, transaction_type: "Misc", amount: -200 },
+      CO,
+    )!;
+    assertEquals(signed.inout, "O");
+    assertEquals(signed.net_amount, -200);
+    assertEquals(signed.amount, 200);
+  },
+);
+
 Deno.test("mapForthTransaction returns null without a usable id or contact", () => {
   assertEquals(mapForthTransaction({ amount: 10 }, CO), null);
   assertEquals(mapForthTransaction({ id: 5, amount: 10 }, CO), null); // no contact, no fallback

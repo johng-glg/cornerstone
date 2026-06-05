@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/common/StatCard";
 import { QueryState } from "@/components/common/QueryState";
 import { AlertsTable } from "@/components/forecast/AlertsTable";
+import { toast } from "sonner";
 import {
   useClientAlerts,
   useClientEarnedFees,
@@ -22,6 +23,7 @@ import {
   useFloor,
   useAlertAction,
   useSolve,
+  useMirrorSync,
 } from "@/hooks/useForecast";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { ForecastAlertRow, SolverProposal } from "@/lib/forecast-types";
@@ -55,7 +57,13 @@ function ProposalCard({ p }: { p: SolverProposal }) {
 }
 
 /** Per-client settlement-balance forecast: projection chart, verdict, alerts, earned fees, solver. */
-export function ClientForecastTab({ forthContactId }: { forthContactId: number | null }) {
+export function ClientForecastTab({
+  forthContactId,
+  clientId,
+}: {
+  forthContactId: number | null;
+  clientId?: string | null;
+}) {
   const timeline = useClientTimeline(forthContactId);
   const verdict = useClientVerdict(forthContactId);
   const alerts = useClientAlerts(forthContactId);
@@ -63,6 +71,15 @@ export function ClientForecastTab({ forthContactId }: { forthContactId: number |
   const floorQ = useFloor();
   const action = useAlertAction();
   const solve = useSolve();
+  const sync = useMirrorSync();
+
+  const runSync = () => {
+    if (!clientId) return;
+    sync.mutate(clientId, {
+      onSuccess: () => toast.success("Synced from Forth."),
+      onError: (e) => toast.error((e as Error).message),
+    });
+  };
 
   const floor = floorQ.data ?? 100;
   const chartData = useMemo(
@@ -87,6 +104,14 @@ export function ClientForecastTab({ forthContactId }: { forthContactId: number |
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-medium">Settlement forecast</h2>
+        {clientId && (
+          <Button variant="outline" size="sm" disabled={sync.isPending} onClick={runSync}>
+            {sync.isPending ? "Syncing…" : "Sync from Forth"}
+          </Button>
+        )}
+      </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Min projected balance" value={formatCurrency(v?.min_balance ?? null)} />
         <StatCard

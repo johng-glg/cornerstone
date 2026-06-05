@@ -7,9 +7,9 @@
 // projection_run, and reconciles forecast_alert (spec §8). Idempotent: re-running re-upserts by
 // natural key and re-derives alerts.
 //
-// TODO(forth-docs): confirm the per-contact transactions endpoint + response envelope. The repo's
-// only existing transactions call (forth-poll-transactions) is draft-scoped and likewise flagged;
-// this uses GET contacts/{id}/transactions with defensive envelope/field unwrapping until confirmed.
+// Transactions come from forthpay's POST /v1/reports/transactions (the same endpoint
+// forth-poll-transactions uses), filtered by client_id and paginated via _offset/_limit; the
+// response array is at `result.response`. Settlement offers come from forthcrm debts→offers.
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import { z } from "npm:zod@3.23.8";
 import { requireAuth } from "../_shared/requireAuth.ts";
@@ -80,6 +80,44 @@ async function getConfigNumber(supabase: Supabase, key: string, fallback: number
   return Number.isFinite(n) ? n : fallback;
 }
 
+const FORTHPAY = "https://api.forthpay.com/v1";
+const PAGE_LIMIT = 500;
+
+/** Pull all of a client's transactions from forthpay's paginated reports/transactions endpoint. */
+async function fetchTransactions(
+  forthId: number,
+  companyId: string,
+  headers: Record<string, string>,
+): Promise<Raw[]> {
+  const all: Raw[] = [];
+  for (let offset = 0, page = 0; page < 40; page++, offset += PAGE_LIMIT) {
+    const resp = await forthFetch(
+      `${FORTHPAY}/reports/transactions`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          client_id: { values: [String(forthId)] },
+          _limit: PAGE_LIMIT,
+          _offset: offset,
+        }),
+      },
+      { caller: "forth-mirror-sync", companyId },
+    );
+    if (!resp.ok) {
+      if (resp.status === 404) break;
+      throw new Error(`Forth POST reports/transactions -> ${resp.status}`);
+    }
+    const result = await resp.json().catch(() => null);
+    const rows: Raw[] = Array.isArray(result?.response)
+      ? result.response
+      : (result?.response?.transactions ?? result?.transactions ?? []);
+    all.push(...rows);
+    if (rows.length < PAGE_LIMIT) break;
+  }
+  return all;
+}
+
 /** Fetch + map a contact's transactions, settlement offers, and their payment/fee schedules. */
 async function fetchContactData(
   forthId: number,
@@ -87,9 +125,7 @@ async function fetchContactData(
   headers: Record<string, string>,
   defaultFeeRate: number,
 ): Promise<{ transactions: ForthTransactionRow[]; offers: MappedOffer[] }> {
-  const txRaw = asList(
-    await getJson(`${FORTHCRM}/contacts/${forthId}/transactions`, headers, companyId),
-  );
+  const txRaw = await fetchTransactions(forthId, companyId, headers);
   const transactions = txRaw
     .map((t: Raw) => mapForthTransaction(t, companyId, forthId))
     .filter((r): r is ForthTransactionRow => r !== null);

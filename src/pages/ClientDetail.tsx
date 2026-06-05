@@ -356,6 +356,7 @@ export default function ClientDetail() {
 
               <TabsContent value="forecast">
                 <ClientForecastTab
+                  clientId={id}
                   forthContactId={
                     client.data.forth_crm_id && Number.isFinite(Number(client.data.forth_crm_id))
                       ? Number(client.data.forth_crm_id)
