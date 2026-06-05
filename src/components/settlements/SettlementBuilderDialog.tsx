@@ -20,8 +20,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
-import { useAddSettlement, useClientServiceContext } from "@/hooks/useSettlements";
-import { useFloor } from "@/hooks/useForecast";
+import {
+  useAddSettlement,
+  useClientServiceContext,
+  useClientForthContactId,
+} from "@/hooks/useSettlements";
+import { useClientTimeline } from "@/hooks/useForecast";
 import { useRecordActivity } from "@/hooks/useActivityLog";
 import { formatCurrency } from "@/lib/format";
 import {
@@ -29,7 +33,7 @@ import {
   grossSavings,
   netSavings,
   performanceFee,
-  projectEscrowFeasibility,
+  projectOfferFeasibility,
   scheduleReconciles,
   scheduleSum,
   settlementPercent,
@@ -85,7 +89,8 @@ export function SettlementBuilderDialog({
   const add = useAddSettlement();
   const record = useRecordActivity();
   const ctx = useClientServiceContext(clientServiceId);
-  const floorQ = useFloor();
+  const contactId = useClientForthContactId(clientId);
+  const timeline = useClientTimeline(contactId.data ?? null);
 
   const [offerAmount, setOfferAmount] = useState("");
   const [paymentType, setPaymentType] = useState<"lump_sum" | "payment_plan">("lump_sum");
@@ -94,12 +99,13 @@ export function SettlementBuilderDialog({
   const [firstDate, setFirstDate] = useState(today());
   const [feeMethod, setFeeMethod] = useState<FeeMethod>("split");
   const [feeOffset, setFeeOffset] = useState(0);
+  const [feeOverride, setFeeOverride] = useState(""); // editable Settlement Fee ($)
+  const [maintainMin, setMaintainMin] = useState(0); // Maintain Min Balance (floor)
   const [schedule, setSchedule] = useState<ScheduledPayment[]>([]);
   const [notes, setNotes] = useState("");
 
   const enrolled = enrolledBalance ?? 0;
   const offer = Number(offerAmount) || 0;
-  const floor = floorQ.data ?? 100;
   const feeRate = ctx.data?.settlement_fee_percentage ?? null;
 
   // Regenerate the schedule whenever a generator input changes (manual row edits below persist until
@@ -113,8 +119,9 @@ export function SettlementBuilderDialog({
   }, [paymentType, offer, count, cadence, firstDate]);
 
   const pct = settlementPercent(offer, enrolled);
-  const fee = performanceFee(enrolled, feeRate);
   const savings = grossSavings(enrolled, offer);
+  const defaultFee = performanceFee(savings, feeRate); // CONFIRM basis with GLG (rate × savings)
+  const fee = feeOverride !== "" ? Number(feeOverride) || 0 : defaultFee;
   const net = netSavings(enrolled, offer, fee);
   const feePerPayment = useMemo(
     () => splitFee(fee, schedule, feeMethod, feeOffset, firstDate || today()),
@@ -123,17 +130,28 @@ export function SettlementBuilderDialog({
   const sum = scheduleSum(schedule);
   const reconciles = scheduleReconciles(schedule, offer);
 
-  const feasibility = useMemo(
+  // EPF outflows aligned to the schedule, and the client's existing transaction timeline.
+  const draftFees = useMemo(
     () =>
-      projectEscrowFeasibility({
-        escrowNow: ctx.data?.escrow_balance ?? 0,
-        monthlyDeposit: ctx.data?.monthly_payment ?? 0,
-        offerSchedule: schedule,
-        floor,
-        today: today(),
-      }),
-    [ctx.data, schedule, floor],
+      schedule
+        .map((p, i) => ({ due_date: p.due_date, amount: feePerPayment[i] ?? 0 }))
+        .filter((f) => f.amount > 0),
+    [schedule, feePerPayment],
   );
+  const existingTx = useMemo(
+    () =>
+      (timeline.data ?? []).map((t) => ({
+        process_date: t.process_date,
+        net_amount: t.net_amount,
+      })),
+    [timeline.data],
+  );
+  // Port of VW_MASS_SETTLEMENT_OFFER_CALCULATIONS for this draft offer.
+  const feas = useMemo(
+    () => projectOfferFeasibility(existingTx, schedule, draftFees, maintainMin),
+    [existingTx, schedule, draftFees, maintainMin],
+  );
+  const hasTimeline = (timeline.data ?? []).length > 0;
 
   const editRow = (i: number, patch: Partial<ScheduledPayment>) =>
     setSchedule((s) => s.map((r, k) => (k === i ? { ...r, ...patch } : r)));
@@ -151,6 +169,8 @@ export function SettlementBuilderDialog({
     setFirstDate(today());
     setFeeMethod("split");
     setFeeOffset(0);
+    setFeeOverride("");
+    setMaintainMin(0);
     setNotes("");
   };
 
@@ -263,55 +283,61 @@ export function SettlementBuilderDialog({
           )}
         </div>
 
-        {/* Settlement math */}
+        {/* Offer terms (settlement math) */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <Metric label="Original" value={formatCurrency(enrolled)} />
           <Metric label="Settlement %" value={pct != null ? `${pct}%` : "—"} />
-          <Metric label="Gross savings" value={formatCurrency(savings)} />
           <Metric
-            label={`Perf. fee${feeRate != null ? ` (${feeRate}%)` : ""}`}
+            label={`Settlement fee${feeRate != null ? ` (${feeRate}%)` : ""}`}
             value={formatCurrency(fee)}
           />
           <Metric
-            label="Net savings"
+            label="Offer total savings"
             value={formatCurrency(net)}
             tone={net > 0 ? "good" : undefined}
           />
         </div>
 
-        {/* Escrow feasibility */}
+        {/* Funds availability — port of VW_MASS_SETTLEMENT_OFFER_CALCULATIONS */}
         <div className="rounded-md border p-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Escrow feasibility</span>
+            <span className="text-sm font-medium">Funds availability</span>
             <span
               className={
-                feasibility.feasible
+                feas.feasible
                   ? "rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800"
                   : "rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800"
               }
             >
-              {feasibility.feasible ? "Feasible" : "Breaches floor"}
+              {feas.verdict ?? "—"}
             </span>
           </div>
-          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <Metric label="Escrow now" value={formatCurrency(ctx.data?.escrow_balance ?? null)} />
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div>
+              <Label htmlFor="floor">Maintain min balance ($)</Label>
+              <Input
+                id="floor"
+                type="number"
+                value={maintainMin}
+                onChange={(e) => setMaintainMin(Number(e.target.value) || 0)}
+                className="h-8"
+              />
+            </div>
             <Metric
-              label="Monthly draft"
-              value={formatCurrency(ctx.data?.monthly_payment ?? null)}
+              label="Min running balance"
+              value={formatCurrency(feas.minRunningBalance)}
+              tone={feas.feasible ? "good" : "bad"}
             />
             <Metric
-              label="Projected min"
-              value={formatCurrency(feasibility.projectedMin)}
-              tone={feasibility.feasible ? "good" : "bad"}
-            />
-            <Metric
-              label="Shortfall"
-              value={feasibility.shortfall > 0 ? formatCurrency(feasibility.shortfall) : "—"}
-              tone={feasibility.shortfall > 0 ? "bad" : undefined}
+              label="Additional funds needed"
+              value={feas.additionalFundsNeeded ? formatCurrency(feas.additionalFundsNeeded) : "—"}
+              tone={feas.additionalFundsNeeded ? "bad" : undefined}
             />
           </div>
-          {ctx.data?.escrow_balance == null && (
+          {!hasTimeline && (
             <p className="mt-2 text-xs text-muted-foreground">
-              No escrow balance on file for this engagement — feasibility assumes $0 to start.
+              No synced Forth transactions for this client yet — run the mirror sync to compute the
+              running balance.
             </p>
           )}
         </div>
@@ -383,7 +409,17 @@ export function SettlementBuilderDialog({
         </div>
 
         {/* Fee collection */}
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-4">
+          <div>
+            <Label htmlFor="fee">Settlement fee ($)</Label>
+            <Input
+              id="fee"
+              type="number"
+              value={feeOverride}
+              onChange={(e) => setFeeOverride(e.target.value)}
+              placeholder={String(defaultFee)}
+            />
+          </div>
           <div>
             <Label>Fee collection</Label>
             <Select value={feeMethod} onValueChange={(v) => setFeeMethod(v as FeeMethod)}>

@@ -1,19 +1,18 @@
 // Settlement calculator — the single place all settlement-builder money math lives.
 //
-// ⚠️ ASSUMPTIONS TO CONFIRM AGAINST THE GLG SETTLEMENT CALCULATOR. These are industry-standard
-// defaults, not GLG's proprietary formulas (which weren't available when this was written). Each is
-// isolated here so the real logic drops in by editing this one file — the builder UI reads only
-// these functions. The two that most need sign-off are marked (CONFIRM):
-//   1. settlement %        = offer / enrolled × 100
-//   2. gross savings       = enrolled − offer
-//   3. performance fee     = feeRatePct% × enrolled_balance         (CONFIRM the basis: enrolled vs
-//                                                                    savings vs offer)
-//   4. net savings         = enrolled − offer − fee
-//   5. schedule            = equal installments by cadence, rounding remainder onto the last
-//   6. fee split ("split") = fee spread equally over payments on/after fee_start_offset_months;
-//                            ("lump_sum") = whole fee on the first eligible payment   (CONFIRM)
-//   7. feasibility         = escrow_now + recurring draft − this offer's payments (+incidental
-//                            buffer) must stay ≥ floor. Does NOT yet net other concurrent offers.
+// Ported from GLG's Snowflake views (NG & PPD Queries), so the builder matches the Forth
+// "Settlements & Negotiations" page:
+//   • VW_MASS_SETTLEMENT_OFFER_CALCULATIONS — the funds-availability calc (running "Client Balance"
+//     over the transaction timeline; MIN(running) < floor ⇒ "CLIENT GOES SHORT"; additional funds
+//     needed = floor − MIN). Settlement payments are outflows of (−amount − $6 custodial); EPF fees
+//     are outflows of (−amount). MIN is taken over rows on/after the offer's first payment date,
+//     while the running balance accumulates from the start of the timeline.
+//   • VW_TRANSACTIONS_2 — NET_AMOUNT = (INOUT='O' ? −AMOUNT : AMOUNT).
+//   • VW_SETTLEMENT_OFFER_PARSED_PAYMENTS / _FEES — the per-offer payment + EPF schedules.
+//
+// The view's hard floor is 0 ("goes short" < 0); the Forth page exposes a per-offer "Maintain Min
+// Balance" the builder passes as `floor`. STILL TO CONFIRM with GLG: the performance-fee *basis*
+// (the 27% badge) — defaulted here to rate × gross savings; the builder lets you override the fee.
 
 export interface ScheduledPayment {
   due_date: string; // YYYY-MM-DD
@@ -26,7 +25,7 @@ export type FeeMethod = "split" | "lump_sum";
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const isoDay = (d: Date) => d.toISOString().slice(0, 10);
 
-/** Settlement percentage of the enrolled balance (null when enrolled is unknown/zero). */
+/** Settlement percentage of the enrolled/original balance (null when unknown/zero). */
 export function settlementPercent(
   offer: number,
   enrolled: number | null | undefined,
@@ -35,18 +34,18 @@ export function settlementPercent(
   return round2((offer / enrolled) * 100);
 }
 
-/** Gross savings vs. the enrolled balance (before fees). */
+/** Gross savings vs. the original balance (before the performance fee). */
 export function grossSavings(enrolled: number | null | undefined, offer: number): number {
   return round2((enrolled ?? 0) - offer);
 }
 
-/** Performance/attorney fee. (CONFIRM basis — defaults to a % of the enrolled balance.) */
-export function performanceFee(
-  enrolled: number | null | undefined,
-  feeRatePct: number | null | undefined,
-): number {
-  if (!feeRatePct) return 0;
-  return round2(((enrolled ?? 0) * feeRatePct) / 100);
+/**
+ * Performance (settlement) fee. CONFIRM basis with GLG — defaulted to a % of the gross savings,
+ * which is the standard "Earned Performance Fee" basis. The builder treats the result as editable.
+ */
+export function performanceFee(basisAmount: number, feeRatePct: number | null | undefined): number {
+  if (!feeRatePct || basisAmount <= 0) return 0;
+  return round2((basisAmount * feeRatePct) / 100);
 }
 
 /** Net savings to the client after the performance fee. */
@@ -99,8 +98,8 @@ export const scheduleReconciles = (schedule: ScheduledPayment[], offer: number):
   Math.abs(scheduleSum(schedule) - offer) < 0.01;
 
 /**
- * Per-payment fee preview aligned to the schedule. "split" spreads the fee across payments due on
- * or after the offset; "lump_sum" puts it all on the first eligible payment. (CONFIRM with GLG.)
+ * Per-payment EPF preview aligned to the schedule. "split" spreads the fee across payments due on or
+ * after the offset; "lump_sum" puts it all on the first eligible payment.
  */
 export function splitFee(
   fee: number,
@@ -129,58 +128,89 @@ export function splitFee(
   return fees;
 }
 
-export interface FeasibilityInput {
-  escrowNow: number;
-  monthlyDeposit: number;
-  offerSchedule: ScheduledPayment[];
-  floor: number;
-  today: string;
-  incidental?: number; // per-payment buffer (system_setting), default $6
-  horizonMonths?: number; // minimum look-ahead, default 12
+/** One existing transaction on the client's timeline (already status-filtered, signed NET_AMOUNT). */
+export interface TimelineTx {
+  process_date: string;
+  net_amount: number;
 }
 
-export interface FeasibilityResult {
-  projectedMin: number;
+export interface OfferFeasibility {
+  firstPaymentDate: string | null;
+  minRunningBalance: number | null;
+  verdict: "OK" | "CLIENT GOES SHORT" | null;
+  additionalFundsNeeded: number | null; // floor − min, when short
+  minBalanceRemaining: number | null; // min, when ok
   feasible: boolean;
-  shortfall: number; // 0 when feasible
 }
+
+const CUSTODIAL_BUFFER = 6; // VW: settlement payments are (−amount − 6)
 
 /**
- * Will this offer keep the client's escrow pool above the floor? Projects the current escrow forward
- * with the recurring draft and this offer's outflows. On a shared date, the outflow is applied
- * before the deposit (conservative: "are the funds there when the payment hits?").
+ * Port of VW_MASS_SETTLEMENT_OFFER_CALCULATIONS for a *draft* offer: overlay this offer's payments
+ * (−amount − $6) and EPF fees (−amount) onto the client's existing transaction timeline, accumulate
+ * the running balance, and take the minimum over rows on/after the offer's first payment date.
+ * `floor` is the Maintain-Min-Balance (the view uses 0). Tie-break on a shared date follows the
+ * view's RECORD_SOURCE ordering: existing transactions, then fees, then payments.
  */
-export function projectEscrowFeasibility(input: FeasibilityInput): FeasibilityResult {
-  const { escrowNow, monthlyDeposit, offerSchedule, floor, today } = input;
-  const incidental = input.incidental ?? 6;
-  const horizonMonths = input.horizonMonths ?? 12;
-  const start = new Date(today);
-
-  const lastOffer = offerSchedule.reduce((m, p) => (p.due_date > m ? p.due_date : m), today);
-  const monthsToLast = Math.max(
-    horizonMonths,
-    Math.ceil((new Date(lastOffer).getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30)),
-  );
-
-  type Ev = { date: string; amount: number; out: boolean };
-  const events: Ev[] = [];
-  for (let m = 1; m <= monthsToLast; m++) {
-    events.push({ date: isoDay(addMonths(start, m)), amount: monthlyDeposit, out: false });
+export function projectOfferFeasibility(
+  existing: TimelineTx[],
+  payments: ScheduledPayment[],
+  fees: ScheduledPayment[],
+  floor = 0,
+): OfferFeasibility {
+  if (payments.length === 0 && fees.length === 0) {
+    return {
+      firstPaymentDate: null,
+      minRunningBalance: null,
+      verdict: null,
+      additionalFundsNeeded: null,
+      minBalanceRemaining: null,
+      feasible: true,
+    };
   }
-  for (const p of offerSchedule) {
-    events.push({ date: p.due_date, amount: -(p.amount + incidental), out: true });
-  }
-  // Chronological; on a tie, outflows first.
+  const firstPaymentDate = [...payments, ...fees]
+    .map((p) => p.due_date)
+    .filter(Boolean)
+    .sort()[0];
+
+  type Ev = { date: string; net: number; rank: number; seq: number };
+  const events: Ev[] = [
+    ...existing.map((r, i) => ({ date: r.process_date, net: r.net_amount, rank: 0, seq: i })),
+    ...fees.map((f, i) => ({ date: f.due_date, net: -f.amount, rank: 1, seq: i })),
+    ...payments.map((p, i) => ({
+      date: p.due_date,
+      net: -(p.amount + CUSTODIAL_BUFFER),
+      rank: 2,
+      seq: i,
+    })),
+  ];
   events.sort((a, b) =>
-    a.date < b.date ? -1 : a.date > b.date ? 1 : a.out === b.out ? 0 : a.out ? -1 : 1,
+    a.date < b.date ? -1 : a.date > b.date ? 1 : a.rank - b.rank || a.seq - b.seq,
   );
 
-  let bal = escrowNow;
-  let min = escrowNow;
+  let bal = 0;
+  let min: number | null = null;
   for (const e of events) {
-    bal = round2(bal + e.amount);
-    if (bal < min) min = bal;
+    bal = round2(bal + e.net);
+    if (e.date >= firstPaymentDate && (min === null || bal < min)) min = bal;
   }
-  const feasible = min >= floor;
-  return { projectedMin: round2(min), feasible, shortfall: feasible ? 0 : round2(floor - min) };
+  if (min === null) {
+    return {
+      firstPaymentDate,
+      minRunningBalance: null,
+      verdict: "OK",
+      additionalFundsNeeded: null,
+      minBalanceRemaining: null,
+      feasible: true,
+    };
+  }
+  const short = min < floor;
+  return {
+    firstPaymentDate,
+    minRunningBalance: min,
+    verdict: short ? "CLIENT GOES SHORT" : "OK",
+    additionalFundsNeeded: short ? round2(floor - min) : null,
+    minBalanceRemaining: short ? null : min,
+    feasible: !short,
+  };
 }

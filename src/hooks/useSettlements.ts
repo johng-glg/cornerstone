@@ -157,6 +157,27 @@ export function useClientServiceContext(
   });
 }
 
+/** Resolve a Cornerstone client to its Forth contact id (bigint), for the funds-availability calc. */
+export function useClientForthContactId(
+  clientId: string | null | undefined,
+): UseQueryResult<number | null, Error> {
+  return useQuery({
+    queryKey: ["client_forth_contact_id", clientId ?? ""],
+    enabled: !!clientId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("clients")
+        .select("forth_crm_id")
+        .eq("id", clientId!)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      const raw = data?.forth_crm_id;
+      const n = raw != null ? Number(raw) : NaN;
+      return Number.isFinite(n) ? n : null;
+    },
+  });
+}
+
 export type SettlementTransition = "accepted" | "rejected" | "completed" | "cancelled" | "approve";
 
 /**

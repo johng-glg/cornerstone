@@ -4,11 +4,12 @@ import {
   grossSavings,
   netSavings,
   performanceFee,
-  projectEscrowFeasibility,
+  projectOfferFeasibility,
   scheduleReconciles,
   scheduleSum,
   settlementPercent,
   splitFee,
+  type TimelineTx,
 } from "./settlementMath";
 
 describe("settlement math", () => {
@@ -18,11 +19,11 @@ describe("settlement math", () => {
     expect(grossSavings(10000, 4000)).toBe(6000);
   });
 
-  it("performance fee + net savings (fee = % of enrolled by default)", () => {
-    const fee = performanceFee(10000, 27); // 2700
-    expect(fee).toBe(2700);
-    expect(netSavings(10000, 4000, fee)).toBe(3300);
-    expect(performanceFee(10000, null)).toBe(0);
+  it("performance fee = rate × basis (savings); net savings nets it out", () => {
+    const fee = performanceFee(6000, 27); // 27% of $6,000 savings
+    expect(fee).toBe(1620);
+    expect(netSavings(10000, 4000, fee)).toBe(4380);
+    expect(performanceFee(6000, null)).toBe(0);
   });
 });
 
@@ -46,48 +47,61 @@ describe("splitFee", () => {
   const sched = buildCadenceSchedule(900, 3, "2026-07-01", "monthly");
 
   it("splits equally across all payments when offset is 0", () => {
-    const fees = splitFee(300, sched, "split", 0, "2026-07-01");
-    expect(fees).toEqual([100, 100, 100]);
+    expect(splitFee(300, sched, "split", 0, "2026-07-01")).toEqual([100, 100, 100]);
   });
 
-  it("respects the fee_start_offset_months (skips early payments)", () => {
+  it("respects the fee_start_offset_months (skips early payments) and still sums to the fee", () => {
     const fees = splitFee(300, sched, "split", 1, "2026-07-01");
-    expect(fees[0]).toBe(0); // first month skipped
+    expect(fees[0]).toBe(0);
     expect(scheduleSum(fees.map((amount) => ({ due_date: "x", amount })))).toBe(300);
   });
 
   it("lump_sum puts the whole fee on the first eligible payment", () => {
-    const fees = splitFee(300, sched, "lump_sum", 0, "2026-07-01");
-    expect(fees).toEqual([300, 0, 0]);
+    expect(splitFee(300, sched, "lump_sum", 0, "2026-07-01")).toEqual([300, 0, 0]);
   });
 });
 
-describe("projectEscrowFeasibility", () => {
-  it("feasible when escrow + draft cover the payment", () => {
-    const r = projectEscrowFeasibility({
-      escrowNow: 2000,
-      monthlyDeposit: 300,
-      offerSchedule: [{ due_date: "2026-07-05", amount: 1000 }],
-      floor: 100,
-      today: "2026-06-05",
-      incidental: 0,
-    });
+describe("projectOfferFeasibility (port of VW_MASS_SETTLEMENT_OFFER_CALCULATIONS)", () => {
+  // Two client deposits, then the offer's single payment.
+  const existing: TimelineTx[] = [
+    { process_date: "2026-06-10", net_amount: 500 },
+    { process_date: "2026-07-10", net_amount: 500 },
+  ];
+
+  it("OK when the running balance stays at/above the floor (payment carries the −$6 buffer)", () => {
+    const r = projectOfferFeasibility(existing, [{ due_date: "2026-07-15", amount: 800 }], [], 0);
+    expect(r.firstPaymentDate).toBe("2026-07-15");
+    expect(r.minRunningBalance).toBe(194); // 1000 − (800 + 6)
+    expect(r.verdict).toBe("OK");
     expect(r.feasible).toBe(true);
-    expect(r.shortfall).toBe(0);
+    expect(r.minBalanceRemaining).toBe(194);
   });
 
-  it("infeasible when the payment drops escrow below the floor", () => {
-    const r = projectEscrowFeasibility({
-      escrowNow: 500,
-      monthlyDeposit: 300,
-      offerSchedule: [{ due_date: "2026-07-05", amount: 1000 }],
-      floor: 100,
-      today: "2026-06-05",
-      incidental: 0,
-    });
+  it("CLIENT GOES SHORT with additional funds needed when it dips below the floor", () => {
+    const r = projectOfferFeasibility(existing, [{ due_date: "2026-07-15", amount: 1200 }], [], 0);
+    expect(r.verdict).toBe("CLIENT GOES SHORT");
+    expect(r.minRunningBalance).toBe(-206); // 1000 − 1206
+    expect(r.additionalFundsNeeded).toBe(206);
     expect(r.feasible).toBe(false);
-    // outflow applied before that month's deposit: 500 - 1000 = -500 -> shortfall 600
-    expect(r.projectedMin).toBe(-500);
-    expect(r.shortfall).toBe(600);
+  });
+
+  it("honors a non-zero Maintain Min Balance floor", () => {
+    const r = projectOfferFeasibility(existing, [{ due_date: "2026-07-15", amount: 800 }], [], 300);
+    expect(r.verdict).toBe("CLIENT GOES SHORT");
+    expect(r.additionalFundsNeeded).toBe(106); // floor 300 − min 194
+  });
+
+  it("includes EPF fee outflows in the running balance", () => {
+    const r = projectOfferFeasibility(
+      existing,
+      [{ due_date: "2026-07-15", amount: 700 }],
+      [{ due_date: "2026-07-20", amount: 100 }],
+      0,
+    );
+    expect(r.minRunningBalance).toBe(194); // 1000 − 706, then − 100
+  });
+
+  it("no offer lines => trivially feasible", () => {
+    expect(projectOfferFeasibility(existing, [], [], 0).feasible).toBe(true);
   });
 });
