@@ -38,15 +38,26 @@ export function toDate(v: unknown): string | null {
   return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
+// Forth transaction types that move money OUT of escrow (creditor payments, fees, disbursements).
+// Used to infer direction when the forthpay report gives an unsigned amount and no inout flag.
+// CONFIRM the full type vocabulary with GLG if any outflow shows up as an inflow.
+const OUTFLOW_TYPE_RE = /fee|settlement|creditor|custodial|disburse|payment|refund|chargeback|stop/;
+
 /** Normalize direction to 'O' (outflow to creditor/fee) or 'I' (inflow / client draft). */
 export function normalizeInOut(raw: Raw): "O" | "I" {
   const v = String(pick(raw, ["in_out", "inout", "direction", "io"]) ?? "").toLowerCase();
-  if (v === "o" || v === "out" || v === "outbound" || v === "debit" || v === "withdrawal")
-    return "O";
+  if (v === "o" || v === "out" || v === "outbound" || v === "withdrawal") return "O";
   if (v === "i" || v === "in" || v === "inbound" || v === "credit" || v === "deposit") return "I";
-  // Fall back to the sign of an explicit net_amount when present.
+  // Explicit signed net/amount wins next.
   const net = numOrNull(pick(raw, ["net_amount", "net"]));
   if (net !== null) return net < 0 ? "O" : "I";
+  const amt = numOrNull(pick(raw, ["amount", "gross_amount", "transaction_amount"]));
+  if (amt !== null && amt < 0) return "O";
+  // Fall back to the transaction type/subtype name (forthpay report gives no direction flag).
+  const typeText = `${pick(raw, ["transaction_type_name", "transaction_type", "type"]) ?? ""} ${
+    pick(raw, ["sub_type", "transaction_subtype_name", "transaction_subtype", "subtype"]) ?? ""
+  }`.toLowerCase();
+  if (typeText.trim() && OUTFLOW_TYPE_RE.test(typeText)) return "O";
   return "I";
 }
 
@@ -142,7 +153,12 @@ export function mapForthTransaction(
     transaction_type_name:
       (pick(raw, ["transaction_type_name", "transaction_type", "type"]) as string) ?? null,
     transaction_subtype_name:
-      (pick(raw, ["transaction_subtype_name", "transaction_subtype", "subtype"]) as string) ?? null,
+      (pick(raw, [
+        "transaction_subtype_name",
+        "transaction_subtype",
+        "sub_type",
+        "subtype",
+      ]) as string) ?? null,
     status_name: normalizeStatus(pick(raw, ["status_name", "status", "transaction_status"])),
     payee_name: (pick(raw, ["payee_name", "payee", "creditor_name", "company"]) as string) ?? null,
   };

@@ -204,6 +204,24 @@ export function useAlertAction() {
   });
 }
 
+/** Pull a client's Forth transactions + offers into the mirror, then refresh the forecast. */
+export function useMirrorSync() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (clientId: string) => {
+      const { data, error } = await supabase.functions.invoke("forth-mirror-sync", {
+        body: { client_id: clientId },
+      });
+      const d = data as { success?: boolean; error?: string } | null;
+      if (error || d?.success === false) {
+        throw new Error(error?.message ?? d?.error ?? "Sync failed");
+      }
+      return d;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["forecast"] }),
+  });
+}
+
 /** Run the §9 modification solver for a client (forecast-engine edge function). */
 export function useSolve() {
   return useMutation({
