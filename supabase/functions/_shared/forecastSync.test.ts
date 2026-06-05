@@ -1,10 +1,12 @@
 import { assertEquals } from "jsr:@std/assert@1";
 import {
+  attachOfferLinks,
   mapForthTransaction,
   mapSettlementOffer,
   normalizeInOut,
   normalizeStatus,
   toDate,
+  type ForthTransactionRow,
 } from "./forecastSync.ts";
 
 const CO = "11111111-1111-1111-1111-111111111111";
@@ -104,6 +106,21 @@ Deno.test(
 Deno.test("mapForthTransaction returns null without a usable id or contact", () => {
   assertEquals(mapForthTransaction({ amount: 10 }, CO), null);
   assertEquals(mapForthTransaction({ id: 5, amount: 10 }, CO), null); // no contact, no fallback
+});
+
+Deno.test("attachOfferLinks fills offer_id/debt_id from linked_to when it matches an offer", () => {
+  const base = { company_id: CO, contact_id: 42, inout: "O" } as Partial<ForthTransactionRow>;
+  const rows = [
+    { ...base, id: 1, offer_id: null, debt_id: null, linked_to: 8001 }, // links to a known offer
+    { ...base, id: 2, offer_id: 9999, debt_id: 7, linked_to: 8001 }, // already has offer_id -> untouched
+    { ...base, id: 3, offer_id: null, debt_id: null, linked_to: 5 }, // links to a non-offer -> untouched
+  ] as ForthTransactionRow[];
+  const offerDebtById = new Map<number, number | null>([[8001, 701]]);
+  const out = attachOfferLinks(rows, offerDebtById);
+  assertEquals(out[0].offer_id, 8001);
+  assertEquals(out[0].debt_id, 701);
+  assertEquals(out[1].offer_id, 9999); // unchanged
+  assertEquals(out[2].offer_id, null); // unchanged
 });
 
 Deno.test("mapSettlementOffer parses json:payments/fees with seq + fee_rate normalization", () => {
