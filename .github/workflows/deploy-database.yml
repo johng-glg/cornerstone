@@ -15,6 +15,11 @@ name: Deploy — database (migrations)
 
 on:
   workflow_dispatch:
+    inputs:
+      reconcile_baseline:
+        description: "One-time: mark all pre-existing migrations as applied (for a DB whose Supabase migration-history table is empty), then push only the new ones."
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths: ["supabase/migrations/**"]
@@ -58,5 +63,19 @@ jobs:
           version: latest
       - name: Link project
         run: supabase link --project-ref "$PROJECT_REF" -p "$SUPABASE_DB_PASSWORD"
+      # One-time reconciliation: this project's schema predates Supabase migration tracking, so the
+      # remote history is empty and `db push` would try to replay every migration and collide with
+      # existing objects. Mark all migrations EXCEPT the new forecasting ones as already-applied, so
+      # the push that follows applies only 20260604180000 + 20260605120000. Safe to leave off after.
+      - name: Reconcile baseline history (one-time)
+        if: ${{ inputs.reconcile_baseline }}
+        run: |
+          VERS=$(ls supabase/migrations/*.sql 2>/dev/null \
+            | xargs -n1 basename \
+            | grep -oE '^[0-9]{14}' \
+            | grep -vE '^(20260604180000|20260605120000)$' \
+            | sort -u | tr '\n' ' ')
+          echo "Marking as already-applied: $VERS"
+          supabase migration repair --status applied $VERS
       - name: Push migrations
         run: supabase db push -p "$SUPABASE_DB_PASSWORD"
