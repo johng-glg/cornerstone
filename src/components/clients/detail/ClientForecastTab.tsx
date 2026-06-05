@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import {
   useClientAlerts,
   useClientEarnedFees,
+  useClientProjection,
   useClientTimeline,
   useClientVerdict,
   useFloor,
@@ -73,6 +74,7 @@ export function ClientForecastTab({
   const action = useAlertAction();
   const solve = useSolve();
   const sync = useMirrorSync();
+  const projection = useClientProjection(forthContactId);
 
   const runSync = () => {
     if (!clientId) return;
@@ -81,6 +83,20 @@ export function ClientForecastTab({
       onError: (e) => toast.error((e as Error).message),
     });
   };
+
+  // Auto-sync from Forth on first open of the tab when this client's projection is missing or stale,
+  // so the chart/verdict reflect Forth without a manual click. Fires once per mount; a 30-min freshness
+  // window avoids re-pulling on quick revisits. The manual "Sync from Forth" button still forces it.
+  const autoSynced = useRef(false);
+  useEffect(() => {
+    if (autoSynced.current || !clientId || forthContactId == null || sync.isPending) return;
+    if (projection.isLoading) return;
+    const computedAt = projection.data?.computed_at;
+    const fresh = computedAt && Date.now() - new Date(computedAt).getTime() < 30 * 60 * 1000;
+    if (fresh) return;
+    autoSynced.current = true;
+    sync.mutate(clientId);
+  }, [clientId, forthContactId, projection.isLoading, projection.data, sync]);
 
   const floor = floorQ.data ?? 100;
   // Split the line at today so the past renders muted and the projection renders solid. The last
