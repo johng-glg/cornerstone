@@ -10,14 +10,14 @@ name: Deploy — database (migrations)
 #   Secret:   SUPABASE_ACCESS_TOKEN = <supabase.com/dashboard/account/tokens>
 #   Secret:   SUPABASE_DB_PASSWORD  = <the database password set when the project was created>
 #
-# Manual-only by default (workflow_dispatch) so schema changes are deliberate; flip the `push`
-# trigger on if you want every migration to auto-apply. The seed is never run (prod-safe).
+# Auto-applies on merge to main when a migration changes (plus manual dispatch). The seed is
+# never run (prod-safe).
 
 on:
   workflow_dispatch:
-  # push:
-  #   branches: [claude/vibrant-bardeen-nwrt8]
-  #   paths: ["supabase/migrations/**"]
+  push:
+    branches: [main]
+    paths: ["supabase/migrations/**"]
 
 concurrency:
   group: deploy-database
