@@ -19,11 +19,11 @@ describe("settlement math", () => {
     expect(grossSavings(10000, 4000)).toBe(6000);
   });
 
-  it("performance fee = rate × basis (savings); net savings nets it out", () => {
-    const fee = performanceFee(6000, 27); // 27% of $6,000 savings
-    expect(fee).toBe(1620);
-    expect(netSavings(10000, 4000, fee)).toBe(4380);
-    expect(performanceFee(6000, null)).toBe(0);
+  it("performance fee = rate × enrolled debt; net savings nets it out", () => {
+    const fee = performanceFee(10000, 27); // 27% of the $10,000 enrolled debt
+    expect(fee).toBe(2700);
+    expect(netSavings(10000, 4000, fee)).toBe(3300);
+    expect(performanceFee(10000, null)).toBe(0);
   });
 });
 

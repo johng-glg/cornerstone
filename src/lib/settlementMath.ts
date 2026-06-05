@@ -11,8 +11,8 @@
 //   • VW_SETTLEMENT_OFFER_PARSED_PAYMENTS / _FEES — the per-offer payment + EPF schedules.
 //
 // The view's hard floor is 0 ("goes short" < 0); the Forth page exposes a per-offer "Maintain Min
-// Balance" the builder passes as `floor`. STILL TO CONFIRM with GLG: the performance-fee *basis*
-// (the 27% badge) — defaulted here to rate × gross savings; the builder lets you override the fee.
+// Balance" the builder passes as `floor`. The performance fee (the 27% badge) is a % of the
+// ENROLLED debt (confirmed J.G., 2026-06-05); the builder still lets you override the dollar amount.
 
 export interface ScheduledPayment {
   due_date: string; // YYYY-MM-DD
@@ -40,8 +40,8 @@ export function grossSavings(enrolled: number | null | undefined, offer: number)
 }
 
 /**
- * Performance (settlement) fee. CONFIRM basis with GLG — defaulted to a % of the gross savings,
- * which is the standard "Earned Performance Fee" basis. The builder treats the result as editable.
+ * Performance (settlement) fee = feeRatePct% of the basis. GLG's basis is the ENROLLED debt, so the
+ * builder passes the enrolled balance. The result is editable in the builder.
  */
 export function performanceFee(basisAmount: number, feeRatePct: number | null | undefined): number {
   if (!feeRatePct || basisAmount <= 0) return 0;
