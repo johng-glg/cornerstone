@@ -1,0 +1,50 @@
+name: Cron — Forth mirror sync (all clients)
+
+# Daily sync of every Forth-linked client into the forecasting mirror (forth_transaction + settlement
+# offers/payments/fees), refreshing projection_run, forecast_alert, and earned_fee_ar. Calls the
+# already-deployed forth-mirror-sync edge function in "all" mode.
+#
+# Opt-in: a no-op unless SUPABASE_SERVICE_ROLE_KEY is set (Settings → Secrets and variables → Actions).
+# Also runnable on demand via "Run workflow".
+
+on:
+  schedule:
+    - cron: "0 7 * * *" # 07:00 UTC daily
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Max clients to sync in this run"
+        default: "500"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cron-mirror-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: Sync all Forth-linked clients
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF || secrets.SUPABASE_PROJECT_REF || 'ppefwolueksddgabvseh' }}
+      SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      LIMIT: ${{ github.event.inputs.limit || '500' }}
+    steps:
+      - name: Invoke forth-mirror-sync (all)
+        run: |
+          if [ -z "$SERVICE_ROLE_KEY" ]; then
+            echo "::warning::SUPABASE_SERVICE_ROLE_KEY not set — skipping scheduled mirror sync."
+            exit 0
+          fi
+          code=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST \
+            "https://${PROJECT_REF}.supabase.co/functions/v1/forth-mirror-sync" \
+            -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
+            -H "apikey: ${SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{\"all\": true, \"limit\": ${LIMIT}}")
+          echo "HTTP $code"
+          cat /tmp/resp.json 2>/dev/null || true
+          echo
+          [ "$code" -lt 400 ]

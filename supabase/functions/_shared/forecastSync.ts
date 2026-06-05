@@ -165,6 +165,28 @@ export function mapForthTransaction(
   };
 }
 
+/**
+ * Fill offer_id/debt_id from linked_to when it points at a known settlement offer. This is one of
+ * VW_TRANSACTIONS_2's two link paths (a transaction whose LINKED_TO is a settlement-offer id); the
+ * transitive path (LINKED_TO -> another 'S' transaction -> offer) is not yet resolved here.
+ * Needed so earned-fee recognition can attribute a cleared creditor payment to its offer.
+ */
+export function attachOfferLinks(
+  transactions: ForthTransactionRow[],
+  offerDebtById: Map<number, number | null>,
+): ForthTransactionRow[] {
+  return transactions.map((t) => {
+    if (t.offer_id == null && t.linked_to != null && offerDebtById.has(t.linked_to)) {
+      return {
+        ...t,
+        offer_id: t.linked_to,
+        debt_id: t.debt_id ?? offerDebtById.get(t.linked_to) ?? null,
+      };
+    }
+    return t;
+  });
+}
+
 export interface OfferScheduleRow {
   company_id: string;
   offer_id: number;

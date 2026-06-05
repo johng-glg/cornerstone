@@ -17,6 +17,7 @@ import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { getAccessToken, buildForthHeaders, forthFetch } from "../_shared/forthAuth.ts";
 import {
   FORTHCRM,
+  attachOfferLinks,
   mapForthTransaction,
   mapSettlementOffer,
   type ForthTransactionRow,
@@ -29,10 +30,12 @@ const InputSchema = z
   .object({
     client_id: z.string().uuid().optional(),
     client_ids: z.array(z.string().uuid()).optional(),
+    all: z.boolean().optional(), // sync every Forth-linked client (scheduled cron)
+    limit: z.number().int().positive().max(1000).optional(),
     horizon_days: z.number().int().positive().optional(),
   })
-  .refine((v) => v.client_id || (v.client_ids?.length ?? 0) > 0, {
-    message: "client_id or client_ids[] is required",
+  .refine((v) => v.client_id || (v.client_ids?.length ?? 0) > 0 || v.all, {
+    message: "client_id, client_ids[], or all is required",
   });
 
 // deno-lint-ignore no-explicit-any
@@ -234,9 +237,16 @@ async function syncClient(
     defaultFeeRate,
   );
 
-  if (transactions.length) {
+  // Derive offer_id/debt_id from linked_to so cleared creditor payments attribute to their offer
+  // (drives earned-fee recognition). The report itself doesn't carry offer_id.
+  const offerDebtById = new Map<number, number | null>(
+    offers.map((m) => [m.offer.offer_id, m.offer.debt_id]),
+  );
+  const linkedTransactions = attachOfferLinks(transactions, offerDebtById);
+
+  if (linkedTransactions.length) {
     const { error } = await supabase.from("forth_transaction").upsert(
-      transactions.map((t) => ({ ...t, synced_at: new Date().toISOString() })),
+      linkedTransactions.map((t) => ({ ...t, synced_at: new Date().toISOString() })),
       { onConflict: "id" },
     );
     if (error) throw new Error(`forth_transaction upsert: ${error.message}`);
@@ -301,8 +311,6 @@ export async function handler(req: Request): Promise<Response> {
       400,
     );
   }
-  const ids = parsed.data.client_ids ?? [parsed.data.client_id!];
-
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -311,10 +319,17 @@ export async function handler(req: Request): Promise<Response> {
     parsed.data.horizon_days ?? (await getConfigNumber(supabase, "alert_horizon_days", 45));
   const defaultFeeRate = await getConfigNumber(supabase, "default_fee_rate", 0.27);
 
-  const { data: clients, error } = await supabase
-    .from("clients")
-    .select("id, company_id, forth_crm_id")
-    .in("id", ids);
+  // Target set: explicit ids, or (scheduled cron) every Forth-linked client.
+  let query = supabase.from("clients").select("id, company_id, forth_crm_id");
+  if (parsed.data.all) {
+    query = query
+      .not("forth_crm_id", "is", null)
+      .not("company_id", "is", null)
+      .limit(parsed.data.limit ?? 500);
+  } else {
+    query = query.in("id", parsed.data.client_ids ?? [parsed.data.client_id!]);
+  }
+  const { data: clients, error } = await query;
   if (error) return jsonResponse(req, { success: false, error: error.message }, 500);
 
   const results = [];
