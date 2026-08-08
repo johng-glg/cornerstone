@@ -304,6 +304,44 @@ Numbers behind the choices:
 adds a trailing space after the final letter, so without it a tracked word sits
 half a letter-space left of true centre.
 
+**Two bars on desktop, one on mobile.** Below 901px `.top` is hidden entirely
+and its phone number moves into `.mast` as a right-aligned link, taking the slot
+the Book a session link vacates at that width. Desktop keeps both bars.
+
+`.mast` is `position:sticky; top:0` **on desktop only**. Mobile does not get it —
+the sticky bottom CTA already carries persistence there, and a second fixed band
+would spend the fold twice.
+
+Three things that had to come with that:
+
+- **`scroll-padding-top:112px` on desktop.** Without it an in-page jump to
+  `#book` or `#main` lands the target under the 97px sticky bar. Verified by
+  clicking the masthead CTA: the "Book your session" heading sits 93px clear.
+- **The root background is now Bordeaux below 900px.** It stays Night on
+  desktop, where `.top` is the first band. On mobile the first band is `.mast`,
+  which is Bordeaux, so the overscroll strip has to match that instead.
+  `theme-color` moved to `#3B1116` for the same reason — it colours the mobile
+  browser chrome, and what sits under that chrome is now `.mast`.
+- **The tap-target rule sets padding only for `.mastphone`, not `display`.** The
+  rest of that block sets `display:inline-block`, but `.mastphone` is hidden
+  above 900px and a touch laptop is a coarse pointer at that width — setting
+  display there would have shown the phone number next to the nav link on
+  desktop. Verified at 1024px with touch emulation: nav link shown, phone hidden.
+
+**A 320px overflow that was hiding as a zoom-out.** The brand lockup plus the
+phone number did not fit one row at 320px, and rather than overflowing visibly
+the browser shrink-to-fit the layout — `innerWidth` reported 356 on a 320px
+viewport, quietly scaling every other element down. Below 380px the wordmark
+drops to 14px, its `ONLINE NOTARIZATION` subline is hidden (the eyebrow directly
+underneath already reads "Remote Online Notarization", so nothing is lost), and
+the gutters tighten. `flex-wrap` on the row is the backstop if it ever stops
+fitting again. Re-measured at 320 / 360 / 375 / 390 / 412: no zoom at any width.
+
+One consequence worth being deliberate about: hiding `.top` on mobile also hides
+`Commissioned · Bonded · Nationwide`. Those trust signals now appear on mobile
+only in the `.notice` section further down. If they matter above the fold on a
+phone, they need a home in `.mast` or the hero.
+
 **On mobile the hero's mark is hidden entirely** (`display:none` below 901px).
 The masthead is a few inches above it carrying the same artwork; showing both
 would put one mark twice inside a single screen of scroll. **The desktop hero

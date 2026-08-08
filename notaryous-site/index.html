@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Notaryous — Online Notarization, $25 Flat</title>
 <meta name="description" content="Get a document notarized online by video with a commissioned notary. $25 flat per session, unlimited signatures. Book a time and be done in fifteen minutes.">
-<!-- Night, not Bordeaux: this colours the mobile browser chrome, which sits
-     directly above the .top bar, and .top is Night. The manifest keeps
-     Bordeaux for the standalone app surface. -->
-<meta name="theme-color" content="#1A080B">
+<!-- Bordeaux, because this colours the mobile browser chrome and the first
+     thing under it on mobile is .mast, which is Bordeaux. (.top, which is
+     Night, is hidden below 900px.) Matches the manifest. -->
+<meta name="theme-color" content="#3B1116">
 
 <!-- ORIGIN: the five absolute URLs below are the only place the domain appears.
      When notaryous.com goes live, change all five and keep the 301 in vercel.json.
@@ -63,8 +63,9 @@
    rotated to landscape, which otherwise reflows the whole page. */
 /* The root background is what a browser paints in the overscroll areas and
    behind a translucent toolbar — not body's. body is Bone, so without this the
-   strip above the Night top bar rendered light on a phone. Night is right at
-   both ends: the top bar is Night and so is the footer. */
+   strip above the header rendered light on a phone. Night matches .top, which
+   is the first band on desktop, and the footer at the other end. Mobile hides
+   .top and starts on .mast, so it overrides this to Bordeaux below. */
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%;background:var(--night)}
 body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(--bone);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:rgba(224,183,114,.25)}
 .w{max-width:1120px;margin:0 auto;padding:0 26px}
@@ -104,6 +105,19 @@ body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(
 .brand .bn i{font-style:normal;font-size:10.5px;font-weight:600;letter-spacing:.2em;text-indent:.2em;color:rgba(239,234,224,.72);text-transform:uppercase;margin-top:7px}
 .mast .navlink{color:var(--gold);text-decoration:none;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;border-bottom:1px solid rgba(224,183,114,.45);padding-bottom:3px;white-space:nowrap}
 .mast .navlink:hover{color:var(--gold-lt);border-color:var(--gold-lt)}
+/* Shown only below 900px, where .top is hidden and its phone number needs a
+   home. Bone on Bordeaux is 13.71. */
+.mastphone{display:none;color:var(--bone);text-decoration:none;font-size:13.5px;font-weight:600;white-space:nowrap}
+.mastphone:hover{color:var(--gold-lt)}
+
+/* Sticky on desktop only. On mobile the sticky bottom CTA already carries
+   persistence, and a second fixed band would eat the fold twice over.
+   scroll-padding-top keeps #book and #main from landing under the bar when
+   an in-page link jumps to them. */
+@media(min-width:901px){
+  html{scroll-padding-top:112px}
+  .mast{position:sticky;top:0;z-index:50}
+}
 
 /* ---------- hero ---------- */
 .hero{background:var(--bord);color:var(--bone);padding:70px 0 78px;position:relative;overflow:hidden}
@@ -194,6 +208,10 @@ footer .legal{max-width:46ch;line-height:1.6}
    Scoped to coarse pointers so mouse hover behaviour is untouched. */
 @media (pointer:coarse){
   .top a,.fallback a,footer p a{display:inline-block;padding:17px 6px;margin:-17px -6px}
+  /* Padding only, no display — .mastphone is hidden above 900px and a touch
+     laptop is a coarse pointer at that width, so setting display here would
+     show it next to the nav link. */
+  .mastphone{padding:17px 6px;margin:-17px -6px}
 }
 
 /* ---------- sticky booking bar (mobile) ---------- */
@@ -236,16 +254,36 @@ footer .legal{max-width:46ch;line-height:1.6}
      comfortable values instead of the tightened ones this needed before. */
   .markwrap{display:none}
   .hero{padding:48px 0 56px}
+  /* One header below 900px: .top is folded into .mast, and its phone number
+     takes the slot the Book a session link vacates. */
+  html{background:var(--bord)}
+  .top{display:none}
   .mast .w{padding-top:14px;padding-bottom:14px}
   /* The mark stays 54px here. It is the smallest width that keeps the full
      mark at the 64px brand minimum, so there is nothing to shave. */
   .brand .bn b{font-size:16px;letter-spacing:.3em;text-indent:.3em}
   .mast .navlink{display:none}
+  .mastphone{display:inline-block}
+  /* Safety net: if the brand and the number cannot share a row, the number
+     drops to a second one. Without it the row overflows and the browser
+     shrink-to-fits the whole page — at 320px that was reporting an innerWidth
+     of 356 and zooming every other element out with it. */
+  .mast .w{flex-wrap:wrap}
   /* iOS Safari sizes iframes to their content and ignores the height. A
      no-op where the height is honoured; contains the embed where it is not.
      Re-check once the real Zoho embed has been loaded on a device. */
   .shell{overflow:auto;-webkit-overflow-scrolling:touch}
   .shell iframe{height:830px}
+}
+/* Narrow phones: keep the merged header on one row rather than letting it wrap
+   or force a zoom-out. The subline goes because the eyebrow directly below it
+   already reads "Remote Online Notarization" — the descriptor is not lost. */
+@media(max-width:380px){
+  .mast .w{gap:8px 12px;padding-left:14px;padding-right:14px}
+  .brand{gap:10px}
+  .brand .bn b{font-size:14px;letter-spacing:.22em;text-indent:.22em}
+  .brand .bn i{display:none}
+  .mastphone{font-size:12.5px}
 }
 @media(max-width:560px){
   .top .w{justify-content:center;text-align:center}
@@ -271,6 +309,7 @@ footer .legal{max-width:46ch;line-height:1.6}
     <span class="bn"><b>Notaryous</b><i>Online Notarization</i></span>
   </a>
   <a class="navlink" href="#book" data-va="mast_book">Book a session</a>
+  <a class="mastphone" href="tel:+17146942423">(714) 694-2423</a>
 </div></div>
 
 <header class="hero"><div class="w">
