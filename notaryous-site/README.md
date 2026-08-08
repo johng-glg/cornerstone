@@ -227,6 +227,55 @@ is ever a concern, the fix is a `prefers-color-scheme` media query *inside*
 `favicon.svg` — the `media` attribute on `<link rel="icon">` is unreliable in
 Chrome.
 
+### Mobile
+
+Measured on 320 / 375 / 390 / 412 portrait, both landscape orientations, and
+iPad. No horizontal overflow at any width down to 320px, before or after.
+
+**The top bar was spilling out of itself.** `.top .w` set `height:46px` with
+`flex-wrap:wrap`. On every phone width the two spans wrap to separate rows, which
+needs 51px — so the phone number rendered 4.8px *below* the bar's dark ground,
+sitting on the hero. At 320px the overflow was 21.6px and the number landed
+squarely on the Bordeaux. Now `min-height:46px` with 7px of vertical padding:
+identical 46px on one row, grows to 55px when it wraps.
+
+**Tap targets: three under the 44px minimum, now none.** Both `(714) 694-2423`
+links were 89×14 hit areas — the primary contact route on a phone at under a
+third of the minimum height — and the scheduler fallback link was 37px tall.
+Fixed with padding plus a cancelling negative margin, so the hit area grows and
+nothing moves. Scoped to `@media (pointer:coarse)`, so it keys off the input
+device rather than viewport width and a touch laptop gets it too, while mouse
+hover targets are untouched.
+
+**Less scrolling to the scheduler.** The hero mark is decorative and sits below
+the CTA, but at `74vw` it was 335px tall on a 375px phone. It is now `56vw`,
+with the hero's vertical padding and the stat blocks trimmed. The booking section
+moved up 233px on an iPhone SE (4.6 → 4.3 screens down) and the page is 256px
+shorter. Mobile LCP improved 1.8s → 1.5s as a side effect.
+
+Page gutters go 26px → 20px below 560px, which also widens the scheduler iframe
+by 12px on a 375px screen.
+
+**iOS specifics.** `text-size-adjust:100%` stops Safari inflating body copy on
+rotation to landscape. `.shell` gets `overflow:auto` on mobile because iOS Safari
+sizes iframes to their content and ignores the declared height — a no-op where
+the height is honoured, a container where it is not. Re-check that once the real
+embed has been loaded on a device.
+
+`theme-color` is now Night `#1A080B` rather than Bordeaux. It colours the mobile
+browser chrome, which sits directly above the `.top` bar, and `.top` is Night —
+so the chrome and the top strip now meet without a seam. The manifest keeps
+Bordeaux `#3B1116` for the standalone app surface. Revert by changing the one
+`<meta name="theme-color">` value.
+
+**Desktop is untouched.** Verified by pixel-diffing the full-page 1440px render
+before and after: identical.
+
+The 10.5px tracked uppercase labels (`.top .tag`, `.eyebrow`, `.placard .cap`)
+and the 11.5px stat labels are left alone. They are a deliberate typographic
+device, they pass Lighthouse's legible-font-size audit, and changing them is a
+design decision rather than an optimisation.
+
 ### Headers
 
 Added HSTS (`max-age=63072000; includeSubDomains; preload`) and immutable caching
