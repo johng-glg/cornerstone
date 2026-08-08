@@ -392,8 +392,59 @@ Only the second route matches the site. Uploaded CSS applies to the embedded
 view *and* the popped-out view, so the iframe and the new-tab fallback stay
 consistent.
 
+**Where the CSS upload actually is:** not in the theme panel with the layout
+tiles and Color Options. It is inside **Workspace Properties**, a separate
+collapsed row further down that same sidebar. If Workspace Properties has no
+upload control, the account is not on Premium or the workspace is not on the
+Basic theme — those are the two gates, and no amount of looking will surface it.
+
 **A starter file is in this repo: `brand/zoho-booking-page.css`.** Upload it at
 Manage Bookings → Workspaces → Workspace Properties → Upload icon → Save.
+
+#### Manual configuration, if Custom CSS is not available
+
+The theme panel gets most of the way there. Exact values, in the order they
+appear in the sidebar:
+
+**Color Options** — click the `+` swatch to enter a custom colour.
+
+| Field | Value | Why |
+|---|---|---|
+| Primary / accent | `#3B1116` Bordeaux | The booking page is a light surface, so the primary is Bordeaux, giving Bone-on-Bordeaux buttons at 13.71 contrast |
+| Secondary, if offered | `#7E5C1E` Deep Gold | 5.10 on Bone, passes AA |
+| Never | `#E0B772` bright Gold | 1.57 on a light ground. Unreadable. This is the one trap in the palette |
+
+If the picker only takes one colour, use Bordeaux. Bright gold as a primary on
+this page would put gold text and gold-on-white buttons through the whole
+booking flow, which fails contrast everywhere it lands.
+
+**Background Image** — leave empty. The brand rules bar gradients and imagery
+behind the mark, and a background behind a booking form costs legibility on
+exactly the screens where it matters. The flat Bone ground is correct.
+
+**Layout** — Compact is a reasonable pick. It puts fewer rows in the iframe,
+which is the constraint on mobile.
+
+**Header / Footer** — add the wordmark. Match the file to the header's ground:
+
+- Light header → `brand/png/lockup-horizontal-light-2000.png`
+- Dark header → `brand/png/lockup-horizontal-dark-2000.png`
+
+Keep it to the lockup. Do not place the bare mark below 64px tall; use the
+favicon artwork under that size.
+
+**SEO Properties** — the standalone booking page is publicly indexable and will
+compete with the real site for "Notaryous" searches. Either point its title and
+description at the same copy the site uses, or suppress indexing if the panel
+allows it. A Zoho-hosted page outranking `notary.guardianlit.com` is a bad
+outcome for a page whose whole job is to be the destination.
+
+**What manual configuration cannot fix:** form input font size. Zoho's inputs
+are under 16px, and below 16px iOS Safari zooms the page when a field takes
+focus — mid-booking, on the payment screen. There is no palette setting for
+this; it needs the Custom CSS route. Until then it is a real argument for
+handing mobile visitors to a new tab rather than the iframe (open item 4), where
+the zoom is merely awkward instead of trapping them inside a nested scroll.
 
 The palette, typography, button treatment and input sizing in it are complete
 and use generic selectors that hold regardless of Zoho's markup. The block at
@@ -471,7 +522,9 @@ rule inside the `max-width:900px` media query.
 - [ ] **Mobile embed usability decided** — keep the iframe or hand off to a tab
 - [ ] **Iframe height checked on mobile Safari and Chrome**
 - [ ] Zoho booking page themed to the brand palette, booking modal checked
-- [ ] Zoho form inputs set to 16px so iOS does not zoom on focus
+- [ ] Zoho SEO Properties set so the booking page does not outrank the site
+- [ ] Zoho form inputs set to 16px so iOS does not zoom on focus — **needs
+      Premium + Basic theme; not achievable through the colour panel**
 - [ ] Kimberly Uptain: disclaimer language, trade name disclosure, fee characterisation
 - [ ] DBA filed and trade name cleared under attorney advertising rules
 - [ ] Notarial E&O policy bound
