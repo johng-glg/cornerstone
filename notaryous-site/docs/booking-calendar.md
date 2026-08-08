@@ -19,7 +19,7 @@ Check it before every commit on this workstream:
 
 | Build step | State |
 |---|---|
-| 0. The four answers | **runnable by you** — `/step0` is built, see below |
+| 0. The four answers | **2 answered, 1 dropped, 1 blocking** — run `/step0` check 3, see below |
 | 1. Zoho auth + token refresh + `/api/availability` | **built, verified against stubs** — needs credentials to run for real |
 | 2. Payments session + widget + server confirm + webhook | blocked on credentials |
 | 3. Booking store | **superseded** — no `bookings` table; `ron_sessions` is extended instead, see below |
@@ -296,17 +296,30 @@ Deleting the placard line does not make the fee copy inaccurate — refunds stil
 they are simply not advertised. It does change what the page promises, so it belongs in
 Kimberly's fee-characterisation review rather than being slipped in with a code change.
 
-## The four step 0 answers, and what each one changes
+## The four step 0 answers
 
-None of these can be answered from this environment — all four need Zoho credentials
-and egress, which means someone with a Zoho login, not the build.
+Two are answered — not by probe, but by reading `glg-ron-orchestration`'s live event
+journal, which has recorded every booking since 14 July. One is still blocking. One
+is dropped.
 
-| Question | What it changes if the answer is unexpected |
+| Question | Status |
 |---|---|
-| Does Flow fire on API-created appointments? | If not, the payment confirmation handler must call the Flow webhook itself, or a paid client gets no BlueNotary session |
-| What zone does Zoho read `from_time` in? | If it is the org zone rather than the `timezone` field, every out-of-Pacific signer books the wrong hour. `zohoFromTime()` already takes the zone as an argument, so the fix is one call site — but only if we know |
-| How long is a payment session valid? | Sets the hold TTL. A session outliving the hold turns a slow customer into a refund and an ops alert |
-| Can Flow trigger on `noshow`? | Event-driven no-show refunds, or a nightly sweep. The sweep is more code and a delay between the notary marking and the money moving |
+| Does Flow fire on API-created appointments? | **Answered: yes.** Both step 0 probe appointments produced real BlueNotary sessions. No payment handler needs to call the Flow webhook |
+| What zone does Zoho read `from_time` in? | **Answered: the declared zone.** `11:00` sent as `America/New_York` against a Pacific org returned `iso_start_time` `15:00Z`. Send the signer's wall clock with the signer's IANA zone. `start_time` renders in the viewer's zone — never compare or store it; `iso_start_time` is the only stable field |
+| How long is a payment session valid? | **BLOCKING `/api/checkout`.** Sets the hold TTL. A session outliving the hold turns a slow customer into a refund and an ops alert. Zoho Payments credentials are set in the Vercel project, so `/step0` check 3 can answer it — it must be run from a browser, not from here |
+| Can Flow trigger on `noshow`? | **Dropped.** BlueNotary's own session outcome is a better signal than a notary remembering to mark noshow in Zoho. See the caveat below — it is not free |
+
+**The no-show caveat.** Preferring BlueNotary's signal is right on the merits, but
+`session_expired` and `session_terminated` **are not delivered as webhooks** — neither
+appears anywhere in 597 journalled events. They are only ever reached by the nightly
+reconcile, which writes the status silently and raises no alert. Eleven sessions have
+ended in a non-completed terminal state and none produced a refund-decision alert.
+
+So dropping the `noshow` probe does not make no-show refunds free — it moves the work
+to `glg-ron-orchestration`, which must alert (or act) from the reconcile path when it
+moves a row into a terminal non-completed state. That is item 5 in that repo's
+`docs/KNOWN-ISSUES.md`. Until it is fixed, the signal exists but nothing listens, and
+it arrives up to 24 hours late.
 
 ## `/step0` — the temporary diagnostic
 
@@ -413,8 +426,9 @@ the cancel goes to the right one.
 
 ### Deletion checklist
 
-- [ ] Record all four answers in "The four step 0 answers" above, with dates
-- [ ] Cancel every STEP0 appointment, and confirm none is left in the Zoho UI
+- [x] ~~Record all four answers~~ — 2 answered from the live journal, 1 dropped, 1 outstanding (payment session lifetime)
+- [x] ~~Cancel every STEP0 appointment~~ — both probe appointments cancelled 2026-08-08. They had produced real BlueNotary sessions with real notaries assigned; the BN sessions were killed in the BlueNotary dashboard and the Zoho appointments cancelled afterwards, which fired the cancel Flow and reconciled the rows
+- [ ] Run check 3 (payment session lifetime), record the answer, then the rest of this list
 - [ ] Unset `STEP0_TOKEN` in Vercel — immediate kill, no deploy needed
 - [ ] Delete `step0.html`, `api/step0.mjs`, `api/step0-exchange.mjs`, the `/step0`
       block in `vercel.json`, and this section
