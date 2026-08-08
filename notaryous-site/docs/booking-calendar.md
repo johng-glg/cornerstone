@@ -177,7 +177,50 @@ removes the code.
 answer in plain English with the raw response collapsed underneath. Nothing but the
 result reaches the browser.
 
-### Before it will run
+### Step 0.0 — get a refresh token first
+
+There is a chicken-and-egg problem the original spec skipped: every check needs
+`ZOHO_REFRESH_TOKEN`, and that does not exist yet. `POST /api/step0-exchange`, driven
+by the first block on the page, trades a Zoho Self Client authorization code for one.
+
+1. In the Zoho API Console create a **Self Client** and generate a code with scope
+   `zohobookings.data.CREATE`. That single scope covers the read endpoints too — Fetch
+   Services documents it for a GET.
+2. Paste the client ID, client secret and code into the first block and exchange
+   **immediately**. The code is valid for a couple of minutes. `invalid_code` almost
+   always means it expired; generate a fresh one rather than debugging anything else.
+3. Copy the four env var lines it returns into Vercel, then close the tab.
+
+**Payments scopes are not guessed here.** Confirm the exact strings in the API Console
+scope picker. If combining Bookings and Payments scopes returns `Invalid Scope`,
+generate two codes from the same client credentials and exchange each — one fills
+`ZOHO_REFRESH_TOKEN`, the other `ZOHO_PAYMENTS_REFRESH_TOKEN`.
+
+Things worth knowing about this endpoint:
+
+- **Self Client sends no `redirect_uri`.** Including one is what produces
+  `invalid_client`. The request body is exactly `grant_type`, `client_id`,
+  `client_secret`, `code` — asserted by a test.
+- **Zoho answers HTTP 200 with an `error` field on failure.** Trusting `res.ok` alone
+  would report success for an expired code, so the body is checked and Zoho's error is
+  surfaced verbatim with a hint.
+- **Only four fields come back**: `refresh_token`, `api_domain`, `scope`, `expires_in`.
+  The access token is deliberately dropped — it lasts an hour, the service mints its
+  own, and it has no business in a browser.
+- **The response scrubber strips `refresh_token`**, which would have redacted the one
+  value this endpoint exists to produce. It is exempted here and only here, by an
+  explicit allow-list; `access_token` and `client_secret` stay on the block list. There
+  is a test named for exactly this.
+- **The accounts host is validated against the real Zoho data centres.** It arrives from
+  the browser and the request carries a client secret, so without that check a crafted
+  body would post the firm's credentials to any origin the caller chose.
+- **`api_domain` becomes `ZOHO_API_DOMAIN` and is the API base.** Zoho is multi-region
+  and tells you your data centre in the token response; no region URL is hardcoded.
+- **Nothing is persisted.** No database write, no log line, no `console` call anywhere
+  in `api/`. The code, client ID and secret live only for the request. Verified by
+  tests that the secret and the code never appear in any response.
+
+### Before the four checks will run
 
 Set these in the Vercel project. Every check refuses to run without them, and says
 which ones are missing rather than returning a 500.
@@ -185,7 +228,8 @@ which ones are missing rather than returning a 500.
 | Variable | For | Notes |
 |---|---|---|
 | `STEP0_TOKEN` | the gate | Any long random string. **Unset it to disable the whole route.** |
-| `ZOHO_CLIENT_ID` / `_SECRET` / `_REFRESH_TOKEN` | Bookings | Dedicated service user, not John's admin account |
+| `ZOHO_CLIENT_ID` / `_SECRET` / `_REFRESH_TOKEN` | Bookings | From step 0.0. Dedicated service user, not John's admin account |
+| `ZOHO_API_DOMAIN` | all Zoho calls | From the token response. Overrides `ZOHO_API_HOST`; never hardcode a region URL |
 | `ZOHO_SERVICE_ID`, `ZOHO_STAFF_ID` | Bookings | The RON service and the beta staff record |
 | `ZOHO_ORG_TIMEZONE` | check 2 | Defaults to `America/Los_Angeles`. Must be the org's real zone or the probe is meaningless |
 | `ZOHO_PAYMENTS_CLIENT_ID` / `_SECRET` / `_REFRESH_TOKEN` / `_ACCOUNT_ID` | check 3 | Sandbox has its own account id |
@@ -228,8 +272,9 @@ the cancel goes to the right one.
 - [ ] Record all four answers in "The four step 0 answers" above, with dates
 - [ ] Cancel every STEP0 appointment, and confirm none is left in the Zoho UI
 - [ ] Unset `STEP0_TOKEN` in Vercel — immediate kill, no deploy needed
-- [ ] Delete `step0.html`, `api/step0.mjs`, the `/step0` block in `vercel.json`,
-      and this section
+- [ ] Delete `step0.html`, `api/step0.mjs`, `api/step0-exchange.mjs`, the `/step0`
+      block in `vercel.json`, and this section
+- [ ] Keep `ZOHO_API_DOMAIN` — it is production config, not step 0 scaffolding
 - [ ] Keep `api/_zoho.mjs` — the token cache and request helpers are what
       `/api/availability` and `/api/checkout` are built on
 

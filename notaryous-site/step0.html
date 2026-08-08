@@ -41,6 +41,18 @@ summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--bord)}
 pre{margin-top:10px;background:var(--night);color:#E7DDD2;padding:14px;overflow:auto;font-size:12.5px;
   line-height:1.5;max-height:340px;border-radius:2px}
 .ctx{font-size:12.5px;color:var(--muted);margin-top:10px}
+.q.first{border-top-color:var(--gold-dp)}
+.grid2{display:grid;gap:12px}
+@media(min-width:620px){.grid2{grid-template-columns:1fr 1fr}}
+.f label{display:block;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.expiry{background:#FCF3E2;border:1px solid var(--gold-dp);border-left:4px solid var(--gold-dp);
+  padding:12px 14px;font-size:14px;margin:14px 0}
+.expiry b{color:var(--gold-dp)}
+.envout{margin-top:14px}
+.envout pre{background:var(--night);color:#E7DDD2;user-select:all}
+.secretnote{background:var(--bord);color:var(--bone);padding:12px 14px;font-size:13.5px;margin-top:12px}
+.scopes{font-size:13px;color:var(--muted);margin-top:12px;border-top:1px solid var(--rule);padding-top:12px}
+.scopes code{background:var(--bone-2);padding:1px 5px;border-radius:2px}
 .ctx code{background:var(--bone-2);padding:1px 5px;border-radius:2px}
 </style>
 </head>
@@ -66,6 +78,43 @@ pre{margin-top:10px;background:var(--night);color:#E7DDD2;padding:14px;overflow:
     <p class="ctx">Held in memory only — never stored, never put in the URL bar. Every check sends it as a header.
       If <code>STEP0_TOKEN</code> is unset in Vercel, every check refuses to run.</p>
   </div>
+
+  <section class="q first" data-check="exchange">
+    <h2>0. Exchange an authorization code for a refresh token</h2>
+    <p class="why">Run this first. Until it does, there is no refresh token, and every check below refuses to
+      run. Generate a Self Client code in the Zoho API Console, then paste it here.</p>
+
+    <div class="expiry"><b>The authorization code expires in minutes.</b> Generate it and exchange it
+      immediately — do not stop to copy anything else first. <code>invalid_code</code> almost always
+      means it expired.</div>
+
+    <div class="grid2">
+      <div class="f"><label for="ex-id">Client ID</label>
+        <input id="ex-id" type="text" autocomplete="off" spellcheck="false"></div>
+      <div class="f"><label for="ex-secret">Client secret</label>
+        <input id="ex-secret" type="password" autocomplete="off" spellcheck="false"></div>
+      <div class="f"><label for="ex-code">Authorization code</label>
+        <input id="ex-code" type="text" autocomplete="off" spellcheck="false"></div>
+      <div class="f"><label for="ex-host">Accounts host</label>
+        <input id="ex-host" type="text" autocomplete="off" spellcheck="false" value="https://accounts.zoho.com"></div>
+    </div>
+
+    <p class="ctx" style="margin-bottom:14px">Change the accounts host only for a non-US data centre —
+      <code>.eu</code>, <code>.in</code>, <code>.com.au</code> and so on. The request carries your client secret,
+      so it is only ever sent to a known Zoho host.</p>
+
+    <button type="button" data-run="exchange">Exchange code for refresh token</button>
+
+    <div class="scopes">
+      <strong>Scopes for the Self Client</strong><br>
+      Bookings: <code>zohobookings.data.CREATE</code> — this one scope covers the read endpoints too;
+      Fetch Services documents it for a GET.<br>
+      Payments: confirm the exact strings in the API Console scope picker rather than guessing them.
+      If combining Bookings and Payments scopes returns <code>Invalid Scope</code>, generate two separate
+      codes from the same client credentials and exchange each one here — you will get two refresh tokens,
+      which is what <code>ZOHO_REFRESH_TOKEN</code> and <code>ZOHO_PAYMENTS_REFRESH_TOKEN</code> expect.
+    </div>
+  </section>
 
   <section class="q" data-check="flow">
     <h2>1. Does the BlueNotary Flow fire on an API-created appointment?</h2>
@@ -147,6 +196,96 @@ function track(data) {
   if (data.sessionId) { state.sessionId = data.sessionId; $('#sid').textContent = data.sessionId; }
 }
 
+/**
+ * Renders the four env-var lines for pasting into Vercel. Built from the
+ * fields the user typed plus what Zoho returned — the server never echoes the
+ * client id or secret back, and it never persists them.
+ */
+function showEnvBlock(section, data) {
+  const lines = [
+    `ZOHO_CLIENT_ID=${$('#ex-id').value.trim()}`,
+    `ZOHO_CLIENT_SECRET=${$('#ex-secret').value.trim()}`,
+    `ZOHO_REFRESH_TOKEN=${data.refresh_token}`,
+  ];
+  if (data.api_domain) lines.push(`ZOHO_API_DOMAIN=${data.api_domain}`);
+  const text = lines.join('\n');
+
+  const wrap = document.createElement('div');
+  wrap.className = 'envout';
+
+  const note = document.createElement('p');
+  note.className = 'secretnote';
+  note.textContent = 'These are secrets. Paste them into the Vercel project environment variables, then close ' +
+    'this tab. They are not stored anywhere by this page or by the server.';
+
+  const pre = document.createElement('pre');
+  pre.textContent = text;
+
+  const copy = document.createElement('button');
+  copy.type = 'button';
+  copy.className = 'ghost';
+  copy.style.marginTop = '10px';
+  copy.textContent = 'Copy to clipboard';
+  copy.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(text); copy.textContent = 'Copied'; }
+    catch { copy.textContent = 'Copy failed — select the block instead'; }
+    setTimeout(() => { copy.textContent = 'Copy to clipboard'; }, 2500);
+  });
+
+  wrap.append(note, pre, copy);
+
+  if (data.scope) {
+    const sc = document.createElement('p');
+    sc.className = 'ctx';
+    sc.textContent = `Scopes granted: ${data.scope}` +
+      (/payment/i.test(data.scope) && /booking/i.test(data.scope)
+        ? ' — both products in one token.'
+        : ' — if this covers only one product, generate a second code for the other and exchange it too, ' +
+          'then set the ZOHO_PAYMENTS_* variables from that result.');
+    wrap.append(sc);
+  }
+  section.querySelector('.answer').append(wrap);
+}
+
+async function runExchange(btn) {
+  const token = $('#tok').value.trim();
+  const section = btn.closest('.q');
+  if (!token) { show(section, { answer: 'No token', detail: 'Enter the step 0 token above first.' }); return; }
+
+  const payload = {
+    clientId: $('#ex-id').value.trim(),
+    clientSecret: $('#ex-secret').value.trim(),
+    code: $('#ex-code').value.trim(),
+    accountsHost: $('#ex-host').value.trim() || 'https://accounts.zoho.com',
+  };
+  if (!payload.clientId || !payload.clientSecret || !payload.code) {
+    show(section, { answer: 'Missing fields', detail: 'Client ID, client secret and authorization code are all required.' });
+    return;
+  }
+
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Exchanging…';
+  try {
+    const res = await fetch('/api/step0-exchange', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-step0-token': token, accept: 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({ answer: 'Non-JSON response', detail: 'HTTP ' + res.status }));
+    show(section, data);
+    if (res.ok && data.refresh_token) {
+      showEnvBlock(section, data);
+      // The code is single-use and now spent. Clearing it stops a second click
+      // from producing a confusing invalid_code against an already-used grant.
+      $('#ex-code').value = '';
+    }
+  } catch (err) {
+    show(section, { answer: 'Request failed', detail: String(err && err.message ? err.message : err) });
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
+}
+
 async function run(check, btn) {
   const token = $('#tok').value.trim();
   const section = btn.closest('.q');
@@ -176,7 +315,9 @@ async function run(check, btn) {
 
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-run]');
-  if (btn) run(btn.dataset.run, btn);
+  if (!btn) return;
+  if (btn.dataset.run === 'exchange') runExchange(btn);
+  else run(btn.dataset.run, btn);
 });
 </script>
 </body>

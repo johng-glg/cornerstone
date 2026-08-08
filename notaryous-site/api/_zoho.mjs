@@ -15,7 +15,11 @@ const env = (k, fallback) => process.env[k] ?? fallback;
 
 export const CONFIG = {
   accountsHost: () => env('ZOHO_ACCOUNTS_HOST', 'https://accounts.zoho.com'),
-  bookingsHost: () => env('ZOHO_API_HOST', 'https://www.zohoapis.com'),
+  // ZOHO_API_DOMAIN is whatever the token exchange returned. Zoho is
+  // multi-region and hands you your data centre's host in the token response;
+  // hardcoding one silently breaks for an EU or IN org. ZOHO_API_HOST stays as
+  // a manual override, and the literal is only a last resort.
+  bookingsHost: () => env('ZOHO_API_DOMAIN', env('ZOHO_API_HOST', 'https://www.zohoapis.com')),
   bookingsBase: () => env('ZOHO_BOOKINGS_BASE', '/bookings/v1/json'),
   paymentsHost: () => env('ZOHO_PAYMENTS_HOST', 'https://payments.zoho.com'),
   serviceId: () => env('ZOHO_SERVICE_ID'),
@@ -143,13 +147,17 @@ export function tokenMatches(supplied, expected) {
 }
 
 /** Anything that could carry a secret is stripped before a response is rendered. */
-export function redact(value) {
+export function redact(value, { allow = [] } = {}) {
   const SECRET = /(access_token|refresh_token|client_secret|api_key|signing_key|authorization)/i;
+  const allowed = new Set(allow.map((a) => a.toLowerCase()));
   const walk = (v) => {
     if (Array.isArray(v)) return v.map(walk);
     if (v && typeof v === 'object') {
       const out = {};
-      for (const [k, val] of Object.entries(v)) out[k] = SECRET.test(k) ? '«redacted»' : walk(val);
+      for (const [k, val] of Object.entries(v)) {
+        const hide = SECRET.test(k) && !allowed.has(k.toLowerCase());
+        out[k] = hide ? '«redacted»' : walk(val);
+      }
       return out;
     }
     return v;
