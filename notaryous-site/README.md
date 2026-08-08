@@ -401,6 +401,34 @@ Basic theme — those are the two gates, and no amount of looking will surface i
 **A starter file is in this repo: `brand/zoho-booking-page.css`.** Upload it at
 Manage Bookings → Workspaces → Workspace Properties → Upload icon → Save.
 
+#### Probe result: delivery works on this workspace
+
+The diagnostic was run and came back **all four probes firing** — body border,
+buttons, and the universal selector all landed. So Custom CSS is being delivered
+and applied on this account. Plan and theme are not the obstacle, and anything
+that fails to take effect from here is a selector problem.
+
+Three things the probe exposed on the live booking page, worth fixing regardless
+of the stylesheet:
+
+1. **The page is headed "Guardian Litigation Group", not Notaryous.** A consumer
+   who clicks Book a session on a notarization site and lands on a page headed
+   with a litigation firm's name is going to hesitate. The trade name disclosure
+   belongs in the footer, the way it does on the site — not as the page title.
+   Change the business/workspace name in Zoho, and put it in front of Kimberly
+   with the rest of the trade name questions.
+2. **Zoho's theme colour is bright gold on a light ground.** The "Welcome!"
+   heading, the step labels and the selected-day fill are all gold on Bone,
+   measuring roughly **1.87**. That is the exact trap `brand/README.md` warns
+   about, live in the booking flow. The stylesheet replaces it; the Color
+   Options palette should be set to Bordeaux too, so the popped-out view is
+   right even if the CSS is ever dropped.
+3. **The embed scrolled internally at desktop width** — but that observation is
+   not usable as a measurement. The probe was forcing every element to 22px
+   type at the time, which inflates the content well beyond its normal height.
+   Re-check the height with the real stylesheet applied before changing the
+   770px, and see item 5 for how.
+
 #### If the upload succeeds and nothing changes
 
 This is the expected failure, not a surprise, and it is almost never the

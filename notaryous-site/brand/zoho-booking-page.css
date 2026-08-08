@@ -4,104 +4,109 @@
 
    WHERE THIS GOES
    Zoho Bookings → Manage Bookings → Workspaces → Workspace Properties →
-   Upload icon → select this file → Save.
-   (For a business booking page it is Page Properties instead.)
+   Upload icon → select this file → Save. Re-test in a private window; Zoho
+   caches the stylesheet and the embedding iframe caches separately.
 
-   IF YOU UPLOADED THIS AND NOTHING CHANGED, READ THIS FIRST
-   The overwhelmingly likely cause is the workspace theme, not this file.
-   Custom CSS applies to the **Basic theme only**. A workspace set to Compact,
-   Modern Web, or anything else accepts the upload, reports success, and then
-   silently ignores every rule — no error, no warning. Switch the workspace
-   theme to Basic and re-test before changing anything in here.
-   Second most likely: caching. Zoho serves the stylesheet with a long cache,
-   and the site embeds it in an iframe, which caches separately. Re-test in a
-   private window, not a normal reload.
-   To find out which, upload `zoho-diagnostic.css` from this folder instead.
-   It is deliberately garish and tells you whether the CSS is being applied at
-   all, versus being applied but out-specified.
+   STATUS
+   Delivery is CONFIRMED working on this workspace — the diagnostic probe
+   reached the body, the buttons and the universal selector. So if something
+   here does not take effect, it is a selector problem, not a plan or theme
+   problem. `zoho-diagnostic.css` is kept in this folder for re-testing after
+   any Zoho release that changes their markup.
 
-   PREREQUISITES — read before uploading, these are Zoho's own limits:
-     - Custom CSS requires the **Premium** plan.
-     - Custom CSS applies to the **Basic** theme only. If the workspace is set
-       to Modern Web or any other theme, this file is ignored. You cannot have
-       Modern Web *and* custom CSS — pick one. Basic + this file is the only
-       route that actually matches the site.
-     - Uploaded styling applies to the embedded view and the popped-out view
-       alike, which is what we want: the iframe on the site and the new-tab
-       fallback then look the same.
-     - If Zoho renders the widget inside a shadow root or a nested iframe,
-       nothing here can reach it. The diagnostic file detects that too.
-
-   HOW TO FINISH IT
-   The palette, type and input sizing below are complete and safe — they use
-   generic selectors that hold regardless of Zoho's markup. The block marked
-   ZOHO-SPECIFIC HOOKS at the bottom needs real class names, which change
-   between Zoho releases and cannot be guessed reliably. To capture them:
-     1. Open the booking page, DevTools → Inspect.
-     2. Click the element (a day cell, a selected time slot, the Confirm
-        button, the booking modal).
-     3. Copy its class, paste it into the matching rule below.
-   Test the **booking modal** specifically. Zoho's own colour-palette tool is
-   known to miss it, and it is the last screen before payment.
+   THE ONE THING TO GET RIGHT
+   Time slots and date cells are buttons. A blanket `button { background:
+   Bordeaux }` turns forty time slots into forty solid Bordeaux blocks and
+   makes the calendar unreadable. So buttons default to the LIGHT treatment
+   here, and only genuine primary actions — submit, confirm, book — get the
+   solid Bordeaux fill. Selected states get the fill too, which is what makes
+   the chosen day and time read as chosen.
 
    BRAND RULES THAT APPLY HERE
    The booking page is a LIGHT surface, so it follows the light mode of the
-   system: Bone ground, Ink body text, and buttons are BORDEAUX fill with BONE
-   text — not gold. Bright gold #E0B772 on Bone measures 1.57 contrast and is
-   unreadable. Any accent text on a light ground must be Deep Gold #7E5C1E
-   (5.10, AA). Bright gold is for dark grounds and solid fills only.
+   system: Bone ground, Ink body text, Bordeaux headings, and primary buttons
+   are Bordeaux fill with Bone text — never gold. Bright gold #E0B772 on Bone
+   measures 1.57 and is unreadable. Zoho's default theme currently puts gold
+   on the "Welcome!" heading and the step labels, which is exactly that
+   failure; the rules below replace it. Accent text on a light ground is Deep
+   Gold #7E5C1E (5.10, AA).
+
+   STILL TO DO
+   The SELECTED-STATE heuristics near the bottom guess at class names using
+   [class*="..."]. They are harmless if they miss. To make them exact, open the
+   booking page → DevTools → inspect the selected day cell, a time slot, and
+   the confirm button, and send me the class names.
    ========================================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap');
 
 :root {
   --n-bord:      #3B1116;  /* Bordeaux — primary, buttons, headings */
-  --n-bord-lo:   #2E0D12;  /* Cordovan — pressed / deeper panels */
+  --n-bord-lo:   #2E0D12;  /* Cordovan — hover / pressed */
   --n-gold:      #E0B772;  /* Gold — dark grounds and solid fills ONLY */
   --n-gold-dp:   #7E5C1E;  /* Deep Gold — accent text on light grounds */
   --n-bone:      #EFEAE0;  /* Bone — light ground */
-  --n-bone-2:    #E4DCCC;  /* Bone-2 — secondary panels */
+  --n-bone-2:    #E4DCCC;  /* Bone-2 — secondary panels, unselected slots */
   --n-rule:      #D8CFBE;  /* Rule — borders */
   --n-ink:       #241014;  /* Ink — body text */
   --n-muted:     #6B5C55;  /* Muted — secondary text, AA on both Bone tones */
 }
 
-/* ---------- type and ground ---------- */
+/* ---------- type ---------- */
 
 html body,
-html body button, html body input, html body select, html body textarea {
+html body button, html body input, html body select, html body textarea,
+html body div, html body span, html body p, html body a, html body label,
+html body h1, html body h2, html body h3, html body h4, html body h5 {
   font-family: Archivo, -apple-system, "Segoe UI", Arial, sans-serif !important;
 }
 
-html body {
-  background: var(--n-bone) !important;
+/* ---------- ground ----------
+   The body background is painted over by the widget's own wrapper, so set both.
+   The probe showed the magenta body border landing while the lime background
+   did not — that wrapper is why. */
+
+html body { background: var(--n-bone) !important; color: var(--n-ink) !important; }
+
+/* ---------- text colour ----------
+   Broad on purpose. Zoho's theme colour currently lands as bright gold on the
+   "Welcome!" heading and the step labels, which is the 1.57 contrast trap. On
+   a light surface every piece of body text should be Ink and every heading
+   Bordeaux, so setting it wholesale is correct rather than heavy-handed.
+   Buttons and selected states re-assert their own colour further down. */
+
+html body p, html body span, html body label, html body li, html body td {
   color: var(--n-ink) !important;
-  -webkit-font-smoothing: antialiased;
 }
 
-html body h1, html body h2, html body h3, html body h4 {
+html body h1, html body h2, html body h3, html body h4, html body h5 {
   color: var(--n-bord) !important;
   font-weight: 600 !important;
-  letter-spacing: -.02em;
+  letter-spacing: -.01em !important;
 }
 
-html body a { color: var(--n-bord); }
-html body a:hover { color: var(--n-bord-lo); }
+html body a { color: var(--n-bord) !important; }
+html body a:hover { color: var(--n-bord-lo) !important; }
+
+/* Secondary / helper text. */
+html body small, html body [class*="desc"], html body [class*="hint"],
+html body [class*="sub"] { color: var(--n-muted) !important; }
 
 /* ---------- inputs ----------
-   16px minimum is not cosmetic. Below 16px, iOS Safari zooms the page when a
-   field takes focus, which throws the booking form off-screen mid-flow. This
-   is the single highest-value rule in this file for mobile. */
+   16px is not cosmetic. Below 16px iOS Safari zooms the page when a field takes
+   focus, mid-booking, on the screen where people are entering payment details.
+   This is the highest-value rule in the file for mobile. */
 
 html body input, html body select, html body textarea {
   font-size: 16px !important;
   color: var(--n-ink) !important;
   background: #FFFFFF !important;
   border: 1px solid var(--n-rule) !important;
-  border-radius: 0 !important;
+  border-radius: 2px !important;
 }
 
-html body input::placeholder, html body textarea::placeholder { color: var(--n-muted) !important; }
+html body input::placeholder,
+html body textarea::placeholder { color: var(--n-muted) !important; }
 
 html body input:focus, html body select:focus, html body textarea:focus {
   border-color: var(--n-bord) !important;
@@ -109,121 +114,138 @@ html body input:focus, html body select:focus, html body textarea:focus {
   outline-offset: 1px !important;
 }
 
-/* Visible keyboard focus on everything, matching the site. Bordeaux reads at
-   13.71 against Bone, comfortably past the 3.0 non-text minimum. */
-:focus-visible {
+html body :focus-visible {
   outline: 3px solid var(--n-bord) !important;
   outline-offset: 2px !important;
 }
 
-/* ---------- buttons ----------
-   Light ground, so Bordeaux fill with Bone text. Never gold on this surface. */
+/* ---------- buttons, default = LIGHT ----------
+   Date cells, time slots, month arrows and the timezone picker are all buttons.
+   They must stay light and quiet. Only a real primary action goes solid. */
 
 html body button,
-html body input[type="submit"],
-html body input[type="button"],
 html body [role="button"] {
-  background: var(--n-bord) !important;
-  color: var(--n-bone) !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  font-weight: 700 !important;
-  font-size: 14px !important;
-  letter-spacing: .09em;
-  text-transform: uppercase;
-  /* 48px minimum tap target */
-  min-height: 48px !important;
-  padding: 14px 32px !important;
+  background: var(--n-bone) !important;
+  color: var(--n-ink) !important;
+  border: 1px solid var(--n-rule) !important;
+  border-radius: 2px !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
   cursor: pointer;
 }
 
 html body button:hover,
+html body [role="button"]:hover {
+  border-color: var(--n-bord) !important;
+  background: var(--n-bone-2) !important;
+}
+
+/* ---------- primary actions = SOLID BORDEAUX ---------- */
+
+html body button[type="submit"],
+html body input[type="submit"],
+html body button[class*="primary"],
+html body button[class*="confirm"],
+html body button[class*="submit"],
+html body button[class*="book"],
+html body button[class*="pay"],
+html body button[class*="next"],
+html body [class*="btn-primary"] {
+  background: var(--n-bord) !important;
+  color: var(--n-bone) !important;
+  border: 0 !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  letter-spacing: .09em !important;
+  text-transform: uppercase !important;
+  min-height: 48px !important;
+  padding: 14px 32px !important;
+}
+
+html body button[type="submit"]:hover,
 html body input[type="submit"]:hover,
-html body [role="button"]:hover { background: var(--n-bord-lo) !important; }
+html body button[class*="primary"]:hover,
+html body button[class*="confirm"]:hover,
+html body button[class*="book"]:hover {
+  background: var(--n-bord-lo) !important;
+  color: var(--n-bone) !important;
+}
 
 html body button:disabled,
 html body input[type="submit"]:disabled {
-  background: var(--n-rule) !important;
+  background: var(--n-bone-2) !important;
   color: var(--n-muted) !important;
+  border-color: var(--n-rule) !important;
   cursor: not-allowed;
 }
 
-/* A secondary / cancel action should read as secondary, not as a second
-   primary. Outline rather than fill. */
-html body button.secondary, html body button[class*="cancel"], html body button[class*="back"] {
-  background: transparent !important;
-  color: var(--n-bord) !important;
-  border: 1px solid var(--n-bord) !important;
-}
+/* ---------- selected states = SOLID BORDEAUX ----------
+   This is what replaces Zoho's gold fill on the chosen day. Bone on Bordeaux
+   is 13.71. The gold fill it replaces was Ink-on-gold and low contrast.
+   These [class*=] guesses are harmless if they miss — send me the real class
+   names from DevTools and they become exact. */
 
-/* ---------- panels and rules ---------- */
-
-html body table, html body td, html body th { border-color: var(--n-rule) !important; }
-html body hr { border-color: var(--n-rule) !important; }
-
-/* ============================================================================
-   ZOHO-SPECIFIC HOOKS — fill these in from DevTools
-   ============================================================================
-   The selectors below are placeholders. Replace each one with the real class
-   from the live page, then delete this warning. Leaving them as-is is
-   harmless (they simply match nothing), but the calendar and the modal will
-   keep Zoho's default colours until they are filled in.
-   ------------------------------------------------------------------------ */
-
-/* The selected day in the date picker, and the selected time slot.
-   Solid Bordeaux with Bone text is the light-mode button treatment. */
-/*
-.REPLACE-selected-day,
-.REPLACE-slot--selected {
+html body [aria-selected="true"],
+html body [aria-current="date"],
+html body [aria-pressed="true"],
+html body button[class*="select"],
+html body button[class*="active"],
+html body [class*="slot"][class*="select"],
+html body [class*="day"][class*="select"],
+html body [class*="day"][class*="active"] {
   background: var(--n-bord) !important;
   color: var(--n-bone) !important;
-  border-radius: 0 !important;
+  border-color: var(--n-bord) !important;
 }
-*/
 
-/* An available but unselected slot: Bone-2 panel, Ink text, Bordeaux on hover. */
-/*
-.REPLACE-slot {
-  background: var(--n-bone-2) !important;
-  color: var(--n-ink) !important;
-  border: 1px solid var(--n-rule) !important;
-  min-height: 48px !important;
+html body [aria-selected="true"] *,
+html body button[class*="select"] *,
+html body button[class*="active"] * { color: var(--n-bone) !important; }
+
+/* Today, and any small accent label. Deep Gold — never bright gold on this
+   ground. */
+html body [class*="today"]:not([aria-selected="true"]) {
+  color: var(--n-gold-dp) !important;
+  border-color: var(--n-gold-dp) !important;
 }
-.REPLACE-slot:hover { border-color: var(--n-bord) !important; }
-*/
 
-/* Today's date marker, and any small accent label on the light ground.
-   Deep Gold, NOT bright gold — bright gold on Bone is 1.57 and unreadable. */
-/*
-.REPLACE-today,
-.REPLACE-accent-label { color: var(--n-gold-dp) !important; }
-*/
+/* Disabled / unavailable days stay quiet rather than looking clickable. */
+html body button:disabled[class*="day"],
+html body [class*="day"][class*="disabl"],
+html body [class*="slot"][class*="disabl"] {
+  background: transparent !important;
+  color: var(--n-muted) !important;
+  border-color: transparent !important;
+  opacity: .5 !important;
+}
 
-/* The booking modal. Test this one explicitly — Zoho's palette tool misses it
-   and it is the last screen the customer sees before paying. */
-/*
-.REPLACE-modal {
+/* ---------- panels, rules, modal ---------- */
+
+html body table, html body td, html body th,
+html body hr { border-color: var(--n-rule) !important; }
+
+/* The booking modal — the last screen before payment, and the one Zoho's own
+   palette tool is known to miss. Test it explicitly. */
+html body [class*="modal"],
+html body [class*="dialog"],
+html body [role="dialog"] {
   background: var(--n-bone) !important;
   color: var(--n-ink) !important;
-  border-top: 5px solid var(--n-bord) !important;
-  border-radius: 0 !important;
+  border-top: 4px solid var(--n-bord) !important;
+  border-radius: 2px !important;
 }
-.REPLACE-modal-header { color: var(--n-bord) !important; }
-*/
 
-/* The fee / price display. It must read $25.00 and nothing that implies a
-   later charge. If Zoho renders a "balance due" or "pay later" string here,
-   fix it in the service settings, not by hiding it with CSS. */
-/*
-.REPLACE-price { color: var(--n-bord) !important; font-weight: 600 !important; }
-*/
+html body [role="dialog"] h1,
+html body [role="dialog"] h2,
+html body [class*="modal"] h2 { color: var(--n-bord) !important; }
 
 /* ---------- motion ---------- */
+
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  html body *, html body *::before, html body *::after {
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
-    scroll-behavior: auto !important;
   }
 }
