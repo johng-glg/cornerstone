@@ -24,6 +24,18 @@ const key = () => process.env.SUPABASE_SERVICE_ROLE_KEY;
 /** Whether the database is wired up at all. Availability degrades without it. */
 export const dbConfigured = () => Boolean(url() && key());
 
+/**
+ * Which Supabase variables are unset, by name.
+ *
+ * Exists so a 503 can say which ones rather than just refusing. These are as
+ * required as the Zoho credentials for anything that takes money — checkout
+ * without holds means two customers can buy the same slot — but they are easy
+ * to miss precisely because /api/availability keeps working without them.
+ */
+export function missingDbEnv() {
+  return ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'].filter((n) => !process.env[n]);
+}
+
 async function sbFetch(path, init = {}) {
   if (!dbConfigured()) throw new Error('supabase: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
   const res = await fetch(`${url().replace(/\/$/, '')}/rest/v1${path}`, {

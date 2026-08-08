@@ -100,6 +100,21 @@ export function credentialsFor(kind) {
       client_secret: process.env.ZOHO_CLIENT_SECRET,
     };
   }
+  // If both are set and they DISAGREE, they are not the same Self Client, and
+  // a refresh token issued by one will not authenticate against the other —
+  // Zoho answers `invalid_client`, which reads like a bad secret rather than a
+  // mismatched pair. Presence checks cannot catch this, so say it out loud.
+  // Scopes attach to the refresh token, not to the client, so a client id and
+  // secret "generated with the wrong scopes" is not itself a problem; two
+  // DIFFERENT clients is.
+  const pairMismatch = process.env.ZOHO_PAY_CLIENT_ID && process.env.ZOHO_CLIENT_ID
+    && process.env.ZOHO_PAY_CLIENT_ID !== process.env.ZOHO_CLIENT_ID;
+  if (pairMismatch) {
+    console.error(JSON.stringify({
+      severity: 'ERROR',
+      msg: 'ZOHO_PAY_CLIENT_ID differs from ZOHO_CLIENT_ID — these must be the same Self Client, or the Payments refresh token will not authenticate',
+    }));
+  }
   return {
     refresh_token: process.env.ZOHO_PAY_REFRESH_TOKEN,
     client_id: process.env.ZOHO_PAY_CLIENT_ID ?? process.env.ZOHO_CLIENT_ID,

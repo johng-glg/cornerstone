@@ -418,6 +418,20 @@ export function renderCalendar(opts) {
         await load();
         return;
       }
+      // A 503 means the deployment is misconfigured, not that the customer did
+      // anything wrong. On the staging page the reason is shown rather than
+      // swallowed — a generic "please try again" against a missing environment
+      // variable wastes an afternoon.
+      if (res.status === 503) {
+        const why = await res.json().catch(() => null);
+        btn.disabled = false;
+        btn.textContent = 'Continue to payment';
+        setPanelNotice(form, why?.detail
+          ? `Booking is not configured on this deployment — ${why.detail}`
+          : 'Booking is not configured on this deployment.');
+        if (console) console.error('[checkout] not configured:', why?.missing ?? '(no detail returned)');
+        return;
+      }
       if (!res.ok) throw new Error(`checkout ${res.status}`);
       const checkout = await res.json();
       await payAndConfirm(form, checkout);

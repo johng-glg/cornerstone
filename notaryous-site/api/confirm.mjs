@@ -31,7 +31,7 @@
  */
 
 import { CONFIG, REQUIRED, missingEnv, bookingsPostForm, paymentsGet } from './_zoho.mjs';
-import { dbConfigured, markHoldPaid, resolveHold, recordBooking, bookingForSession } from './_db.mjs';
+import { missingDbEnv, markHoldPaid, resolveHold, recordBooking, bookingForSession } from './_db.mjs';
 import { sessionPayment, parseMetaData } from '../lib/payments.mjs';
 import { parseBookingId } from '../lib/zoho-bookings.mjs';
 import { zohoFromTime } from '../lib/zoho-datetime.mjs';
@@ -54,9 +54,21 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') return send(res, 405, { error: 'method_not_allowed' });
 
-  const miss = [...missingEnv(REQUIRED.bookings), ...missingEnv(REQUIRED.payments)];
-  if (miss.length) return send(res, 503, { error: 'not_configured', missing: miss });
-  if (!dbConfigured()) return send(res, 503, { error: 'not_configured', missing: ['SUPABASE_URL'] });
+  const missing = [
+    ...missingEnv(REQUIRED.bookings),
+    ...missingEnv(REQUIRED.payments),
+    ...missingDbEnv(),
+  ];
+  if (missing.length) {
+    console.error(JSON.stringify({
+      severity: 'ERROR', msg: 'not_configured', route: '/api/confirm', missing,
+    }));
+    return send(res, 503, {
+      error: 'not_configured',
+      missing,
+      detail: `Not configured: ${missing.join(', ')}`,
+    });
+  }
 
   const body = await readBody(req);
   const psid = String(body?.payment_session_id ?? '').trim();

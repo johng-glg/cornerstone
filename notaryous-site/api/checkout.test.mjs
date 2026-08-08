@@ -158,13 +158,61 @@ test('a slot in the past is refused', async () => {
   assert.equal(res.json().error, 'too_soon');
 });
 
-test('checkout refuses to run without a database', async () => {
+test('checkout refuses without a database, and NAMES the missing variables', async () => {
+  // The failure that actually happened on the first deploy: every Zoho variable
+  // set, availability green, checkout 503 with an empty reason. /api/availability
+  // degrades without Supabase and keeps answering, so it is easy to miss.
   setEnv();
   delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   stub();
   const res = await post(await load('checkout'), { ...SIGNER, slot: SLOT });
   assert.equal(res.statusCode, 503);
+  const body = res.json();
+  assert.equal(body.error, 'not_configured');
+  assert.deepEqual(body.missing, ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
+  assert.match(body.detail, /SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY/);
   process.env.SUPABASE_URL = ENV.SUPABASE_URL;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = ENV.SUPABASE_SERVICE_ROLE_KEY;
+});
+
+test('every missing variable is reported in ONE answer, Zoho and Supabase together', async () => {
+  setEnv();
+  delete process.env.ZOHO_PAY_ACCOUNT_ID;
+  delete process.env.SUPABASE_URL;
+  stub();
+  const body = (await post(await load('checkout'), { ...SIGNER, slot: SLOT })).json();
+  assert.deepEqual(body.missing, ['ZOHO_PAY_ACCOUNT_ID', 'SUPABASE_URL'],
+    'one failed request should tell you the whole story, not the first problem');
+  process.env.ZOHO_PAY_ACCOUNT_ID = ENV.ZOHO_PAY_ACCOUNT_ID;
+  process.env.SUPABASE_URL = ENV.SUPABASE_URL;
+});
+
+test('the 503 reason is logged, not only returned', async () => {
+  setEnv();
+  delete process.env.SUPABASE_URL;
+  stub();
+  const lines = [];
+  const realError = console.error;
+  console.error = (m) => lines.push(String(m));
+  try { await post(await load('checkout'), { ...SIGNER, slot: SLOT }); }
+  finally { console.error = realError; }
+  const logged = lines.map((l) => { try { return JSON.parse(l); } catch { return {}; } })
+    .find((o) => o.msg === 'not_configured');
+  assert.ok(logged, 'a 503 whose reason exists only in the body is invisible in Vercel logs');
+  assert.equal(logged.route, '/api/checkout');
+  assert.ok(logged.missing.includes('SUPABASE_URL'));
+  process.env.SUPABASE_URL = ENV.SUPABASE_URL;
+});
+
+test('confirm reports the same shape', async () => {
+  setEnv();
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  stub();
+  const res = await post(await load('confirm'), { payment_session_id: 'ps_1' });
+  assert.equal(res.statusCode, 503);
+  assert.deepEqual(res.json().missing, ['SUPABASE_SERVICE_ROLE_KEY']);
+  process.env.SUPABASE_SERVICE_ROLE_KEY = ENV.SUPABASE_SERVICE_ROLE_KEY;
 });
 
 test('GET is refused', async () => {

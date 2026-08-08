@@ -119,10 +119,21 @@ export default async function handler(req, res) {
     return res.end(JSON.stringify({ error: 'method_not_allowed' }));
   }
 
+  // Note the asymmetry with /api/checkout, which is deliberate: this route can
+  // answer without the database (holds are simply not subtracted, and `source`
+  // says so), but checkout cannot — without holds two people can buy the same
+  // slot. That is why availability can be green while checkout 503s.
   const miss = missingEnv(REQUIRED.bookings);
   if (miss.length) {
+    console.error(JSON.stringify({
+      severity: 'ERROR', msg: 'not_configured', route: '/api/availability', missing: miss,
+    }));
     res.statusCode = 503;
-    return res.end(JSON.stringify({ error: 'not_configured', missing: miss }));
+    return res.end(JSON.stringify({
+      error: 'not_configured',
+      missing: miss,
+      detail: `Not configured: ${miss.join(', ')}`,
+    }));
   }
 
   const q = new URL(req.url, 'http://x').searchParams;

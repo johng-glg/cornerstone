@@ -25,7 +25,7 @@
  */
 
 import { CONFIG, REQUIRED, missingEnv, resolveStaffIds, fetchStaffAvailability, paymentsPost } from './_zoho.mjs';
-import { dbConfigured, liveHolds, bookedSlots, claimHold, attachSessionToHold } from './_db.mjs';
+import { missingDbEnv, liveHolds, bookedSlots, claimHold, attachSessionToHold } from './_db.mjs';
 import { mergeStaffAvailability, subtractHolds, pickStaff } from '../lib/availability.mjs';
 import { buildMetaData, sessionId, sessionLifetimeSeconds } from '../lib/payments.mjs';
 import { isoDateInZone, assertTimeZone } from '../lib/zoho-datetime.mjs';
@@ -74,12 +74,29 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') return send(res, 405, { error: 'method_not_allowed' });
 
-  const miss = [...missingEnv(REQUIRED.bookings), ...missingEnv(REQUIRED.payments)];
-  if (miss.length) return send(res, 503, { error: 'not_configured', missing: miss });
-  if (!dbConfigured()) {
-    // Without the database there are no holds, so two people can pay for the
-    // same slot. Refuse rather than take money we may have to give back.
-    return send(res, 503, { error: 'not_configured', missing: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'] });
+  // Everything missing, in one answer. Reported as one list rather than three
+  // separate 503s so a single failed request tells you the whole story — and
+  // logged, because a 503 whose reason exists only in the response body is
+  // invisible to anyone reading Vercel's log view.
+  //
+  // The Supabase variables belong in this list, not behind a separate check:
+  // without the database there are no holds, so two people can pay for the same
+  // slot. /api/availability degrades to `source: 'zoho-no-holds'` without them
+  // and keeps answering, which makes them very easy to forget.
+  const missing = [
+    ...missingEnv(REQUIRED.bookings),
+    ...missingEnv(REQUIRED.payments),
+    ...missingDbEnv(),
+  ];
+  if (missing.length) {
+    console.error(JSON.stringify({
+      severity: 'ERROR', msg: 'not_configured', route: '/api/checkout', missing,
+    }));
+    return send(res, 503, {
+      error: 'not_configured',
+      missing,
+      detail: `Not configured: ${missing.join(', ')}`,
+    });
   }
 
   const body = await readBody(req);

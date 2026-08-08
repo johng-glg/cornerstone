@@ -11,15 +11,24 @@ Supabase → `glg-ron` → SQL editor, the BlueNotary dashboard, and Zoho Bookin
 
 ---
 
-## 0. Preflight — three env vars that do not exist yet
+## 0. Preflight — five env vars to set first
 
 `/api/checkout` will 503 without these. Set them in Vercel first.
 
 | Variable | Where it comes from |
 |---|---|
+| `SUPABASE_URL` | Supabase → `glg-ron` → Project Settings → API. **This is the one that bit us** — `/api/availability` works without it, `/api/checkout` refuses |
+| `SUPABASE_SERVICE_ROLE_KEY` | Same page. Service role, not anon — it must bypass RLS |
 | `ZOHO_PAY_API_KEY` | Zoho Payments → Settings → **Developers Space**. This is the widget's client-side key — confirm it is the publishable one, not a secret |
 | `ZOHO_PAY_DOMAIN` | Two-letter country code. `US` |
 | `BOOKING_IS_TEST` | Set to `true` for this run. It flags the row `is_test` so it can be excluded from reporting later. **Unset it afterwards** |
+
+A 503 from `/api/checkout` now names every missing variable at once, in the response
+body **and** in the Vercel log:
+
+```json
+{"error":"not_configured","missing":["SUPABASE_URL"],"detail":"Not configured: SUPABASE_URL"}
+```
 
 Sanity check before clicking anything — this should return times, not an error:
 
@@ -29,7 +38,7 @@ curl -s "https://notaryous.vercel.app/api/availability?from=$(date -u +%Y-%m-%dT
 
 | What you see | What it means |
 |---|---|
-| `{"slots":[...]` | Good. Note `staff_count` — with one notary it will be 1 |
+| `{"slots":[...]` | Good. Note `staff_count`, and check `source`: `zoho` means holds are being subtracted; **`zoho-no-holds` means Supabase is not configured** and checkout will 503 |
 | `{"error":"no_staff"}` | Staff discovery is failing. Stop — nothing downstream will work |
 | `{"error":"unreadable_availability"}` | Zoho's response format is not what the parser expects. Stop, send me `sample` |
 | `{"error":"not_configured"}` | `missing` names the variable |
