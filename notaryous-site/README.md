@@ -374,23 +374,46 @@ the scheduler renders, and complete one booking. If anything looks wrong, delete
 
 ### 3. Zoho: theme the booking page itself
 
-Everything inside the iframe is Zoho's markup and Zoho's CSS. Nothing in this
-repo can restyle it, so the embed currently arrives in Zoho's default look sitting
-inside a Bordeaux-and-Bone page. In Zoho Bookings:
+Everything inside the iframe is Zoho's markup and Zoho's CSS. **No stylesheet in
+this repo can reach into it** — a cross-origin iframe is a hard boundary, and no
+amount of CSS here will restyle it. It has to be done on Zoho's side.
 
-- Manage Bookings → Workspaces → **Booking Page Themes**: switch to the
-  **Modern Web** theme and apply the brand palette. This is a paid feature on
-  Basic/Premium.
-- Workspace Properties → upload a **custom CSS file**, so the embedded view and
-  the popped-out view match. The palette tool is known to miss the booking modal,
-  so style that explicitly and test it specifically.
-- While in there, set form inputs to **16px**. Under 16px, iOS Safari zooms the
-  page when a field is focused, which is a common way mobile booking flows get
-  disorienting. This can only be fixed in Zoho's CSS, not here.
+**Modern Web theme and custom CSS are mutually exclusive.** Per Zoho's own docs,
+Custom CSS requires the **Premium** plan and is supported on the **Basic theme
+only**. A workspace set to Modern Web ignores an uploaded CSS file entirely. So
+there are two routes, not one:
 
-Reference for the palette: Bordeaux `#3B1116`, Gold `#E0B772`, Bone `#EFEAE0`,
-Ink `#241014`. On any light ground inside the booking page, accent text must be
-Deep Gold `#7E5C1E` — bright gold on Bone measures 1.57 and is unreadable.
+| Route | Gets you | Cost |
+|---|---|---|
+| Modern Web + colour palette | Approximate brand colours. The palette tool is known to miss the booking modal. | Paid tier, no CSS control |
+| **Basic theme + Custom CSS** | Actual match — type, palette, buttons, 16px inputs, focus rings | **Premium** |
+
+Only the second route matches the site. Uploaded CSS applies to the embedded
+view *and* the popped-out view, so the iframe and the new-tab fallback stay
+consistent.
+
+**A starter file is in this repo: `brand/zoho-booking-page.css`.** Upload it at
+Manage Bookings → Workspaces → Workspace Properties → Upload icon → Save.
+
+The palette, typography, button treatment and input sizing in it are complete
+and use generic selectors that hold regardless of Zoho's markup. The block at
+the bottom marked `ZOHO-SPECIFIC HOOKS` — selected day, time slots, the modal —
+is commented out and needs real class names pulled from DevTools on the live
+page, because Zoho's class names change between releases and guessing them
+produces a file that silently does nothing.
+
+Two things in that file matter more than the colours:
+
+- **16px form inputs.** Below 16px, iOS Safari zooms the page when a field takes
+  focus and throws the form off-screen mid-booking. This is only fixable in
+  Zoho's CSS, which is why the item cannot be closed on our side.
+- **The booking modal.** Style and test it explicitly. It is the last screen
+  before payment and it is exactly what Zoho's palette tool misses.
+
+The booking page is a **light** surface, so it takes the light mode of the
+system: Bone ground, Ink body text, and buttons are **Bordeaux fill with Bone
+text — not gold**. Bright gold `#E0B772` on Bone measures 1.57 and is
+unreadable; accent text on that ground is Deep Gold `#7E5C1E` (5.10, AA).
 
 ### 4. Should mobile drop the iframe entirely? — decide with a device in hand
 

@@ -1,7 +1,7 @@
 {
   "name": "Notaryous",
   "short_name": "Notaryous",
-  "description": "Remote online notarization. $25 flat per session, however many signatures.",
+  "description": "Remote online notarization. $25 flat per session, unlimited signatures.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

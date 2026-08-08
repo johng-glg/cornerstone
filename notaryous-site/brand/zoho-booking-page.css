@@ -1,0 +1,214 @@
+/* ============================================================================
+   Notaryous — custom CSS for the Zoho Bookings booking page
+   ============================================================================
+
+   WHERE THIS GOES
+   Zoho Bookings → Manage Bookings → Workspaces → Workspace Properties →
+   Upload icon → select this file → Save.
+   (For a business booking page it is Page Properties instead.)
+
+   PREREQUISITES — read before uploading, these are Zoho's own limits:
+     - Custom CSS requires the **Premium** plan.
+     - Custom CSS applies to the **Basic** theme only. If the workspace is set
+       to Modern Web or any other theme, this file is ignored. You cannot have
+       Modern Web *and* custom CSS — pick one. Basic + this file is the only
+       route that actually matches the site.
+     - Uploaded styling applies to the embedded view and the popped-out view
+       alike, which is what we want: the iframe on the site and the new-tab
+       fallback then look the same.
+
+   HOW TO FINISH IT
+   The palette, type and input sizing below are complete and safe — they use
+   generic selectors that hold regardless of Zoho's markup. The block marked
+   ZOHO-SPECIFIC HOOKS at the bottom needs real class names, which change
+   between Zoho releases and cannot be guessed reliably. To capture them:
+     1. Open the booking page, DevTools → Inspect.
+     2. Click the element (a day cell, a selected time slot, the Confirm
+        button, the booking modal).
+     3. Copy its class, paste it into the matching rule below.
+   Test the **booking modal** specifically. Zoho's own colour-palette tool is
+   known to miss it, and it is the last screen before payment.
+
+   BRAND RULES THAT APPLY HERE
+   The booking page is a LIGHT surface, so it follows the light mode of the
+   system: Bone ground, Ink body text, and buttons are BORDEAUX fill with BONE
+   text — not gold. Bright gold #E0B772 on Bone measures 1.57 contrast and is
+   unreadable. Any accent text on a light ground must be Deep Gold #7E5C1E
+   (5.10, AA). Bright gold is for dark grounds and solid fills only.
+   ========================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap');
+
+:root {
+  --n-bord:      #3B1116;  /* Bordeaux — primary, buttons, headings */
+  --n-bord-lo:   #2E0D12;  /* Cordovan — pressed / deeper panels */
+  --n-gold:      #E0B772;  /* Gold — dark grounds and solid fills ONLY */
+  --n-gold-dp:   #7E5C1E;  /* Deep Gold — accent text on light grounds */
+  --n-bone:      #EFEAE0;  /* Bone — light ground */
+  --n-bone-2:    #E4DCCC;  /* Bone-2 — secondary panels */
+  --n-rule:      #D8CFBE;  /* Rule — borders */
+  --n-ink:       #241014;  /* Ink — body text */
+  --n-muted:     #6B5C55;  /* Muted — secondary text, AA on both Bone tones */
+}
+
+/* ---------- type and ground ---------- */
+
+body,
+button, input, select, textarea {
+  font-family: Archivo, -apple-system, "Segoe UI", Arial, sans-serif !important;
+}
+
+body {
+  background: var(--n-bone) !important;
+  color: var(--n-ink) !important;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  color: var(--n-bord) !important;
+  font-weight: 600 !important;
+  letter-spacing: -.02em;
+}
+
+a { color: var(--n-bord); }
+a:hover { color: var(--n-bord-lo); }
+
+/* ---------- inputs ----------
+   16px minimum is not cosmetic. Below 16px, iOS Safari zooms the page when a
+   field takes focus, which throws the booking form off-screen mid-flow. This
+   is the single highest-value rule in this file for mobile. */
+
+input, select, textarea {
+  font-size: 16px !important;
+  color: var(--n-ink) !important;
+  background: #FFFFFF !important;
+  border: 1px solid var(--n-rule) !important;
+  border-radius: 0 !important;
+}
+
+input::placeholder, textarea::placeholder { color: var(--n-muted) !important; }
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--n-bord) !important;
+  outline: 2px solid var(--n-bord) !important;
+  outline-offset: 1px !important;
+}
+
+/* Visible keyboard focus on everything, matching the site. Bordeaux reads at
+   13.71 against Bone, comfortably past the 3.0 non-text minimum. */
+:focus-visible {
+  outline: 3px solid var(--n-bord) !important;
+  outline-offset: 2px !important;
+}
+
+/* ---------- buttons ----------
+   Light ground, so Bordeaux fill with Bone text. Never gold on this surface. */
+
+button,
+input[type="submit"],
+input[type="button"],
+[role="button"] {
+  background: var(--n-bord) !important;
+  color: var(--n-bone) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  /* 48px minimum tap target */
+  min-height: 48px !important;
+  padding: 14px 32px !important;
+  cursor: pointer;
+}
+
+button:hover,
+input[type="submit"]:hover,
+[role="button"]:hover { background: var(--n-bord-lo) !important; }
+
+button:disabled,
+input[type="submit"]:disabled {
+  background: var(--n-rule) !important;
+  color: var(--n-muted) !important;
+  cursor: not-allowed;
+}
+
+/* A secondary / cancel action should read as secondary, not as a second
+   primary. Outline rather than fill. */
+button.secondary, button[class*="cancel"], button[class*="back"] {
+  background: transparent !important;
+  color: var(--n-bord) !important;
+  border: 1px solid var(--n-bord) !important;
+}
+
+/* ---------- panels and rules ---------- */
+
+table, td, th { border-color: var(--n-rule) !important; }
+hr { border-color: var(--n-rule) !important; }
+
+/* ============================================================================
+   ZOHO-SPECIFIC HOOKS — fill these in from DevTools
+   ============================================================================
+   The selectors below are placeholders. Replace each one with the real class
+   from the live page, then delete this warning. Leaving them as-is is
+   harmless (they simply match nothing), but the calendar and the modal will
+   keep Zoho's default colours until they are filled in.
+   ------------------------------------------------------------------------ */
+
+/* The selected day in the date picker, and the selected time slot.
+   Solid Bordeaux with Bone text is the light-mode button treatment. */
+/*
+.REPLACE-selected-day,
+.REPLACE-slot--selected {
+  background: var(--n-bord) !important;
+  color: var(--n-bone) !important;
+  border-radius: 0 !important;
+}
+*/
+
+/* An available but unselected slot: Bone-2 panel, Ink text, Bordeaux on hover. */
+/*
+.REPLACE-slot {
+  background: var(--n-bone-2) !important;
+  color: var(--n-ink) !important;
+  border: 1px solid var(--n-rule) !important;
+  min-height: 48px !important;
+}
+.REPLACE-slot:hover { border-color: var(--n-bord) !important; }
+*/
+
+/* Today's date marker, and any small accent label on the light ground.
+   Deep Gold, NOT bright gold — bright gold on Bone is 1.57 and unreadable. */
+/*
+.REPLACE-today,
+.REPLACE-accent-label { color: var(--n-gold-dp) !important; }
+*/
+
+/* The booking modal. Test this one explicitly — Zoho's palette tool misses it
+   and it is the last screen the customer sees before paying. */
+/*
+.REPLACE-modal {
+  background: var(--n-bone) !important;
+  color: var(--n-ink) !important;
+  border-top: 5px solid var(--n-bord) !important;
+  border-radius: 0 !important;
+}
+.REPLACE-modal-header { color: var(--n-bord) !important; }
+*/
+
+/* The fee / price display. It must read $25.00 and nothing that implies a
+   later charge. If Zoho renders a "balance due" or "pay later" string here,
+   fix it in the service settings, not by hiding it with CSS. */
+/*
+.REPLACE-price { color: var(--n-bord) !important; font-weight: 600 !important; }
+*/
+
+/* ---------- motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
