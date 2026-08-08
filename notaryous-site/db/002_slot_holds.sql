@@ -2,9 +2,20 @@
 --
 -- A local, authoritative hold on a slot for the ~10 minutes a checkout is open.
 -- Zoho has no hold API, and holding by creating a placeholder appointment would
--- fire the BlueNotary Flow on every abandoned checkout.
+-- fire the BlueNotary Flow on every abandoned checkout — which, given the Flow
+-- sends a hardcoded payment reference, would create a real BlueNotary session
+-- for every abandoned basket.
 --
--- Apply with: supabase db execute -f db/002_slot_holds.sql   (or the SQL editor)
+-- TARGET: the glg-ron Supabase project (ref xatqfliscgqswiohzkps), the same
+-- project glg-ron-orchestration uses. This table is new and calendar-owned;
+-- nothing in the orchestration service reads it.
+--
+-- Apply with:
+--   supabase db execute -f db/002_slot_holds.sql --project-ref xatqfliscgqswiohzkps
+--
+-- NOTE ON staff_id: this is a Zoho Bookings staff record id, the same namespace
+-- as ron_sessions.zoho_staff_id — NOT a notary email. See the note at the foot
+-- of 001_ron_sessions_calendar.sql for why those are two different things.
 
 -- gen_random_uuid() is core Postgres since 13 — no pgcrypto extension needed.
 create table if not exists public.slot_holds (

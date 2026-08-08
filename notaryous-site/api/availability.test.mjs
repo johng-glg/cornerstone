@@ -74,7 +74,15 @@ function stub({ staff = ['ada', 'grace'], slots = {}, holds = [], booked = [], f
       return json({ response: { returnvalue: { data: slots[staffId] ?? [] } } });
     }
     if (url.includes('/rest/v1/slot_holds')) return json(holds);
-    if (url.includes('/rest/v1/bookings')) return json(booked);
+    // Sold slots come from ron_sessions — the live table glg-ron-orchestration
+    // owns. The stub asserts the query shape, because getting the column names
+    // wrong would return [] from PostgREST and silently subtract nothing.
+    if (url.includes('/rest/v1/ron_sessions')) {
+      const q = new URL(url).searchParams;
+      if (q.get('select') !== 'scheduled_at,zoho_staff_id') throw new Error(`unexpected select: ${q.get('select')}`);
+      if (q.get('session_status') !== 'neq.cancelled') throw new Error(`unexpected status filter: ${q.get('session_status')}`);
+      return json(booked);
+    }
     throw new Error(`unexpected fetch: ${url}`);
   };
   return calls;
@@ -149,10 +157,27 @@ test('a sold slot blocks that notary permanently, not just for the hold window',
 
   stub({
     slots: { ada: ['10:00'], grace: ['10:00'] },
-    booked: [{ slot_start_utc: iso, staff_id: 'grace' }],
+    booked: [{ scheduled_at: iso, zoho_staff_id: 'grace' }],
   });
   const body = (await call(await loadRoute(), q)).json();
   assert.deepEqual(body.staff[body.slots[0]], ['ada']);
+});
+
+test('a ron_sessions row with no zoho_staff_id subtracts nothing', async () => {
+  // All 24 pre-calendar rows are like this. They must not blank the calendar:
+  // those appointments came through Zoho, so Zoho's own availability already
+  // excludes them, and there is no notary named here to remove.
+  setEnv();
+  const { q } = WINDOW();
+  stub({ slots: { ada: ['10:00'], grace: ['10:00'] } });
+  const iso = (await call(await loadRoute(), q)).json().slots[0];
+
+  stub({
+    slots: { ada: ['10:00'], grace: ['10:00'] },
+    booked: [{ scheduled_at: iso, zoho_staff_id: null }],
+  });
+  const body = (await call(await loadRoute(), q)).json();
+  assert.deepEqual(body.staff[body.slots[0]], ['ada', 'grace'], 'both notaries still offered');
 });
 
 test('staff_id still works as a filter for one notary', async () => {

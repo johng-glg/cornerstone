@@ -22,22 +22,21 @@ Check it before every commit on this workstream:
 | 0. The four answers | **runnable by you** — `/step0` is built, see below |
 | 1. Zoho auth + token refresh + `/api/availability` | **built, verified against stubs** — needs credentials to run for real |
 | 2. Payments session + widget + server confirm + webhook | blocked on credentials |
-| 3. `bookings` table | **done, verified** |
+| 3. Booking store | **superseded** — no `bookings` table; `ron_sessions` is extended instead, see below |
 | 4. Happy path in sandbox | blocked |
 | 5. `slot_holds` + concurrency | **done, verified** — spec bug found, see below |
 | 6. Refund paths | blocked on credentials |
-| 6b. Refund tracking columns | **done, verified** |
+| 6b. Refund tracking columns | **written, awaiting review** — in `db/001_ron_sessions_calendar.sql`, not yet run |
 | 7. Front end calendar | **done on fixtures, verified** |
 | 8. Reconciliation + alerting | not started |
 | 9–11. Cutover | not started |
 
-Shipped so far: `db/001_bookings.sql`, `db/002_slot_holds.sql`,
-`db/003_refund_tracking.sql`, `db/004_staff.sql`, `lib/zoho-datetime.mjs` (19 tests),
-`lib/availability.mjs` (20 tests), `lib/zoho-bookings.mjs` (17 tests),
-`api/availability.mjs` (17 tests), `api/_zoho.mjs`, `api/_db.mjs`,
-`book-beta.html` + `lib/calendar.mjs`.
+Shipped so far: `db/001_ron_sessions_calendar.sql`, `db/002_slot_holds.sql`,
+`lib/zoho-datetime.mjs` (19 tests), `lib/availability.mjs` (20 tests),
+`lib/zoho-bookings.mjs` (17 tests), `api/availability.mjs` (18 tests),
+`api/_zoho.mjs`, `api/_db.mjs`, `book-beta.html` + `lib/calendar.mjs`.
 
-73 tests, all passing, no dependencies:
+74 tests, all passing, no dependencies:
 
 ```
 node --test lib/*.test.mjs api/*.test.mjs
@@ -198,6 +197,83 @@ allowed, same slot same notary is rejected, and a refund frees it again. Unlike 
 `slot_holds` predicate in finding 1 this one is legal — `status` and `staff_id` are
 columns, so the predicate is IMMUTABLE.
 
+### 5. There was already a live service, and it changes where everything lives
+
+`glg-ron-orchestration` has been running since 14 July 2026 and is the
+BlueNotary integration: two Zoho Flows post to it on booking and cancellation,
+and it creates and cancels the RON sessions. It had **no version control** — the
+only copy was the Vercel deployment — and is now recovered into
+`johng-glg/glg-ron-orchestration`. Its database is the Supabase project
+`glg-ron` (ref `xatqfliscgqswiohzkps`), holding `ron_sessions` and an
+append-only `ron_session_events` journal.
+
+**Settled: split by trust boundary, share the database.**
+
+| | Where |
+|---|---|
+| Availability, holds, checkout, payment, payment confirmation | **this project** (public, cacheable, own deploy cadence) |
+| BlueNotary session lifecycle, notary assignment, reconciliation | **glg-ron-orchestration** (authenticated webhooks only) |
+| The data | **one `glg-ron` project**, `ron_sessions` as the single row per booking |
+
+The handoff is unchanged: the calendar creates the Zoho appointment, Flow fires,
+the orchestration service creates the BlueNotary session. Nothing about the live
+integration moves.
+
+Why not build the calendar inside the existing service: its `express.json` is
+`{ limit: '25mb', type: () => true }` mounted app-wide *before* routing, so any
+caller can already make it buffer 25MB before an auth check runs; `vercel.json`
+funnels `/(.*)` into a single function with `maxDuration: 300`, so public
+calendar traffic would share concurrency and cold starts with BlueNotary
+webhooks and a five-minute reconcile job; and it is load-bearing with live
+sessions. It also has no Zoho Bookings client at all — the calendar's server
+side is new code wherever it lands.
+
+**`bookings` is dropped.** `ron_sessions` already records the same facts, with
+`scheduled_at` as a real `timestamptz`, plus the BlueNotary linkage and journal
+a separate table would have had to join against. Neither `bookings` nor
+`slot_holds` had been created in any project, so this cost nothing to change.
+`db/001_bookings.sql`, `003_refund_tracking.sql` and `004_staff.sql` are deleted
+and replaced by `db/001_ron_sessions_calendar.sql`, which is purely additive
+against the live table.
+
+### 6. The payment gate is unconditionally open downstream
+
+The Zoho Flow sends a **hardcoded** `payment_id` / `payment_reference_number`.
+This was deliberate — payment was enforced by Zoho's hosted booking page, so
+downstream evidence was redundant. Verified against the live journal: all 24
+`booking_received` payloads carry exactly nine fields, `payment_status`, `cost`
+and `cost_paid` are absent from every one, and there is **one distinct payment
+id across all 24 bookings**. So `paymentSignal()` falls through to the constant
+and returns `'paid'` every time; all 24 rows are `payment_status = 'cleared'`
+and none has ever been `pending`.
+
+The consequence for this build: `awaiting_payment`, `/payments/confirmed`, the
+two-hour unpaid alert and `createBnSession`'s unpaid throw are all unreachable
+in the live configuration. **There is no second gate.** Calling Book Appointment
+is the point of no return — Flow fires, and a real BlueNotary session is created
+regardless of payment. Both step 0 probe appointments produced real sessions.
+
+So the ordering in this spec is not merely tidy, it is the only control:
+hold → payment session → **server-side confirmation** → Book Appointment. And
+the reverse failure has no recovery either — payment clears, Book Appointment
+throws, and nothing downstream ever learns a customer paid. The calendar must
+catch and refund that itself.
+
+### 7. `zoho_staff_id` and `notary_email` are different identifiers
+
+Zoho availability and Book Appointment work in Zoho staff record ids.
+`glg-ron-orchestration`'s `assignNotary()` works in email addresses from
+`NOTARY_ROSTER`, chosen independently by least open-session load. Nothing maps
+one to the other.
+
+This did not matter while Zoho staff assignment came from the hosted booking
+page. Once the calendar picks a staff member, the two assignments can disagree:
+the appointment sits on notary A's Zoho calendar while notary B is invited to
+the BlueNotary session. `db/001_ron_sessions_calendar.sql` records both so the
+divergence is visible; resolving it means either mapping roster entries to Zoho
+staff ids or passing the calendar's choice through to `assignNotary`, and that
+is a change to a live service.
+
 ---
 
 ## Settled since the first increment
@@ -353,14 +429,28 @@ the cancel goes to the right one.
 
 ## Applying the schema
 
+Both files target the **`glg-ron`** project (ref `xatqfliscgqswiohzkps`) — the same
+database `glg-ron-orchestration` writes to. Not a calendar-specific project: if
+`SUPABASE_URL` points anywhere else, availability subtracts nothing and the two
+services disagree about what is booked.
+
 ```
-supabase db execute -f db/001_bookings.sql
-supabase db execute -f db/002_slot_holds.sql
-supabase db execute -f db/003_refund_tracking.sql
-supabase db execute -f db/004_staff.sql
+supabase db execute -f db/001_ron_sessions_calendar.sql --project-ref xatqfliscgqswiohzkps
+supabase db execute -f db/002_slot_holds.sql            --project-ref xatqfliscgqswiohzkps
 ```
 
-In order, and all four are idempotent — safe to re-run. Both tables have RLS enabled
+**`001` has not been run. It ALTERs a live table** that a load-bearing service reads
+on every webhook, and it is approved in principle pending review of the SQL. Every
+statement is additive — new nullable columns, new indexes, and two CHECK constraints
+that reference only the new columns, so validation cannot fail on existing rows.
+Nothing is altered or dropped. Verified against PostgreSQL 18: applies and re-applies
+cleanly, leaves existing rows untouched, and the orchestration service's own
+`insertBooking` and `listOpenSessions` statements still work against the result.
+
+After `001` runs, re-dump `glg-ron-orchestration/supabase/schema.sql` so the two repos
+do not drift.
+
+Both are idempotent — safe to re-run. Both tables have RLS enabled
 with no policies:
 anon and authenticated read nothing, the serverless functions use the service role key
 which bypasses RLS. `bookings` holds customer names, emails and phone numbers, so a

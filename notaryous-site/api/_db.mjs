@@ -1,13 +1,21 @@
 /**
  * Supabase access over PostgREST, with no dependencies.
  *
+ * TARGET: the glg-ron project (ref xatqfliscgqswiohzkps) — the same database
+ * glg-ron-orchestration writes to. `ron_sessions` is the single row per
+ * booking, shared by both services; `slot_holds` is new and calendar-owned.
+ * SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must point there, not at a
+ * calendar-specific project, or availability will subtract nothing and the two
+ * services will disagree about what is booked.
+ *
  * The whole API surface is zero-dependency by design — every route is a plain
  * `.mjs` file Vercel can run without a build step — and `@supabase/supabase-js`
  * would be the first thing to break that for the sake of three HTTP calls.
+ * (The orchestration service does use the client library; it has a build step.)
  *
- * SUPABASE_SERVICE_ROLE_KEY bypasses RLS, which is exactly why `bookings` and
- * `slot_holds` have RLS on with no policies: the anon key reads nothing, and
- * this key never leaves the server.
+ * SUPABASE_SERVICE_ROLE_KEY bypasses RLS, which is exactly why both tables have
+ * RLS on with no policies: the anon key reads nothing, and this key never
+ * leaves the server.
  */
 
 const url = () => process.env.SUPABASE_URL;
@@ -57,22 +65,42 @@ export function liveHolds(fromISO, toISO) {
 }
 
 /**
- * Slots already sold. A hold expires; a booking does not, and Zoho may not have
- * removed the slot from availability yet at the moment we ask. Rows are shaped
- * like holds so they can go through the same subtraction, with a far-future
- * expiry standing for "this is permanent".
+ * Slots already sold, read from `ron_sessions` — the live table that
+ * glg-ron-orchestration owns. There is no separate `bookings` table: one row
+ * per booking, shared by both services.
+ *
+ * A hold expires; a sold slot does not, so rows come back shaped like holds
+ * with a far-future expiry standing in for "this is permanent", and go through
+ * the same `subtractHolds`.
+ *
+ * `session_status <> 'cancelled'` rather than an allow-list: every other status
+ * — including the ones BlueNotary invents that our event map never produces,
+ * like `unsigned` and `failed` — means the Zoho appointment still exists and
+ * the slot is not free. Erring toward "taken" costs one offered slot; erring
+ * the other way double-books a notary.
  */
+const FOREVER = '9999-12-31T00:00:00.000Z';
+
 export async function bookedSlots(fromISO, toISO) {
   const q = new URLSearchParams({
-    select: 'slot_start_utc,staff_id',
-    slot_start_utc: `gte.${fromISO}`,
-    status: 'in.(paid,booked)',
+    select: 'scheduled_at,zoho_staff_id',
+    scheduled_at: `gte.${fromISO}`,
+    session_status: 'neq.cancelled',
   });
-  q.append('slot_start_utc', `lte.${toISO}`);
-  const rows = await sbFetch(`/bookings?${q}`);
+  q.append('scheduled_at', `lte.${toISO}`);
+  const rows = await sbFetch(`/ron_sessions?${q}`);
   return (rows || [])
-    .filter((r) => r.staff_id)      // a pre-staff-column row cannot block a named notary
-    .map((r) => ({ ...r, expires_at: '9999-12-31T00:00:00.000Z' }));
+    // Rows predating the calendar have no zoho_staff_id and cannot name a
+    // notary to block. That is safe rather than a hole: those appointments
+    // were made through Zoho, so Zoho's own availability already excludes
+    // them. This subtraction only exists to close the race between our Book
+    // Appointment call and Zoho reflecting it.
+    .filter((r) => r.zoho_staff_id)
+    .map((r) => ({
+      slot_start_utc: r.scheduled_at,
+      staff_id: r.zoho_staff_id,
+      expires_at: FOREVER,
+    }));
 }
 
 export { sbFetch };
