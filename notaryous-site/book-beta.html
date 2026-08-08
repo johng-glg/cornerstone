@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book a session — Notaryous (beta)</title>
+<!-- noindex for this page's entire life. Deliberately NOT a robots.txt
+     disallow: a disallowed URL can still be indexed from an external link, and
+     blocking the crawl means the crawler never reads this tag. Backed by an
+     X-Robots-Tag header in vercel.json, which also covers /api/*. -->
+<meta name="description" content="Staging build of the Notaryous booking calendar. Not for public use.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#3B1116">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preload" href="/fonts/archivo-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/mark-gold.svg" as="image" type="image/svg+xml" fetchpriority="high">
+<style>
+/* Duplicated from index.html on purpose: index.html must stay byte-identical
+   until cutover, so it cannot be refactored to share a stylesheet. At step 10
+   this block merges into index.html and the duplication disappears. */
+@font-face{font-family:Archivo;font-style:normal;font-weight:400 700;font-display:swap;
+  src:url(/fonts/archivo-latin-var.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Archivo;font-style:normal;font-weight:400 700;font-display:swap;
+  src:url(/fonts/archivo-latin-ext-var.woff2) format('woff2');
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+
+:root{
+  --bord:#3B1116; --bord-lo:#2E0D12; --gold:#E0B772; --gold-lt:#EBCB92; --gold-dp:#7E5C1E;
+  --night:#1A080B; --bone:#EFEAE0; --bone-2:#E4DCCC; --rule:#D8CFBE;
+  --ink:#241014; --muted:#6B5C55;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%;background:var(--bord)}
+body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(--bone);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:rgba(224,183,114,.25)}
+.w{max-width:1120px;margin:0 auto;padding:0 26px}
+
+:focus-visible{outline:3px solid var(--bord);outline-offset:3px}
+.mast :focus-visible,footer :focus-visible,.skip:focus-visible{outline-color:var(--bone)}
+.skip{position:absolute;left:-9999px;top:8px;z-index:99;background:var(--gold);color:var(--bord);padding:12px 22px;font-weight:700;font-size:13px;letter-spacing:.09em;text-transform:uppercase;text-decoration:none}
+.skip:focus{left:8px}
+
+/* ---------- masthead ---------- */
+.mast{background:var(--bord)}
+.mast .w{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-top:16px;padding-bottom:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px;text-decoration:none}
+.brand img{width:54px;height:auto;display:block}  /* 65px tall — the 64px brand minimum */
+.brand .bn{display:flex;flex-direction:column;line-height:1}
+.brand .bn b{font-size:18px;font-weight:500;letter-spacing:.36em;text-indent:.36em;color:var(--gold);text-transform:uppercase}
+.brand .bn i{font-style:normal;font-size:10.5px;font-weight:600;letter-spacing:.2em;text-indent:.2em;color:rgba(239,234,224,.72);text-transform:uppercase;margin-top:7px}
+.mastphone{color:var(--bone);text-decoration:none;font-size:13.5px;font-weight:600;white-space:nowrap}
+.mastphone:hover{color:var(--gold-lt)}
+
+/* ---------- beta banner ---------- */
+.betabar{background:var(--night);color:rgba(239,234,224,.82);font-size:12.5px;padding:10px 0}
+.betabar b{color:var(--gold);text-transform:uppercase;letter-spacing:.14em;font-size:10.5px;margin-right:10px}
+
+/* ---------- page ---------- */
+main{padding:52px 0 78px}
+h1{font-size:clamp(30px,4.6vw,44px);font-weight:600;letter-spacing:-.02em;color:var(--bord);margin-bottom:10px}
+.lede{color:var(--muted);font-size:16.5px;max-width:56ch;margin-bottom:12px}
+h2{font-size:19px;font-weight:600;color:var(--bord);margin-bottom:14px}
+
+/* ---------- timezone ---------- */
+.tzrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin-bottom:34px}
+.tzrow select{font-family:inherit;font-size:16px;/* 16px: below this iOS zooms on focus */
+  color:var(--ink);background:#fff;border:1px solid var(--rule);border-radius:2px;padding:9px 10px;min-height:44px}
+
+/* ---------- day picker (desktop) ----------
+   Hidden on mobile, where the days are simply a scrolling list and each panel
+   carries its own heading — so the "Choose a day" label goes with the grid it
+   labels rather than sitting above nothing. */
+#pickday{display:none}
+.daygrid{display:none;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:30px}
+.daybtn{background:var(--bone);color:var(--ink);border:1px solid var(--rule);border-radius:2px;
+  padding:12px 6px;font-family:inherit;font-size:13px;line-height:1.25;cursor:pointer;text-align:center;
+  min-height:62px;display:flex;flex-direction:column;justify-content:center;gap:3px}
+.daybtn .dow{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.daybtn .dnum{font-size:17px;font-weight:600;color:var(--bord)}
+.daybtn .cnt{font-size:10.5px;color:var(--muted)}
+.daybtn:hover{border-color:var(--bord)}
+.daybtn[aria-pressed="true"]{background:var(--bord);border-color:var(--bord)}
+.daybtn[aria-pressed="true"] .dow,.daybtn[aria-pressed="true"] .dnum,.daybtn[aria-pressed="true"] .cnt{color:var(--bone)}
+.daybtn:disabled{opacity:.42;cursor:not-allowed;background:transparent;border-color:transparent}
+.daybtn:disabled .dnum{color:var(--muted)}
+
+/* ---------- day panels ---------- */
+.day{border-top:1px solid var(--rule);padding:20px 0}
+.day:first-child{border-top:0}
+.day h2{font-size:15px;font-weight:600;color:var(--bord);margin-bottom:12px}
+.slots{display:flex;flex-wrap:wrap;gap:8px}
+/* Available: Bone with Bordeaux text and a Rule border (13.71).
+   Selected: Bordeaux fill with Bone text (13.71).
+   Unavailable slots are omitted, never greyed. */
+.slot{background:var(--bone);color:var(--bord);border:1px solid var(--rule);border-radius:2px;
+  font-family:inherit;font-size:15px;font-weight:600;padding:0 14px;min-height:48px;min-width:92px;
+  cursor:pointer;transition:background .12s ease,border-color .12s ease}
+.slot:hover{border-color:var(--bord);background:var(--bone-2)}
+.slot[aria-pressed="true"]{background:var(--bord);color:var(--bone);border-color:var(--bord)}
+.day .none{color:var(--muted);font-size:14.5px}
+
+/* ---------- states ---------- */
+#cal{min-height:60vh}
+.skel{display:flex;flex-wrap:wrap;gap:8px}
+.skel i{display:block;height:48px;width:96px;border-radius:2px;background:var(--bone-2);
+  animation:pulse 1.3s ease-in-out infinite}
+.skel i:nth-child(2n){width:104px;animation-delay:.15s}
+.skel i:nth-child(3n){width:88px;animation-delay:.3s}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.errbox{background:var(--bone-2);border:1px solid var(--rule);border-left:4px solid var(--bord);
+  padding:18px 20px;max-width:56ch}
+.errbox p{font-size:15px;margin-bottom:12px}
+
+/* ---------- form ---------- */
+.panel{background:var(--bone-2);border:1px solid var(--rule);border-top:5px solid var(--bord);
+  padding:26px 26px 28px;margin-top:34px;max-width:560px}
+.panel .chosen{font-size:15px;color:var(--muted);margin-bottom:20px}
+.panel .chosen b{display:block;font-size:19px;font-weight:600;color:var(--bord)}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.field input{width:100%;font-family:inherit;font-size:16px;/* 16px: iOS zoom guard */
+  color:var(--ink);background:#fff;border:1px solid var(--rule);border-radius:2px;padding:12px;min-height:48px}
+.field input:focus{border-color:var(--bord);outline:2px solid var(--bord);outline-offset:1px}
+.field input[aria-invalid="true"]{border-color:var(--bord);background:#fff}
+.field .err{display:block;font-size:13px;color:var(--bord);font-weight:600;margin-top:6px}
+.btn{display:inline-block;background:var(--bord);color:var(--bone);font-weight:700;font-size:14px;
+  letter-spacing:.09em;text-transform:uppercase;text-decoration:none;padding:0 34px;min-height:52px;
+  border:0;border-radius:2px;cursor:pointer;font-family:inherit}
+.btn:hover{background:var(--bord-lo)}
+.btn:disabled{background:var(--rule);color:var(--muted);cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--bord);border:1px solid var(--bord)}
+.btn.ghost:hover{background:var(--bone)}
+.fineprint{font-size:13px;color:var(--muted);margin-top:14px;max-width:48ch}
+
+/* ---------- footer ---------- */
+footer{background:var(--night);color:rgba(239,234,224,.55);padding:44px 0 34px;font-size:12.5px}
+footer .w{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap;align-items:flex-start}
+footer .brandline{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+footer .brandline img{width:54px;height:auto;display:block}
+footer .nm{font-size:15px;font-weight:600;letter-spacing:.28em;color:var(--bone)}
+footer a{color:rgba(239,234,224,.8)}
+footer .legal{max-width:46ch;line-height:1.6}
+
+@media(min-width:901px){
+  #pickday{display:block}
+  .daygrid{display:grid}
+  .day{display:none;border-top:0;padding-top:4px}
+  .day.is-open{display:block}
+}
+/* Same narrow-phone tightening as index.html, so the masthead holds one row
+   rather than wrapping the number onto its own line. */
+@media(max-width:380px){
+  .mast .w{gap:8px 12px;padding-left:14px;padding-right:14px}
+  .brand{gap:10px}
+  .brand .bn b{font-size:14px;letter-spacing:.22em;text-indent:.22em}
+  .brand .bn i{display:none}
+  .mastphone{font-size:12.5px}
+}
+/* Masthead sizing below 901px, matching index.html. Without it the wordmark
+   stays at its desktop 18px/.36em and pushes the phone number onto a second
+   row from 390px down. */
+@media(max-width:900px){
+  .mast .w{padding-top:14px;padding-bottom:14px}
+  .brand .bn b{font-size:16px;letter-spacing:.3em;text-indent:.3em}
+}
+@media(pointer:coarse){
+  .mastphone,footer p a{display:inline-block;padding:17px 6px;margin:-17px -6px}
+}
+@media(max-width:560px){
+  .w{padding:0 20px}
+  .slot{flex:1 1 calc(50% - 4px);min-width:0}
+}
+@media(prefers-reduced-motion:reduce){
+  .skel i{animation:none}
+  .slot{transition:none}
+}
+</style>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<div class="mast"><div class="w">
+  <a class="brand" href="/" aria-label="Notaryous home">
+    <img src="/mark-gold.svg" width="544" height="656" alt="" fetchpriority="high" decoding="async">
+    <span class="bn"><b>Notaryous</b><i>Online Notarization</i></span>
+  </a>
+  <a class="mastphone" href="tel:+17146942423">(714) 694-2423</a>
+</div></div>
+
+<div class="betabar"><div class="w">
+  <b>Beta</b><span id="betanote">Staging build showing sample availability — /api/availability is not deployed yet. No booking is possible.</span>
+</div></div>
+
+<main id="main"><div class="w">
+
+  <h1>Book your session</h1>
+  <p class="lede">Pick a time. $25 flat, unlimited signatures, paid when you book.</p>
+
+  <div class="tzrow">
+    <label for="tz">Times shown in</label>
+    <select id="tz" aria-describedby="tzhelp"></select>
+    <span id="tzhelp" class="visually-hidden" hidden>Changing this re-displays every time in the selected zone.</span>
+  </div>
+
+  <h2 id="pickday">Choose a day</h2>
+  <div class="daygrid" id="daygrid" role="group" aria-labelledby="pickday"></div>
+
+  <div id="cal" aria-live="polite" aria-busy="true">
+    <div class="day"><h2>Loading availability</h2>
+      <div class="skel" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+  </div>
+
+  <div id="formwrap" hidden></div>
+
+</div></main>
+
+<footer><div class="w">
+  <div>
+    <div class="brandline">
+      <img src="/mark-gold.svg" width="544" height="656" alt="" aria-hidden="true" loading="lazy" decoding="async">
+      <span class="nm">NOTARYOUS</span>
+    </div>
+    <p><a href="tel:+17146942423">(714) 694-2423</a></p>
+    <p style="margin-top:8px">&copy; 2026 Notaryous. All rights reserved.</p>
+  </div>
+  <p class="legal">Notaryous is a registered trade name of Guardian Litigation Group, LLP, 17850 Fitch, Irvine, CA 92614. Notarial services are performed by commissioned notaries public. Notaryous does not provide legal advice and no attorney client relationship is created by booking a notarization.</p>
+</div></footer>
+
+<script type="module">
+import { renderCalendar } from '/lib/calendar.mjs';
+renderCalendar({
+  calEl:     document.getElementById('cal'),
+  gridEl:    document.getElementById('daygrid'),
+  tzEl:      document.getElementById('tz'),
+  formEl:    document.getElementById('formwrap'),
+  betaEl:    document.getElementById('betanote'),
+  days:      14,
+});
+</script>
+</body>
+</html>

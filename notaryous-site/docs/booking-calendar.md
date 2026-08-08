@@ -26,12 +26,14 @@ Check it before every commit on this workstream:
 | 4. Happy path in sandbox | blocked |
 | 5. `slot_holds` + concurrency | **done, verified** — spec bug found, see below |
 | 6. Refund paths | blocked on credentials |
-| 7. Front end calendar | not started |
+| 6b. Refund tracking columns | **done, verified** |
+| 7. Front end calendar | **done on fixtures, verified** |
 | 8. Reconciliation + alerting | not started |
 | 9–11. Cutover | not started |
 
-Shipped this increment: `db/001_bookings.sql`, `db/002_slot_holds.sql`,
-`lib/zoho-datetime.mjs` + 19 passing tests.
+Shipped so far: `db/001_bookings.sql`, `db/002_slot_holds.sql`,
+`db/003_refund_tracking.sql`, `lib/zoho-datetime.mjs` + 19 passing tests,
+`book-beta.html` + `lib/calendar.mjs`.
 
 ---
 
@@ -133,41 +135,37 @@ trap; it is worse than it looks, and the tests pin each one:
 
 ---
 
-## Spec questions to settle before the next increment
+## Settled since the first increment
 
-**1. What zone is `from_time` interpreted in?** The spec sends `from_time` as a wall
-clock and `timezone` as the signer's IANA zone. If Zoho actually interprets `from_time`
-in the *org's* zone and treats `timezone` as display metadata, every booking from a
-signer outside Pacific lands at the wrong hour. Confirm during step 0 by booking a test
-appointment with a deliberately non-org `timezone` and checking where it lands on the
-notary's calendar.
+- **Hold ordering** — claim the hold, *then* create the payment session. A database
+  transaction cannot span an HTTP call, and claiming first means a failed session call
+  leaves only an orphaned hold that expires on its own.
+- **Refund policy** — auto-refund on both cancellation and no-show, as an **internal
+  operating practice with no customer-facing copy**. Nothing on the site states a refund
+  policy, and the fee placard's "If the session can't be completed, you're refunded"
+  line is deleted as part of the cutover commit (step 10).
+- **The index** — corrected in the spec to the `claim_slot_hold()` approach.
 
-**2. "Insert the hold in the same transaction that creates the payment session" is not
-literally achievable** — a database transaction cannot span an HTTP call to Zoho. The
-order that gets the same guarantee:
+The refund policy has a consequence worth naming: because no page states it, this
+repo's `bookings.refund_reason` is the *only* record of why money went back. That is
+why `003_refund_tracking.sql` constrains it — a refund with no reason and a reason with
+no refund are both rejected, the same way `failure_reason` is tied to `status='failed'`.
 
-1. `claim_slot_hold(...)` with `payment_session_id` null → no row means 409, stop.
-2. Create the Zoho payment session.
-3. Update the hold with the returned `payment_session_id`.
+Deleting the placard line does not make the fee copy inaccurate — refunds still happen,
+they are simply not advertised. It does change what the page promises, so it belongs in
+Kimberly's fee-characterisation review rather than being slipped in with a code change.
 
-If step 2 fails, the hold is orphaned but expires on its own in ten minutes. No
-compensating delete needed, which is the same reasoning the spec already uses for
-abandoned checkouts.
+## The four step 0 answers, and what each one changes
 
-**3. Hold TTL vs payment session lifetime.** The hold is 10 minutes. If a Zoho payment
-session stays valid longer, a customer can pay at minute 20 against a hold that lapsed
-at minute 10 — the slot may have gone, and the re-check-then-refund path fires. That
-path exists and works, but it turns a slow customer into a refund and an ops alert.
-Worth checking Zoho's session expiry and setting the TTL to match it rather than
-leaving a silent window.
+None of these can be answered from this environment — all four need Zoho credentials
+and egress, which means someone with a Zoho login, not the build.
 
-**4. Cancellation refunds.** The brief recommends auto-refund on every cancellation and
-the reasoning holds — at $25, a no-show policy costs more in disputes and ops time than
-it recovers, and it is consistent with a page whose pitch is that nobody gets chased for
-money. Worth an explicit yes from Kimberly before build, since it is a fee-policy
-decision rather than a technical one.
-
----
+| Question | What it changes if the answer is unexpected |
+|---|---|
+| Does Flow fire on API-created appointments? | If not, the payment confirmation handler must call the Flow webhook itself, or a paid client gets no BlueNotary session |
+| What zone does Zoho read `from_time` in? | If it is the org zone rather than the `timezone` field, every out-of-Pacific signer books the wrong hour. `zohoFromTime()` already takes the zone as an argument, so the fix is one call site — but only if we know |
+| How long is a payment session valid? | Sets the hold TTL. A session outliving the hold turns a slow customer into a refund and an ops alert |
+| Can Flow trigger on `noshow`? | Event-driven no-show refunds, or a nightly sweep. The sweep is more code and a delay between the notary marking and the money moving |
 
 ## Applying the schema
 
@@ -191,13 +189,51 @@ No dependencies, no build step. Run these before any change to `from_time` handl
 
 ---
 
+## `/book-beta` — built and measured
+
+`noindex` via meta **and** an `X-Robots-Tag` header covering `/book-beta` and `/api/*`.
+Deliberately not a `robots.txt` disallow: a disallowed URL can still be indexed from an
+external link, and blocking the crawl means the crawler never reads the `noindex`.
+
+Until `/api/availability` exists the page runs on deterministic fixtures and says so in
+the beta bar. The fallback triggers only on a 404 — a 500 or a malformed body is shown
+as an error, because a booking page that quietly invents availability is worse than one
+that admits it is broken.
+
+| | mobile | desktop |
+|---|---|---|
+| Performance | **100** | **100** |
+| Accessibility | **100** | **100** |
+| Best practices | 96 | 96 |
+| SEO | 66 | 66 |
+
+**SEO 66 is correct and cannot be fixed.** The only failing audit is `is-crawlable`,
+which fails *because* of the `noindex` the spec requires for this page's entire life.
+The ≥95 SEO criterion belongs to `index.html` after cutover, where it already passes.
+Best practices 96 is the `/api/availability` 404 in the console; it resolves when the
+route ships.
+
+Three things that were genuinely wrong and are now fixed:
+
+- **CLS 0.838 → 0.** The beta banner loaded with a short message and swapped in a
+  longer one, going from one line to two at the very top of the page and shoving
+  everything below it. It now ships with the longer wording and only ever shortens.
+- **TBT 610ms → 0ms.** `Intl.DateTimeFormat` was being constructed per call — roughly
+  300 constructions per repaint across 90 chips. Memoised by (zone, shape). Slot and
+  day clicks also went from ~104 individual listeners to two delegated ones.
+- **Heading order.** Day headings were `h3` under an `h2` that is `display:none` on
+  mobile, so the rendered order jumped `h1 → h3`. Day headings are now `h2`.
+
+States verified by intercepting the route: empty (`No times left in the next 14 days`
+with the phone number), error with a working retry, malformed-body treated as an error,
+and the loading skeleton. Timezone change re-renders and clears the selection — Pacific
+10:00 am becomes Eastern 1:00 pm. Validation blocks submit and moves focus to the first
+bad field. No tap target under 44px, no horizontal overflow from 320px up.
+
 ## Next increment
 
-1. `/book-beta` shell — `noindex` meta plus an `X-Robots-Tag` header in `vercel.json`.
-   Not a `robots.txt` disallow: a disallowed URL can still be indexed from an external
-   link, and blocking the crawl means it never reads the `noindex`.
-2. `/api/availability` with the Zoho token cache, written against the documented shapes
+1. `/api/availability` with the Zoho token cache, written against the documented shapes
    and unit-tested with recorded fixtures, so it is ready the moment credentials exist.
-3. The calendar UI — 14-day list on mobile, grid on desktop, brand chips (Bordeaux fill
-   with Bone text for selected, Bone with Bordeaux text and a Rule border for available,
-   unavailable omitted). Testable here without any Zoho access against fixture data.
+2. `/api/checkout` — claim the hold, then create the payment session, in that order.
+3. The payment confirmation handler and the refund paths, all of which need step 0's
+   answers before they can be finished.

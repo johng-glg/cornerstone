@@ -7,6 +7,13 @@
       { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
       { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" }
     ]},
+    { "source": "/book-beta", "headers": [
+      { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+    ]},
+    { "source": "/api/(.*)", "headers": [
+      { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+      { "key": "Cache-Control", "value": "no-store" }
+    ]},
     { "source": "/fonts/(.*)", "headers": [
       { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
     ]},
