@@ -1,0 +1,4 @@
+# Brand source assets live in the repo for regeneration, but nothing in the
+# deploy links to them. Keeping them out of the deployment avoids publishing
+# brand-sheet.html and ~6MB of unused artwork.
+brand/

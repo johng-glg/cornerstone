@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notaryous — Online Notarization, $25 Flat</title>
+<meta name="description" content="Get a document notarized online by video with a commissioned notary. $25 flat per session, however many signatures. Book a time and be done in fifteen minutes.">
+<meta name="theme-color" content="#3B1116">
+
+<!-- ORIGIN: the five absolute URLs below are the only place the domain appears.
+     When notaryous.com goes live, change all five and keep the 301 in vercel.json.
+     See README "Swapping to notaryous.com". -->
+<link rel="canonical" href="https://notary.guardianlit.com/">
+<meta property="og:url" content="https://notary.guardianlit.com/">
+<meta property="og:image" content="https://notary.guardianlit.com/og-image.png">
+<meta name="twitter:image" content="https://notary.guardianlit.com/og-image.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Notaryous">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Notaryous — Online Notarization, $25 Flat">
+<meta property="og:description" content="Get a document notarized online by video with a commissioned notary. $25 flat per session, however many signatures. Book a time and be done in fifteen minutes.">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="Notaryous — online notarization, $25 flat">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Notaryous — Online Notarization, $25 Flat">
+<meta name="twitter:description" content="Get a document notarized online by video with a commissioned notary. $25 flat per session, however many signatures.">
+<meta name="twitter:image:alt" content="Notaryous — online notarization, $25 flat">
+
+<!-- Icons. One SVG favicon for every browser theme: the Cordovan tile reads on
+     both light and dark browser chrome. See README "Favicon" for the test. -->
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+
+<link rel="preload" href="/fonts/archivo-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+<!-- The hero mark is the LCP element. Preloading it ahead of CSS parse moved
+     LCP 1.8s -> 1.5s in Lighthouse mobile and cleared the LCP audit. -->
+<link rel="preload" href="/mark-gold.svg" as="image" type="image/svg+xml" fetchpriority="high">
+<style>
+/* Archivo, self-hosted. One variable file covers 400-700, so the four static
+   weights and both Google Fonts connections are gone. */
+@font-face{font-family:Archivo;font-style:normal;font-weight:400 700;font-display:swap;
+  src:url(/fonts/archivo-latin-var.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Archivo;font-style:normal;font-weight:400 700;font-display:swap;
+  src:url(/fonts/archivo-latin-ext-var.woff2) format('woff2');
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+
+:root{
+  --bord:#3B1116; --bord-lo:#2E0D12; --gold:#E0B772; --gold-lt:#EBCB92; --gold-dp:#7E5C1E;
+  --night:#1A080B; --bone:#EFEAE0; --bone-2:#E4DCCC; --rule:#D8CFBE;
+  --ink:#241014; --muted:#6B5C55;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(--bone);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
+.w{max-width:1120px;margin:0 auto;padding:0 26px}
+.narrow{max-width:790px;margin:0 auto;padding:0 26px}
+
+/* ---------- focus ---------- */
+/* Bordeaux ring on the light grounds (13.71), Bone ring on the dark ones (13.71
+   to 16.17). Both clear the 3.0 non-text minimum with room. */
+:focus-visible{outline:3px solid var(--bord);outline-offset:3px}
+.top :focus-visible,.hero :focus-visible,.notice :focus-visible,footer :focus-visible,.skip:focus-visible{outline-color:var(--bone)}
+.skip{position:absolute;left:-9999px;top:8px;z-index:99;background:var(--gold);color:var(--bord);padding:12px 22px;font-weight:700;font-size:13px;letter-spacing:.09em;text-transform:uppercase;text-decoration:none}
+.skip:focus{left:8px}
+
+/* ---------- top ---------- */
+.top{background:var(--night);color:rgba(239,234,224,.72);font-size:12.5px}
+.top .w{display:flex;justify-content:space-between;align-items:center;height:46px;gap:14px;flex-wrap:wrap}
+.top .tag{letter-spacing:.16em;text-transform:uppercase;font-size:10.5px;color:var(--gold)}
+.top a{color:var(--bone);text-decoration:none;font-weight:600}
+.top a:hover{color:var(--gold-lt)}
+
+/* ---------- hero ---------- */
+.hero{background:var(--bord);color:var(--bone);padding:70px 0 78px;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(120% 90% at 78% 12%,rgba(224,183,114,.12),transparent 62%);pointer-events:none}
+.hero .w{display:grid;grid-template-columns:1fr 340px;gap:64px;align-items:center;position:relative;z-index:1}
+.eyebrow{font-size:10.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:20px}
+.hero h1{font-size:clamp(38px,6.2vw,66px);font-weight:600;line-height:1.04;letter-spacing:-.03em;margin-bottom:22px}
+.hero h1 span{color:var(--gold)}
+.hero .sub{font-size:18px;color:rgba(239,234,224,.78);max-width:44ch;margin-bottom:34px}
+.cta{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.btn{display:inline-block;background:var(--gold);color:var(--bord);font-weight:700;font-size:14px;letter-spacing:.09em;text-transform:uppercase;text-decoration:none;padding:17px 40px;border:0;cursor:pointer;transition:background .15s ease,transform .15s ease}
+.btn:hover{background:var(--gold-lt)}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:3px solid var(--bone);outline-offset:3px}
+.price{font-size:13.5px;color:rgba(239,234,224,.62);line-height:1.4}
+.price b{display:block;color:var(--bone);font-size:17px;font-weight:600}
+.markwrap{display:flex;justify-content:center}
+.markwrap img{width:min(300px,74vw);height:auto;display:block}
+
+/* ---------- proof strip ---------- */
+.strip{background:var(--night);color:var(--bone)}
+.strip .w{display:grid;grid-template-columns:repeat(3,1fr);gap:0}
+.stat{padding:26px 22px;text-align:center;border-right:1px solid rgba(239,234,224,.09)}
+.stat:last-child{border-right:0}
+.stat b{display:block;font-size:23px;font-weight:600;color:var(--gold);letter-spacing:-.01em}
+.stat span{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(239,234,224,.55)}
+
+/* ---------- sections ---------- */
+section{padding:78px 0}
+h2{font-size:clamp(25px,3.4vw,33px);font-weight:600;letter-spacing:-.02em;color:var(--bord);margin-bottom:12px}
+.step .n{color:var(--gold-dp)}
+.lede{color:var(--muted);font-size:16.5px;max-width:58ch;margin-bottom:44px}
+
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:38px;counter-reset:s}
+.step{counter-increment:s}
+.step .n{display:flex;align-items:center;gap:12px;margin-bottom:13px;font-size:13px;font-weight:700;color:var(--gold-dp)}
+.step .n::before{content:"0" counter(s)}
+.step .n::after{content:"";flex:1;height:1px;background:var(--bone-2)}
+.step h3{font-size:18.5px;font-weight:600;color:var(--bord);margin-bottom:7px}
+.step p{font-size:15px;color:var(--muted)}
+
+/* ---------- fees ---------- */
+.fees{background:var(--bone-2)}
+.fees .w{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:start}
+.fees ul{list-style:none;margin-top:26px}
+.fees li{position:relative;padding-left:26px;margin-bottom:13px;font-size:15.5px}
+.fees li::before{content:"";position:absolute;left:0;top:10px;width:9px;height:9px;background:var(--gold-dp)}
+.placard{background:var(--bone);border:1px solid var(--rule);border-top:5px solid var(--bord);padding:30px 32px}
+.placard .cap{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);text-align:center;padding-bottom:16px;border-bottom:1px solid var(--rule)}
+.fr{display:flex;justify-content:space-between;gap:22px;padding:16px 0;border-bottom:1px solid var(--rule)}
+.fr:last-of-type{border-bottom:0}
+.fr .l{font-size:15px}
+.fr .l small{display:block;color:var(--muted);font-size:12.5px;margin-top:3px}
+.fr .a{font-size:19px;font-weight:600;color:var(--bord);white-space:nowrap}
+.placard .cite{margin-top:18px;padding-top:16px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--muted)}
+
+/* ---------- booking ---------- */
+#book .w{text-align:center}
+#book .lede{margin:0 auto 40px}
+.shell{border:1px solid var(--rule);background:var(--bone-2);padding:8px;text-align:left}
+.shell iframe{display:block;width:100%;height:770px;border:0;background:#fff}
+.fallback{font-size:13.5px;color:var(--muted);margin-top:16px}
+.fallback a{color:var(--bord);font-weight:600}
+
+/* ---------- notice ---------- */
+.notice{background:var(--bord);color:rgba(239,234,224,.84);padding:66px 0}
+.notice h2{color:var(--bone);font-size:24px;margin-bottom:22px}
+.notice p{font-size:14.5px;margin-bottom:16px}
+.notice strong{color:var(--bone)}
+
+/* ---------- footer ---------- */
+footer{background:var(--night);color:rgba(239,234,224,.55);padding:44px 0 34px;font-size:12.5px}
+footer .w{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap;align-items:flex-start}
+footer .brandline{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+/* 54px wide is 65px tall. The brand minimum for the full mark is 64px. */
+footer .brandline img{width:54px;height:auto;display:block}
+footer .nm{font-size:15px;font-weight:600;letter-spacing:.28em;color:var(--bone)}
+footer a{color:rgba(239,234,224,.8)}
+footer .legal{max-width:46ch;line-height:1.6}
+
+@media(max-width:900px){
+  .hero .w{grid-template-columns:1fr;gap:44px;text-align:center}
+  .cta{justify-content:center}
+  .hero .sub{margin-left:auto;margin-right:auto}
+  .steps{grid-template-columns:1fr;gap:28px}
+  .fees .w{grid-template-columns:1fr;gap:38px}
+  .strip .w{grid-template-columns:1fr}
+  .stat{border-right:0;border-bottom:1px solid rgba(239,234,224,.09)}
+  .stat:last-child{border-bottom:0}
+  section{padding:58px 0}
+  .shell iframe{height:830px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn{transition:none}}
+</style>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<div class="top"><div class="w">
+  <span class="tag">Commissioned &middot; Bonded &middot; Nationwide</span>
+  <span>Questions? <a href="tel:+17146942423">(714) 694-2423</a></span>
+</div></div>
+
+<header class="hero"><div class="w">
+  <div>
+    <div class="eyebrow">Remote Online Notarization</div>
+    <h1>Get it notarized.<br><span>Don't get up.</span></h1>
+    <p class="sub">Meet a commissioned notary by secure video, verify who you are, and sign. Most sessions are done in under fifteen minutes.</p>
+    <div class="cta">
+      <a href="#book" class="btn" data-va="hero_book">Book a session</a>
+      <span class="price"><b>$25 flat</b>However many signatures. Paid when you book.</span>
+    </div>
+  </div>
+  <div class="markwrap">
+    <!-- The approved mark, unmodified, served as one cacheable vector file
+         instead of ~197KB of inline path data in every HTML response. -->
+    <img src="/mark-gold.svg" width="544" height="656" alt="Notaryous" fetchpriority="high" decoding="async">
+  </div>
+</div></header>
+
+<main id="main">
+
+<div class="strip"><div class="w">
+  <div class="stat"><b>15 minutes</b><span>Typical session</span></div>
+  <div class="stat"><b>$25 flat</b><span>No per signature fees</span></div>
+  <div class="stat"><b>Anywhere</b><span>All 50 states</span></div>
+</div></div>
+
+<section><div class="w">
+  <h2>How a session works</h2>
+  <p class="lede">Everything happens online. You need a device with a camera, a decent connection, and your unexpired government issued photo ID.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="n"></div>
+      <h3>Book and pay</h3>
+      <p>Pick a time on the calendar below and pay the $25 session fee in the same step. A confirmation lands in your inbox with your session link.</p>
+    </div>
+    <div class="step">
+      <div class="n"></div>
+      <h3>Prove it's you</h3>
+      <p>Before the session you photograph your ID and answer a short set of identity questions. Online notarization requires this by law.</p>
+    </div>
+    <div class="step">
+      <div class="n"></div>
+      <h3>Sign on video</h3>
+      <p>Join at your appointment time. Your notary reviews the document with you, you sign electronically, and the sealed file is emailed back.</p>
+    </div>
+  </div>
+</div></section>
+
+<section class="fees" id="fees"><div class="w">
+  <div>
+    <h2>Posted fee schedule</h2>
+    <p class="lede" style="margin-bottom:0">Notaries are required to post their fees. Here are ours, charged when you book. No travel charges, no rush fees, no per signature charges, and nothing billed afterward.</p>
+    <ul>
+      <li>One price per session, no matter how many times you sign</li>
+      <li>Collected at scheduling, never after</li>
+      <li>If the session can't be completed, you're refunded</li>
+    </ul>
+  </div>
+  <div class="placard">
+    <div class="cap">Schedule of Fees</div>
+    <div class="fr">
+      <span class="l">Remote online notarization session<small>Covers the notarial act, the session, and every signature in it</small></span>
+      <span class="a">$25.00</span>
+    </div>
+    <div class="fr">
+      <span class="l">Additional signatures<small>Any number, same session</small></span>
+      <span class="a">Included</span>
+    </div>
+    <p class="cite">Notarial fees are capped by statute in the state where the notary is commissioned. Our flat rate is at or below every applicable maximum, and a notary may always charge less than the maximum.</p>
+  </div>
+</div></section>
+
+<section id="book"><div class="w">
+  <h2>Book your session</h2>
+  <p class="lede">Pick a time. Payment is completed as part of booking.</p>
+  <div class="shell">
+    <iframe id="booking" title="Schedule a remote online notarization session" src="https://john-guardianlit.zohobookings.com/portal-embed?source=notaryous-site#/4049985000012228002" loading="lazy" allowfullscreen></iframe>
+  </div>
+  <p class="fallback">Calendar not loading? <a href="https://john-guardianlit.zohobookings.com/portal-embed?source=notaryous-site-fallback#/4049985000012228002" target="_blank" rel="noopener" data-va="fallback_link">Open the scheduling page in a new tab</a>.</p>
+</div></section>
+
+<section class="notice"><div class="narrow">
+  <h2>Read this before you book</h2>
+  <p><strong>This is a notarial service only.</strong> A notary verifies who you are and witnesses your signature. A notary does not read your document for accuracy, explain what it means, tell you whether to sign it, or prepare it for you.</p>
+  <p><strong>No legal advice, no attorney client relationship.</strong> Booking a notarization does not make you a client of any law firm, and nothing here is legal advice. If you need legal help, arrange representation separately.</p>
+  <p><strong>Our notaries are commissioned online notaries public</strong> and may serve signers located anywhere in the United States. Some documents and some receiving parties do not accept electronic notarization. Check with whoever is receiving your document before you book.</p>
+  <p><strong>What we will not notarize.</strong> Vital records such as birth, death, or marriage certificates. Documents where you cannot present valid unexpired government issued photo identification. Any document where the signer does not appear to understand what they are signing or is not signing willingly.</p>
+</div></section>
+
+</main>
+
+<footer><div class="w">
+  <div>
+    <div class="brandline">
+      <img src="/mark-gold.svg" width="544" height="656" alt="" aria-hidden="true" loading="lazy" decoding="async">
+      <span class="nm">NOTARYOUS</span>
+    </div>
+    <p><a href="tel:+17146942423">(714) 694-2423</a></p>
+    <p style="margin-top:8px">&copy; 2026 Notaryous. All rights reserved.</p>
+  </div>
+  <p class="legal">Notaryous is a registered trade name of Guardian Litigation Group, LLP, 17850 Fitch, Irvine, CA 92614. Notarial services are performed by commissioned notaries public. Notaryous does not provide legal advice and no attorney client relationship is created by booking a notarization.</p>
+</div></footer>
+
+<!-- Vercel Web Analytics. Cookieless and no persistent identifier, so no consent
+     banner is required. Custom events carry no personal data. -->
+<script>
+window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};
+(function(){
+  var sent={};
+  function track(name,data){ if(sent[name])return; sent[name]=1; window.va('event',{name:name,data:data||{}}); }
+  function trackRepeat(name,data){ window.va('event',{name:name,data:data||{}}); }
+
+  // 1. Booking intent. The hero button and the new-tab fallback link.
+  document.addEventListener('click',function(e){
+    var el=e.target.closest&&e.target.closest('[data-va]');
+    if(el) trackRepeat('booking_click',{placement:el.getAttribute('data-va')});
+  },{passive:true});
+
+  // 2. The scheduler actually rendered. If this lags booking_click badly,
+  //    the embed is failing for real users.
+  var f=document.getElementById('booking');
+  if(f) f.addEventListener('load',function(){ track('booking_iframe_load'); },{once:true});
+
+  // 3. Did they reach the posted fee schedule before booking?
+  var fees=document.getElementById('fees');
+  if(fees&&'IntersectionObserver'in window){
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(en){ if(en.isIntersecting){ track('scroll_reached_fees'); io.disconnect(); } });
+    },{threshold:.25});
+    io.observe(fees);
+  }
+})();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+
+</body>
+</html>

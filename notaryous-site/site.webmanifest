@@ -1,0 +1,14 @@
+{
+  "name": "Notaryous",
+  "short_name": "Notaryous",
+  "description": "Remote online notarization. $25 flat per session, however many signatures.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#3B1116",
+  "background_color": "#3B1116",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
