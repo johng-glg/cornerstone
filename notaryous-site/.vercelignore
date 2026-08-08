@@ -2,3 +2,12 @@
 # deploy links to them. Keeping them out of the deployment avoids publishing
 # brand-sheet.html and ~6MB of unused artwork.
 brand/
+
+# Vercel turns every .mjs under api/ into a public serverless function, so a
+# test file left there would deploy as /api/availability.test — a route with no
+# default export, reachable from the internet. Tests are excluded everywhere
+# rather than only under api/, so this cannot regress by someone adding one.
+*.test.mjs
+db/
+docs/
+

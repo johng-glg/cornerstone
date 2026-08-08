@@ -11,6 +11,9 @@
  * should be one env var away from fixed, not a redeploy.
  */
 
+import { parseStaffIds, parseSlotInstants } from '../lib/zoho-bookings.mjs';
+import { zohoDate, isoDateInZone } from '../lib/zoho-datetime.mjs';
+
 const env = (k, fallback) => process.env[k] ?? fallback;
 
 export const CONFIG = {
@@ -21,16 +24,27 @@ export const CONFIG = {
   // a manual override, and the literal is only a last resort.
   bookingsHost: () => env('ZOHO_API_DOMAIN', env('ZOHO_API_HOST', 'https://www.zohoapis.com')),
   bookingsBase: () => env('ZOHO_BOOKINGS_BASE', '/bookings/v1/json'),
+  staffPath: () => env('ZOHO_STAFF_PATH', '/staffs'),
+  availabilityPath: () => env('ZOHO_AVAILABILITY_PATH', '/availableslots'),
   paymentsHost: () => env('ZOHO_PAYMENTS_HOST', 'https://payments.zoho.com'),
   serviceId: () => env('ZOHO_SERVICE_ID'),
+  // OPTIONAL, and step-0 only. See resolveStaffIds() below: production
+  // discovers the service's staff and must not depend on one hardcoded notary.
   staffId: () => env('ZOHO_STAFF_ID'),
   paymentsAccountId: () => env('ZOHO_PAYMENTS_ACCOUNT_ID'),
   orgTimezone: () => env('ZOHO_ORG_TIMEZONE', 'America/Los_Angeles'),
 };
 
-/** Env vars each check needs, so the UI can say what is missing instead of 500ing. */
+/**
+ * Env vars each check needs, so the UI can say what is missing instead of 500ing.
+ *
+ * ZOHO_STAFF_ID is deliberately NOT here. It was, and that made a single notary
+ * a hard dependency of every booking path — the service would have gone down
+ * the day that person left, and a second notary would have added no capacity.
+ * It survives only as an override for pinning step 0 at a known staff record.
+ */
 export const REQUIRED = {
-  bookings: ['ZOHO_CLIENT_ID', 'ZOHO_CLIENT_SECRET', 'ZOHO_REFRESH_TOKEN', 'ZOHO_SERVICE_ID', 'ZOHO_STAFF_ID'],
+  bookings: ['ZOHO_CLIENT_ID', 'ZOHO_CLIENT_SECRET', 'ZOHO_REFRESH_TOKEN', 'ZOHO_SERVICE_ID'],
   payments: ['ZOHO_PAYMENTS_CLIENT_ID', 'ZOHO_PAYMENTS_CLIENT_SECRET', 'ZOHO_PAYMENTS_REFRESH_TOKEN', 'ZOHO_PAYMENTS_ACCOUNT_ID'],
 };
 
@@ -115,6 +129,80 @@ export function bookingsPostForm(path, fields) {
     fd.append(k, typeof v === 'string' ? v : JSON.stringify(v));
   }
   return callWithAuth('bookings', bookingsUrl(path), { method: 'POST', body: fd });
+}
+
+/**
+ * Every staff id that can take this service.
+ *
+ * ZOHO_STAFF_ID, if set, wins — that is its whole remaining job, pinning step 0
+ * to one known record. It accepts a comma-separated list so a diagnostic can
+ * exercise the multi-staff path without touching the account.
+ *
+ * Otherwise the list comes from Zoho. It is cached for STAFF_TTL because a
+ * fortnight of availability is one lookup plus one call per staff per day, and
+ * the roster changes on the order of months. Cache misses are cheap; a stale
+ * roster for five minutes is a notary who joined five minutes ago, which is not
+ * a real failure mode. An empty roster is NEVER cached — that is the shape of a
+ * transient failure, and caching it would blank the calendar for five minutes.
+ *
+ * @returns {Promise<{staff: string[], source: 'env'|'zoho', status?: number, raw?: unknown}>}
+ */
+const STAFF_TTL = 5 * 60_000;
+let staffCache = null;
+
+export async function resolveStaffIds({ force = false } = {}) {
+  const pinned = CONFIG.staffId();
+  if (pinned) {
+    const staff = String(pinned).split(',').map((s) => s.trim()).filter(Boolean);
+    if (staff.length) return { staff, source: 'env' };
+  }
+  const serviceId = CONFIG.serviceId();
+  if (!serviceId) return { staff: [], source: 'zoho', error: 'ZOHO_SERVICE_ID is not set' };
+
+  if (!force && staffCache && staffCache.serviceId === serviceId && staffCache.expiresAt > Date.now()) {
+    return { staff: staffCache.staff, source: 'zoho', cached: true };
+  }
+  const res = await bookingsGet(CONFIG.staffPath(), { service_id: serviceId });
+  const staff = parseStaffIds(res.json);
+  if (!res.ok || !staff.length) {
+    return {
+      staff: [],
+      source: 'zoho',
+      status: res.status,
+      error: res.ok
+        ? 'Zoho returned no staff for this service. Check the service id, and that at least one staff record is assigned to it.'
+        : `Fetch Staff returned HTTP ${res.status}.`,
+      raw: res.json ?? res.raw,
+    };
+  }
+  staffCache = { serviceId, staff, expiresAt: Date.now() + STAFF_TTL };
+  return { staff, source: 'zoho' };
+}
+
+/** Test seam and a way to drop the roster cache after a staffing change. */
+export function clearStaffCache() { staffCache = null; }
+
+/**
+ * One staff member's free times on one date, as UTC ISO instants.
+ *
+ * @param {string} staffId
+ * @param {Date} dayInstant any instant inside the wanted day
+ * @param {string} timeZone the zone the date and the returned times are read in
+ */
+export async function fetchStaffAvailability(staffId, dayInstant, timeZone) {
+  const res = await bookingsGet(CONFIG.availabilityPath(), {
+    service_id: CONFIG.serviceId(),
+    staff_id: staffId,
+    selected_date: zohoDate(dayInstant, timeZone),
+  });
+  if (!res.ok) {
+    return { instants: [], unparsed: [], ok: false, status: res.status, raw: res.json ?? res.raw };
+  }
+  const { instants, unparsed } = parseSlotInstants(res.json, {
+    date: isoDateInZone(dayInstant, timeZone),
+    timeZone,
+  });
+  return { instants, unparsed, ok: true, status: res.status };
 }
 
 export function paymentsPost(path, body) {

@@ -13,6 +13,8 @@
  * content for a screen reader to read twice.
  */
 
+import { fromResponse } from './availability.mjs';
+
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /** Common US zones first, then whatever the browser reports if it is not listed. */
@@ -120,6 +122,19 @@ export function fixtureSlots(fromDate, days, tz) {
   return out;
 }
 
+/**
+ * Availability, as a list of times.
+ *
+ * The response tags each time with which notaries are free at it. The page
+ * deliberately ignores that tagging and never sends a staff id back: the server
+ * picks the notary at booking time, from the same holds table it used to work
+ * out who was free. A client-chosen notary would be a way to book someone
+ * another checkout is already holding, and the signer has no reason to care
+ * which of several equally-qualified notaries takes the session.
+ *
+ * Parsing goes through fromResponse so the page works against a server that
+ * sends only `slots` as well as one that sends the tags.
+ */
 async function loadAvailability(from, to) {
   const url = `/api/availability?from=${encodeURIComponent(from.toISOString())}` +
               `&to=${encodeURIComponent(to.toISOString())}`;
@@ -128,7 +143,7 @@ async function loadAvailability(from, to) {
   if (!res.ok) throw new Error(`availability ${res.status}`);
   const body = await res.json();
   if (!Array.isArray(body.slots)) throw new Error('availability: malformed response');
-  return { fixture: false, slots: body.slots };
+  return { fixture: false, slots: fromResponse(body).map((s) => s.start) };
 }
 
 function groupByDay(isoSlots, tz, fromDate, days) {

@@ -20,7 +20,7 @@ Check it before every commit on this workstream:
 | Build step | State |
 |---|---|
 | 0. The four answers | **runnable by you** — `/step0` is built, see below |
-| 1. Zoho auth + token refresh + `/api/availability` | blocked on credentials |
+| 1. Zoho auth + token refresh + `/api/availability` | **built, verified against stubs** — needs credentials to run for real |
 | 2. Payments session + widget + server confirm + webhook | blocked on credentials |
 | 3. `bookings` table | **done, verified** |
 | 4. Happy path in sandbox | blocked |
@@ -32,8 +32,16 @@ Check it before every commit on this workstream:
 | 9–11. Cutover | not started |
 
 Shipped so far: `db/001_bookings.sql`, `db/002_slot_holds.sql`,
-`db/003_refund_tracking.sql`, `lib/zoho-datetime.mjs` + 19 passing tests,
+`db/003_refund_tracking.sql`, `db/004_staff.sql`, `lib/zoho-datetime.mjs` (19 tests),
+`lib/availability.mjs` (20 tests), `lib/zoho-bookings.mjs` (17 tests),
+`api/availability.mjs` (17 tests), `api/_zoho.mjs`, `api/_db.mjs`,
 `book-beta.html` + `lib/calendar.mjs`.
+
+73 tests, all passing, no dependencies:
+
+```
+node --test lib/*.test.mjs api/*.test.mjs
+```
 
 ---
 
@@ -133,6 +141,63 @@ trap; it is worse than it looks, and the tests pin each one:
   the reason everything is derived from a UTC instant rather than round-tripped through
   the string.
 
+### 4. `staff_id` is optional everywhere, and holds are per-notary
+
+The spec had `ZOHO_STAFF_ID` as a required environment variable and every call carrying
+it. That made one person a hard dependency of the whole service: they leave and booking
+stops, and a second notary adds no capacity because nothing would ever ask for their
+diary. `ZOHO_STAFF_ID` is now an **override for `/step0` only** — it pins the probes to
+one known calendar. It is not in `REQUIRED.bookings`, and production should run without
+it so a staffing change needs no deploy.
+
+**How availability works now.** `/api/availability` resolves the service's staff from
+Zoho, asks each of them for their diary, and unions the results. Each time is tagged
+with who is free at it:
+
+```json
+{
+  "slots": ["2026-09-01T17:00:00.000Z", "2026-09-01T18:00:00.000Z"],
+  "staff": {
+    "2026-09-01T17:00:00.000Z": ["ada", "grace"],
+    "2026-09-01T18:00:00.000Z": ["grace"]
+  },
+  "staff_count": 2
+}
+```
+
+`slots` stays a flat array of ISO strings so an older client keeps working; `staff` is
+additive. `staff_id` survives as an optional *filter* for looking at one diary.
+
+**The thing that is easy to get wrong.** A hold is against one staff member, not against
+a time. If Ada is held for 11:00 and Grace is free at 11:00, 11:00 is still bookable.
+Subtracting holds at the time level — the obvious implementation — silently deletes
+capacity: with three notaries it throws away two thirds of the diary the moment anyone
+opens a checkout, and it presents as "we're just busy". So holds are subtracted from a
+slot's *staff list* and the slot disappears only when that list empties. There is a test
+named for it in `lib/availability.test.mjs`, and the same case again at route level in
+`api/availability.test.mjs`.
+
+**Choosing the notary is the server's job.** The page never sends a staff id.
+`pickStaff()` takes whoever has the fewest live holds, breaking ties on a rotation keyed
+by the slot's own timestamp — deterministic, so it is testable, but still spread across
+the roster. A client-chosen notary would be a way to book someone another checkout is
+already holding.
+
+**Empty is never published as empty.** Three failures used to look identical to a
+customer — no staff resolved, every Zoho call erroring, and a response format we can no
+longer parse all render as a blank fortnight, which reads as normal business. Each is
+now a distinct 502 (`no_staff`, `upstream`, `unreadable_availability`). Only a genuinely
+free-of-slots diary returns 200 with `slots: []`. `parseSlotInstants` returns what it
+could not understand alongside what it could, so "the format moved" is detectable rather
+than indistinguishable from "nobody is free".
+
+**`db/004_staff.sql`** adds `bookings.staff_id`, a check that a `booked` row names a
+notary, and a partial unique index on `(slot_start_utc, staff_id) where status in
+('paid','booked')`. Verified against PostgreSQL 18: same slot different notary is
+allowed, same slot same notary is rejected, and a refund frees it again. Unlike the
+`slot_holds` predicate in finding 1 this one is legal — `status` and `staff_id` are
+columns, so the predicate is IMMUTABLE.
+
 ---
 
 ## Settled since the first increment
@@ -230,8 +295,10 @@ which ones are missing rather than returning a 500.
 | `STEP0_TOKEN` | the gate | Any long random string. **Unset it to disable the whole route.** |
 | `ZOHO_CLIENT_ID` / `_SECRET` / `_REFRESH_TOKEN` | Bookings | From step 0.0. Dedicated service user, not John's admin account |
 | `ZOHO_API_DOMAIN` | all Zoho calls | From the token response. Overrides `ZOHO_API_HOST`; never hardcode a region URL |
-| `ZOHO_SERVICE_ID`, `ZOHO_STAFF_ID` | Bookings | The RON service and the beta staff record |
+| `ZOHO_SERVICE_ID` | Bookings | The RON service. Required |
+| `ZOHO_STAFF_ID` | **step 0 only, optional** | Pins the probes to one known calendar. Leave it unset to exercise the production path, which discovers staff from the service. Accepts a comma-separated list. **Do not set it in production** — see finding 4 |
 | `ZOHO_ORG_TIMEZONE` | check 2 | Defaults to `America/Los_Angeles`. Must be the org's real zone or the probe is meaningless |
+| `ZOHO_STAFF_PATH`, `ZOHO_AVAILABILITY_PATH` | overrides | Default `/staffs` and `/availableslots`. Change these rather than the code if Zoho names them differently on this account |
 | `ZOHO_PAYMENTS_CLIENT_ID` / `_SECRET` / `_REFRESH_TOKEN` / `_ACCOUNT_ID` | check 3 | Sandbox has its own account id |
 | `ZOHO_ACCOUNTS_HOST`, `ZOHO_API_HOST`, `ZOHO_BOOKINGS_BASE`, `ZOHO_PAYMENTS_HOST` | overrides | Defaults are the documented ones. The point of step 0 is that we do not yet know they are right — a wrong guess should be one env var away from fixed |
 | `STEP0_TEST_EMAIL` | optional | Where test confirmations land. Defaults to `step0-test@guardianlit.com` |
@@ -258,6 +325,7 @@ afterwards, and the page says so rather than implying an answer it does not have
 
 | Check | Machine-answerable? |
 |---|---|
+| 0b. Who can take this service | **Yes.** Reads only, books nothing. Run it first: if staff discovery returns nothing, `/api/availability` answers 502 rather than publishing an empty fortnight, and the checks below have no calendar to book against |
 | 1. Flow fires on API-created appointments | **No.** It creates the appointment and reports the booking id. This service has no BlueNotary access, so you check BlueNotary |
 | 2. `from_time` zone semantics | **Yes.** Books at 11:00 declaring a non-org zone, reads it back, and compares `start_time` against `customer_booking_start_time` |
 | 3. Payment session lifetime | **Partly.** Creates a session and surfaces any field matching `expir\|ttl\|valid\|timeout`. If Zoho returns none, the lifetime has to be measured — "Re-check this session" is there for that |
@@ -274,29 +342,44 @@ the cancel goes to the right one.
 - [ ] Unset `STEP0_TOKEN` in Vercel — immediate kill, no deploy needed
 - [ ] Delete `step0.html`, `api/step0.mjs`, `api/step0-exchange.mjs`, the `/step0`
       block in `vercel.json`, and this section
+- [ ] **Unset `ZOHO_STAFF_ID`** — it exists for this page only. Left set, production
+      pins every booking to one notary and the multi-staff path is never exercised;
+      run check 0b with it unset first to confirm discovery works
 - [ ] Keep `ZOHO_API_DOMAIN` — it is production config, not step 0 scaffolding
-- [ ] Keep `api/_zoho.mjs` — the token cache and request helpers are what
-      `/api/availability` and `/api/checkout` are built on
+- [ ] Keep `api/_zoho.mjs` — the token cache, staff discovery and request helpers are
+      what `/api/availability` and `/api/checkout` are built on
+- [ ] Keep `lib/zoho-bookings.mjs` — the response parsers are production code; step 0
+      only shares `parseBookingId` with them
 
 ## Applying the schema
 
 ```
 supabase db execute -f db/001_bookings.sql
 supabase db execute -f db/002_slot_holds.sql
+supabase db execute -f db/003_refund_tracking.sql
+supabase db execute -f db/004_staff.sql
 ```
 
-Both are idempotent — safe to re-run. Both tables have RLS enabled with no policies:
+In order, and all four are idempotent — safe to re-run. Both tables have RLS enabled
+with no policies:
 anon and authenticated read nothing, the serverless functions use the service role key
 which bypasses RLS. `bookings` holds customer names, emails and phone numbers, so a
 leaked publishable key must not read it.
 
-## Running the formatter tests
+## Running the tests
 
 ```
-node --test lib/zoho-datetime.test.mjs
+node --test lib/*.test.mjs api/*.test.mjs
 ```
 
-No dependencies, no build step. Run these before any change to `from_time` handling.
+73 tests, no dependencies, no build step. `api/availability.test.mjs` stubs `fetch`, so
+it exercises the whole route — staff discovery, per-staff availability, hold subtraction
+— without reaching Zoho or Supabase. Run these before any change to `from_time`
+handling, to how availability is combined, or to who gets picked for a slot.
+
+Test files are excluded from the deploy in `.vercelignore`: Vercel turns every `.mjs`
+under `api/` into a public serverless function, so `api/availability.test.mjs` would
+otherwise ship as a route.
 
 ---
 
@@ -343,8 +426,22 @@ bad field. No tap target under 44px, no horizontal overflow from 320px up.
 
 ## Next increment
 
-1. `/api/availability` with the Zoho token cache, written against the documented shapes
-   and unit-tested with recorded fixtures, so it is ready the moment credentials exist.
-2. `/api/checkout` — claim the hold, then create the payment session, in that order.
-3. The payment confirmation handler and the refund paths, all of which need step 0's
+1. **`/api/checkout`** — claim the hold, then create the payment session, in that order.
+   Staff selection is the part that is ready: it re-reads live holds, calls
+   `pickStaff()` on the chosen slot, and claims against that specific notary, so two
+   people checking out for 11:00 get different notaries rather than a 409. It only
+   returns 409 when every notary on the slot is taken. The rest of the route is held
+   back on step 0's answer about payment session lifetime — that sets the hold TTL, and
+   guessing it is what turns a slow customer into a refund.
+2. The payment confirmation handler and the refund paths, all of which need step 0's
    answers before they can be finished.
+3. Reconciliation: "paid for >15 minutes with no `zoho_booking_id`" is already indexed
+   for in `001`.
+
+**Not verified against Zoho, and cannot be from here.** Everything in
+`lib/zoho-bookings.mjs` is written against the documented response shapes, which vary
+between Zoho's own API versions. The parsers accept every shape they are documented to
+return rather than betting on one, and they report what they could not read instead of
+returning an empty list — but the first real call is still the first real test.
+`ZOHO_STAFF_PATH` and `ZOHO_AVAILABILITY_PATH` exist so a wrong path is an environment
+variable away from fixed rather than a deploy.

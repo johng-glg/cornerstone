@@ -13,9 +13,10 @@
 
 import {
   CONFIG, REQUIRED, missingEnv, bookingsGet, bookingsPostForm,
-  paymentsPost, paymentsGet, tokenMatches, redact,
+  paymentsPost, paymentsGet, tokenMatches, redact, resolveStaffIds,
 } from './_zoho.mjs';
 import { zohoFromTime, zohoDate } from '../lib/zoho-datetime.mjs';
+import { parseBookingId } from '../lib/zoho-bookings.mjs';
 
 const TEST_CUSTOMER = {
   name: 'STEP0 TEST — do not attend',
@@ -35,6 +36,34 @@ function probeInstant() {
 
 const ok = (answer, detail, raw, extra = {}) => ({ answer, detail, raw: redact(raw), ...extra });
 
+/**
+ * Which notary the probes book against.
+ *
+ * ZOHO_STAFF_ID is honoured if set — that is now its only job, pinning these
+ * probes to one known record so a test appointment always lands on the same
+ * calendar. Unset, this resolves the service's roster the same way
+ * /api/availability does, which means the checks exercise the production path
+ * rather than a configuration that production no longer uses.
+ */
+async function probeStaff() {
+  const roster = await resolveStaffIds();
+  if (!roster.staff.length) {
+    return { id: null, error: roster.error || 'No staff could be resolved for this service.', roster };
+  }
+  return { id: roster.staff[0], roster };
+}
+
+/** Same shape for every check that cannot get a notary to book against. */
+const noStaff = (staff) => ok('Cannot run — no staff resolved',
+  `${staff.error} ZOHO_SERVICE_ID must name a service with at least one staff record assigned. ` +
+  'Set ZOHO_STAFF_ID to pin these probes to one notary if you would rather not depend on discovery here — ' +
+  'it is an override for this page only, and production ignores it.',
+  staff.roster?.raw ?? null);
+
+/** The line every booking check prints, so it is never a mystery who was booked. */
+const bookedAs = (staff) =>
+  `Booked against staff ${staff.id} (${staff.roster.source === 'env' ? 'pinned by ZOHO_STAFF_ID' : 'first of ' + staff.roster.staff.length + ' resolved from the service'}). `;
+
 // ---------------------------------------------------------------------------
 // Q1 — does the BlueNotary Flow fire on an API-created appointment?
 // ---------------------------------------------------------------------------
@@ -42,11 +71,14 @@ async function checkFlow() {
   const miss = missingEnv(REQUIRED.bookings);
   if (miss.length) return ok('Cannot run', `Missing environment variables: ${miss.join(', ')}`, null);
 
+  const staff = await probeStaff();
+  if (!staff.id) return noStaff(staff);
+
   const when = probeInstant();
   const from_time = zohoFromTime(when, CONFIG.orgTimezone());
   const res = await bookingsPostForm('/appointment', {
     service_id: CONFIG.serviceId(),
-    staff_id: CONFIG.staffId(),
+    staff_id: staff.id,
     from_time,
     timezone: CONFIG.orgTimezone(),
     customer_details: TEST_CUSTOMER,
@@ -54,24 +86,57 @@ async function checkFlow() {
     notes: 'STEP0 diagnostic — created by /api/step0, safe to cancel',
   });
 
-  const booking = res.json?.response?.returnvalue ?? res.json?.data ?? null;
-  const bookingId = booking?.booking_id ?? booking?.booking_ids?.[0] ?? null;
+  const bookingId = parseBookingId(res.json);
 
   if (!res.ok || !bookingId) {
     return ok('FAILED — no appointment was created',
       `Book Appointment returned HTTP ${res.status}. Nothing was booked, so there is nothing to cancel. ` +
-      'Check service_id, staff_id, the OAuth scope zohobookings.data.CREATE, and that from_time matches ' +
-      `the dd-MMM-yyyy HH:mm:ss format — we sent "${from_time}".`,
-      res.json ?? res.raw, { bookingId: null, sent: { from_time, timezone: CONFIG.orgTimezone() } });
+      `${bookedAs(staff)}Check service_id, the OAuth scope zohobookings.data.CREATE, and that from_time ` +
+      `matches the dd-MMM-yyyy HH:mm:ss format — we sent "${from_time}".`,
+      res.json ?? res.raw,
+      { bookingId: null, staff: staff.id, sent: { from_time, timezone: CONFIG.orgTimezone() } });
   }
 
   return ok('Appointment created — now check BlueNotary by hand',
-    `Booking ${bookingId} was created for ${from_time} (${CONFIG.orgTimezone()}). ` +
+    `Booking ${bookingId} was created for ${from_time} (${CONFIG.orgTimezone()}). ${bookedAs(staff)}` +
     'This service has no BlueNotary access, so it cannot confirm the Flow fired — open BlueNotary and look ' +
     `for a session against this appointment. If one exists, Flow fires on API-created appointments and the ` +
     'build proceeds unchanged. If not, the payment confirmation handler must call the Flow webhook itself. ' +
     'Either way, cancel this booking below when you are done.',
-    res.json, { bookingId, sent: { from_time, timezone: CONFIG.orgTimezone() } });
+    res.json, { bookingId, staff: staff.id, sent: { from_time, timezone: CONFIG.orgTimezone() } });
+}
+
+// ---------------------------------------------------------------------------
+// Roster — who can actually take this service?
+// ---------------------------------------------------------------------------
+// Not one of the four questions, but the one that has to be right before any of
+// them mean anything: production discovers staff instead of reading
+// ZOHO_STAFF_ID, and if discovery returns nothing the calendar is empty for
+// reasons that look exactly like "no availability".
+async function checkStaff() {
+  const miss = missingEnv(REQUIRED.bookings);
+  if (miss.length) return ok('Cannot run', `Missing environment variables: ${miss.join(', ')}`, null);
+
+  const roster = await resolveStaffIds({ force: true });
+  if (!roster.staff.length) {
+    return ok('FAILED — no staff resolved',
+      `${roster.error} Until this returns at least one staff id, /api/availability answers 502 rather than ` +
+      'publishing an empty fortnight. Check that ZOHO_SERVICE_ID is the RON service and that staff are ' +
+      `assigned to it. The endpoint tried was ${CONFIG.staffPath()}?service_id=… — if Zoho names it something ` +
+      'else on this account, set ZOHO_STAFF_PATH rather than editing code.',
+      roster.raw ?? null, { staff: [] });
+  }
+  const pinned = roster.source === 'env';
+  return ok(
+    pinned ? `Pinned to ${roster.staff.length} staff by ZOHO_STAFF_ID` : `${roster.staff.length} staff resolved from the service`,
+    pinned
+      ? `ZOHO_STAFF_ID is set to "${CONFIG.staffId()}", so discovery was skipped. That override exists for this ` +
+        'page only — /api/availability and /api/checkout ignore nothing, but production should run with it unset ' +
+        'so a notary joining or leaving needs no deploy. Unset it and run this check again to confirm discovery works.'
+      : 'Availability will be the union of these diaries, and checkout picks between whoever is free at the ' +
+        'chosen time. Confirm the list matches the notaries who should be taking RON appointments — an extra ' +
+        'name here means someone gets booked who did not expect it.',
+    roster.raw ?? null, { staff: roster.staff, source: roster.source });
 }
 
 // ---------------------------------------------------------------------------
@@ -84,13 +149,16 @@ async function checkTimezone() {
   // Book at 11:00 wall-clock while DECLARING a non-org zone. If Zoho honours
   // the timezone field, 11:00 Eastern is 08:00 Pacific. If it ignores it and
   // reads the org zone, the appointment lands at 11:00 Pacific.
+  const staff = await probeStaff();
+  if (!staff.id) return noStaff(staff);
+
   const probeZone = CONFIG.orgTimezone() === 'America/New_York' ? 'America/Chicago' : 'America/New_York';
   const when = probeInstant();
   const from_time = `${zohoDate(when, probeZone)} 11:00:00`;
 
   const created = await bookingsPostForm('/appointment', {
     service_id: CONFIG.serviceId(),
-    staff_id: CONFIG.staffId(),
+    staff_id: staff.id,
     from_time,
     timezone: probeZone,
     customer_details: { ...TEST_CUSTOMER, name: 'STEP0 TZ TEST — do not attend' },
@@ -98,8 +166,7 @@ async function checkTimezone() {
     notes: 'STEP0 timezone probe — created by /api/step0, safe to cancel',
   });
 
-  const booking = created.json?.response?.returnvalue ?? created.json?.data ?? null;
-  const bookingId = booking?.booking_id ?? booking?.booking_ids?.[0] ?? null;
+  const bookingId = parseBookingId(created.json);
   if (!created.ok || !bookingId) {
     return ok('Cannot run — the probe booking failed',
       `Book Appointment returned HTTP ${created.status}. Run the Flow check first; it reports the same error in more detail.`,
@@ -133,7 +200,7 @@ async function checkTimezone() {
   }
 
   return ok(answer, detail, { created: created.json, read: read.json },
-    { bookingId, sent: { from_time, timezone: probeZone, orgTimezone: CONFIG.orgTimezone() } });
+    { bookingId, staff: staff.id, sent: { from_time, timezone: probeZone, orgTimezone: CONFIG.orgTimezone() } });
 }
 
 // ---------------------------------------------------------------------------
@@ -262,6 +329,7 @@ export default async function handler(req, res) {
   try {
     let out;
     switch (check) {
+      case 'staff':           out = await checkStaff(); break;
       case 'flow':            out = await checkFlow(); break;
       case 'timezone':        out = await checkTimezone(); break;
       case 'payment_session': out = await checkPaymentSession(); break;
