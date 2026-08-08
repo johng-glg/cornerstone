@@ -120,9 +120,13 @@ body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(
 }
 
 /* ---------- hero ---------- */
+/* Flat Bordeaux. The gradient that used to sit here was
+   radial-gradient(120% 90% at 78% 12%, …) — a 90%-tall ellipse centred at 12%,
+   so its edge landed at 57% of the hero height and read as a horizontal seam
+   about halfway down. Rather than resize it, it is gone: brand/README.md bars
+   gradients and glows outright, so flat is also the compliant answer. */
 .hero{background:var(--bord);color:var(--bone);padding:70px 0 78px;position:relative;overflow:hidden}
-.hero::after{content:"";position:absolute;inset:0;background:radial-gradient(120% 90% at 78% 12%,rgba(224,183,114,.12),transparent 62%);pointer-events:none}
-.hero .w{display:grid;grid-template-columns:1fr 340px;gap:64px;align-items:center;position:relative;z-index:1}
+.hero .w{display:grid;grid-template-columns:1fr 340px;column-gap:64px;row-gap:0;align-items:start;position:relative;z-index:1}
 .eyebrow{font-size:10.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:20px}
 .hero h1{font-size:clamp(38px,6.2vw,66px);font-weight:600;line-height:1.04;letter-spacing:-.03em;margin-bottom:22px}
 .hero h1 span{color:var(--gold)}
@@ -134,10 +138,32 @@ body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(
 .btn:focus-visible{outline:3px solid var(--bone);outline-offset:3px}
 .price{font-size:13.5px;color:rgba(239,234,224,.62);line-height:1.4}
 .price b{display:block;color:var(--bone);font-size:17px;font-weight:600}
+/* Third line. Inherits .price's muted colour and size — rgba(bone,.62) on
+   Bordeaux is 5.98. Kept at every breakpoint: below 900px .top is hidden, and
+   this is the only place these three words still appear above the fold. */
+.price .trust{display:block;margin-top:6px}
+
 /* No wordmark under the hero mark: the masthead names the brand a few inches
    above it, and repeating it here just doubles the word on one screen. */
 .markwrap{display:flex;justify-content:center}
 .markwrap img{width:min(300px,74vw);height:auto;display:block}
+
+/* Desktop only: place the hero on an explicit 3-row grid so the mark can be
+   centred against the HEADLINE row rather than the whole text column.
+   .markwrap is given zero height so it does not stretch that row — the image
+   is absolutely centred on the row's midpoint instead. */
+@media(min-width:901px){
+  .headline{grid-column:1;grid-row:1}
+  .hero .sub{grid-column:1;grid-row:2}
+  .cta{grid-column:1;grid-row:3}
+  .markwrap{grid-column:2;grid-row:1;align-self:center;position:relative;height:0;display:block}
+  /* 260px on a real desktop, shrinking on narrow laptops. Centring on the
+     headline puts the mark's top near the hero's top edge, and .hero is
+     overflow:hidden — at a flat 260px the clearance at 901px was 1px, which
+     any font-metric difference would turn into a clipped mark. The clamp
+     floor holds it at ~38px clear there instead. */
+  .markwrap img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:clamp(200px,22vw,260px)}
+}
 
 /* ---------- proof strip ---------- */
 .strip{background:var(--night);color:var(--bone)}
@@ -235,7 +261,10 @@ footer .legal{max-width:46ch;line-height:1.6}
 @media(max-width:360px){.stickybar{padding-left:14px;padding-right:14px;gap:10px}.stickybar .btn{padding:15px 16px;letter-spacing:.05em}}
 
 @media(max-width:900px){
-  .hero .w{grid-template-columns:1fr;gap:34px;text-align:center}
+  /* row-gap 0: the hero's children are now three separate grid items rather
+     than one wrapper, and their own margins already set the rhythm. A row-gap
+     here would add a third gap between every pair. */
+  .hero .w{grid-template-columns:1fr;gap:0;text-align:center}
   .cta{justify-content:center}
   .hero .sub{margin-left:auto;margin-right:auto}
   .steps{grid-template-columns:1fr;gap:28px}
@@ -313,14 +342,14 @@ footer .legal{max-width:46ch;line-height:1.6}
 </div></div>
 
 <header class="hero"><div class="w">
-  <div>
+  <div class="headline">
     <div class="eyebrow">Remote Online Notarization</div>
     <h1>Get it notarized.<br><span>Don't get up.</span></h1>
-    <p class="sub">Meet a commissioned notary by secure video, verify who you are, and sign. Most sessions are done in under fifteen minutes.</p>
-    <div class="cta">
-      <a href="#book" class="btn" data-va="hero_book">Book a session</a>
-      <span class="price"><b>$25 flat</b>Unlimited signatures. Paid when you book.</span>
-    </div>
+  </div>
+  <p class="sub">Meet a commissioned notary by secure video, verify who you are, and sign. Most sessions are done in under fifteen minutes.</p>
+  <div class="cta">
+    <a href="#book" class="btn" data-va="hero_book">Book a session</a>
+    <span class="price"><b>$25 flat</b>Unlimited signatures. Paid when you book.<span class="trust">Commissioned &middot; Bonded &middot; Nationwide</span></span>
   </div>
   <div class="markwrap">
     <!-- The approved mark, unmodified, served as one cacheable vector file

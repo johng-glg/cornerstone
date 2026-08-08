@@ -337,10 +337,40 @@ underneath already reads "Remote Online Notarization", so nothing is lost), and
 the gutters tighten. `flex-wrap` on the row is the backstop if it ever stops
 fitting again. Re-measured at 320 / 360 / 375 / 390 / 412: no zoom at any width.
 
-One consequence worth being deliberate about: hiding `.top` on mobile also hides
-`Commissioned · Bonded · Nationwide`. Those trust signals now appear on mobile
-only in the `.notice` section further down. If they matter above the fold on a
-phone, they need a home in `.mast` or the hero.
+Hiding `.top` on mobile also removed `Commissioned · Bonded · Nationwide`, so
+that line now lives in the hero `.price` block as a third row, at every
+breakpoint — muted `rgba(bone,.62)` on Bordeaux, **5.98**, matching the two
+lines above it. It is above the fold on all four reference devices.
+
+### The hero
+
+Three changes, all desktop-facing except the trust line:
+
+**The radial gradient is gone.** It was
+`radial-gradient(120% 90% at 78% 12%, …)` — a 90%-tall ellipse centred at 12%,
+which puts its edge at **57% of the hero height**. That edge was the horizontal
+seam visible about halfway down. It could have been resized to fall outside the
+box, but `brand/README.md` bars gradients and glows outright, so removing it
+fixes the seam and a standing brand-rule conflict in the same move. Flat
+Bordeaux.
+
+**The mark is 260px and centred on the headline, not the column.** The hero is
+now an explicit three-row grid on desktop — headline, sub, CTA — with
+`.markwrap` placed in row 1 and `align-self:center`. It is given `height:0` and
+the image is absolutely centred on the row's midpoint, so a 314px-tall mark does
+not stretch a 175px headline row and push the rest of the column down. Measured
+at 0px offset from the headline's centre at every width from 901px up.
+
+`width:clamp(200px,22vw,260px)`, not a flat 260px. Centring on the headline
+pushes the mark's top toward the hero's top edge, and `.hero` is
+`overflow:hidden`. At a flat 260px the clearance at 901px was **1px** — any
+font-metric difference on a real machine would have clipped the mark. The clamp
+holds ~37px clear there and reaches the full 260px from 1182px up, which is
+every real desktop.
+
+Mobile is untouched by all of this: the mark is still hidden below 901px, and
+the grid placement rules live inside a `min-width:901px` block so they never
+apply there.
 
 **On mobile the hero's mark is hidden entirely** (`display:none` below 901px).
 The masthead is a few inches above it carrying the same artwork; showing both
