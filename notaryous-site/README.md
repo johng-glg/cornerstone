@@ -281,8 +281,39 @@ states. Clicks report as `booking_click` with `placement: sticky_book`, so its
 contribution is separable from the hero button in analytics. `display:none`
 above 900px. Transition drops to `0s` under `prefers-reduced-motion`.
 
-**Desktop is untouched.** Verified by pixel-diffing the full-page 1440px render
-before and after: identical.
+**Hero order on mobile.** Below 901px the mark leads the hero, above the
+`Remote Online Notarization` eyebrow, at 33% smaller — `min(147px,37.5vw)`
+rather than `min(220px,56vw)`.
+
+Done with `order:-1` on `.markwrap`, so the **DOM stays text-first**. That
+matters: a screen reader and a search crawler both still meet the eyebrow and
+the headline before a decorative image, while sighted users see the mark first.
+Reordering the markup itself would have traded one for the other.
+
+What it cost, measured on the four reference devices:
+
+| | CTA bottom | Fold | Price line |
+|---|---|---|---|
+| iPhone SE 375×667 | 646 | 667 | 41px below |
+| iPhone 14 390×844 | 624 | 844 | above |
+| Pixel 412×915 | 625 | 915 | above |
+| Fold 320×653 | 621 | 653 | 31px below |
+
+**The Book a session button stays above the fold on every one of them.** The
+`$25 flat / Unlimited signatures` line beneath it now falls just under the fold
+on the two shortest devices. That is a real cost but a small one: the same $25
+figure is restated in the proof strip immediately below, and again in the sticky
+bar the moment the user scrolls. If it matters, roughly 40px can be reclaimed on
+an SE by tightening the hero gap, the top padding and the sub's bottom margin —
+say so and it is a three-value change.
+
+The smaller mark also improved mobile LCP to 1.0s, and every performance audit
+now passes on mobile rather than just the category score.
+
+**Desktop is untouched.** The mark stays 300px and to the right of the headline;
+`order` only applies inside the mobile media query. Verified by pixel-diffing the
+full-page 1440px render before and after — the only delta is the "unlimited
+signatures" copy change.
 
 The 10.5px tracked uppercase labels (`.top .tag`, `.eyebrow`, `.placard .cap`)
 and the 11.5px stat labels are left alone. They are a deliberate typographic
@@ -309,11 +340,14 @@ resolution that actually looks right it is 17 KB *heavier* than the vector, whic
 is also cached forever after first paint. It would additionally contradict the
 brief's own rule that the mark is never replaced with a raster.
 
-**The hero is not reordered.** The goal — mark, headline, sub, button and price
-all above the fold — is already met for everything except the mark: on a 375×667
-iPhone SE the CTA sits at y=394 and the price ends near y=510, well inside the
-667px fold. The mark is decorative and deliberately below the CTA. Moving it
-above the headline would push the only conversion action *down* the page.
+**The hero reorder was declined on measurement, then adopted by decision.**
+Originally rejected: the mark was below the CTA, and moving it above the headline
+pushes the only conversion action down the page for no measured gain.
+
+It was subsequently requested anyway, as a brand call — the mark now leads the
+hero on mobile, at 33% smaller. See "Hero order on mobile" below for what that
+actually cost, which turned out to be less than the original objection assumed
+because the smaller mark paid for most of the move.
 
 Also noted: the "16px inputs so iOS does not auto-zoom" item does not apply here.
 There are no form inputs on this page — the booking form lives inside the Zoho

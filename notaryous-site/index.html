@@ -204,10 +204,12 @@ footer .legal{max-width:46ch;line-height:1.6}
   .stat:last-child{border-bottom:0}
   .stat{padding:20px 22px}
   section{padding:58px 0}
-  /* The mark is decorative here and sits below the CTA. At 74vw it was 335px
-     tall on a 375px phone, pushing the proof strip and the scheduler down. */
-  .hero{padding:52px 0 56px}
-  .markwrap img{width:min(220px,56vw)}
+  /* The mark leads the hero on mobile, above the eyebrow. `order` works on
+     grid items, so the DOM stays text-first — which is also the right reading
+     order for a screen reader. */
+  .hero{padding:44px 0 56px}
+  .markwrap{order:-1}
+  .markwrap img{width:min(147px,37.5vw)}
   /* iOS Safari sizes iframes to their content and ignores the height. A
      no-op where the height is honoured; contains the embed where it is not.
      Re-check once the real Zoho embed has been loaded on a device. */
