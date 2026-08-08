@@ -19,7 +19,7 @@ Check it before every commit on this workstream:
 
 | Build step | State |
 |---|---|
-| 0. Flow fires on API-created appointments | **BLOCKED** — see below |
+| 0. The four answers | **runnable by you** — `/step0` is built, see below |
 | 1. Zoho auth + token refresh + `/api/availability` | blocked on credentials |
 | 2. Payments session + widget + server confirm + webhook | blocked on credentials |
 | 3. `bookings` table | **done, verified** |
@@ -39,9 +39,9 @@ Shipped so far: `db/001_bookings.sql`, `db/002_slot_holds.sql`,
 
 ## Blocked, and why
 
-**Step 0 cannot be done from here, and it gates everything.** It needs a live call to
-Zoho's Book Appointment API with real credentials. Two independent reasons it is not
-possible in this environment:
+**Step 0 cannot be run from this environment, so it is now a page you can run.**
+See "`/step0` — the temporary diagnostic" below. It needs a live call to Zoho's Book
+Appointment API with real credentials, and neither is available here:
 
 - No credentials. Zoho client id/secret/refresh token do not exist yet.
 - Every Zoho host is blocked by the network egress policy. Verified:
@@ -57,8 +57,8 @@ possible in this environment:
 
 This is the one the brief says not to skip, and it is right: if Flow does not fire on
 API-created appointments and nobody checks, a paid client gets an appointment with no
-notarization session behind it. **Somebody with Zoho access has to run it**, and the
-answer decides whether the confirmation handler needs an extra call to the Flow webhook.
+notarization session behind it. **Somebody with Zoho access has to run it** — that is
+what `/step0` is for.
 
 Everything from step 1 on also needs secrets that must never reach this repo. The work
 that does not need them — schema, the date formatter, the front end — is what is being
@@ -166,6 +166,72 @@ and egress, which means someone with a Zoho login, not the build.
 | What zone does Zoho read `from_time` in? | If it is the org zone rather than the `timezone` field, every out-of-Pacific signer books the wrong hour. `zohoFromTime()` already takes the zone as an argument, so the fix is one call site — but only if we know |
 | How long is a payment session valid? | Sets the hold TTL. A session outliving the hold turns a slow customer into a refund and an ops alert |
 | Can Flow trigger on `noshow`? | Event-driven no-show refunds, or a nightly sweep. The sweep is more code and a delay between the notary marking and the money moving |
+
+## `/step0` — the temporary diagnostic
+
+**This route is temporary. Delete it once the four answers are recorded below.**
+There is a checklist at the end of this section; the last item is a commit that
+removes the code.
+
+`step0.html` + `api/step0.mjs` run each of the four checks server-side and render the
+answer in plain English with the raw response collapsed underneath. Nothing but the
+result reaches the browser.
+
+### Before it will run
+
+Set these in the Vercel project. Every check refuses to run without them, and says
+which ones are missing rather than returning a 500.
+
+| Variable | For | Notes |
+|---|---|---|
+| `STEP0_TOKEN` | the gate | Any long random string. **Unset it to disable the whole route.** |
+| `ZOHO_CLIENT_ID` / `_SECRET` / `_REFRESH_TOKEN` | Bookings | Dedicated service user, not John's admin account |
+| `ZOHO_SERVICE_ID`, `ZOHO_STAFF_ID` | Bookings | The RON service and the beta staff record |
+| `ZOHO_ORG_TIMEZONE` | check 2 | Defaults to `America/Los_Angeles`. Must be the org's real zone or the probe is meaningless |
+| `ZOHO_PAYMENTS_CLIENT_ID` / `_SECRET` / `_REFRESH_TOKEN` / `_ACCOUNT_ID` | check 3 | Sandbox has its own account id |
+| `ZOHO_ACCOUNTS_HOST`, `ZOHO_API_HOST`, `ZOHO_BOOKINGS_BASE`, `ZOHO_PAYMENTS_HOST` | overrides | Defaults are the documented ones. The point of step 0 is that we do not yet know they are right — a wrong guess should be one env var away from fixed |
+| `STEP0_TEST_EMAIL` | optional | Where test confirmations land. Defaults to `step0-test@guardianlit.com` |
+
+### Access control
+
+`noindex` is not access control, and **two of these buttons create real appointments on
+the notary's calendar**. The route is gated on `STEP0_TOKEN`, compared without
+short-circuiting on the first differing byte. Unset the variable and every check returns
+503 — that is the kill switch, and it works without a deploy.
+
+The token is typed into a password field, held in memory, and sent as a header. It never
+goes in the URL, so it cannot end up in browser history, a screenshot of the address bar,
+or a Vercel access log.
+
+Responses are walked before rendering and anything matching
+`access_token|refresh_token|client_secret|api_key|signing_key|authorization` is replaced
+with `«redacted»`. Tested.
+
+### What each check can and cannot tell you
+
+Two of the four are fully machine-answerable. Two need a human to look at another system
+afterwards, and the page says so rather than implying an answer it does not have.
+
+| Check | Machine-answerable? |
+|---|---|
+| 1. Flow fires on API-created appointments | **No.** It creates the appointment and reports the booking id. This service has no BlueNotary access, so you check BlueNotary |
+| 2. `from_time` zone semantics | **Yes.** Books at 11:00 declaring a non-org zone, reads it back, and compares `start_time` against `customer_booking_start_time` |
+| 3. Payment session lifetime | **Partly.** Creates a session and surfaces any field matching `expir\|ttl\|valid\|timeout`. If Zoho returns none, the lifetime has to be measured — "Re-check this session" is there for that |
+| 4. Flow triggers on `noshow` | **No.** It marks the appointment; you check Flow's execution history |
+
+Check 1 and check 2 each create an appointment. Check 4 marks check 1's appointment.
+Cancel with the button at the bottom before leaving — the page tracks the booking id so
+the cancel goes to the right one.
+
+### Deletion checklist
+
+- [ ] Record all four answers in "The four step 0 answers" above, with dates
+- [ ] Cancel every STEP0 appointment, and confirm none is left in the Zoho UI
+- [ ] Unset `STEP0_TOKEN` in Vercel — immediate kill, no deploy needed
+- [ ] Delete `step0.html`, `api/step0.mjs`, the `/step0` block in `vercel.json`,
+      and this section
+- [ ] Keep `api/_zoho.mjs` — the token cache and request helpers are what
+      `/api/availability` and `/api/checkout` are built on
 
 ## Applying the schema
 

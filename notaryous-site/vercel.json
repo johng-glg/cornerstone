@@ -10,6 +10,10 @@
     { "source": "/book-beta", "headers": [
       { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
     ]},
+    { "source": "/step0", "headers": [
+      { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+      { "key": "Cache-Control", "value": "no-store" }
+    ]},
     { "source": "/api/(.*)", "headers": [
       { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
       { "key": "Cache-Control", "value": "no-store" }

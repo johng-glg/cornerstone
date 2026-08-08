@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Step 0 diagnostic — Notaryous (temporary)</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#3B1116">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+:root{--bord:#3B1116;--bord-lo:#2E0D12;--gold:#E0B772;--gold-dp:#7E5C1E;--night:#1A080B;
+  --bone:#EFEAE0;--bone-2:#E4DCCC;--rule:#D8CFBE;--ink:#241014;--muted:#6B5C55}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(--bone);color:var(--ink);line-height:1.6}
+.w{max-width:860px;margin:0 auto;padding:0 22px}
+:focus-visible{outline:3px solid var(--bord);outline-offset:3px}
+header{background:var(--bord);color:var(--bone);padding:20px 0}
+header b{color:var(--gold);letter-spacing:.16em;text-transform:uppercase;font-size:11px;display:block;margin-bottom:4px}
+header h1{font-size:22px;font-weight:600}
+.warn{background:var(--night);color:#F1E7DA;padding:16px 0;font-size:14px}
+.warn strong{color:var(--gold)}
+main{padding:28px 0 60px}
+.gate{background:var(--bone-2);border:1px solid var(--rule);border-left:4px solid var(--bord);padding:18px;margin-bottom:28px}
+.gate label{display:block;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+input[type=password],input[type=text]{width:100%;max-width:420px;font-family:inherit;font-size:16px;padding:11px;
+  border:1px solid var(--rule);border-radius:2px;background:#fff;color:var(--ink);min-height:46px}
+.q{border:1px solid var(--rule);background:#fff;border-top:4px solid var(--bord);padding:20px;margin-bottom:20px}
+.q h2{font-size:17px;font-weight:600;color:var(--bord);margin-bottom:4px}
+.q .why{font-size:14px;color:var(--muted);margin-bottom:14px}
+button{font-family:inherit;font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--bord);color:var(--bone);border:0;border-radius:2px;padding:0 22px;min-height:46px;cursor:pointer}
+button:hover{background:var(--bord-lo)}
+button:disabled{background:var(--rule);color:var(--muted);cursor:not-allowed}
+button.ghost{background:transparent;color:var(--bord);border:1px solid var(--bord)}
+button.danger{background:var(--gold-dp);color:#fff}
+.answer{margin-top:16px;padding:14px 16px;background:var(--bone-2);border-left:4px solid var(--gold-dp)}
+.answer h3{font-size:15px;color:var(--bord);margin-bottom:6px}
+.answer p{font-size:14.5px}
+details{margin-top:12px}
+summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--bord)}
+pre{margin-top:10px;background:var(--night);color:#E7DDD2;padding:14px;overflow:auto;font-size:12.5px;
+  line-height:1.5;max-height:340px;border-radius:2px}
+.ctx{font-size:12.5px;color:var(--muted);margin-top:10px}
+.ctx code{background:var(--bone-2);padding:1px 5px;border-radius:2px}
+</style>
+</head>
+<body>
+
+<header><div class="w">
+  <b>Temporary diagnostic · delete after use</b>
+  <h1>Step 0 — the four answers the build cannot get on its own</h1>
+</div></header>
+
+<div class="warn"><div class="w">
+  <strong>These buttons touch production.</strong> The Flow and timezone checks each create a
+  <em>real appointment</em> on the notary's calendar. They are named “STEP0 TEST — do not attend”.
+  Cancel them with the button at the bottom before you leave this page.
+</div></div>
+
+<main><div class="w">
+
+  <div class="gate">
+    <label for="tok">Step 0 token</label>
+    <input id="tok" type="password" autocomplete="off" spellcheck="false"
+           placeholder="value of STEP0_TOKEN in the Vercel project">
+    <p class="ctx">Held in memory only — never stored, never put in the URL bar. Every check sends it as a header.
+      If <code>STEP0_TOKEN</code> is unset in Vercel, every check refuses to run.</p>
+  </div>
+
+  <section class="q" data-check="flow">
+    <h2>1. Does the BlueNotary Flow fire on an API-created appointment?</h2>
+    <p class="why">If it does not and nobody checks, a paid client gets an appointment with no notarization
+      session behind it. This is the one the spec says not to skip.</p>
+    <button type="button" data-run="flow">Create a test appointment</button>
+  </section>
+
+  <section class="q" data-check="timezone">
+    <h2>2. What zone does Zoho read <code>from_time</code> in?</h2>
+    <p class="why">Books at 11:00 while declaring a deliberately non-org zone, then reads it back. If Zoho ignores
+      the timezone field, every signer outside the org zone books the wrong hour and nothing surfaces it
+      until a customer complains.</p>
+    <button type="button" data-run="timezone">Run the timezone probe</button>
+  </section>
+
+  <section class="q" data-check="payment_session">
+    <h2>3. How long does a payment session stay valid?</h2>
+    <p class="why">Sets the slot hold TTL. The hold must outlive the session, or a slow customer pays against a
+      lapsed hold and turns into a refund and an ops alert.</p>
+    <button type="button" data-run="payment_session">Create a payment session</button>
+    <button type="button" class="ghost" data-run="session_recheck">Re-check this session</button>
+  </section>
+
+  <section class="q" data-check="noshow">
+    <h2>4. Can Flow trigger on a status change to <code>noshow</code>?</h2>
+    <p class="why">Decides whether no-show refunds are event-driven or need a nightly sweep. Marks the appointment
+      created by check 1, so run that first.</p>
+    <button type="button" data-run="noshow">Mark the test appointment noshow</button>
+  </section>
+
+  <section class="q" data-check="cancel">
+    <h2>Clean up</h2>
+    <p class="why">Cancels the test appointment. Do this before you leave, every time. A stray STEP0 booking on a
+      real calendar is exactly the mess this page exists to avoid.</p>
+    <button type="button" class="danger" data-run="cancel">Cancel test booking</button>
+    <p class="ctx">Tracked booking id: <code id="bid">none yet</code> · session id: <code id="sid">none yet</code></p>
+  </section>
+
+</div></main>
+
+<script>
+const state = { bookingId: null, sessionId: null };
+const $ = (s, r = document) => r.querySelector(s);
+
+function show(section, data) {
+  section.querySelector('.answer')?.remove();
+  const box = document.createElement('div');
+  box.className = 'answer';
+  box.setAttribute('role', 'status');
+  const h = document.createElement('h3');
+  h.textContent = data.answer ?? 'No answer';
+  const p = document.createElement('p');
+  p.textContent = data.detail ?? '';
+  box.append(h, p);
+  if (data.raw !== undefined && data.raw !== null) {
+    const d = document.createElement('details');
+    const s = document.createElement('summary');
+    s.textContent = 'Raw response';
+    const pre = document.createElement('pre');
+    pre.textContent = typeof data.raw === 'string' ? data.raw : JSON.stringify(data.raw, null, 2);
+    d.append(s, pre);
+    box.append(d);
+  }
+  if (data.sent) {
+    const d = document.createElement('details');
+    const s = document.createElement('summary');
+    s.textContent = 'What we sent';
+    const pre = document.createElement('pre');
+    pre.textContent = JSON.stringify(data.sent, null, 2);
+    d.append(s, pre);
+    box.append(d);
+  }
+  section.append(box);
+}
+
+function track(data) {
+  if (data.bookingId) { state.bookingId = data.bookingId; $('#bid').textContent = data.bookingId; }
+  if (data.sessionId) { state.sessionId = data.sessionId; $('#sid').textContent = data.sessionId; }
+}
+
+async function run(check, btn) {
+  const token = $('#tok').value.trim();
+  const section = btn.closest('.q');
+  if (!token) { show(section, { answer: 'No token', detail: 'Enter the step 0 token above first.' }); return; }
+
+  const destructive = check === 'flow' || check === 'timezone';
+  if (destructive && !confirm('This creates a real appointment on the notary\'s calendar. Continue?')) return;
+  if (check === 'cancel' && !state.bookingId && !confirm('No booking id is tracked. Send the cancel anyway?')) return;
+
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Running…';
+  try {
+    const url = new URL('/api/step0', location.origin);
+    url.searchParams.set('check', check);
+    if (state.bookingId) url.searchParams.set('booking_id', state.bookingId);
+    if (state.sessionId) url.searchParams.set('session_id', state.sessionId);
+    const res = await fetch(url, { headers: { 'x-step0-token': token, accept: 'application/json' } });
+    const data = await res.json().catch(() => ({ answer: 'Non-JSON response', detail: 'HTTP ' + res.status }));
+    show(section, data);
+    track(data);
+  } catch (err) {
+    show(section, { answer: 'Request failed', detail: String(err && err.message ? err.message : err) });
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-run]');
+  if (btn) run(btn.dataset.run, btn);
+});
+</script>
+</body>
+</html>
