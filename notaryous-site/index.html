@@ -70,7 +70,7 @@ body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(
 /* Bordeaux ring on the light grounds (13.71), Bone ring on the dark ones (13.71
    to 16.17). Both clear the 3.0 non-text minimum with room. */
 :focus-visible{outline:3px solid var(--bord);outline-offset:3px}
-.top :focus-visible,.hero :focus-visible,.notice :focus-visible,footer :focus-visible,.skip:focus-visible{outline-color:var(--bone)}
+.top :focus-visible,.hero :focus-visible,.notice :focus-visible,footer :focus-visible,.skip:focus-visible,.stickybar :focus-visible{outline-color:var(--bone)}
 .skip{position:absolute;left:-9999px;top:8px;z-index:99;background:var(--gold);color:var(--bord);padding:12px 22px;font-weight:700;font-size:13px;letter-spacing:.09em;text-transform:uppercase;text-decoration:none}
 .skip:focus{left:8px}
 
@@ -165,12 +165,33 @@ footer .legal{max-width:46ch;line-height:1.6}
 
 /* ---------- touch ---------- */
 /* The phone numbers were 89x14 hit areas — the primary contact route on a
-   phone, and under half the 44px minimum. Padding grows the hit area and the
+   phone, and under a third of the minimum. Padding grows the hit area and the
    matching negative margin cancels the layout shift, so nothing moves.
+   48px, not 44: clears Apple's 44 and Android's / Lighthouse's 48 together.
    Scoped to coarse pointers so mouse hover behaviour is untouched. */
 @media (pointer:coarse){
-  .top a,.fallback a,footer p a{display:inline-block;padding:15px 6px;margin:-15px -6px}
+  .top a,.fallback a,footer p a{display:inline-block;padding:17px 6px;margin:-17px -6px}
 }
+
+/* ---------- sticky booking bar (mobile) ---------- */
+/* The scheduler sits three-plus screens down. This keeps the one action on the
+   page reachable in between, then gets out of the way — it hides once the
+   booking section is approaching and stays hidden past it, so it never covers
+   the .notice compliance text or the footer. */
+.stickybar{position:fixed;left:0;right:0;bottom:0;z-index:60;
+  background:var(--bord);border-top:1px solid rgba(224,183,114,.3);
+  padding:11px 20px calc(11px + env(safe-area-inset-bottom));
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  visibility:hidden;transform:translateY(110%);
+  transition:transform .22s ease,visibility .22s ease}
+.stickybar.is-on{visibility:visible;transform:none}
+.stickybar .price{font-size:12px;color:rgba(239,234,224,.62);line-height:1.25}
+.stickybar .price b{display:block;color:var(--bone);font-size:15px;font-weight:600}
+.stickybar .btn{padding:15px 24px;font-size:13px;flex:0 0 auto;letter-spacing:.07em}
+@media(min-width:901px){.stickybar{display:none}}
+/* Keep the price on one line on the narrowest phones. The wording is the
+   hero's verbatim, so no new fee characterisation enters the page. */
+@media(max-width:360px){.stickybar{padding-left:14px;padding-right:14px;gap:10px}.stickybar .btn{padding:15px 16px;letter-spacing:.05em}}
 
 @media(max-width:900px){
   .hero .w{grid-template-columns:1fr;gap:34px;text-align:center}
@@ -199,7 +220,7 @@ footer .legal{max-width:46ch;line-height:1.6}
   .top .w{padding:7px 20px}
   .placard{padding:26px 22px}
 }
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn{transition:none}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn,.stickybar{transition:none}}
 </style>
 </head>
 <body>
@@ -313,6 +334,11 @@ footer .legal{max-width:46ch;line-height:1.6}
   <p class="legal">Notaryous is a registered trade name of Guardian Litigation Group, LLP, 17850 Fitch, Irvine, CA 92614. Notarial services are performed by commissioned notaries public. Notaryous does not provide legal advice and no attorney client relationship is created by booking a notarization.</p>
 </div></footer>
 
+<div class="stickybar" id="stickybar">
+  <span class="price"><b>$25 flat</b>Paid when you book</span>
+  <a href="#book" class="btn" data-va="sticky_book">Book a session</a>
+</div>
+
 <!-- Vercel Web Analytics. Cookieless and no persistent identifier, so no consent
      banner is required. Custom events carry no personal data. -->
 <script>
@@ -332,6 +358,26 @@ window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};
   //    the embed is failing for real users.
   var f=document.getElementById('booking');
   if(f) f.addEventListener('load',function(){ track('booking_iframe_load'); },{once:true});
+
+  // Sticky booking bar: on once the hero is gone, off again as the booking
+  // section comes up, and it stays off past it so the compliance notice and
+  // the footer are never covered. visibility:hidden also keeps the duplicate
+  // link out of the tab order while it is off.
+  var bar=document.getElementById('stickybar'), hero=document.querySelector('.hero'), book=document.getElementById('book');
+  if(bar&&hero&&book){
+    var heroGone=false, ticking=false;
+    function sync(){
+      ticking=false;
+      var near=book.getBoundingClientRect().top < window.innerHeight*0.6;
+      bar.classList.toggle('is-on', heroGone && !near);
+    }
+    function onScroll(){ if(!ticking){ ticking=true; requestAnimationFrame(sync); } }
+    if('IntersectionObserver'in window){
+      new IntersectionObserver(function(en){ heroGone=!en[0].isIntersecting; sync(); },{threshold:0}).observe(hero);
+    }
+    addEventListener('scroll',onScroll,{passive:true});
+    addEventListener('resize',onScroll,{passive:true});
+  }
 
   // 3. Did they reach the posted fee schedule before booking?
   var fees=document.getElementById('fees');

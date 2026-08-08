@@ -268,6 +268,19 @@ so the chrome and the top strip now meet without a seam. The manifest keeps
 Bordeaux `#3B1116` for the standalone app surface. Revert by changing the one
 `<meta name="theme-color">` value.
 
+**Sticky booking bar.** The scheduler sits three-plus screens down, so below
+901px a fixed bar carries `$25 flat / Paid when you book` and a Book a session
+button. It comes on once the hero has scrolled away, goes off as the booking
+section comes up, and **stays off past it** — so it never covers the `.notice`
+compliance text or the footer. `env(safe-area-inset-bottom)` aware.
+
+Its price wording is the hero's verbatim, so no new fee characterisation enters
+the page. It is hidden with `visibility:hidden`, which also keeps the duplicate
+link out of the tab order while it is off — verified by tabbing the page in both
+states. Clicks report as `booking_click` with `placement: sticky_book`, so its
+contribution is separable from the hero button in analytics. `display:none`
+above 900px. Transition drops to `0s` under `prefers-reduced-motion`.
+
 **Desktop is untouched.** Verified by pixel-diffing the full-page 1440px render
 before and after: identical.
 
@@ -275,6 +288,37 @@ The 10.5px tracked uppercase labels (`.top .tag`, `.eyebrow`, `.placard .cap`)
 and the 11.5px stat labels are left alone. They are a deliberate typographic
 device, they pass Lighthouse's legible-font-size audit, and changing them is a
 design decision rather than an optimisation.
+
+### Two things from the alternate mobile spec that were not adopted
+
+**The mark is not shipped as a WebP raster to mobile.** The proposal was a 280px
+WebP at 32 KB in a `<picture>`, against the vector for desktop. Measured, at the
+210 CSS px the mark occupies on a phone:
+
+| | Bytes | On a 3x phone |
+|---|---|---|
+| Vector (what ships) | **58 KB** brotli, cached immutable | exact |
+| 280px WebP | 32 KB | 3x upscale of hairlines |
+| 420px WebP (2x) | 47 KB | still soft on 3x |
+| 630px WebP (3x) | **75 KB** | exact — and *worse* than the vector |
+
+The saving only exists at a resolution that does not hold up. This artwork is
+dense concentric hairlines, the worst case for downsampling: rendered at 280px
+and scaled to a 3x display it shows chroma fringing and ragged ridges. At a
+resolution that actually looks right it is 17 KB *heavier* than the vector, which
+is also cached forever after first paint. It would additionally contradict the
+brief's own rule that the mark is never replaced with a raster.
+
+**The hero is not reordered.** The goal — mark, headline, sub, button and price
+all above the fold — is already met for everything except the mark: on a 375×667
+iPhone SE the CTA sits at y=394 and the price ends near y=510, well inside the
+667px fold. The mark is decorative and deliberately below the CTA. Moving it
+above the headline would push the only conversion action *down* the page.
+
+Also noted: the "16px inputs so iOS does not auto-zoom" item does not apply here.
+There are no form inputs on this page — the booking form lives inside the Zoho
+iframe, whose CSS we do not control. That has to be fixed in Zoho's own theme
+(see the theming item under open items).
 
 ### Headers
 
@@ -328,7 +372,54 @@ based on Zoho's documented behaviour, not on a live check. Load the page, confir
 the scheduler renders, and complete one booking. If anything looks wrong, delete
 `?source=notaryous-site` from the iframe `src` — that is the whole revert.
 
-### 3. Iframe height — needs a real device pass
+### 3. Zoho: theme the booking page itself
+
+Everything inside the iframe is Zoho's markup and Zoho's CSS. Nothing in this
+repo can restyle it, so the embed currently arrives in Zoho's default look sitting
+inside a Bordeaux-and-Bone page. In Zoho Bookings:
+
+- Manage Bookings → Workspaces → **Booking Page Themes**: switch to the
+  **Modern Web** theme and apply the brand palette. This is a paid feature on
+  Basic/Premium.
+- Workspace Properties → upload a **custom CSS file**, so the embedded view and
+  the popped-out view match. The palette tool is known to miss the booking modal,
+  so style that explicitly and test it specifically.
+- While in there, set form inputs to **16px**. Under 16px, iOS Safari zooms the
+  page when a field is focused, which is a common way mobile booking flows get
+  disorienting. This can only be fixed in Zoho's CSS, not here.
+
+Reference for the palette: Bordeaux `#3B1116`, Gold `#E0B772`, Bone `#EFEAE0`,
+Ink `#241014`. On any light ground inside the booking page, accent text must be
+Deep Gold `#7E5C1E` — bright gold on Bone measures 1.57 and is unreadable.
+
+### 4. Should mobile drop the iframe entirely? — decide with a device in hand
+
+There is a live proposal to replace the embed below 900px with a full-width
+button that opens the booking page in its own tab, on the grounds that nested
+scrolling inside an iframe on a phone breaks date selection and payment.
+
+That is a plausible and fairly common call, and if it is true it matters more
+than embed elegance — hard constraint 1 says payment clears at booking or the
+session does not exist, so payment reliability outranks staying in-page.
+
+It is not implemented here, because it is a conversion-affecting product decision
+resting on a claim nobody has verified on this specific Zoho service, and this
+environment cannot load `zohobookings.com` to check. Handing every mobile visitor
+off to a new tab costs context and adds a step; doing it for no reason is a real
+cost too.
+
+Decide it with five minutes on a real phone against the preview deployment:
+
+1. Can you pick a date and a time without fighting a nested scroll?
+2. Does the payment step complete?
+3. Does the keyboard obscure fields you cannot then scroll to?
+
+If any of those fails, swap the embed for the handoff button below 900px. The
+sticky bar already gives mobile a persistent path to booking either way, and the
+`.fallback` link already offers the new-tab escape hatch, so the swap is a small
+change rather than a rebuild.
+
+### 5. Iframe height — needs a real device pass
 
 Left at the delivered values: **770px desktop, 830px under 900px wide.** Not
 changed, because the embed could not be loaded here and guessing at a height is
@@ -354,7 +445,10 @@ rule inside the `max-width:900px` media query.
 - [ ] **Zoho service set to $25 with payment required at booking** — see above
 - [ ] **Hidden `Source` field created in Zoho** — see above
 - [ ] **Booking smoke test on the preview deployment** — one real $25 session
+- [ ] **Mobile embed usability decided** — keep the iframe or hand off to a tab
 - [ ] **Iframe height checked on mobile Safari and Chrome**
+- [ ] Zoho booking page themed to the brand palette, booking modal checked
+- [ ] Zoho form inputs set to 16px so iOS does not zoom on focus
 - [ ] Kimberly Uptain: disclaimer language, trade name disclosure, fee characterisation
 - [ ] DBA filed and trade name cleared under attorney advertising rules
 - [ ] Notarial E&O policy bound
