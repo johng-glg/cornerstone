@@ -52,6 +52,43 @@
   --n-muted:     #6B5C55;  /* Muted — secondary text, AA on both Bone tones */
 }
 
+/* ---------- Zoho's own theme variable ----------
+   The gold that survives on the selected day cell and the active step's left
+   stripe is Zoho's theme colour, applied from a CSS custom property. Overriding
+   the property kills every use of it at once — cell fill, stripe, icons,
+   whatever else it feeds — instead of chasing each one with a class selector.
+
+   The names below are the plausible candidates. Setting one that does not
+   exist costs nothing, so they are all declared. To find the real one in
+   twenty seconds: DevTools → inspect the gold day cell → Styles pane → the
+   background will read `var(--something)`. Send me that name and this list
+   collapses to one line.
+
+   NOTE: the gold cell is NOT a contrast failure. Ink on that gold measures
+   8.08, and the brand rules allow bright gold as a solid fill. This is a
+   consistency call — the site uses Bordeaux for selected/primary on light
+   grounds, so the booking page should too. If you prefer to keep Zoho's gold
+   accent, delete this block. */
+
+:root, html, html body, .bookingPage, [class*="theme"] {
+  --primary-color:        #3B1116 !important;
+  --primary:              #3B1116 !important;
+  --theme-color:          #3B1116 !important;
+  --themeColor:           #3B1116 !important;
+  --brand-color:          #3B1116 !important;
+  --accent-color:         #3B1116 !important;
+  --accent:               #3B1116 !important;
+  --zb-primary:           #3B1116 !important;
+  --zb-theme:             #3B1116 !important;
+  --zb-primary-color:     #3B1116 !important;
+  --booking-primary:      #3B1116 !important;
+  --color-primary:        #3B1116 !important;
+  --primary-bg:           #3B1116 !important;
+  --primary-text:         #EFEAE0 !important;
+  --theme-text-color:     #EFEAE0 !important;
+  --on-primary:           #EFEAE0 !important;
+}
+
 /* ---------- type ---------- */
 
 html body,
@@ -188,12 +225,22 @@ html body input[type="submit"]:disabled {
 
 html body [aria-selected="true"],
 html body [aria-current="date"],
+html body [aria-current="true"],
 html body [aria-pressed="true"],
+html body [aria-checked="true"],
 html body button[class*="select"],
+html body button[class*="Select"],
 html body button[class*="active"],
+html body button[class*="Active"],
+html body button[class*="chosen"],
+html body button[class*="checked"],
+html body li[class*="select"],
+html body div[class*="select"][class*="day"],
 html body [class*="slot"][class*="select"],
 html body [class*="day"][class*="select"],
-html body [class*="day"][class*="active"] {
+html body [class*="day"][class*="active"],
+html body [class*="date"][class*="select"],
+html body [class*="date"][class*="active"] {
   background: var(--n-bord) !important;
   color: var(--n-bone) !important;
   border-color: var(--n-bord) !important;

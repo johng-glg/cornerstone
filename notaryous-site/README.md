@@ -423,11 +423,11 @@ of the stylesheet:
    about, live in the booking flow. The stylesheet replaces it; the Color
    Options palette should be set to Bordeaux too, so the popped-out view is
    right even if the CSS is ever dropped.
-3. **The embed scrolled internally at desktop width** — but that observation is
-   not usable as a measurement. The probe was forcing every element to 22px
-   type at the time, which inflates the content well beyond its normal height.
-   Re-check the height with the real stylesheet applied before changing the
-   770px, and see item 5 for how.
+3. **The embed scrolls internally at desktop width, and now it is measurable.**
+   With the real stylesheet applied (not the inflated probe), the scrollbar
+   thumb occupies about 76% of its track, which puts the content near
+   **1010px** against a 770px frame. See item 5 — this is the answer to the
+   open height question, with one caveat about variable day length.
 
 #### If the upload succeeds and nothing changes
 
@@ -555,11 +555,26 @@ sticky bar already gives mobile a persistent path to booking either way, and the
 `.fallback` link already offers the new-tab escape hatch, so the swap is a small
 change rather than a rebuild.
 
-### 5. Iframe height — needs a real device pass
+### 5. Iframe height — 770px is too short on desktop
 
-Left at the delivered values: **770px desktop, 830px under 900px wide.** Not
-changed, because the embed could not be loaded here and guessing at a height is
-how you get an internal scrollbar or a slab of dead space.
+Still at the delivered values in code: **770px desktop, 830px under 900px wide.**
+Not yet changed, but there is now evidence for the desktop figure.
+
+**Desktop wants roughly 1020px.** With the branded stylesheet applied, the
+embed shows an internal scrollbar whose thumb is about 76% of its track, putting
+the content near 1010px. That is a real measurement rather than a guess, but it
+carries one caveat worth respecting before hard-coding it:
+
+**Content height varies by day.** A date with a full slate of 15-minute slots is
+much taller than a lightly booked one — the screenshot showing this had four
+rows of morning slots plus an afternoon block. Any fixed height is a compromise
+between a scrollbar on busy days and dead space on quiet ones. Size it against a
+*typical fully-open weekday*, not today's calendar, or it will look wrong within
+a week.
+
+Once you have that number, change both `.shell iframe{height:...}` rules in
+`index.html` — the base one and the one inside the `max-width:900px` media
+query.
 
 The frame's actual rendered width, measured on the live page, is:
 
