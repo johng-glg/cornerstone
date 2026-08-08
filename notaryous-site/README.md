@@ -403,17 +403,42 @@ preview deployment with the header on.
 
 ## Open items — these need account access I do not have
 
-### 1. Zoho: confirm payment is required before the appointment is confirmed — BLOCKING
+### 1. Zoho: payment required — CONFIRMED, with one sub-question left
 
-**Not verified.** This needs a Zoho Bookings login. The entire model depends on
-it: if the service is set to "payment optional" or "collect later", sessions get
-confirmed without money and the "nothing billed afterward" promise on the page
-becomes false.
+**Confirmed in the Zoho settings.** Payment is required, and the service reads
+`Online Notarization — 15 mins | 25 USD` on the live booking page. The flow is:
+pick a date and time → enter details → redirected to a payment page.
 
-In Zoho Bookings → Services → the RON service:
-- Price is **$25.00**
-- Payment is **mandatory**, collected at booking, not "optional" or "pay later"
-- A payment gateway is connected and live (not test mode)
+That clears the blocking gate. One question inside it is still worth answering,
+because it is the difference between "payment is required" and the promise the
+page actually makes:
+
+**What exists if someone abandons at the payment page?** Many booking systems
+create a pending or unconfirmed appointment when the details form is submitted,
+then flip it to confirmed when payment settles. If Zoho does that here, an
+abandoned checkout leaves an unpaid appointment on the calendar — and hard
+constraint 1 says payment clears at booking or the session does not exist.
+
+Test it in five minutes: start a booking, reach the payment page, close the tab,
+then look at the Zoho calendar and the notary's calendar.
+
+- If nothing appears — done, the model holds.
+- If a pending appointment appears — it must auto-expire, and no notary may
+  treat a pending row as a session to attend. Check Zoho for a hold/expiry
+  setting on unpaid bookings, and make the rule explicit to whoever staffs the
+  calendar.
+
+Two things this confirmation already settles elsewhere in this document:
+
+- **The security headers were right to stay permissive.** A redirect to a
+  payment page inside the flow is exactly what a restrictive `frame-src`, or
+  `Permissions-Policy: payment=()`, would have broken. See "Headers".
+- **It strengthens the mobile handoff case.** A payment redirect inside a 320px
+  iframe is the worst place for nested scrolling and for the sub-16px inputs
+  that make iOS Safari zoom. See item 4.
+
+Still worth confirming while you are in there:
+- The payment gateway is live, not in test mode
 - The confirmation email is itemised enough to serve as a fee receipt
 
 ### 2. Zoho: create the hidden `Source` field for the tracking parameter
@@ -657,7 +682,9 @@ rule inside the `max-width:900px` media query.
 
 ## Before launch
 
-- [ ] **Zoho service set to $25 with payment required at booking** — see above
+- [x] **Zoho service set to $25 with payment required at booking** — confirmed
+- [ ] **Abandoned checkout leaves no attendable appointment** — see item 1
+- [ ] **Payment gateway live, not in test mode**
 - [ ] **Hidden `Source` field created in Zoho** — see above
 - [ ] **Booking smoke test on the preview deployment** — one real $25 session
 - [ ] **Mobile embed usability decided** — keep the iframe or hand off to a tab
