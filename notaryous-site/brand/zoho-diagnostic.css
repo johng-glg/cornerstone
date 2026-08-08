@@ -1,0 +1,69 @@
+/* ============================================================================
+   DIAGNOSTIC PROBE — upload this INSTEAD of zoho-booking-page.css, look at the
+   booking page, then read the result below and delete it again.
+   ============================================================================
+
+   This file is deliberately hideous. That is the point: every rule in it is
+   impossible to miss, so "nothing happened" becomes real information instead
+   of a guess.
+
+   Upload at: Manage Bookings → Workspaces → Workspace Properties → Upload →
+   Save. Then open the booking page in a PRIVATE window (Zoho caches the
+   stylesheet aggressively; a normal reload will lie to you).
+
+   ---------------------------------------------------------------------------
+   WHAT YOU SEE                        WHAT IT MEANS
+   ---------------------------------------------------------------------------
+   Nothing at all, page looks normal   The CSS is not being applied. It is the
+                                       theme or the plan, not the selectors.
+                                       Custom CSS is Basic theme + Premium
+                                       only. A workspace on Compact/Modern Web
+                                       silently ignores the upload — no error,
+                                       no warning. Switch the workspace theme
+                                       to Basic and re-test before anything
+                                       else.
+
+   LIME background only                Root-level CSS lands, deeper elements
+                                       are shielded. Zoho is rendering the
+                                       widget in a shadow root or an inner
+                                       iframe. External CSS cannot reach into
+                                       either. Stop here — the styling has to
+                                       come from Zoho's own theme controls.
+
+   Lime + MAGENTA border               Document-level works. Good sign.
+
+   All four, including the ORANGE      Everything is reachable. The real
+   buttons and the giant text          stylesheet failed on selector
+                                       specificity, not on delivery. Re-upload
+                                       zoho-booking-page.css and we tighten the
+                                       selectors from here.
+   ---------------------------------------------------------------------------
+
+   Tell me which of the four you got and I can fix the real file directly. */
+
+/* PROBE 1 — root level */
+html {
+  background: #00FF00 !important;
+}
+
+/* PROBE 2 — document level */
+body {
+  border: 14px solid #FF00FF !important;
+  background: #00FF00 !important;
+}
+
+/* PROBE 3 — element level, deep inside the widget */
+button,
+input[type="submit"],
+input[type="button"],
+[role="button"] {
+  background: #FF6600 !important;
+  color: #000000 !important;
+  border: 4px dashed #0000FF !important;
+}
+
+/* PROBE 4 — universal selector, reaches anything in the normal DOM */
+* {
+  font-size: 22px !important;
+  letter-spacing: .12em !important;
+}

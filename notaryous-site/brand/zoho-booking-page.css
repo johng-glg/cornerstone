@@ -7,6 +7,19 @@
    Upload icon → select this file → Save.
    (For a business booking page it is Page Properties instead.)
 
+   IF YOU UPLOADED THIS AND NOTHING CHANGED, READ THIS FIRST
+   The overwhelmingly likely cause is the workspace theme, not this file.
+   Custom CSS applies to the **Basic theme only**. A workspace set to Compact,
+   Modern Web, or anything else accepts the upload, reports success, and then
+   silently ignores every rule — no error, no warning. Switch the workspace
+   theme to Basic and re-test before changing anything in here.
+   Second most likely: caching. Zoho serves the stylesheet with a long cache,
+   and the site embeds it in an iframe, which caches separately. Re-test in a
+   private window, not a normal reload.
+   To find out which, upload `zoho-diagnostic.css` from this folder instead.
+   It is deliberately garish and tells you whether the CSS is being applied at
+   all, versus being applied but out-specified.
+
    PREREQUISITES — read before uploading, these are Zoho's own limits:
      - Custom CSS requires the **Premium** plan.
      - Custom CSS applies to the **Basic** theme only. If the workspace is set
@@ -16,6 +29,8 @@
      - Uploaded styling applies to the embedded view and the popped-out view
        alike, which is what we want: the iframe on the site and the new-tab
        fallback then look the same.
+     - If Zoho renders the widget inside a shadow root or a nested iframe,
+       nothing here can reach it. The diagnostic file detects that too.
 
    HOW TO FINISH IT
    The palette, type and input sizing below are complete and safe — they use
@@ -53,32 +68,32 @@
 
 /* ---------- type and ground ---------- */
 
-body,
-button, input, select, textarea {
+html body,
+html body button, html body input, html body select, html body textarea {
   font-family: Archivo, -apple-system, "Segoe UI", Arial, sans-serif !important;
 }
 
-body {
+html body {
   background: var(--n-bone) !important;
   color: var(--n-ink) !important;
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4 {
+html body h1, html body h2, html body h3, html body h4 {
   color: var(--n-bord) !important;
   font-weight: 600 !important;
   letter-spacing: -.02em;
 }
 
-a { color: var(--n-bord); }
-a:hover { color: var(--n-bord-lo); }
+html body a { color: var(--n-bord); }
+html body a:hover { color: var(--n-bord-lo); }
 
 /* ---------- inputs ----------
    16px minimum is not cosmetic. Below 16px, iOS Safari zooms the page when a
    field takes focus, which throws the booking form off-screen mid-flow. This
    is the single highest-value rule in this file for mobile. */
 
-input, select, textarea {
+html body input, html body select, html body textarea {
   font-size: 16px !important;
   color: var(--n-ink) !important;
   background: #FFFFFF !important;
@@ -86,9 +101,9 @@ input, select, textarea {
   border-radius: 0 !important;
 }
 
-input::placeholder, textarea::placeholder { color: var(--n-muted) !important; }
+html body input::placeholder, html body textarea::placeholder { color: var(--n-muted) !important; }
 
-input:focus, select:focus, textarea:focus {
+html body input:focus, html body select:focus, html body textarea:focus {
   border-color: var(--n-bord) !important;
   outline: 2px solid var(--n-bord) !important;
   outline-offset: 1px !important;
@@ -104,10 +119,10 @@ input:focus, select:focus, textarea:focus {
 /* ---------- buttons ----------
    Light ground, so Bordeaux fill with Bone text. Never gold on this surface. */
 
-button,
-input[type="submit"],
-input[type="button"],
-[role="button"] {
+html body button,
+html body input[type="submit"],
+html body input[type="button"],
+html body [role="button"] {
   background: var(--n-bord) !important;
   color: var(--n-bone) !important;
   border: 0 !important;
@@ -122,12 +137,12 @@ input[type="button"],
   cursor: pointer;
 }
 
-button:hover,
-input[type="submit"]:hover,
-[role="button"]:hover { background: var(--n-bord-lo) !important; }
+html body button:hover,
+html body input[type="submit"]:hover,
+html body [role="button"]:hover { background: var(--n-bord-lo) !important; }
 
-button:disabled,
-input[type="submit"]:disabled {
+html body button:disabled,
+html body input[type="submit"]:disabled {
   background: var(--n-rule) !important;
   color: var(--n-muted) !important;
   cursor: not-allowed;
@@ -135,7 +150,7 @@ input[type="submit"]:disabled {
 
 /* A secondary / cancel action should read as secondary, not as a second
    primary. Outline rather than fill. */
-button.secondary, button[class*="cancel"], button[class*="back"] {
+html body button.secondary, html body button[class*="cancel"], html body button[class*="back"] {
   background: transparent !important;
   color: var(--n-bord) !important;
   border: 1px solid var(--n-bord) !important;
@@ -143,8 +158,8 @@ button.secondary, button[class*="cancel"], button[class*="back"] {
 
 /* ---------- panels and rules ---------- */
 
-table, td, th { border-color: var(--n-rule) !important; }
-hr { border-color: var(--n-rule) !important; }
+html body table, html body td, html body th { border-color: var(--n-rule) !important; }
+html body hr { border-color: var(--n-rule) !important; }
 
 /* ============================================================================
    ZOHO-SPECIFIC HOOKS — fill these in from DevTools

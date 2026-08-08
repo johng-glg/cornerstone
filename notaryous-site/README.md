@@ -401,6 +401,40 @@ Basic theme — those are the two gates, and no amount of looking will surface i
 **A starter file is in this repo: `brand/zoho-booking-page.css`.** Upload it at
 Manage Bookings → Workspaces → Workspace Properties → Upload icon → Save.
 
+#### If the upload succeeds and nothing changes
+
+This is the expected failure, not a surprise, and it is almost never the
+stylesheet. Zoho accepts the upload, reports success, and then ignores it if
+the workspace is on any theme other than **Basic**. No error, no warning.
+
+Work it in this order:
+
+1. **Set the workspace theme to Basic.** Compact and Modern Web silently
+   discard custom CSS. This is the single most likely cause.
+2. **Re-test in a private window.** Zoho caches the stylesheet, and the site
+   embeds the page in an iframe that caches separately, so an ordinary reload
+   will show you a stale page and you will conclude the wrong thing. Test the
+   popped-out booking URL directly first — one fewer cache layer.
+3. **Confirm the plan is Premium.** Some tiers show the upload control and no-op
+   on it.
+4. **Run the probe.** `brand/zoho-diagnostic.css` in this repo is a deliberately
+   garish file — lime background, magenta border, orange buttons. Upload it
+   *instead* of the real stylesheet and look at the page. It distinguishes the
+   two cases that matter:
+   - **Nothing changes** → the CSS is not being delivered at all. Theme or plan.
+     No amount of selector work will help.
+   - **Background changes but buttons do not** → Zoho renders the widget in a
+     shadow root or a nested iframe, which external CSS cannot pierce. Stop;
+     the styling has to come from Zoho's own controls.
+   - **Everything goes garish** → delivery works and the real file lost on
+     specificity. That is fixable, and the selectors get tightened from there.
+
+   Delete the probe once you have the answer.
+
+The real stylesheet's selectors are prefixed `html body` so they win against
+Zoho rules that also use `!important` — with `!important` on both sides,
+specificity decides.
+
 #### Manual configuration, if Custom CSS is not available
 
 The theme panel gets most of the way there. Exact values, in the order they
