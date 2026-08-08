@@ -419,11 +419,8 @@ export function renderCalendar(opts) {
         return;
       }
       if (!res.ok) throw new Error(`checkout ${res.status}`);
-      const { payment_session_id } = await res.json();
-      // Widget mount happens here once Zoho Payments credentials exist. The
-      // appointment is never created from its callback — the confirmation view
-      // polls the server, which is what actually confirms the booking.
-      openPaymentWidget(payment_session_id);
+      const checkout = await res.json();
+      await payAndConfirm(form, checkout);
     } catch (err) {
       btn.disabled = false;
       btn.textContent = 'Continue to payment';
@@ -441,8 +438,168 @@ export function renderCalendar(opts) {
     form.append(p);
   }
 
-  function openPaymentWidget() {
-    throw new Error('payment widget not wired: awaiting Zoho Payments credentials');
+  // ── payment ───────────────────────────────────────────────────────────────
+  //
+  // ⚠️ UNTESTED AGAINST ZOHO. Every line below is written against the published
+  // web-integration docs and has never run against the real SDK: this build
+  // environment cannot reach static.zohocdn.com to load the script, let alone
+  // take a payment. The first live checkout is the first execution.
+  //
+  // Two things are inferred rather than confirmed and are the likely failure
+  // points, so both are handled defensively and reported loudly:
+  //
+  //   1. The method name. `requestPaymentMethod` is documented for the payment
+  //      METHOD widget; the checkout widget's method is not shown in any page
+  //      reachable from here. CHECKOUT_METHODS lists the candidates in order of
+  //      likelihood and the first one present on the instance is used. If none
+  //      exists we throw with the actual method list attached, so one failed
+  //      attempt tells us the answer instead of nothing.
+  //   2. The resolution shape. Treated as "resolved means the customer finished
+  //      the flow", never as "resolved means paid" — the server decides that.
+  //
+  // The appointment is NEVER created from this callback. Whatever the widget
+  // reports, /api/confirm re-checks the payment with Zoho server-side and is
+  // the only thing that books anything.
+
+  const ZPAY_SDK = 'https://static.zohocdn.com/zpay/zpay-js/v1/zpayments.js';
+  const CHECKOUT_METHODS = ['requestPaymentMethod', 'requestPayment', 'initiatePayment', 'open'];
+
+  let sdkPromise = null;
+  function loadZPaySdk() {
+    if (window.ZPayments) return Promise.resolve(window.ZPayments);
+    if (sdkPromise) return sdkPromise;
+    sdkPromise = new Promise((resolve, reject) => {
+      const el = document.createElement('script');
+      el.src = ZPAY_SDK;
+      el.async = true;
+      el.onload = () => (window.ZPayments
+        ? resolve(window.ZPayments)
+        : reject(new Error('zpayments.js loaded but window.ZPayments is undefined')));
+      el.onerror = () => reject(new Error(`could not load ${ZPAY_SDK}`));
+      document.head.append(el);
+    });
+    return sdkPromise;
+  }
+
+  async function openPaymentWidget(checkout) {
+    const ZPayments = await loadZPaySdk();
+    const w = checkout.widget || {};
+    if (!w.account_id || !w.api_key) {
+      throw new Error('payment widget not configured: ZOHO_PAY_ACCOUNT_ID / ZOHO_PAY_API_KEY');
+    }
+    const instance = new ZPayments({
+      account_id: w.account_id,
+      domain: w.domain || 'US',
+      otherOptions: { api_key: w.api_key },
+    });
+
+    const method = CHECKOUT_METHODS.find((m) => typeof instance[m] === 'function');
+    if (!method) {
+      const available = Object.getOwnPropertyNames(Object.getPrototypeOf(instance) || {}).join(', ');
+      throw new Error(`no known checkout method on ZPayments instance. Available: ${available}`);
+    }
+    if (method !== CHECKOUT_METHODS[0] && console) {
+      console.warn(`[calendar] ZPayments checkout method is "${method}", not "${CHECKOUT_METHODS[0]}" — update CHECKOUT_METHODS`);
+    }
+
+    try {
+      return await instance[method]({
+        amount: checkout.amount,
+        currency_code: checkout.currency,
+        payments_session_id: checkout.payment_session_id,
+      });
+    } finally {
+      // Documented as required to release the iframe. Guarded because it is
+      // one more thing that may not exist under this name.
+      if (typeof instance.close === 'function') { try { await instance.close(); } catch { /* ignore */ } }
+    }
+  }
+
+  /**
+   * Take the payment, then poll the server until it says the appointment exists.
+   *
+   * The polling is the actual confirmation. A widget that resolves means the
+   * customer finished the flow, nothing more — /api/confirm asks Zoho whether
+   * the money is really ours before anything is booked.
+   */
+  async function payAndConfirm(form, checkout) {
+    const btn = form.querySelector('button[type=submit]');
+    try {
+      await openPaymentWidget(checkout);
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = 'Continue to payment';
+      setPanelNotice(form, 'Payment was not completed. Nothing has been charged — you can try again, or call (714) 694-2423.');
+      if (console) console.error('[payment]', err);
+      return;
+    }
+
+    btn.textContent = 'Confirming…';
+    const deadline = Date.now() + 90_000;
+    let delay = 1000;
+    for (;;) {
+      let body = null;
+      try {
+        const res = await fetch('/api/confirm', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ payment_session_id: checkout.payment_session_id }),
+        });
+        body = await res.json().catch(() => null);
+        if (res.ok && body?.status === 'booked') return renderBooked(body, checkout);
+        // 402 means Zoho has not marked it paid yet — keep waiting.
+        // Anything else that is not a 402 is terminal and already logged server-side.
+        if (res.status !== 402 && !res.ok) {
+          return renderNeedsHelp(body?.detail
+            || 'We could not confirm the booking. If you were charged, we will call you.');
+        }
+      } catch { /* network blip — keep polling until the deadline */ }
+
+      if (Date.now() > deadline) {
+        return renderNeedsHelp(body?.status === 'unpaid'
+          ? 'We have not seen the payment come through. If you were charged, call (714) 694-2423 and we will sort it out.'
+          : 'This is taking longer than expected. If you were charged, call (714) 694-2423 — do not pay again.');
+      }
+      await new Promise((r) => setTimeout(r, delay));
+      delay = Math.min(delay * 1.5, 5000);
+    }
+  }
+
+  function renderBooked(body, checkout) {
+    const inst = new Date(body.slot || checkout.slot);
+    formEl.innerHTML = '';
+    const box = document.createElement('div');
+    box.className = 'panel';
+    box.setAttribute('role', 'status');
+    const h = document.createElement('h2');
+    h.textContent = 'You are booked.';
+    const when = document.createElement('p');
+    when.className = 'chosen';
+    when.innerHTML = `<b>${clockLabel(inst, state.tz)} · ${dayLabel(inst, state.tz)}</b>${zoneLabel(state.tz)}`;
+    const next = document.createElement('p');
+    next.className = 'fineprint';
+    next.textContent = 'Check your email for the session link. Have your photo ID ready — you will need it to verify your identity at the start of the session.';
+    const ref = document.createElement('p');
+    ref.className = 'fineprint';
+    ref.textContent = `Reference ${body.booking_id}`;
+    box.append(h, when, next, ref);
+    formEl.append(box);
+    formEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function renderNeedsHelp(message) {
+    formEl.innerHTML = '';
+    const box = document.createElement('div');
+    box.className = 'errbox';
+    box.setAttribute('role', 'alert');
+    const p = document.createElement('p');
+    p.textContent = message;
+    const alt = document.createElement('p');
+    alt.className = 'fineprint';
+    alt.innerHTML = 'Call <a href="tel:+17146942423">(714) 694-2423</a>. Please do not pay again.';
+    box.append(p, alt);
+    formEl.append(box);
+    formEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   load();

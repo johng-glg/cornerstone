@@ -21,7 +21,7 @@ Check it before every commit on this workstream:
 |---|---|
 | 0. The four answers | **complete** — `/step0` deleted |
 | 1. Zoho auth + token refresh + `/api/availability` | **built, verified against stubs** — needs credentials to run for real |
-| 2. Payments session + server confirm | **built, verified against stubs** — browser widget still to wire |
+| 2. Payments session + server confirm + widget | **built** — server verified against stubs, widget **UNTESTED**, see `first-live-checkout.md` |
 | 3. Booking store | **superseded** — no `bookings` table; `ron_sessions` is extended instead, see below |
 | 4. Happy path in sandbox | blocked |
 | 5. `slot_holds` + concurrency | **done, applied** — spec bug found, see below; TTL 17 min |
@@ -50,10 +50,14 @@ node --test lib/*.test.mjs api/*.test.mjs
 
 Step 0 is complete and `/step0` is deleted. What remains blocked:
 
-- **The browser payment widget.** `/api/checkout` returns a `payment_session_id`;
-  mounting Zoho's widget against it needs their JS SDK, which cannot be loaded or
-  tested from this environment. `lib/calendar.mjs`'s `openPaymentWidget()` still
-  throws deliberately rather than pretending.
+- **The browser payment widget is written but has never executed.** It loads
+  `zpayments.js` from `static.zohocdn.com`, which this environment cannot reach. Two
+  things in it are inferred from the docs rather than confirmed: the checkout method
+  name (`requestPaymentMethod` is documented for the payment *method* widget, not the
+  checkout widget) and the resolution shape. Both are handled defensively — the method
+  is looked up from a candidate list and a miss throws with the instance's actual
+  method names attached, so one failed attempt yields the answer. See
+  `docs/first-live-checkout.md`.
 - **A real end-to-end run.** Every Zoho host remains blocked by the network egress
   policy — `zohoapis.com`, `payments.zoho.com`, `accounts.zoho.com`, and
   `notaryous.vercel.app`. Both routes are tested against stubbed responses shaped

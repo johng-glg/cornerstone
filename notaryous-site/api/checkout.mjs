@@ -182,6 +182,15 @@ export default async function handler(req, res) {
       currency: CURRENCY,
       slot: slotIso,
       expires_at: hold.expires_at,
+      // The widget needs an account id, a publishable API key and a two-letter
+      // domain. The site is static with no build step, so there is nowhere to
+      // bake them in — they are served per checkout instead. All three are
+      // client-side values by design; nothing secret goes over this wire.
+      widget: {
+        account_id: CONFIG.paymentsAccountId(),
+        api_key: process.env.ZOHO_PAY_API_KEY ?? '',
+        domain: process.env.ZOHO_PAY_DOMAIN ?? 'US',
+      },
     });
   } catch (err) {
     console.error(JSON.stringify({ severity: 'ERROR', msg: 'checkout failed', error: String(err?.message || err) }));
