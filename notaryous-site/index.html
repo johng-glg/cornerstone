@@ -70,7 +70,7 @@ body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(
 /* Bordeaux ring on the light grounds (13.71), Bone ring on the dark ones (13.71
    to 16.17). Both clear the 3.0 non-text minimum with room. */
 :focus-visible{outline:3px solid var(--bord);outline-offset:3px}
-.top :focus-visible,.hero :focus-visible,.notice :focus-visible,footer :focus-visible,.skip:focus-visible,.stickybar :focus-visible{outline-color:var(--bone)}
+.top :focus-visible,.mast :focus-visible,.hero :focus-visible,.notice :focus-visible,footer :focus-visible,.skip:focus-visible,.stickybar :focus-visible{outline-color:var(--bone)}
 .skip{position:absolute;left:-9999px;top:8px;z-index:99;background:var(--gold);color:var(--bord);padding:12px 22px;font-weight:700;font-size:13px;letter-spacing:.09em;text-transform:uppercase;text-decoration:none}
 .skip:focus{left:8px}
 
@@ -83,6 +83,23 @@ body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(
 .top .tag{letter-spacing:.16em;text-transform:uppercase;font-size:10.5px;color:var(--gold)}
 .top a{color:var(--bone);text-decoration:none;font-weight:600}
 .top a:hover{color:var(--gold-lt)}
+
+/* ---------- masthead ---------- */
+/* Persistent brand bar. On mobile this is the only place the mark appears —
+   the hero's copy of it is hidden below 901px so the same mark is not shown
+   twice within one screen of scroll. */
+.mast{background:var(--bord)}
+.mast .w{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-top:16px;padding-bottom:16px}
+.brand{display:flex;align-items:center;gap:14px;text-decoration:none}
+/* 54px wide is 65px tall. The brand minimum for the full mark is 64px. */
+.brand img{width:54px;height:auto;display:block}
+.brand .bn{display:flex;flex-direction:column;line-height:1}
+.brand .bn b{font-size:18px;font-weight:500;letter-spacing:.36em;text-indent:.36em;color:var(--gold);text-transform:uppercase}
+/* 10.5px at rgba(bone,.72) measures 7.59. The version this replaces used
+   8.5px at .5 opacity, which is 4.27 and fails AA. */
+.brand .bn i{font-style:normal;font-size:10.5px;font-weight:600;letter-spacing:.2em;text-indent:.2em;color:rgba(239,234,224,.72);text-transform:uppercase;margin-top:7px}
+.mast .navlink{color:var(--gold);text-decoration:none;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;border-bottom:1px solid rgba(224,183,114,.45);padding-bottom:3px;white-space:nowrap}
+.mast .navlink:hover{color:var(--gold-lt);border-color:var(--gold-lt)}
 
 /* ---------- hero ---------- */
 .hero{background:var(--bord);color:var(--bone);padding:70px 0 78px;position:relative;overflow:hidden}
@@ -99,16 +116,10 @@ body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(
 .btn:focus-visible{outline:3px solid var(--bone);outline-offset:3px}
 .price{font-size:13.5px;color:rgba(239,234,224,.62);line-height:1.4}
 .price b{display:block;color:var(--bone);font-size:17px;font-weight:600}
-/* The mark and the name are one lockup. Without the wordmark, "Notaryous"
-   appears nowhere on screen until the footer. */
-.markwrap{display:flex;flex-direction:column;align-items:center;justify-content:center}
+/* No wordmark under the hero mark: the masthead names the brand a few inches
+   above it, and repeating it here just doubles the word on one screen. */
+.markwrap{display:flex;justify-content:center}
 .markwrap img{width:min(300px,74vw);height:auto;display:block}
-/* Archivo Medium, all caps, 0.36em — the wordmark spec in brand/README.md.
-   text-indent replaces the trailing letter-space that tracking adds after the
-   last letter, so the word optically centres under the mark. Gold on Bordeaux
-   is 8.75. */
-.wordmark{margin-top:20px;font-size:17px;font-weight:500;letter-spacing:.36em;
-  text-indent:.36em;text-transform:uppercase;color:var(--gold);line-height:1}
 
 /* ---------- proof strip ---------- */
 .strip{background:var(--night);color:var(--bone)}
@@ -215,16 +226,17 @@ footer .legal{max-width:46ch;line-height:1.6}
   /* The mark leads the hero on mobile, above the eyebrow. `order` works on
      grid items, so the DOM stays text-first — which is also the right reading
      order for a screen reader. */
-  /* These four values are the fold budget on a 375x667 iPhone SE. Adding the
-     wordmark cost 28px and pushed the CTA 7px under the fold; tightening the
-     hero gap, top padding and the sub's margin buys 24px back. Loosen them
-     and re-measure the CTA against the fold before shipping. */
-  .hero{padding:36px 0 56px}
-  .hero .w{gap:26px}
-  .hero .sub{margin-bottom:26px}
-  .markwrap{order:-1}
-  .markwrap img{width:min(147px,37.5vw)}
-  .wordmark{margin-top:14px;font-size:14px}
+  /* The masthead carries the mark and the name on mobile, so the hero's copy
+     is hidden rather than shown a second screen-inch below it. That returns
+     ~196px of fold budget, which is why the hero padding can go back to
+     comfortable values instead of the tightened ones this needed before. */
+  .markwrap{display:none}
+  .hero{padding:48px 0 56px}
+  .mast .w{padding-top:14px;padding-bottom:14px}
+  /* The mark stays 54px here. It is the smallest width that keeps the full
+     mark at the 64px brand minimum, so there is nothing to shave. */
+  .brand .bn b{font-size:16px;letter-spacing:.3em;text-indent:.3em}
+  .mast .navlink{display:none}
   /* iOS Safari sizes iframes to their content and ignores the height. A
      no-op where the height is honoured; contains the embed where it is not.
      Re-check once the real Zoho embed has been loaded on a device. */
@@ -249,6 +261,14 @@ footer .legal{max-width:46ch;line-height:1.6}
   <span>Questions? <a href="tel:+17146942423">(714) 694-2423</a></span>
 </div></div>
 
+<div class="mast"><div class="w">
+  <a class="brand" href="/" aria-label="Notaryous home">
+    <img src="/mark-gold.svg" width="544" height="656" alt="" fetchpriority="high" decoding="async">
+    <span class="bn"><b>Notaryous</b><i>Online Notarization</i></span>
+  </a>
+  <a class="navlink" href="#book" data-va="mast_book">Book a session</a>
+</div></div>
+
 <header class="hero"><div class="w">
   <div>
     <div class="eyebrow">Remote Online Notarization</div>
@@ -262,10 +282,9 @@ footer .legal{max-width:46ch;line-height:1.6}
   <div class="markwrap">
     <!-- The approved mark, unmodified, served as one cacheable vector file
          instead of ~197KB of inline path data in every HTML response.
-         alt is empty because the wordmark beside it already names the brand;
-         alt="Notaryous" here would make a screen reader say it twice. -->
-    <img src="/mark-gold.svg" width="544" height="656" alt="" fetchpriority="high" decoding="async">
-    <span class="wordmark">Notaryous</span>
+         alt is empty because the masthead's brand link already names Notaryous
+         in the accessibility tree; naming it here too would repeat it. -->
+    <img src="/mark-gold.svg" width="544" height="656" alt="" decoding="async">
   </div>
 </div></header>
 

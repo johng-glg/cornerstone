@@ -74,7 +74,7 @@ When the domain transfer completes:
 | Path | What it is |
 |---|---|
 | `index.html` | The entire page: markup, styles, analytics. |
-| `mark-gold.svg` | The approved mark, unmodified. Used by the hero and the footer. |
+| `mark-gold.svg` | The approved mark, unmodified. Used by the masthead, the hero (desktop only) and the footer. |
 | `fonts/` | Archivo, self-hosted. One variable file covers weights 400–700. |
 | `favicon.ico` | 16 / 32 / 48 multi-size. |
 | `favicon.svg` | Vector favicon, Cordovan tile. |
@@ -281,69 +281,67 @@ states. Clicks report as `booking_click` with `placement: sticky_book`, so its
 contribution is separable from the hero button in analytics. `display:none`
 above 900px. Transition drops to `0s` under `prefers-reduced-motion`.
 
-**The wordmark.** As delivered, the name "Notaryous" appeared nowhere on screen
-until the footer — the hero carried the fingerprint mark alone, and the mark has
-no lettering in it. The `<title>` had it, the mark's `alt` had it, but a visitor
-scrolling the hero never read the company's name.
+**The masthead, and where the brand name lives.** As delivered, "Notaryous"
+appeared nowhere on screen until the footer. The fingerprint mark carries no
+lettering, so the `<title>` and the image `alt` held the name but nobody reading
+the hero ever saw it.
 
-`.wordmark` now sits under the hero mark on every breakpoint, making the two a
-proper lockup: Archivo Medium, all caps, `letter-spacing:.36em` — the wordmark
-spec from `brand/README.md` — in Gold on Bordeaux at 8.75.
+A `.mast` bar now sits between the top strip and the hero: the mark, `NOTARYOUS`
+in Archivo Medium at `letter-spacing:.36em` — the wordmark spec from
+`brand/README.md` — with `ONLINE NOTARIZATION` beneath it, and a Book a session
+link on the right.
 
-Two details that are easy to get wrong:
+Numbers behind the choices:
 
-- `text-indent:.36em` compensates for the trailing letter-space that tracking
-  adds after the final letter. Without it the word sits half a letter-space
-  left of the mark's centre. Verified as 0px off centre at every breakpoint.
-- The mark's `alt` is now empty. The visible wordmark names the brand, so
-  `alt="Notaryous"` would make a screen reader announce it twice.
+| | Value | Why |
+|---|---|---|
+| Brand mark | 54px wide = **65px tall** | 54px is the narrowest width that keeps the full mark at the 64px brand minimum. Nothing to shave, including on mobile |
+| `NOTARYOUS` | Gold on Bordeaux, **8.75** | Dark-ground mode |
+| `ONLINE NOTARIZATION` | 10.5px, rgba(bone,.72), **7.59** | AA with room |
+| Nav link | Gold on Bordeaux, **8.75** | Hidden below 901px — the hero CTA and the sticky bar already cover mobile |
 
-Adding it cost 28px and pushed the CTA 7px under the fold on a 375×667 SE, so
-the hero gap, top padding and the sub's bottom margin were tightened to buy 24px
-back. Those four values are the mobile fold budget and are commented as such —
-loosen any of them and re-measure the CTA before shipping.
+`text-indent` matching the tracking is on both wordmark lines. Letter-spacing
+adds a trailing space after the final letter, so without it a tracked word sits
+half a letter-space left of true centre.
 
-**Hero order on mobile.** Below 901px the mark leads the hero, above the
-`Remote Online Notarization` eyebrow, at 33% smaller — `min(147px,37.5vw)`
-rather than `min(220px,56vw)`.
+**On mobile the hero's mark is hidden entirely** (`display:none` below 901px).
+The masthead is a few inches above it carrying the same artwork; showing both
+would put one mark twice inside a single screen of scroll. **The desktop hero
+keeps its 300px mark** and has no wordmark under it — the masthead names the
+brand a short distance above, so repeating it there just doubles the word.
 
-Done with `order:-1` on `.markwrap`, so the **DOM stays text-first**. That
-matters: a screen reader and a search crawler both still meet the eyebrow and
-the headline before a decorative image, while sighted users see the mark first.
-Reordering the markup itself would have traded one for the other.
+That trade paid for itself. With the hero mark gone on mobile, ~196px of fold
+budget came back against the masthead's ~93px, so the hero padding returned to
+comfortable values instead of the tightened ones the earlier layout needed:
 
-What it cost, measured on the four reference devices:
+| | CTA bottom | Fold | Margin | Price line |
+|---|---|---|---|---|
+| iPhone SE 375×667 | 539 | 667 | +128px | **above** |
+| iPhone 14 390×844 | 511 | 844 | +333px | above |
+| Pixel 412×915 | 511 | 915 | +404px | above |
+| Fold 320×653 | 539 | 653 | +114px | **above** |
 
-| | CTA bottom | Fold | Price line |
-|---|---|---|---|
-| iPhone SE 375×667 | 650 | 667 | 45px below |
-| iPhone 14 390×844 | 628 | 844 | above |
-| Pixel 412×915 | 629 | 915 | above |
-| Fold 320×653 | 625 | 653 | 35px below |
+Both the CTA and the `$25 flat / Unlimited signatures` line now clear the fold on
+every reference device, including the two shortest — which the previous
+hero-mark-on-top layout could not manage. The page is also ~110px shorter.
 
-**The Book a session button stays above the fold on every one of them.** The
-`$25 flat / Unlimited signatures` line beneath it now falls just under the fold
-on the two shortest devices. That is a real cost but a small one: the same $25
-figure is restated in the proof strip immediately below, and again in the sticky
-bar the moment the user scrolls. Most of the easy space has now been spent
-getting the CTA back above the fold after adding the wordmark, so recovering
-the price line too would mean shrinking the mark further or trimming the sub.
+The masthead's Book a session link reports as `booking_click` with
+`placement: mast_book`, so its pull is separable from the hero button and the
+sticky bar.
 
-**A masthead was considered and not built.** The obvious alternative way to
-surface the brand name is a persistent header bar above the hero carrying the
-mark, the name and a nav CTA. It was left out for two reasons: on mobile the
-mark now leads the hero, so a masthead would put the same mark twice within
-about 150px of scroll; and it spends fold budget that is already tight on a
-375×667 screen. If a persistent header is wanted, the honest version is to drop
-the mark from the top of the mobile hero at the same time, rather than run both.
+**Not adopted from the version this came from**, with the measurements:
 
-The smaller mark also improved mobile LCP to 1.0s, and every performance audit
-now passes on mobile rather than just the category score.
+- Its masthead mark was 34px wide (41px tall), and 28px (34px) on mobile —
+  below the 64px brand minimum, the same violation already fixed in the footer.
+- Its `ONLINE NOTARIZATION` subline was 8.5px at rgba(bone,.5), which measures
+  **4.27** and fails AA. 7.5px on mobile.
+- 8.5px and 7.5px are smaller than anything else on this page; the smallest
+  type here is 10.5px.
 
-**Desktop is untouched.** The mark stays 300px and to the right of the headline;
-`order` only applies inside the mobile media query. Verified by pixel-diffing the
-full-page 1440px render before and after — the only delta is the "unlimited
-signatures" copy change.
+**Performance.** Mobile Lighthouse is 100 at a median LCP of 953ms and Speed
+Index 729ms, taken as the median of three runs — a single cold run showed 98 /
+1.9s, which is run-to-run variance rather than a regression. Desktop 100, LCP
+0.5s. Verify against medians, not one run.
 
 The 10.5px tracked uppercase labels (`.top .tag`, `.eyebrow`, `.placard .cap`)
 and the 11.5px stat labels are left alone. They are a deliberate typographic
@@ -370,14 +368,16 @@ resolution that actually looks right it is 17 KB *heavier* than the vector, whic
 is also cached forever after first paint. It would additionally contradict the
 brief's own rule that the mark is never replaced with a raster.
 
-**The hero reorder was declined on measurement, then adopted by decision.**
-Originally rejected: the mark was below the CTA, and moving it above the headline
-pushes the only conversion action down the page for no measured gain.
+**The hero reorder was declined, adopted, then superseded.** Originally
+rejected on measurement: the mark sat below the CTA, and moving it above the
+headline pushes the only conversion action down the page for no measured gain.
+It was then requested as a brand call and built — mark leading the mobile hero
+at 33% smaller.
 
-It was subsequently requested anyway, as a brand call — the mark now leads the
-hero on mobile, at 33% smaller. See "Hero order on mobile" below for what that
-actually cost, which turned out to be less than the original objection assumed
-because the smaller mark paid for most of the move.
+The masthead has since made that moot. The mobile hero no longer shows the mark
+at all; the masthead above it does, which resolves the original objection
+outright — the CTA and the price line now both clear the fold on every reference
+device. See "The masthead, and where the brand name lives" above.
 
 Also noted: the "16px inputs so iOS does not auto-zoom" item does not apply here.
 There are no form inputs on this page — the booking form lives inside the Zoho
