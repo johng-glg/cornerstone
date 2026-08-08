@@ -4,41 +4,34 @@ Public booking site for Notaryous, a remote online notarization service and a
 registered trade name of Guardian Litigation Group, LLP. Static single page, no
 framework, no build step.
 
-**The contents of this directory are the repo root of the deployed site.** When
-this moves to its own repo (`johng-glg/notaryous-site`), copy everything here to
-that repo's root — do not nest it in a `site/` folder, or the asset paths in
-`index.html` (`/mark-gold.svg`, `/fonts/...`) will 404.
+**This site is deployed from [`johng-glg/notaryous`](https://github.com/johng-glg/notaryous),
+where these files sit at the repo root.** The copy here under
+`cornerstone/notaryous-site/` is the working copy this was built in. If you edit
+one, mirror it to the other, or retire this copy once `notaryous` is the
+established source of truth.
 
-### Lifting this into `johng-glg/notaryous-site`
-
-This currently lives in `cornerstone` under `notaryous-site/`. To move it to its
-own repo with the history intact and the files at the root:
-
-```
-# once, in an empty johng-glg/notaryous-site
-git subtree split --prefix=notaryous-site -b notaryous-site-root
-git push git@github.com:johng-glg/notaryous-site.git notaryous-site-root:main
-```
-
-`git subtree split` rewrites the commit so `index.html` sits at the root rather
-than under `notaryous-site/`. Verify with
-`git ls-tree --name-only notaryous-site-root` — `index.html` should be in the
-listing, not a `notaryous-site` directory.
+Whichever copy you edit, the files must stay at the deploy root — do not nest
+them in a `site/` folder, or the absolute asset paths in `index.html`
+(`/mark-gold.svg`, `/fonts/...`) will 404.
 
 ---
 
 ## Deploy
 
-1. Push this directory's contents to the repo root.
-2. Import to Vercel.
+The repo is imported to Vercel already. Confirm these settings are what the
+import picked up — Vercel guesses, and a wrong guess here fails the build rather
+than serving the page:
+
+1. Project → Settings → Build & Deployment:
    - Framework preset: **Other**
-   - Build command: **none**
-   - Output directory: **root**
+   - Build command: **none** (override toggled on, field empty)
+   - Output directory: **none / root** (override toggled on, field empty)
    - Install command: **none**
-3. Turn on **Web Analytics** in the Vercel project (Analytics tab → Enable).
+   - Root directory: **blank** — the files are at the repo root
+2. Turn on **Web Analytics** in the Vercel project (Analytics tab → Enable).
    The page already loads `/_vercel/insights/script.js`; until analytics is
    enabled that path 404s and the browser console logs one error.
-4. Add the domain `notary.guardianlit.com`, then create a CNAME at the DNS host
+3. Add the domain `notary.guardianlit.com`, then create a CNAME at the DNS host
    for `guardianlit.com`:
 
    | Type  | Name     | Value                   |
