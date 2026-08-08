@@ -99,8 +99,16 @@ body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(
 .btn:focus-visible{outline:3px solid var(--bone);outline-offset:3px}
 .price{font-size:13.5px;color:rgba(239,234,224,.62);line-height:1.4}
 .price b{display:block;color:var(--bone);font-size:17px;font-weight:600}
-.markwrap{display:flex;justify-content:center}
+/* The mark and the name are one lockup. Without the wordmark, "Notaryous"
+   appears nowhere on screen until the footer. */
+.markwrap{display:flex;flex-direction:column;align-items:center;justify-content:center}
 .markwrap img{width:min(300px,74vw);height:auto;display:block}
+/* Archivo Medium, all caps, 0.36em — the wordmark spec in brand/README.md.
+   text-indent replaces the trailing letter-space that tracking adds after the
+   last letter, so the word optically centres under the mark. Gold on Bordeaux
+   is 8.75. */
+.wordmark{margin-top:20px;font-size:17px;font-weight:500;letter-spacing:.36em;
+  text-indent:.36em;text-transform:uppercase;color:var(--gold);line-height:1}
 
 /* ---------- proof strip ---------- */
 .strip{background:var(--night);color:var(--bone)}
@@ -207,9 +215,16 @@ footer .legal{max-width:46ch;line-height:1.6}
   /* The mark leads the hero on mobile, above the eyebrow. `order` works on
      grid items, so the DOM stays text-first — which is also the right reading
      order for a screen reader. */
-  .hero{padding:44px 0 56px}
+  /* These four values are the fold budget on a 375x667 iPhone SE. Adding the
+     wordmark cost 28px and pushed the CTA 7px under the fold; tightening the
+     hero gap, top padding and the sub's margin buys 24px back. Loosen them
+     and re-measure the CTA against the fold before shipping. */
+  .hero{padding:36px 0 56px}
+  .hero .w{gap:26px}
+  .hero .sub{margin-bottom:26px}
   .markwrap{order:-1}
   .markwrap img{width:min(147px,37.5vw)}
+  .wordmark{margin-top:14px;font-size:14px}
   /* iOS Safari sizes iframes to their content and ignores the height. A
      no-op where the height is honoured; contains the embed where it is not.
      Re-check once the real Zoho embed has been loaded on a device. */
@@ -246,8 +261,11 @@ footer .legal{max-width:46ch;line-height:1.6}
   </div>
   <div class="markwrap">
     <!-- The approved mark, unmodified, served as one cacheable vector file
-         instead of ~197KB of inline path data in every HTML response. -->
-    <img src="/mark-gold.svg" width="544" height="656" alt="Notaryous" fetchpriority="high" decoding="async">
+         instead of ~197KB of inline path data in every HTML response.
+         alt is empty because the wordmark beside it already names the brand;
+         alt="Notaryous" here would make a screen reader say it twice. -->
+    <img src="/mark-gold.svg" width="544" height="656" alt="" fetchpriority="high" decoding="async">
+    <span class="wordmark">Notaryous</span>
   </div>
 </div></header>
 

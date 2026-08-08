@@ -281,6 +281,28 @@ states. Clicks report as `booking_click` with `placement: sticky_book`, so its
 contribution is separable from the hero button in analytics. `display:none`
 above 900px. Transition drops to `0s` under `prefers-reduced-motion`.
 
+**The wordmark.** As delivered, the name "Notaryous" appeared nowhere on screen
+until the footer — the hero carried the fingerprint mark alone, and the mark has
+no lettering in it. The `<title>` had it, the mark's `alt` had it, but a visitor
+scrolling the hero never read the company's name.
+
+`.wordmark` now sits under the hero mark on every breakpoint, making the two a
+proper lockup: Archivo Medium, all caps, `letter-spacing:.36em` — the wordmark
+spec from `brand/README.md` — in Gold on Bordeaux at 8.75.
+
+Two details that are easy to get wrong:
+
+- `text-indent:.36em` compensates for the trailing letter-space that tracking
+  adds after the final letter. Without it the word sits half a letter-space
+  left of the mark's centre. Verified as 0px off centre at every breakpoint.
+- The mark's `alt` is now empty. The visible wordmark names the brand, so
+  `alt="Notaryous"` would make a screen reader announce it twice.
+
+Adding it cost 28px and pushed the CTA 7px under the fold on a 375×667 SE, so
+the hero gap, top padding and the sub's bottom margin were tightened to buy 24px
+back. Those four values are the mobile fold budget and are commented as such —
+loosen any of them and re-measure the CTA before shipping.
+
 **Hero order on mobile.** Below 901px the mark leads the hero, above the
 `Remote Online Notarization` eyebrow, at 33% smaller — `min(147px,37.5vw)`
 rather than `min(220px,56vw)`.
@@ -294,18 +316,26 @@ What it cost, measured on the four reference devices:
 
 | | CTA bottom | Fold | Price line |
 |---|---|---|---|
-| iPhone SE 375×667 | 646 | 667 | 41px below |
-| iPhone 14 390×844 | 624 | 844 | above |
-| Pixel 412×915 | 625 | 915 | above |
-| Fold 320×653 | 621 | 653 | 31px below |
+| iPhone SE 375×667 | 650 | 667 | 45px below |
+| iPhone 14 390×844 | 628 | 844 | above |
+| Pixel 412×915 | 629 | 915 | above |
+| Fold 320×653 | 625 | 653 | 35px below |
 
 **The Book a session button stays above the fold on every one of them.** The
 `$25 flat / Unlimited signatures` line beneath it now falls just under the fold
 on the two shortest devices. That is a real cost but a small one: the same $25
 figure is restated in the proof strip immediately below, and again in the sticky
-bar the moment the user scrolls. If it matters, roughly 40px can be reclaimed on
-an SE by tightening the hero gap, the top padding and the sub's bottom margin —
-say so and it is a three-value change.
+bar the moment the user scrolls. Most of the easy space has now been spent
+getting the CTA back above the fold after adding the wordmark, so recovering
+the price line too would mean shrinking the mark further or trimming the sub.
+
+**A masthead was considered and not built.** The obvious alternative way to
+surface the brand name is a persistent header bar above the hero carrying the
+mark, the name and a nav CTA. It was left out for two reasons: on mobile the
+mark now leads the hero, so a masthead would put the same mark twice within
+about 150px of scroll; and it spends fold budget that is already tight on a
+375×667 screen. If a persistent header is wanted, the honest version is to drop
+the mark from the top of the mobile hero at the same time, rather than run both.
 
 The smaller mark also improved mobile LCP to 1.0s, and every performance audit
 now passes on mobile rather than just the category score.
