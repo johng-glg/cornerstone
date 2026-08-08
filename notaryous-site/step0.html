@@ -112,7 +112,8 @@ pre{margin-top:10px;background:var(--night);color:#E7DDD2;padding:14px;overflow:
       Payments: confirm the exact strings in the API Console scope picker rather than guessing them.
       If combining Bookings and Payments scopes returns <code>Invalid Scope</code>, generate two separate
       codes from the same client credentials and exchange each one here — you will get two refresh tokens,
-      which is what <code>ZOHO_REFRESH_TOKEN</code> and <code>ZOHO_PAYMENTS_REFRESH_TOKEN</code> expect.
+      which is what <code>ZOHO_REFRESH_TOKEN</code> and <code>ZOHO_PAY_REFRESH_TOKEN</code> expect. Both come
+      from the same Self Client, so the client id and secret are shared — only the refresh tokens differ.
     </div>
   </section>
 
@@ -248,8 +249,9 @@ function showEnvBlock(section, data) {
     sc.textContent = `Scopes granted: ${data.scope}` +
       (/payment/i.test(data.scope) && /booking/i.test(data.scope)
         ? ' — both products in one token.'
-        : ' — if this covers only one product, generate a second code for the other and exchange it too, ' +
-          'then set the ZOHO_PAYMENTS_* variables from that result.');
+        : ' — if this covers only one product, generate a second code for the other and exchange it too. ' +
+          'Only ZOHO_PAY_REFRESH_TOKEN comes from that second result: the client id and secret are the ' +
+          'same Self Client and are not duplicated.');
     wrap.append(sc);
   }
   section.querySelector('.answer').append(wrap);

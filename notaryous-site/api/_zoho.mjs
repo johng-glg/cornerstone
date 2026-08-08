@@ -26,12 +26,12 @@ export const CONFIG = {
   bookingsBase: () => env('ZOHO_BOOKINGS_BASE', '/bookings/v1/json'),
   staffPath: () => env('ZOHO_STAFF_PATH', '/staffs'),
   availabilityPath: () => env('ZOHO_AVAILABILITY_PATH', '/availableslots'),
-  paymentsHost: () => env('ZOHO_PAYMENTS_HOST', 'https://payments.zoho.com'),
+  paymentsHost: () => env('ZOHO_PAY_HOST', 'https://payments.zoho.com'),
   serviceId: () => env('ZOHO_SERVICE_ID'),
   // OPTIONAL, and step-0 only. See resolveStaffIds() below: production
   // discovers the service's staff and must not depend on one hardcoded notary.
   staffId: () => env('ZOHO_STAFF_ID'),
-  paymentsAccountId: () => env('ZOHO_PAYMENTS_ACCOUNT_ID'),
+  paymentsAccountId: () => env('ZOHO_PAY_ACCOUNT_ID'),
   orgTimezone: () => env('ZOHO_ORG_TIMEZONE', 'America/Los_Angeles'),
 };
 
@@ -45,11 +45,28 @@ export const CONFIG = {
  */
 export const REQUIRED = {
   bookings: ['ZOHO_CLIENT_ID', 'ZOHO_CLIENT_SECRET', 'ZOHO_REFRESH_TOKEN', 'ZOHO_SERVICE_ID'],
-  payments: ['ZOHO_PAYMENTS_CLIENT_ID', 'ZOHO_PAYMENTS_CLIENT_SECRET', 'ZOHO_PAYMENTS_REFRESH_TOKEN', 'ZOHO_PAYMENTS_ACCOUNT_ID'],
+  // Payments runs on the SAME Self Client as Bookings, so the client id and
+  // secret are shared. Only the refresh token and the account id are
+  // Payments-specific. An entry that is an array means "any one of these" —
+  // the ZOHO_PAY_ names are honoured if someone later splits the clients, and
+  // otherwise the Bookings credentials are used.
+  payments: [
+    ['ZOHO_PAY_CLIENT_ID', 'ZOHO_CLIENT_ID'],
+    ['ZOHO_PAY_CLIENT_SECRET', 'ZOHO_CLIENT_SECRET'],
+    'ZOHO_PAY_REFRESH_TOKEN',
+    'ZOHO_PAY_ACCOUNT_ID',
+  ],
 };
 
+/**
+ * Which of `names` are unset. An entry may be an array of alternatives, which
+ * counts as present when any one of them is set and is reported as
+ * "A or B" so the UI names both.
+ */
 export function missingEnv(names) {
-  return names.filter((n) => !process.env[n]);
+  return names
+    .filter((n) => (Array.isArray(n) ? !n.some((k) => process.env[k]) : !process.env[n]))
+    .map((n) => (Array.isArray(n) ? n.join(' or ') : n));
 }
 
 /**
@@ -62,14 +79,41 @@ export function missingEnv(names) {
  */
 const tokens = new Map();
 
+/**
+ * The credentials a token refresh uses.
+ *
+ * Bookings and Payments run on the SAME Zoho Self Client, so the client id and
+ * secret are identical and are not duplicated into ZOHO_PAY_* variables. The
+ * refresh tokens differ, because the two products' scopes were granted by two
+ * separate authorization codes.
+ *
+ * The ZOHO_PAY_CLIENT_ID / _SECRET names are still read first, so splitting the
+ * two products onto separate clients later is a matter of setting two variables
+ * rather than editing this file.
+ */
+export function credentialsFor(kind) {
+  if (kind !== 'payments') {
+    return {
+      refresh_token: process.env.ZOHO_REFRESH_TOKEN,
+      client_id: process.env.ZOHO_CLIENT_ID,
+      client_secret: process.env.ZOHO_CLIENT_SECRET,
+    };
+  }
+  return {
+    refresh_token: process.env.ZOHO_PAY_REFRESH_TOKEN,
+    client_id: process.env.ZOHO_PAY_CLIENT_ID ?? process.env.ZOHO_CLIENT_ID,
+    client_secret: process.env.ZOHO_PAY_CLIENT_SECRET ?? process.env.ZOHO_CLIENT_SECRET,
+  };
+}
+
 async function refreshToken(kind) {
-  const prefix = kind === 'payments' ? 'ZOHO_PAYMENTS_' : 'ZOHO_';
-  const body = new URLSearchParams({
-    refresh_token: process.env[`${prefix}REFRESH_TOKEN`],
-    client_id: process.env[`${prefix}CLIENT_ID`],
-    client_secret: process.env[`${prefix}CLIENT_SECRET`],
-    grant_type: 'refresh_token',
-  });
+  const creds = credentialsFor(kind);
+  // URLSearchParams stringifies undefined as the literal "undefined" and posts
+  // it, which comes back as an opaque Zoho error. Name the missing variable.
+  for (const [field, value] of Object.entries(creds)) {
+    if (!value) throw new Error(`token refresh (${kind}): no ${field} configured`);
+  }
+  const body = new URLSearchParams({ ...creds, grant_type: 'refresh_token' });
   const res = await fetch(`${CONFIG.accountsHost()}/oauth/v2/token`, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },

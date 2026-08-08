@@ -345,10 +345,25 @@ by the first block on the page, trades a Zoho Self Client authorization code for
    always means it expired; generate a fresh one rather than debugging anything else.
 3. Copy the four env var lines it returns into Vercel, then close the tab.
 
-**Payments scopes are not guessed here.** Confirm the exact strings in the API Console
-scope picker. If combining Bookings and Payments scopes returns `Invalid Scope`,
-generate two codes from the same client credentials and exchange each — one fills
-`ZOHO_REFRESH_TOKEN`, the other `ZOHO_PAYMENTS_REFRESH_TOKEN`.
+**Payments and Bookings share one Self Client.** The client id and secret are
+identical, so they are not duplicated into `ZOHO_PAY_*` variables — `credentialsFor()`
+falls back to `ZOHO_CLIENT_ID` / `ZOHO_CLIENT_SECRET`. Only the refresh token and the
+account id are Payments-specific, because the two products' scopes were granted by two
+separate authorization codes. If combining the scopes returns `Invalid Scope`, generate
+two codes from the same client credentials and exchange each — one fills
+`ZOHO_REFRESH_TOKEN`, the other `ZOHO_PAY_REFRESH_TOKEN`.
+
+`ZOHO_PAY_CLIENT_ID` / `ZOHO_PAY_CLIENT_SECRET` are still read first, so splitting the
+two products onto separate Self Clients later means setting two variables rather than
+editing code.
+
+**Payments scope strings** — two confirmed from the docs, one not:
+
+| Operation | Scope |
+|---|---|
+| Create Payment Session | `ZohoPay.payments.CREATE` |
+| Retrieve Payment Session | `ZohoPay.payments.READ` |
+| Refunds | **Read off the API Console scope picker.** The docs list a Refunds family with CREATE and READ but never render the literal string. `ZohoPay.refunds.CREATE` is the obvious extrapolation and is exactly the kind of guess that costs an afternoon — Zoho Books uses `ZohoBooks.customerpayments.CREATE` for the same concept, not a `refunds` noun |
 
 Things worth knowing about this endpoint:
 
@@ -388,8 +403,9 @@ which ones are missing rather than returning a 500.
 | `ZOHO_STAFF_ID` | **step 0 only, optional** | Pins the probes to one known calendar. Leave it unset to exercise the production path, which discovers staff from the service. Accepts a comma-separated list. **Do not set it in production** — see finding 4 |
 | `ZOHO_ORG_TIMEZONE` | check 2 | Defaults to `America/Los_Angeles`. Must be the org's real zone or the probe is meaningless |
 | `ZOHO_STAFF_PATH`, `ZOHO_AVAILABILITY_PATH` | overrides | Default `/staffs` and `/availableslots`. Change these rather than the code if Zoho names them differently on this account |
-| `ZOHO_PAYMENTS_CLIENT_ID` / `_SECRET` / `_REFRESH_TOKEN` / `_ACCOUNT_ID` | check 3 | Sandbox has its own account id |
-| `ZOHO_ACCOUNTS_HOST`, `ZOHO_API_HOST`, `ZOHO_BOOKINGS_BASE`, `ZOHO_PAYMENTS_HOST` | overrides | Defaults are the documented ones. The point of step 0 is that we do not yet know they are right — a wrong guess should be one env var away from fixed |
+| `ZOHO_PAY_REFRESH_TOKEN`, `ZOHO_PAY_ACCOUNT_ID` | check 3 | The only Payments-specific variables. Sandbox has its own account id |
+| `ZOHO_PAY_CLIENT_ID`, `ZOHO_PAY_CLIENT_SECRET` | optional | Unset by default — Payments uses the same Self Client as Bookings and falls back to `ZOHO_CLIENT_ID` / `ZOHO_CLIENT_SECRET`. Set these only if the two products are ever split onto separate clients |
+| `ZOHO_ACCOUNTS_HOST`, `ZOHO_API_HOST`, `ZOHO_BOOKINGS_BASE`, `ZOHO_PAY_HOST` | overrides | Defaults are the documented ones. The point of step 0 is that we do not yet know they are right — a wrong guess should be one env var away from fixed |
 | `STEP0_TEST_EMAIL` | optional | Where test confirmations land. Defaults to `step0-test@guardianlit.com` |
 
 ### Access control
