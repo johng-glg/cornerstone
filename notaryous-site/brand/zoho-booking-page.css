@@ -84,10 +84,20 @@
   --booking-primary:      #3B1116 !important;
   --color-primary:        #3B1116 !important;
   --primary-bg:           #3B1116 !important;
-  --primary-text:         #EFEAE0 !important;
-  --theme-text-color:     #EFEAE0 !important;
-  --on-primary:           #EFEAE0 !important;
 }
+
+/* DO NOT add light-coloured variable overrides to the block above.
+   An earlier revision also set --primary-text, --theme-text-color and
+   --on-primary to Bone, guessing those meant "text sitting ON the primary
+   colour". They were removed as a precaution, not because they were caught
+   causing damage — the blank header that prompted the review turned out to be
+   a deliberate edit to the workspace name, not a rendering fault.
+
+   The precaution stands on its own reasoning. Guessing a variable's NAME is
+   free: an override that matches nothing does nothing. Guessing its MEANING is
+   not. On this light surface a wrong dark value is merely the wrong colour,
+   while a wrong light value is invisible text. So blind-override to dark
+   values only, and let the explicit rules below own text colour. */
 
 /* ---------- type ---------- */
 
@@ -112,7 +122,15 @@ html body { background: var(--n-bone) !important; color: var(--n-ink) !important
    Bordeaux, so setting it wholesale is correct rather than heavy-handed.
    Buttons and selected states re-assert their own colour further down. */
 
-html body p, html body span, html body label, html body li, html body td {
+/* `div` is included deliberately, as a backstop: whatever colour variable Zoho
+   reaches for, generic containers on this Bone surface end up Ink, so no theme
+   change can leave text invisible. The exceptions — primary buttons and
+   selected cells, which need Bone text — are re-asserted further down. Their
+   specificity was checked rather than assumed: [0,1,3] and [0,1,2] against
+   this rule's [0,0,3], so they win. All of these carry !important, which means
+   specificity, not order, decides. */
+html body p, html body span, html body label, html body li, html body td,
+html body div {
   color: var(--n-ink) !important;
 }
 
@@ -209,6 +227,21 @@ html body button[class*="book"]:hover {
   color: var(--n-bone) !important;
 }
 
+/* Labels are often wrapped in a span inside the button. Without this, the
+   generic Ink rule above would repaint them Ink on Bordeaux — 1.9 contrast on
+   the confirm-and-pay button, which is the worst possible place for it. */
+html body button[type="submit"] *,
+html body input[type="submit"] *,
+html body button[class*="primary"] *,
+html body button[class*="confirm"] *,
+html body button[class*="submit"] *,
+html body button[class*="book"] *,
+html body button[class*="pay"] *,
+html body button[class*="next"] *,
+html body [class*="btn-primary"] * {
+  color: var(--n-bone) !important;
+}
+
 html body button:disabled,
 html body input[type="submit"]:disabled {
   background: var(--n-bone-2) !important;
@@ -216,6 +249,8 @@ html body input[type="submit"]:disabled {
   border-color: var(--n-rule) !important;
   cursor: not-allowed;
 }
+
+html body button:disabled * { color: var(--n-muted) !important; }
 
 /* ---------- selected states = SOLID BORDEAUX ----------
    This is what replaces Zoho's gold fill on the chosen day. Bone on Bordeaux
