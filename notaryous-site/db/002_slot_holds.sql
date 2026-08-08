@@ -1,6 +1,14 @@
 -- Notaryous booking calendar — slot_holds
 --
--- A local, authoritative hold on a slot for the ~10 minutes a checkout is open.
+-- A local, authoritative hold on a slot for the 17 minutes a checkout is open.
+--
+-- 17 = the Zoho Payments session lifetime plus two minutes of slack. The
+-- session lifetime is measured, not assumed: a create response returned
+-- created_time 1786227520 and expiry_time 1786228420, exactly 900 seconds.
+-- The hold MUST outlive the session. At the original 10 minutes a customer
+-- could still pay at T+12 against a hold that died at T+10, with the slot
+-- already re-sold — a refund and an ops alert for someone who did nothing
+-- wrong.
 -- Zoho has no hold API, and holding by creating a placeholder appointment would
 -- fire the BlueNotary Flow on every abandoned checkout — which, given the Flow
 -- sends a hardcoded payment reference, would create a real BlueNotary session
@@ -23,7 +31,7 @@ create table if not exists public.slot_holds (
   slot_start_utc     timestamptz not null,
   staff_id           text        not null,
   payment_session_id text        unique,           -- null until the session is created
-  expires_at         timestamptz not null default now() + interval '10 minutes',
+  expires_at         timestamptz not null default now() + interval '17 minutes',
   created_at         timestamptz not null default now()
 );
 
@@ -65,7 +73,7 @@ create or replace function public.claim_slot_hold(
   p_slot_start_utc     timestamptz,
   p_staff_id           text,
   p_payment_session_id text default null,
-  p_ttl                interval default interval '10 minutes'
+  p_ttl                interval default interval '17 minutes'
 ) returns public.slot_holds
 language sql as $$
   insert into public.slot_holds (slot_start_utc, staff_id, payment_session_id, expires_at)

@@ -103,4 +103,83 @@ export async function bookedSlots(fromISO, toISO) {
     }));
 }
 
-export { sbFetch };
+/** Call a Postgres function through PostgREST. */
+function rpc(name, args) {
+  return sbFetch(`/rpc/${name}`, { method: 'POST', body: JSON.stringify(args) });
+}
+
+/**
+ * Claim a slot for one notary. Returns the hold, or null when a live hold
+ * already exists — which the route turns into a 409.
+ *
+ * The decision is made by a single statement inside Postgres. There is no
+ * read-then-write here and there must never be: two checkouts a millisecond
+ * apart would both see the slot free.
+ */
+export async function claimHold(slotStartUtc, staffId, ttlMinutes) {
+  const rows = await rpc('claim_slot_hold', {
+    p_slot_start_utc: slotStartUtc,
+    p_staff_id: staffId,
+    p_payment_session_id: null,
+    p_ttl: `${ttlMinutes} minutes`,
+  });
+  // A set-returning function yields [] when the claim lost.
+  const row = Array.isArray(rows) ? rows[0] : rows;
+  return row && row.id ? row : null;
+}
+
+/** Attach the payment session to a hold, once Zoho has issued one. */
+export function attachSessionToHold(holdId, paymentSessionId) {
+  return sbFetch(`/slot_holds?id=eq.${encodeURIComponent(holdId)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ payment_session_id: paymentSessionId }),
+  });
+}
+
+/**
+ * Record that money has been taken, BEFORE Book Appointment is called.
+ *
+ * This is the only durable trace of "paid, no appointment yet". Between this
+ * write and Zoho returning a booking id there is no ron_sessions row possible —
+ * booking_id is NOT NULL — so without this a failed Book Appointment leaves a
+ * paid customer with no record anywhere.
+ */
+export function markHoldPaid(paymentSessionId, paymentId) {
+  return sbFetch(`/slot_holds?payment_session_id=eq.${encodeURIComponent(paymentSessionId)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ paid_at: new Date().toISOString(), payment_id: paymentId }),
+  });
+}
+
+/** Resolve the hold once the appointment exists. */
+export function resolveHold(paymentSessionId, bookingId) {
+  return sbFetch(`/slot_holds?payment_session_id=eq.${encodeURIComponent(paymentSessionId)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ booking_id: bookingId }),
+  });
+}
+
+/**
+ * Hand the booking to ron_sessions. Idempotent, and safe whether this or the
+ * Zoho Flow writes first — see the comment on the function in
+ * db/003_calendar_checkout.sql, which is where the reasoning lives.
+ */
+export async function recordBooking(fields) {
+  const rows = await rpc('record_calendar_booking', fields);
+  return Array.isArray(rows) ? rows[0] : rows;
+}
+
+/** Has this payment session already produced an appointment? */
+export async function bookingForSession(paymentSessionId) {
+  const q = new URLSearchParams({
+    select: 'booking_id,scheduled_at,session_status,zoho_staff_id',
+    payment_session_id: `eq.${paymentSessionId}`,
+  });
+  const rows = await sbFetch(`/ron_sessions?${q}`);
+  return (rows || [])[0] ?? null;
+}
+
+export { sbFetch, rpc };

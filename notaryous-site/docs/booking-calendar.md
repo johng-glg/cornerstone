@@ -19,24 +19,26 @@ Check it before every commit on this workstream:
 
 | Build step | State |
 |---|---|
-| 0. The four answers | **2 answered, 1 dropped, 1 blocking** — run `/step0` check 3, see below |
+| 0. The four answers | **complete** — `/step0` deleted |
 | 1. Zoho auth + token refresh + `/api/availability` | **built, verified against stubs** — needs credentials to run for real |
-| 2. Payments session + widget + server confirm + webhook | blocked on credentials |
+| 2. Payments session + server confirm | **built, verified against stubs** — browser widget still to wire |
 | 3. Booking store | **superseded** — no `bookings` table; `ron_sessions` is extended instead, see below |
 | 4. Happy path in sandbox | blocked |
-| 5. `slot_holds` + concurrency | **done, verified** — spec bug found, see below |
+| 5. `slot_holds` + concurrency | **done, applied** — spec bug found, see below; TTL 17 min |
 | 6. Refund paths | blocked on credentials |
-| 6b. Refund tracking columns | **written, awaiting review** — in `db/001_ron_sessions_calendar.sql`, not yet run |
+| 6b. Refund tracking columns | **done, applied** |
 | 7. Front end calendar | **done on fixtures, verified** |
 | 8. Reconciliation + alerting | not started |
 | 9–11. Cutover | not started |
 
 Shipped so far: `db/001_ron_sessions_calendar.sql`, `db/002_slot_holds.sql`,
+`db/003_calendar_checkout.sql` (**all three applied to `glg-ron`**),
 `lib/zoho-datetime.mjs` (19 tests), `lib/availability.mjs` (20 tests),
-`lib/zoho-bookings.mjs` (17 tests), `api/availability.mjs` (18 tests),
-`api/_zoho.mjs`, `api/_db.mjs`, `book-beta.html` + `lib/calendar.mjs`.
+`lib/zoho-bookings.mjs` (17 tests), `lib/payments.mjs` (14 tests),
+`api/availability.mjs` (18 tests), `api/checkout.mjs` + `api/confirm.mjs` (18 tests),
+`api/_zoho.mjs` (8 tests), `api/_db.mjs`, `book-beta.html` + `lib/calendar.mjs`.
 
-74 tests, all passing, no dependencies:
+114 tests, all passing, no dependencies:
 
 ```
 node --test lib/*.test.mjs api/*.test.mjs
@@ -46,32 +48,20 @@ node --test lib/*.test.mjs api/*.test.mjs
 
 ## Blocked, and why
 
-**Step 0 cannot be run from this environment, so it is now a page you can run.**
-See "`/step0` — the temporary diagnostic" below. It needs a live call to Zoho's Book
-Appointment API with real credentials, and neither is available here:
+Step 0 is complete and `/step0` is deleted. What remains blocked:
 
-- No credentials. Zoho client id/secret/refresh token do not exist yet.
-- Every Zoho host is blocked by the network egress policy. Verified:
-
-  | Host | Result |
-  |---|---|
-  | `www.zohoapis.com` | blocked |
-  | `payments.zoho.com` | blocked |
-  | `accounts.zoho.com` | blocked |
-  | `static.zohocdn.com` | blocked |
-
-  Same policy that blocks `zohobookings.com` and `notaryous.vercel.app`.
-
-This is the one the brief says not to skip, and it is right: if Flow does not fire on
-API-created appointments and nobody checks, a paid client gets an appointment with no
-notarization session behind it. **Somebody with Zoho access has to run it** — that is
-what `/step0` is for.
-
-Everything from step 1 on also needs secrets that must never reach this repo. The work
-that does not need them — schema, the date formatter, the front end — is what is being
-built first.
-
----
+- **The browser payment widget.** `/api/checkout` returns a `payment_session_id`;
+  mounting Zoho's widget against it needs their JS SDK, which cannot be loaded or
+  tested from this environment. `lib/calendar.mjs`'s `openPaymentWidget()` still
+  throws deliberately rather than pretending.
+- **A real end-to-end run.** Every Zoho host remains blocked by the network egress
+  policy — `zohoapis.com`, `payments.zoho.com`, `accounts.zoho.com`, and
+  `notaryous.vercel.app`. Both routes are tested against stubbed responses shaped
+  from the documented and observed payloads; the first real call is still the first
+  real test.
+- **Refund execution.** The columns and constraints exist; issuing a refund needs the
+  Zoho Payments refund scope string, which is not in the docs — read it off the API
+  Console scope picker.
 
 ## Findings
 
@@ -274,6 +264,60 @@ divergence is visible; resolving it means either mapping roster entries to Zoho
 staff ids or passing the calendar's choice through to `assignNotary`, and that
 is a change to a live service.
 
+### 8. The checkout order, and why each step is where it is
+
+`/api/checkout` takes money and creates nothing. `/api/confirm` creates the
+appointment. They are separate routes because the payment happens in the customer's
+browser in between; the confirmation view polls `/api/confirm` until it reports
+`booked`.
+
+**Checkout:** re-derive availability from Zoho → claim the hold → create the payment
+session → attach the session to the hold.
+
+The hold is claimed *before* the payment session exists because a database transaction
+cannot span an HTTP call. Claim first and a failed session call leaves an orphaned hold
+that expires by itself in 17 minutes. Create the session first and a customer can pay
+for a slot we then discover we cannot hold. A test asserts the ordering rather than
+trusting the reading.
+
+**Confirm:** already booked? → Retrieve Payment Session → mark the hold paid → Book
+Appointment → record it.
+
+- **The browser is never believed.** It supplies an opaque session id and nothing else.
+  Slot, notary, signer and zone are read back out of the session's `meta_data`, which we
+  wrote server-side at checkout and Zoho hands back to us. A tampered client can change
+  nothing but which of its own sessions it asks about — there is a test that sends a
+  different slot and staff id in the body and asserts the appointment ignores both.
+- **Default deny on payment status.** An unrecognised status reads as unpaid, never as
+  probably fine, and is logged so it can be added to the known set deliberately rather
+  than discovered by a customer. There is no second gate downstream: the Zoho Flow sends
+  a hardcoded payment reference, so anything reaching `glg-ron-orchestration` is treated
+  as paid.
+- **Mark the hold paid before booking.** Between the payment clearing and Zoho returning
+  a booking id, `ron_sessions` cannot hold a row at all — `booking_id` is `NOT NULL`. The
+  hold is the only thing that exists at that moment, so `slot_holds.paid_at` is set
+  first. A row with `paid_at` and no `booking_id` is a customer who paid and has no
+  appointment; it is indexed, and `purge_expired_slot_holds()` refuses to delete it.
+- **Polling is idempotent.** A second confirm returns the existing booking without
+  asking Zoho anything.
+
+**The handshake that makes the handoff work.** `record_calendar_booking()` inserts with
+`session_status = 'awaiting_payment'`, which looks wrong because we know the payment
+cleared. It is load-bearing. `handleBooking()` creates the BlueNotary session for an
+existing row **only** in that state:
+
+```js
+if (paid && !row.bn_session_id && row.session_status === 'awaiting_payment')
+  return { row: await handlePaymentConfirmed(b.booking_id, b), ... };
+return { row, deduped: true };            // ← does nothing at all
+```
+
+Insert `pending_creation` instead and the Flow falls through to the second line: a paid
+booking, an appointment on a notary's calendar, and no BlueNotary session, silently.
+Read it as "awaiting session creation". On conflict the function never touches
+`payment_status` or `session_status` — if the Flow arrived first, the orchestration
+service already owns them. Both orders are tested against real Postgres.
+
 ---
 
 ## Settled since the first increment
@@ -306,7 +350,7 @@ is dropped.
 |---|---|
 | Does Flow fire on API-created appointments? | **Answered: yes.** Both step 0 probe appointments produced real BlueNotary sessions. No payment handler needs to call the Flow webhook |
 | What zone does Zoho read `from_time` in? | **Answered: the declared zone.** `11:00` sent as `America/New_York` against a Pacific org returned `iso_start_time` `15:00Z`. Send the signer's wall clock with the signer's IANA zone. `start_time` renders in the viewer's zone — never compare or store it; `iso_start_time` is the only stable field |
-| How long is a payment session valid? | **BLOCKING `/api/checkout`.** Sets the hold TTL. A session outliving the hold turns a slow customer into a refund and an ops alert. Zoho Payments credentials are set in the Vercel project, so `/step0` check 3 can answer it — it must be run from a browser, not from here |
+| How long is a payment session valid? | **Answered: 900 seconds.** Measured from a real create response — `created_time` 1786227520, `expiry_time` 1786228420. The hold is now 17 minutes: the session lifetime plus two minutes of slack. It must be the longer of the two, or a customer can still pay against a slot already re-sold |
 | Can Flow trigger on `noshow`? | **Dropped.** BlueNotary's own session outcome is a better signal than a notary remembering to mark noshow in Zoho. See the caveat below — it is not free |
 
 **The no-show caveat.** Preferring BlueNotary's signal is right on the merits, but
@@ -321,141 +365,26 @@ moves a row into a terminal non-completed state. That is item 5 in that repo's
 `docs/KNOWN-ISSUES.md`. Until it is fixed, the signal exists but nothing listens, and
 it arrives up to 24 hours late.
 
-## `/step0` — the temporary diagnostic
+## `/step0` — deleted 2026-08-08
 
-**This route is temporary. Delete it once the four answers are recorded below.**
-There is a checklist at the end of this section; the last item is a commit that
-removes the code.
+The diagnostic did its job and is gone: `step0.html`, `api/step0.mjs`,
+`api/step0-exchange.mjs` and the `/step0` header block in `vercel.json` are all
+removed. `api/_zoho.mjs` and `lib/zoho-bookings.mjs` stay — the token cache, staff
+discovery and response parsers are production code that step 0 happened to exercise
+first.
 
-`step0.html` + `api/step0.mjs` run each of the four checks server-side and render the
-answer in plain English with the raw response collapsed underneath. Nothing but the
-result reaches the browser.
+Deletion checklist, completed:
 
-### Step 0.0 — get a refresh token first
-
-There is a chicken-and-egg problem the original spec skipped: every check needs
-`ZOHO_REFRESH_TOKEN`, and that does not exist yet. `POST /api/step0-exchange`, driven
-by the first block on the page, trades a Zoho Self Client authorization code for one.
-
-1. In the Zoho API Console create a **Self Client** and generate a code with scope
-   `zohobookings.data.CREATE`. That single scope covers the read endpoints too — Fetch
-   Services documents it for a GET.
-2. Paste the client ID, client secret and code into the first block and exchange
-   **immediately**. The code is valid for a couple of minutes. `invalid_code` almost
-   always means it expired; generate a fresh one rather than debugging anything else.
-3. Copy the four env var lines it returns into Vercel, then close the tab.
-
-**Payments and Bookings share one Self Client.** The client id and secret are
-identical, so they are not duplicated into `ZOHO_PAY_*` variables — `credentialsFor()`
-falls back to `ZOHO_CLIENT_ID` / `ZOHO_CLIENT_SECRET`. Only the refresh token and the
-account id are Payments-specific, because the two products' scopes were granted by two
-separate authorization codes. If combining the scopes returns `Invalid Scope`, generate
-two codes from the same client credentials and exchange each — one fills
-`ZOHO_REFRESH_TOKEN`, the other `ZOHO_PAY_REFRESH_TOKEN`.
-
-`ZOHO_PAY_CLIENT_ID` / `ZOHO_PAY_CLIENT_SECRET` are still read first, so splitting the
-two products onto separate Self Clients later means setting two variables rather than
-editing code.
-
-**Payments scope strings** — two confirmed from the docs, one not:
-
-| Operation | Scope |
-|---|---|
-| Create Payment Session | `ZohoPay.payments.CREATE` |
-| Retrieve Payment Session | `ZohoPay.payments.READ` |
-| Refunds | **Read off the API Console scope picker.** The docs list a Refunds family with CREATE and READ but never render the literal string. `ZohoPay.refunds.CREATE` is the obvious extrapolation and is exactly the kind of guess that costs an afternoon — Zoho Books uses `ZohoBooks.customerpayments.CREATE` for the same concept, not a `refunds` noun |
-
-Things worth knowing about this endpoint:
-
-- **Self Client sends no `redirect_uri`.** Including one is what produces
-  `invalid_client`. The request body is exactly `grant_type`, `client_id`,
-  `client_secret`, `code` — asserted by a test.
-- **Zoho answers HTTP 200 with an `error` field on failure.** Trusting `res.ok` alone
-  would report success for an expired code, so the body is checked and Zoho's error is
-  surfaced verbatim with a hint.
-- **Only four fields come back**: `refresh_token`, `api_domain`, `scope`, `expires_in`.
-  The access token is deliberately dropped — it lasts an hour, the service mints its
-  own, and it has no business in a browser.
-- **The response scrubber strips `refresh_token`**, which would have redacted the one
-  value this endpoint exists to produce. It is exempted here and only here, by an
-  explicit allow-list; `access_token` and `client_secret` stay on the block list. There
-  is a test named for exactly this.
-- **The accounts host is validated against the real Zoho data centres.** It arrives from
-  the browser and the request carries a client secret, so without that check a crafted
-  body would post the firm's credentials to any origin the caller chose.
-- **`api_domain` becomes `ZOHO_API_DOMAIN` and is the API base.** Zoho is multi-region
-  and tells you your data centre in the token response; no region URL is hardcoded.
-- **Nothing is persisted.** No database write, no log line, no `console` call anywhere
-  in `api/`. The code, client ID and secret live only for the request. Verified by
-  tests that the secret and the code never appear in any response.
-
-### Before the four checks will run
-
-Set these in the Vercel project. Every check refuses to run without them, and says
-which ones are missing rather than returning a 500.
-
-| Variable | For | Notes |
-|---|---|---|
-| `STEP0_TOKEN` | the gate | Any long random string. **Unset it to disable the whole route.** |
-| `ZOHO_CLIENT_ID` / `_SECRET` / `_REFRESH_TOKEN` | Bookings | From step 0.0. Dedicated service user, not John's admin account |
-| `ZOHO_API_DOMAIN` | all Zoho calls | From the token response. Overrides `ZOHO_API_HOST`; never hardcode a region URL |
-| `ZOHO_SERVICE_ID` | Bookings | The RON service. Required |
-| `ZOHO_STAFF_ID` | **step 0 only, optional** | Pins the probes to one known calendar. Leave it unset to exercise the production path, which discovers staff from the service. Accepts a comma-separated list. **Do not set it in production** — see finding 4 |
-| `ZOHO_ORG_TIMEZONE` | check 2 | Defaults to `America/Los_Angeles`. Must be the org's real zone or the probe is meaningless |
-| `ZOHO_STAFF_PATH`, `ZOHO_AVAILABILITY_PATH` | overrides | Default `/staffs` and `/availableslots`. Change these rather than the code if Zoho names them differently on this account |
-| `ZOHO_PAY_REFRESH_TOKEN`, `ZOHO_PAY_ACCOUNT_ID` | check 3 | The only Payments-specific variables. Sandbox has its own account id |
-| `ZOHO_PAY_CLIENT_ID`, `ZOHO_PAY_CLIENT_SECRET` | optional | Unset by default — Payments uses the same Self Client as Bookings and falls back to `ZOHO_CLIENT_ID` / `ZOHO_CLIENT_SECRET`. Set these only if the two products are ever split onto separate clients |
-| `ZOHO_ACCOUNTS_HOST`, `ZOHO_API_HOST`, `ZOHO_BOOKINGS_BASE`, `ZOHO_PAY_HOST` | overrides | Defaults are the documented ones. The point of step 0 is that we do not yet know they are right — a wrong guess should be one env var away from fixed |
-| `STEP0_TEST_EMAIL` | optional | Where test confirmations land. Defaults to `step0-test@guardianlit.com` |
-
-### Access control
-
-`noindex` is not access control, and **two of these buttons create real appointments on
-the notary's calendar**. The route is gated on `STEP0_TOKEN`, compared without
-short-circuiting on the first differing byte. Unset the variable and every check returns
-503 — that is the kill switch, and it works without a deploy.
-
-The token is typed into a password field, held in memory, and sent as a header. It never
-goes in the URL, so it cannot end up in browser history, a screenshot of the address bar,
-or a Vercel access log.
-
-Responses are walked before rendering and anything matching
-`access_token|refresh_token|client_secret|api_key|signing_key|authorization` is replaced
-with `«redacted»`. Tested.
-
-### What each check can and cannot tell you
-
-Two of the four are fully machine-answerable. Two need a human to look at another system
-afterwards, and the page says so rather than implying an answer it does not have.
-
-| Check | Machine-answerable? |
-|---|---|
-| 0b. Who can take this service | **Yes.** Reads only, books nothing. Run it first: if staff discovery returns nothing, `/api/availability` answers 502 rather than publishing an empty fortnight, and the checks below have no calendar to book against |
-| 1. Flow fires on API-created appointments | **No.** It creates the appointment and reports the booking id. This service has no BlueNotary access, so you check BlueNotary |
-| 2. `from_time` zone semantics | **Yes.** Books at 11:00 declaring a non-org zone, reads it back, and compares `start_time` against `customer_booking_start_time` |
-| 3. Payment session lifetime | **Partly.** Creates a session and surfaces any field matching `expir\|ttl\|valid\|timeout`. If Zoho returns none, the lifetime has to be measured — "Re-check this session" is there for that |
-| 4. Flow triggers on `noshow` | **No.** It marks the appointment; you check Flow's execution history |
-
-Check 1 and check 2 each create an appointment. Check 4 marks check 1's appointment.
-Cancel with the button at the bottom before leaving — the page tracks the booking id so
-the cancel goes to the right one.
-
-### Deletion checklist
-
-- [x] ~~Record all four answers~~ — 2 answered from the live journal, 1 dropped, 1 outstanding (payment session lifetime)
-- [x] ~~Cancel every STEP0 appointment~~ — both probe appointments cancelled 2026-08-08. They had produced real BlueNotary sessions with real notaries assigned; the BN sessions were killed in the BlueNotary dashboard and the Zoho appointments cancelled afterwards, which fired the cancel Flow and reconciled the rows
-- [ ] Run check 3 (payment session lifetime), record the answer, then the rest of this list
-- [ ] Unset `STEP0_TOKEN` in Vercel — immediate kill, no deploy needed
-- [ ] Delete `step0.html`, `api/step0.mjs`, `api/step0-exchange.mjs`, the `/step0`
-      block in `vercel.json`, and this section
-- [ ] **Unset `ZOHO_STAFF_ID`** — it exists for this page only. Left set, production
-      pins every booking to one notary and the multi-staff path is never exercised;
-      run check 0b with it unset first to confirm discovery works
-- [ ] Keep `ZOHO_API_DOMAIN` — it is production config, not step 0 scaffolding
-- [ ] Keep `api/_zoho.mjs` — the token cache, staff discovery and request helpers are
-      what `/api/availability` and `/api/checkout` are built on
-- [ ] Keep `lib/zoho-bookings.mjs` — the response parsers are production code; step 0
-      only shares `parseBookingId` with them
+- [x] All four answers recorded above
+- [x] Both probe appointments cancelled. They had produced real BlueNotary sessions
+      with real notaries assigned — the BN sessions were killed in the BlueNotary
+      dashboard and the Zoho appointments cancelled afterwards, which fired the cancel
+      Flow and reconciled the rows
+- [x] Route, page and token-exchange endpoint deleted
+- [x] `ZOHO_STAFF_ID` left unset, so production discovers staff from the service
+- [ ] **Unset `STEP0_TOKEN` in Vercel** — the only remaining item, and the one this
+      build cannot do. With the routes gone it grants nothing, but it should not
+      outlive them
 
 ## Applying the schema
 

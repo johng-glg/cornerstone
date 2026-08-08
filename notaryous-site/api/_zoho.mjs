@@ -1,7 +1,8 @@
 /**
  * Zoho auth and request helpers.
  *
- * Written for the /step0 diagnostic but deliberately general — the token cache
+ * Written first for the (since deleted) /step0 diagnostic, deliberately general
+ * so it would be the real thing rather than a throwaway — the token cache
  * and the request shapes are what /api/availability, /api/checkout and the
  * payment confirmation handler will use, so step 0 exercises the same code path
  * the real build depends on rather than a throwaway.
