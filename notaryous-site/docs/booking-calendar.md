@@ -643,6 +643,92 @@ destroyed the form, so **nobody ever read the 409 message**. It now renders abov
 which is where the user has to act on it. The 503 path, the confirmation copy, the reference
 number and both failure views including "do not pay again" are unchanged.
 
+---
+
+## Cutover — the panel is live on `/` and `/book`, 2026-08-09
+
+The Zoho `portal-embed` iframe in `#book` is gone. Three pages now run the panel:
+`/`, `/book` and `/book-beta`.
+
+### One stylesheet, one module, three pages
+
+The panel's CSS was inline in `book-beta.html` while it was a staging page. Three
+inline copies is a synchronisation problem nobody wins, so it moved to
+`lib/calendar.css` — the only stylesheet on this site that is not inline.
+
+Two rules it follows:
+
+- **Every selector is scoped to `#bookpanel`.** `index.html` already uses `.step`,
+  `.steps`, `.notice`, `.btn` and `.lede` for entirely different things — a
+  three-column "how it works" grid, the Bordeaux compliance block, the gold hero
+  button. Those five are renamed with a `bk` prefix rather than left to be settled
+  by specificity, which works right up until someone edits the other file.
+- **It defines no colours.** The brand tokens come from the host page's `:root`,
+  so the panel cannot drift from the site around it. `--panel-h` is set on
+  `#bookpanel`, not `:root`, so it does not leak either.
+
+`renderCalendar()` now takes `{ rootEl, betaEl?, days?, onEvent? }` and finds
+everything else inside `rootEl`. A page supplies the `#bookpanel` skeleton and
+calls it; nothing else about the page is the calendar's business.
+
+### Render-blocking on two pages, not on three
+
+`lib/calendar.css` is 13KB. Loading it normally on `/` pushed mobile LCP from
+0.9s to 2.0s and cost the 100 that page has held since launch — measured, by
+removing the link and re-running.
+
+So `/` loads it non-blocking (`media="print"` + `onload`). The panel is three
+screens below the fold there, so nothing it styles is painted before it arrives.
+`/book` and `/book-beta` load it normally and score 98: on those pages the panel
+*is* the fold, and a flash of unstyled calendar is worse than a slower LCP on a
+1.6 Mbps emulated link. That is a deliberate two-point trade, not an oversight.
+
+| | Perf | A11y | SEO | LCP | CLS |
+|---|---|---|---|---|---|
+| `/` mobile | **100** | **100** | **100** | 0.9 s | 0 |
+| `/book` mobile | 98 | **100** | **100** | 2.0 s | 0 |
+| `/book-beta` mobile | 98 | **100** | 66 | 1.8 s | 0 |
+
+Mobile CLS is **0** on all three, down from the 0.051 measured on the previous
+`/book-beta`. That shift was the webfont swap reflowing a two-line lede above the
+panel; the tightened mobile chrome removed it.
+
+The fixed-height acceptance run was re-run against all three pages, not just the
+staging one — a divergence there would mean a host page's CSS had reached inside
+`#bookpanel`. Page height is identical across steps at all twelve widths on all
+three, including both failure views and the 409 path.
+
+### `/book`
+
+Masthead, one heading, the panel, the same "Read this before you book"
+compliance block, footer. No hero, no fee schedule, no sticky bar. It exists so a
+link in an email lands on the calendar rather than three screens above it.
+
+Indexed, with its own canonical and a sitemap entry at priority 0.8. It is a
+subset of `/`, so there is some duplicate-content overlap; the titles and
+descriptions differ and the homepage keeps priority 1.0. One line in
+`book.html` flips it to `noindex` if that turns out to be the wrong call.
+
+### Two things that were missing and are now handled
+
+- **No JavaScript.** The panel would have sat as a loading skeleton forever. All
+  three pages now hide `#bookpanel` inside `<noscript>` and show the phone number
+  — plus, on `/` and `/book`, a link to Zoho's own scheduler.
+- **Analytics.** `booking_iframe_load` had no iframe left to fire on.
+  `renderCalendar` gained an `onEvent` hook reporting `ready`, `slot_selected`,
+  `checkout_started`, `booked` and `needs_help`. It never carries a name, an
+  email, a phone number or a slot time — only what a funnel needs — and it is
+  wrapped so an analytics error can never reach the calendar. `/book` tags its
+  events with `page: 'book'` so email traffic is separable.
+
+### The Zoho fallback link stays
+
+The `.fallback` line under the panel on `/` still opens Zoho's scheduling page in
+a new tab. When `/api/availability` is down the panel says so and gives the phone
+number, but this is a booking route that does not depend on our API at all, and
+it costs one line. It is the reason the Zoho theming items in the site README are
+downgraded rather than deleted.
+
 ## Next increment
 
 1. **`/api/checkout`** — claim the hold, then create the payment session, in that order.

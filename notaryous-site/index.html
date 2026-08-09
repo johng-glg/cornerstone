@@ -43,6 +43,24 @@
 <!-- The hero mark is the LCP element. Preloading it ahead of CSS parse moved
      LCP 1.8s -> 1.5s in Lighthouse mobile and cleared the LCP audit. -->
 <link rel="preload" href="/mark-gold.svg" as="image" type="image/svg+xml" fetchpriority="high">
+<!-- The booking panel's styles, shared verbatim with /book and /book-beta.
+     One stylesheet rather than three inline copies: the panel is the only
+     thing on this site that appears on more than one page.
+
+     Non-blocking here, and only here. The panel is three screens below the
+     fold on this page, so nothing it styles is ever painted before this
+     arrives — but loading it normally pushed mobile LCP 0.9s -> 2.0s and cost
+     the 100 this page has held since launch. media="print" makes it a
+     low-priority fetch that does not block the first paint; onload promotes
+     it. /book and /book-beta load it normally, because there the panel IS the
+     fold and a flash of unstyled calendar would be worse than a slower LCP. -->
+<link rel="stylesheet" href="/lib/calendar.css" media="print" onload="this.media='all';this.onload=null">
+<noscript>
+  <link rel="stylesheet" href="/lib/calendar.css">
+  <!-- Without JavaScript the calendar cannot run, so the panel would sit as a
+       loading skeleton forever. Hide it and show the Zoho scheduler instead. -->
+  <style>#bookpanel{display:none}</style>
+</noscript>
 <style>
 /* Archivo, self-hosted. One variable file covers 400-700, so the four static
    weights and both Google Fonts connections are gone. */
@@ -202,12 +220,12 @@ h2{font-size:clamp(25px,3.4vw,33px);font-weight:600;letter-spacing:-.02em;color:
 .fr .a{font-size:19px;font-weight:600;color:var(--bord);white-space:nowrap}
 .placard .cite{margin-top:18px;padding-top:16px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--muted)}
 
-/* ---------- booking ---------- */
+/* ---------- booking ----------
+   The panel replaced a 770px Zoho iframe here. The panel styles live in
+   /lib/calendar.css; this is only how the section frames it. */
 #book .w{text-align:center}
-#book .lede{margin:0 auto 40px}
-.shell{border:1px solid var(--rule);background:var(--bone-2);padding:8px;text-align:left}
-.shell iframe{display:block;width:100%;height:770px;border:0;background:#fff}
-.fallback{font-size:13.5px;color:var(--muted);margin-top:16px}
+#book .lede{margin:0 auto 34px}
+.fallback{font-size:13.5px;color:var(--muted);margin-top:18px}
 .fallback a{color:var(--bord);font-weight:600}
 
 /* ---------- notice ---------- */
@@ -298,11 +316,6 @@ footer .legal{max-width:46ch;line-height:1.6}
      shrink-to-fits the whole page — at 320px that was reporting an innerWidth
      of 356 and zooming every other element out with it. */
   .mast .w{flex-wrap:wrap}
-  /* iOS Safari sizes iframes to their content and ignores the height. A
-     no-op where the height is honoured; contains the embed where it is not.
-     Re-check once the real Zoho embed has been loaded on a device. */
-  .shell{overflow:auto;-webkit-overflow-scrolling:touch}
-  .shell iframe{height:830px}
 }
 /* Narrow phones: keep the merged header on one row rather than letting it wrap
    or force a zoom-out. The subline goes because the eyebrow directly below it
@@ -416,10 +429,69 @@ footer .legal{max-width:46ch;line-height:1.6}
 
 <section id="book"><div class="w">
   <h2>Book your session</h2>
-  <p class="lede">Pick a time. Payment is completed as part of booking.</p>
-  <div class="shell">
-    <iframe id="booking" title="Schedule a remote online notarization session" src="https://john-guardianlit.zohobookings.com/portal-embed?source=notaryous-site#/4049985000012228002" loading="lazy" allowfullscreen></iframe>
+  <p class="lede">Pick a time. $25 flat, unlimited signatures, paid when you book.</p>
+
+  <!-- The booking panel. Markup identical on /, /book and /book-beta; styles in
+       /lib/calendar.css; behaviour in /lib/calendar.mjs. Anything inside
+       #bookpanel is the calendar's, and only the calendar's. -->
+  <div id="bookpanel">
+
+    <div class="bksteps" id="ind" aria-hidden="true">
+      <span class="now" data-s="1">Time</span><i>&middot;</i>
+      <span data-s="2">Details</span><i>&middot;</i>
+      <span data-s="3">Confirmed</span>
+    </div>
+
+    <div class="panel" id="panel" aria-busy="true">
+
+      <div class="summary" id="summary" aria-live="polite">
+        <b id="sumWhen"></b>
+        <span class="tz" id="sumTz"></span>
+        <button type="button" id="changeBtn">change</button>
+      </div>
+
+      <div class="pbody" id="panelBody" aria-live="polite">
+
+        <!-- step 1 &mdash; time -->
+        <section class="bkstep on vis" id="s1" data-mode="ok" tabindex="-1" aria-label="Choose a time">
+          <div class="tzrow">
+            <label for="tz">Times shown in</label>
+            <select id="tz"></select>
+          </div>
+          <div class="cols">
+            <div class="col">
+              <h2 id="dayshead">Choose a day</h2>
+              <div class="days" id="days" role="group" aria-labelledby="dayshead">
+                <div class="skel dskel" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              </div>
+            </div>
+            <div class="col">
+              <h2 id="timesHead">Times</h2>
+              <div class="times" id="times" role="group" aria-labelledby="timesHead">
+                <div class="skel tskel" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              </div>
+            </div>
+          </div>
+          <div id="s1msg"></div>
+        </section>
+
+        <!-- step 2 &mdash; details (rendered once a time is chosen) -->
+        <section class="bkstep" id="s2" tabindex="-1" aria-label="Your details"></section>
+
+        <!-- step 3 &mdash; confirmed, or the number to call -->
+        <section class="bkstep" id="s3" tabindex="-1" aria-label="Confirmation"></section>
+
+      </div>
+    </div>
   </div>
+
+  <noscript><p class="fallback">This booking calendar needs JavaScript.
+    <a href="https://john-guardianlit.zohobookings.com/portal-embed?source=notaryous-site-nojs#/4049985000012228002" target="_blank" rel="noopener">Open the scheduling page in a new tab</a>,
+    or call <a href="tel:+17146942423">(714) 694-2423</a>.</p></noscript>
+
+  <!-- Kept deliberately. If /api/availability is down the panel says so and
+       gives the phone number, but this is a booking route that does not depend
+       on our own API at all, and it costs one line. -->
   <p class="fallback">Calendar not loading? <a href="https://john-guardianlit.zohobookings.com/portal-embed?source=notaryous-site-fallback#/4049985000012228002" target="_blank" rel="noopener" data-va="fallback_link">Open the scheduling page in a new tab</a>.</p>
 </div></section>
 
@@ -465,10 +537,14 @@ window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};
     if(el) trackRepeat('booking_click',{placement:el.getAttribute('data-va')});
   },{passive:true});
 
-  // 2. The scheduler actually rendered. If this lags booking_click badly,
-  //    the embed is failing for real users.
-  var f=document.getElementById('booking');
-  if(f) f.addEventListener('load',function(){ track('booking_iframe_load'); },{once:true});
+  // 2. The booking funnel, reported by the calendar itself through its
+  //    onEvent hook (see the module script below). calendar_ready replaces
+  //    booking_iframe_load: same question — did the scheduler actually come
+  //    up for real users — asked of our own calendar instead of Zoho's embed.
+  window.__notaryousCalendarEvent=function(name,data){
+    if(name==='ready') track('calendar_ready',data);
+    else trackRepeat('calendar_'+name,data||{});
+  };
 
   // Sticky booking bar: on once the hero is gone, off again as the booking
   // section comes up, and it stays off past it so the compliance notice and
@@ -501,6 +577,18 @@ window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};
 })();
 </script>
 <script defer src="/_vercel/insights/script.js"></script>
+
+<!-- The booking calendar. A module, so it is deferred by definition and never
+     blocks the hero. The panel markup is already in the page, so nothing here
+     shifts the layout when this runs. -->
+<script type="module">
+import { renderCalendar } from '/lib/calendar.mjs';
+renderCalendar({
+  rootEl:  document.getElementById('bookpanel'),
+  days:    14,
+  onEvent: window.__notaryousCalendarEvent,
+});
+</script>
 
 </body>
 </html>

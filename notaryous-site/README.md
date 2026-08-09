@@ -73,7 +73,12 @@ When the domain transfer completes:
 
 | Path | What it is |
 |---|---|
-| `index.html` | The entire page: markup, styles, analytics. |
+| `index.html` | The home page: markup, styles, analytics, and the booking panel. |
+| `book.html` | `/book` — the booking panel on its own page, for email, SMS and QR links. Same panel, no hero and no fee schedule. |
+| `book-beta.html` | `/book-beta` — the staging copy of the same panel. `noindex` for its entire life. |
+| `lib/calendar.css` | The booking panel's styles. One file, three pages. Everything in it is scoped to `#bookpanel`. |
+| `lib/calendar.mjs` | The booking panel's behaviour. Also one file, three pages. |
+| `lib/`, `api/`, `db/` | The booking back end. See `docs/booking-calendar.md`. |
 | `mark-gold.svg` | The approved mark, unmodified. Used by the masthead, the hero (desktop only) and the footer. |
 | `fonts/` | Archivo, self-hosted. One variable file covers weights 400–700. |
 | `favicon.ico` | 16 / 32 / 48 multi-size. |
@@ -91,7 +96,12 @@ When the domain transfer completes:
 
 - **Fees** — the `.placard` block, plus the `.lede` above it and the `.stat`
   strip. All three state the $25 flat rate; keep them consistent.
-- **Booking embed** — the iframe `src` in `#book`, plus the fallback link below it.
+- **Booking panel** — the markup inside `#bookpanel`, which is byte-identical on
+  `/`, `/book` and `/book-beta`. Change one and change all three, or the shared
+  stylesheet and module stop matching the page. Styles live in
+  `lib/calendar.css`, behaviour in `lib/calendar.mjs`; neither belongs in a page.
+- **Zoho fallback link** — the `.fallback` line below the panel on `/`. It is the
+  one booking route that does not depend on our own API.
 - **Disclaimers** — the `.notice` section. Do not edit without GC review.
 - **Trade name disclosure** — footer `.legal`. Required while Notaryous is a DBA
   of Guardian Litigation Group, LLP.
@@ -110,6 +120,38 @@ re-run.
 `brand/build_v2.py` regenerates the whole brand set and needs `traced.json`.
 
 ---
+
+## Cutover: the Zoho iframe is gone
+
+**2026-08-09.** `#book` on the home page was a 770px Zoho `portal-embed` iframe.
+It is now the bespoke booking panel — availability from Zoho Bookings, payment
+through Zoho Payments, the appointment written back to Zoho, and the existing
+Zoho Flow → BlueNotary chain untouched behind it. The full chain was proven live
+before this landed (`#NO-00126`, `#NO-00127`, both booked, both cancelled end to
+end). `docs/booking-calendar.md` is the build log.
+
+Three pages now carry the panel, from one stylesheet and one module:
+
+| | Who it is for | Indexed |
+|---|---|---|
+| `/` | Everyone arriving at the site | yes |
+| `/book` | Email, SMS and QR links — the panel with no hero above it | yes |
+| `/book-beta` | Staging, against the same live API | **no**, for its entire life |
+
+The markup inside `#bookpanel` is identical on all three. If you change it on
+one page, change it on all three.
+
+**What is still Zoho's.** The `.fallback` link under the panel on `/` still opens
+Zoho's own scheduling page in a new tab. It is kept on purpose: it is a working
+booking route that does not depend on `/api/availability` being up, and it costs
+one line. Everything below in this README about theming that page, its iframe
+height, and its 16px inputs now applies only to that fallback.
+
+**What breaks it.** The panel needs `/api/availability` and `/api/checkout`,
+which need the Zoho and Supabase environment variables set on the Vercel project.
+Without them the page shows "We couldn't load available times just now" and the
+phone number — it does not silently invent availability. The variables are listed
+in `docs/booking-calendar.md`.
 
 ## What changed from the delivered `site/`, and why
 
@@ -149,6 +191,29 @@ variable:
 | Now | **100** | **100** | 96 | **100** | **0.7 s** | **0.7 s** |
 
 Desktop: 100 / 100 / 96 / 100, FCP 0.2 s, LCP 0.4 s, CLS 0.
+
+**Re-verified after the booking panel replaced the iframe** (2026-08-09), same
+harness:
+
+| | Perf | A11y | Best practices | SEO | LCP | CLS |
+|---|---|---|---|---|---|---|
+| `/` mobile | **100** | **100** | 96 | **100** | 0.9 s | 0 |
+| `/book` mobile | 98 | **100** | 96 | **100** | 2.0 s | 0 |
+| `/book-beta` mobile | 98 | **100** | 96 | 66 | 1.8 s | 0 |
+
+Desktop is 100 / 100 / 96 / (100, 100, 66) with LCP 0.3–0.4 s and CLS 0.
+
+`/book` and `/book-beta` sit at 98 because `lib/calendar.css` is render-blocking
+there, which costs about 1.1 s of simulated mobile LCP. That is deliberate: on
+those pages the panel *is* the fold, and a flash of unstyled calendar is worse
+than a slower LCP on a 1.6 Mbps emulated link. `/` loads the same file
+non-blocking — the panel is three screens down, so nothing it styles is painted
+before it arrives — which is why the home page keeps its 100. Making `/book`
+match is one attribute; it trades the flash for the two points.
+
+`/book-beta` scores 66 on SEO for the same reason it always has: the only
+failing audit is `is-crawlable`, which fails *because* of the `noindex` that
+page carries for its entire life.
 
 Best practices is 96 rather than 100 only because `/_vercel/insights/script.js`
 404s when served locally. That is the sole console error; it resolves once Web
@@ -755,12 +820,15 @@ rule inside the `max-width:900px` media query.
 - [ ] **Payment gateway live, not in test mode**
 - [ ] **Hidden `Source` field created in Zoho** — see above
 - [ ] **Booking smoke test on the preview deployment** — one real $25 session
-- [ ] **Mobile embed usability decided** — keep the iframe or hand off to a tab
-- [ ] **Iframe height checked on mobile Safari and Chrome**
-- [ ] Zoho booking page themed to the brand palette, booking modal checked
+- [x] **Mobile embed usability decided** — the iframe is gone. `/`, `/book` and
+      `/book-beta` all run the bespoke panel; the Zoho scheduler survives only as
+      the `.fallback` link on `/`.
+- [x] **Iframe height checked on mobile Safari and Chrome** — moot, no iframe.
+- [ ] Zoho booking page themed to the brand palette, booking modal checked —
+      **now only affects the fallback link**, not the main path
 - [ ] Zoho SEO Properties set so the booking page does not outrank the site
-- [ ] Zoho form inputs set to 16px so iOS does not zoom on focus — **needs
-      Premium + Basic theme; not achievable through the colour panel**
+- [x] Zoho form inputs set to 16px so iOS does not zoom on focus — moot on the
+      main path; our own inputs are 16px and always were
 - [ ] Kimberly Uptain: disclaimer language, trade name disclosure, fee characterisation
 - [ ] DBA filed and trade name cleared under attorney advertising rules
 - [ ] Notarial E&O policy bound

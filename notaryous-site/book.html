@@ -3,24 +3,55 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Book a session — Notaryous (beta)</title>
-<!-- noindex for this page's entire life. Deliberately NOT a robots.txt
-     disallow: a disallowed URL can still be indexed from an external link, and
-     blocking the crawl means the crawler never reads this tag. Backed by an
-     X-Robots-Tag header in vercel.json, which also covers /api/*. -->
-<meta name="description" content="Staging build of the Notaryous booking calendar. Not for public use.">
-<meta name="robots" content="noindex, nofollow">
+<title>Book a Session — Notaryous</title>
+<meta name="description" content="Pick a time with a commissioned online notary. $25 flat per session, unlimited signatures, paid when you book. Most sessions take about fifteen minutes.">
 <meta name="theme-color" content="#3B1116">
+
+<!-- ORIGIN: these four absolute URLs are the only place the domain appears on
+     this page. When notaryous.com goes live, change them alongside the five in
+     index.html. See README "Swapping to notaryous.com". -->
+<link rel="canonical" href="https://notary.guardianlit.com/book">
+<meta property="og:url" content="https://notary.guardianlit.com/book">
+<meta property="og:image" content="https://notary.guardianlit.com/og-image.png">
+<meta name="twitter:image" content="https://notary.guardianlit.com/og-image.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Notaryous">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Book a Session — Notaryous">
+<meta property="og:description" content="Pick a time with a commissioned online notary. $25 flat per session, unlimited signatures, paid when you book.">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="Notaryous — online notarization, $25 flat">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Book a Session — Notaryous">
+<meta name="twitter:description" content="Pick a time with a commissioned online notary. $25 flat per session, unlimited signatures.">
+<meta name="twitter:image:alt" content="Notaryous — online notarization, $25 flat">
+
 <link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+
 <link rel="preload" href="/fonts/archivo-latin-var.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/mark-gold.svg" as="image" type="image/svg+xml" fetchpriority="high">
-<!-- The booking panel's styles live in one place and are shared with / and
-     /book. Everything below is this page's own furniture. -->
+<!-- The booking panel's styles, shared verbatim with / and /book-beta.
+     Render-blocking on purpose: the panel is this page, and a flash of
+     unstyled calendar is worse than the ~1s of mobile LCP it costs under
+     Lighthouse's throttling. index.html, where the panel is three screens
+     down, loads the same file non-blocking. -->
 <link rel="stylesheet" href="/lib/calendar.css">
-<noscript><style>#bookpanel{display:none}</style></noscript>
+<noscript>
+  <!-- Without JavaScript the calendar cannot run, so the panel would sit as a
+       loading skeleton forever. Hide it and show the Zoho scheduler instead. -->
+  <style>#bookpanel{display:none}</style>
+</noscript>
 <style>
+/* This page is the booking tool and nothing else — it exists to be linked from
+   an email, a text message or a QR code, so a visitor lands on the calendar
+   rather than three screens above it. The furniture below is index.html's,
+   trimmed to the masthead, the panel, the compliance notice and the footer. */
 @font-face{font-family:Archivo;font-style:normal;font-weight:400 700;font-display:swap;
   src:url(/fonts/archivo-latin-var.woff2) format('woff2');
   unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
@@ -39,7 +70,7 @@ body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(
 .w{max-width:1120px;margin:0 auto;padding:0 26px}
 
 :focus-visible{outline:3px solid var(--bord);outline-offset:3px}
-.mast :focus-visible,footer :focus-visible,.skip:focus-visible{outline-color:var(--bone)}
+.mast :focus-visible,.notice :focus-visible,footer :focus-visible,.skip:focus-visible{outline-color:var(--bone)}
 .skip{position:absolute;left:-9999px;top:8px;z-index:99;background:var(--gold);color:var(--bord);padding:12px 22px;font-weight:700;font-size:13px;letter-spacing:.09em;text-transform:uppercase;text-decoration:none}
 .skip:focus{left:8px}
 
@@ -54,14 +85,26 @@ body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(
 .mastphone{color:var(--bone);text-decoration:none;font-size:13.5px;font-weight:600;white-space:nowrap}
 .mastphone:hover{color:var(--gold-lt)}
 
-/* ---------- beta banner ---------- */
-.betabar{background:var(--night);color:rgba(239,234,224,.82);font-size:12.5px;padding:10px 0}
-.betabar b{color:var(--gold);text-transform:uppercase;letter-spacing:.14em;font-size:10.5px;margin-right:10px}
-
 /* ---------- page ---------- */
-main{padding:52px 0 78px}
-h1{font-size:clamp(30px,4.6vw,44px);font-weight:600;letter-spacing:-.02em;color:var(--bord);margin-bottom:10px}
+main{padding:46px 0 70px}
+h1{font-size:clamp(30px,4.6vw,42px);font-weight:600;letter-spacing:-.02em;color:var(--bord);margin-bottom:10px}
 .lede{color:var(--muted);font-size:16.5px;max-width:56ch;margin-bottom:26px}
+.lede b{color:var(--bord);font-weight:600}
+.nojs{background:var(--bone-2);border:1px solid var(--rule);border-left:4px solid var(--bord);
+  padding:18px 20px;max-width:56ch;font-size:15px}
+.nojs a{color:var(--bord);font-weight:600}
+
+/* ---------- compliance notice ----------
+   Same copy as the homepage. It sits below the panel rather than above it: a
+   visitor who arrived here from an email came to book, and the disclosure has
+   to be on the page they book from, not competing with it for the fold. */
+.notice{background:var(--bord);color:rgba(239,234,224,.84);padding:56px 0}
+.narrow{max-width:760px;margin:0 auto;padding:0 26px}
+.notice h2{color:var(--bone);font-size:24px;font-weight:600;margin-bottom:22px}
+.notice p{font-size:14.5px;margin-bottom:16px}
+.notice p:last-child{margin-bottom:0}
+.notice strong{color:var(--bone)}
+.notice a{color:var(--gold);font-weight:600}
 
 /* ---------- footer ---------- */
 footer{background:var(--night);color:rgba(239,234,224,.55);padding:44px 0 34px;font-size:12.5px}
@@ -75,8 +118,7 @@ footer .legal{max-width:46ch;line-height:1.6}
 @media(max-width:900px){
   .mast .w{padding-top:14px;padding-bottom:14px}
   .brand .bn b{font-size:16px;letter-spacing:.3em;text-indent:.3em}
-
-  main{padding:44px 0 64px}
+  main{padding:38px 0 58px}
 }
 /* Same narrow-phone tightening as index.html, so the masthead holds one row
    rather than wrapping the number onto its own line. */
@@ -88,17 +130,17 @@ footer .legal{max-width:46ch;line-height:1.6}
   .mastphone{font-size:12.5px}
 }
 @media(pointer:coarse){
-  .mastphone,footer p a{display:inline-block;padding:17px 6px;margin:-17px -6px}
+  .mastphone,.notice a,footer p a{display:inline-block;padding:17px 6px;margin:-17px -6px}
 }
 /* Everything above the panel is chrome on a phone, and every pixel of it
-   pushes the panel further below the fold. Tightened so step 1 sits on one
-   screen from 390×844 up. */
+   pushes the panel further below the fold. */
 @media(max-width:560px){
-  .w{padding:0 20px}
-  main{padding:26px 0 48px}
+  .w,.narrow{padding:0 20px}
+  main{padding:26px 0 46px}
   h1{font-size:27px;margin-bottom:6px}
   .lede{font-size:15px;margin-bottom:18px}
   .bksteps{margin-bottom:10px}
+  .notice{padding:44px 0}
 }
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
@@ -117,15 +159,13 @@ footer .legal{max-width:46ch;line-height:1.6}
   <a class="mastphone" href="tel:+17146942423">(714) 694-2423</a>
 </div></div>
 
-<div class="betabar"><div class="w">
-  <b>Beta</b><span id="betanote">Staging build showing sample availability — /api/availability is not deployed yet. No booking is possible.</span>
-</div></div>
-
 <main id="main"><div class="w">
 
   <h1>Book your session</h1>
-  <p class="lede">Pick a time. $25 flat, unlimited signatures, paid when you book.</p>
+  <p class="lede">Pick a time with a commissioned online notary. <b>$25 flat</b>, unlimited signatures, paid when you book. Most sessions take about fifteen minutes.</p>
 
+  <!-- The booking panel. Markup identical on /, /book and /book-beta; styles in
+       /lib/calendar.css; behaviour in /lib/calendar.mjs. -->
   <div id="bookpanel">
 
     <div class="bksteps" id="ind" aria-hidden="true">
@@ -144,7 +184,7 @@ footer .legal{max-width:46ch;line-height:1.6}
 
       <div class="pbody" id="panelBody" aria-live="polite">
 
-        <!-- step 1 — time -->
+        <!-- step 1 &mdash; time -->
         <section class="bkstep on vis" id="s1" data-mode="ok" tabindex="-1" aria-label="Choose a time">
           <div class="tzrow">
             <label for="tz">Times shown in</label>
@@ -167,20 +207,30 @@ footer .legal{max-width:46ch;line-height:1.6}
           <div id="s1msg"></div>
         </section>
 
-        <!-- step 2 — details (rendered once a time is chosen) -->
+        <!-- step 2 &mdash; details (rendered once a time is chosen) -->
         <section class="bkstep" id="s2" tabindex="-1" aria-label="Your details"></section>
 
-        <!-- step 3 — confirmed, or the number to call -->
+        <!-- step 3 &mdash; confirmed, or the number to call -->
         <section class="bkstep" id="s3" tabindex="-1" aria-label="Confirmation"></section>
 
       </div>
     </div>
   </div>
 
-  <noscript><p class="lede">This booking calendar needs JavaScript.
-    Call <a href="tel:+17146942423">(714) 694-2423</a>.</p></noscript>
+  <noscript><p class="nojs">This booking calendar needs JavaScript.
+    <a href="https://john-guardianlit.zohobookings.com/portal-embed?source=notaryous-book-nojs#/4049985000012228002" target="_blank" rel="noopener">Open the scheduling page in a new tab</a>,
+    or call <a href="tel:+17146942423">(714) 694-2423</a>.</p></noscript>
 
 </div></main>
+
+<section class="notice"><div class="narrow">
+  <h2>Read this before you book</h2>
+  <p><strong>This is a notarial service only.</strong> A notary verifies who you are and witnesses your signature. A notary does not read your document for accuracy, explain what it means, tell you whether to sign it, or prepare it for you.</p>
+  <p><strong>No legal advice, no attorney client relationship.</strong> Booking a notarization does not make you a client of any law firm, and nothing here is legal advice. If you need legal help, arrange representation separately.</p>
+  <p><strong>Our notaries are commissioned online notaries public</strong> and may serve signers located anywhere in the United States. Some documents and some receiving parties do not accept electronic notarization. Check with whoever is receiving your document before you book.</p>
+  <p><strong>What we will not notarize.</strong> Vital records such as birth, death, or marriage certificates. Documents where you cannot present valid unexpired government issued photo identification. Any document where the signer does not appear to understand what they are signing or is not signing willingly.</p>
+  <p><a href="/">More about how it works, and the posted fee schedule</a>.</p>
+</div></section>
 
 <footer><div class="w">
   <div>
@@ -194,12 +244,28 @@ footer .legal{max-width:46ch;line-height:1.6}
   <p class="legal">Notaryous is a registered trade name of Guardian Litigation Group, LLP, 17850 Fitch, Irvine, CA 92614. Notarial services are performed by commissioned notaries public. Notaryous does not provide legal advice and no attorney client relationship is created by booking a notarization.</p>
 </div></footer>
 
+<!-- Vercel Web Analytics. Cookieless and no persistent identifier, so no consent
+     banner is required. Custom events carry no personal data. Tagged with the
+     page so /book traffic can be told apart from the homepage's. -->
+<script>
+window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};
+(function(){
+  var sent={};
+  window.__notaryousCalendarEvent=function(name,data){
+    var d=data||{}; d.page='book';
+    if(name==='ready'){ if(sent.ready)return; sent.ready=1; window.va('event',{name:'calendar_ready',data:d}); }
+    else window.va('event',{name:'calendar_'+name,data:d});
+  };
+})();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+
 <script type="module">
 import { renderCalendar } from '/lib/calendar.mjs';
 renderCalendar({
   rootEl:  document.getElementById('bookpanel'),
-  betaEl:  document.getElementById('betanote'),
   days:    14,
+  onEvent: window.__notaryousCalendarEvent,
 });
 </script>
 </body>

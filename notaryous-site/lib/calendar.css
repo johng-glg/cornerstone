@@ -1,0 +1,225 @@
+/* Notaryous booking panel.
+ *
+ * The one stylesheet for the booking calendar, shared by /, /book and
+ * /book-beta. It was inline in book-beta.html while the calendar was a staging
+ * page; three pages carrying the same 200 lines is a synchronisation problem
+ * nobody wins, so it lives here instead.
+ *
+ * Two rules it follows, and both matter:
+ *
+ * 1. Every selector is scoped to `#bookpanel`. The host page owns the rest of
+ *    its CSS, and index.html already uses `.step`, `.steps`, `.notice`, `.btn`
+ *    and `.lede` for entirely different things. The classes that would have
+ *    collided outright are renamed with a `bk` prefix rather than left to be
+ *    settled by specificity, which is the kind of thing that works until
+ *    someone edits the other file.
+ *
+ * 2. It defines no colours of its own. The brand tokens come from the host
+ *    page's `:root`, so the panel cannot drift from the site around it.
+ *    `--panel-h` is declared here because it belongs to the panel, and it is
+ *    set on `#bookpanel` rather than `:root` so it does not leak.
+ *
+ * Colour rule, enforced throughout: never bright gold (--gold) on Bone or
+ * white. Deep Gold (--gold-dp) for accents on light grounds; --gold only ever
+ * appears on Bordeaux.
+ */
+
+#bookpanel{
+  /* The whole point of the design. The panel is exactly this tall on every
+     step, so the page height never changes as the signer moves through it.
+     `height`, not `min-height`: a min-height lets a tall step grow the page
+     again. Anything taller scrolls inside the panel. */
+  --panel-h:462px;
+  max-width:960px;
+  margin:0 auto;
+  text-align:left;      /* the host section may be centred; the panel is not */
+}
+
+/* ---------- step indicator ----------
+   Decorative: the panel announces each step through focus and its aria-live
+   region, so this is aria-hidden rather than read out twice. */
+#bookpanel .bksteps{display:flex;gap:10px;align-items:center;font-size:10.5px;letter-spacing:.2em;
+  text-transform:uppercase;font-weight:700;margin-bottom:14px}
+#bookpanel .bksteps span{color:var(--muted)}
+#bookpanel .bksteps span.done{color:var(--gold-dp)}
+#bookpanel .bksteps span.now{color:var(--bord)}
+#bookpanel .bksteps i{font-style:normal;color:#B7A896}
+
+/* ---------- the panel ----------
+   One box, three steps inside it. Fixed height; the step body is the only
+   thing that ever scrolls, and it scrolls within the box. */
+#bookpanel .panel{position:relative;background:#fff;border:1px solid var(--rule);
+  border-top:5px solid var(--bord);height:var(--panel-h);display:flex;flex-direction:column;overflow:hidden}
+
+/* ---------- persistent summary (step 2 onward) ---------- */
+#bookpanel .summary{display:none;align-items:center;gap:6px 12px;flex-wrap:wrap;flex:0 0 auto;
+  padding:6px 22px;min-height:54px;border-bottom:1px solid var(--rule);background:var(--bone-2);
+  font-size:14px;line-height:1.6;color:var(--ink)}
+#bookpanel .summary.on{display:flex}
+#bookpanel .summary b{font-weight:600;color:var(--bord)}
+#bookpanel .summary .tz{color:var(--muted);font-size:13px}
+/* Deep Gold, never the bright gold: this sits on Bone-2. */
+#bookpanel .summary button{margin-left:auto;background:none;border:0;color:var(--gold-dp);
+  font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;
+  text-underline-offset:3px;padding:0 2px;min-height:48px}
+#bookpanel .summary button:hover{color:var(--bord)}
+#bookpanel .summary button[hidden]{display:none}
+
+/* ---------- steps ----------
+   Cross-fade the content, never the height. `.vis` is added a frame after
+   `.on` so the transition has something to run from; without the extra frame
+   a display:none → flex change lands at full opacity with no fade. */
+#bookpanel .pbody{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+#bookpanel .bkstep{display:none;flex:1;min-height:0;flex-direction:column;padding:22px 22px 24px;
+  overflow-y:auto;opacity:0;transition:opacity .15s ease}
+#bookpanel .bkstep.on{display:flex}
+#bookpanel .bkstep.on.vis{opacity:1}
+#bookpanel .bkstep:focus{outline:none}
+/* Step 1 hands its scrolling to the two columns instead. */
+#bookpanel #s1.on{overflow:hidden}
+#bookpanel .bkstep h2{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);
+  font-weight:700;margin:0 0 12px;line-height:1.6}
+
+/* ---------- step 1: time ---------- */
+#bookpanel #s1msg{display:none}
+#bookpanel #s1:not([data-mode="ok"]) .tzrow,
+#bookpanel #s1:not([data-mode="ok"]) .cols{display:none}
+#bookpanel #s1:not([data-mode="ok"]) #s1msg{display:block}
+
+#bookpanel .tzrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:0 0 auto;
+  font-size:14px;color:var(--muted);margin-bottom:18px}
+#bookpanel .tzrow select{font-family:inherit;font-size:16px;/* 16px: below this iOS zooms on focus */
+  color:var(--ink);background:#fff;border:1px solid var(--rule);border-radius:2px;padding:9px 10px;min-height:48px}
+
+#bookpanel .cols{flex:1;min-height:0;display:grid;grid-template-columns:236px 1fr;gap:24px}
+#bookpanel .col{min-height:0;display:flex;flex-direction:column}
+#bookpanel .days,#bookpanel .times{min-height:0;overflow-y:auto}
+#bookpanel .days{padding-right:6px}
+
+/* Days: one list, every day in the fortnight, empty ones disabled rather than
+   dropped — so the list length does not jump about as availability changes. */
+#bookpanel .day{width:100%;text-align:left;display:flex;justify-content:space-between;
+  align-items:baseline;gap:8px;background:#fff;color:var(--ink);border:1px solid var(--rule);
+  border-bottom:0;border-radius:0;padding:11px 13px;font-family:inherit;cursor:pointer;min-height:48px}
+#bookpanel .days .day:last-child{border-bottom:1px solid var(--rule)}
+#bookpanel .day .d{font-size:14px;font-weight:600;color:var(--ink);line-height:1.4}
+#bookpanel .day .n{font-size:11.5px;color:var(--muted);line-height:1.4}
+#bookpanel .day:hover:not(.empty){background:var(--bone)}
+#bookpanel .day.sel{background:var(--bord);border-color:var(--bord)}
+#bookpanel .day.sel .d{color:var(--bone)}
+#bookpanel .day.sel .n{color:var(--gold)}          /* gold on Bordeaux only */
+/* Dimmed hard. A day with nothing on it stays in the list for date continuity,
+   but it must not read as nearly-bookable. */
+#bookpanel .day.empty{opacity:.3;background:var(--bone);cursor:not-allowed}
+/* Inset, because the list is a scroll container and an outside ring is clipped. */
+#bookpanel .day:focus-visible{outline:3px solid var(--bord);outline-offset:-3px}
+
+/* Times, grouped Morning / Afternoon. */
+#bookpanel .period{margin-bottom:14px}
+#bookpanel .period:last-child{margin-bottom:0}
+#bookpanel .ptog{display:none}
+#bookpanel .plabel{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+  font-weight:700;margin-bottom:8px}
+#bookpanel .grp{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:8px}
+#bookpanel .chip{background:var(--bone);color:var(--bord);border:1px solid var(--rule);border-radius:2px;
+  font-family:inherit;font-size:14px;font-weight:600;padding:12px 6px;min-height:48px;line-height:1.4;
+  text-align:center;cursor:pointer;transition:background .12s ease,border-color .12s ease}
+#bookpanel .chip:hover{background:var(--bone-2);border-color:var(--bord)}
+#bookpanel .chip.sel{background:var(--bord);color:var(--bone);border-color:var(--bord)}
+#bookpanel .chip:focus-visible{outline:3px solid var(--bord);outline-offset:-3px}
+#bookpanel .hint{color:var(--muted);font-size:14px;padding:8px 2px}
+#bookpanel .bknote{background:var(--bone-2);border-left:4px solid var(--bord);padding:10px 12px;
+  font-size:13.5px;color:var(--ink);margin-bottom:14px}
+
+/* ---------- loading ---------- */
+#bookpanel .skel i{display:block;background:var(--bone-2);animation:bkpulse 1.3s ease-in-out infinite}
+#bookpanel .dskel i{height:48px;margin-bottom:-1px}
+#bookpanel .tskel{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:8px}
+#bookpanel .tskel i{height:48px;border-radius:2px}
+#bookpanel .skel i:nth-child(2n){animation-delay:.15s}
+#bookpanel .skel i:nth-child(3n){animation-delay:.3s}
+@keyframes bkpulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* ---------- errors and dead ends ---------- */
+#bookpanel .errbox{background:var(--bone-2);border:1px solid var(--rule);border-left:4px solid var(--bord);
+  padding:18px 20px;max-width:56ch;color:var(--ink)}
+#bookpanel .errbox p{font-size:15px;margin:0 0 12px;line-height:1.6}
+#bookpanel .errbox a{color:var(--bord);font-weight:600}
+
+/* ---------- step 2: details ---------- */
+#bookpanel .form{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:560px}
+#bookpanel .field{display:flex;flex-direction:column;gap:5px;min-width:0}
+#bookpanel .wide{grid-column:1/-1}
+#bookpanel .field label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);line-height:1.6}
+#bookpanel .field input{width:100%;font-family:inherit;font-size:16px;/* 16px: iOS zoom guard */
+  color:var(--ink);background:#fff;border:1px solid var(--rule);border-radius:2px;padding:11px 12px;min-height:48px}
+#bookpanel .field input:focus{border-color:var(--bord);outline:2px solid var(--bord);outline-offset:-1px}
+#bookpanel .field input[aria-invalid="true"]{border-color:var(--bord);background:#fff}
+#bookpanel .field .err{font-size:13px;color:var(--bord);font-weight:600;line-height:1.5}
+#bookpanel .actions{grid-column:1/-1;display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:8px}
+#bookpanel .note{font-size:13px;color:var(--muted)}
+#bookpanel .bkbtn{display:inline-block;background:var(--bord);color:var(--bone);font-weight:700;
+  font-size:14px;letter-spacing:.09em;text-transform:uppercase;text-decoration:none;padding:0 34px;
+  min-height:52px;border:0;border-radius:2px;cursor:pointer;font-family:inherit}
+#bookpanel .bkbtn:hover{background:var(--bord-lo)}
+#bookpanel .bkbtn:disabled{background:var(--rule);color:var(--muted);cursor:not-allowed}
+#bookpanel .bkbtn.ghost{background:transparent;color:var(--bord);border:1px solid var(--bord)}
+#bookpanel .bkbtn.ghost:hover{background:var(--bone)}
+#bookpanel .bkbtn:focus-visible{outline:3px solid var(--bord);outline-offset:3px}
+#bookpanel .bkfine{font-size:13px;color:var(--muted);margin-top:14px;max-width:48ch;line-height:1.6}
+#bookpanel .form .bkfine{margin-top:0}
+
+/* ---------- step 3: confirmed, or a phone number ---------- */
+#bookpanel .done{max-width:460px}
+#bookpanel .done h3{font-size:24px;font-weight:600;letter-spacing:-.01em;color:var(--bord);
+  margin:0 0 14px;line-height:1.3}
+#bookpanel .done .when{font-size:19px;font-weight:600;color:var(--ink);line-height:1.4}
+#bookpanel .done .tzl{font-size:14px;color:var(--muted);margin-bottom:18px}
+#bookpanel .done p{font-size:14.5px;color:var(--muted);margin:0 0 14px;line-height:1.6}
+#bookpanel .done .ref{font-size:13px;border-top:1px solid var(--rule);padding-top:14px;margin-bottom:0}
+#bookpanel .done .ref b{color:var(--ink);font-weight:600}
+
+/* ---------- below 900px ----------
+   One column. Days become a horizontal strip of cards; times collapse into
+   tappable Morning / Afternoon groups so the whole step still fits without a
+   long scroll. The panel is taller here, but it is one fixed height across all
+   three steps, exactly as on desktop. */
+@media(max-width:900px){
+  #bookpanel{--panel-h:470px}
+
+  #bookpanel .bkstep{padding:20px 16px 22px}
+  #bookpanel .summary{padding:6px 16px}
+
+  #bookpanel .cols{display:block;overflow-y:auto}
+  #bookpanel .col{display:block;min-height:auto}
+  #bookpanel .days{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;padding:0 0 6px}
+  #bookpanel .day{flex:0 0 auto;width:106px;flex-direction:column;align-items:flex-start;
+    justify-content:center;gap:2px;border:1px solid var(--rule)}
+  #bookpanel .days .day:last-child{border-bottom:1px solid var(--rule)}
+  #bookpanel .times{overflow:visible;margin-top:18px}
+  /* Measured against a real day card, so swapping the skeleton out shifts
+     nothing below it. A 9px mismatch here was 0.05 of CLS. */
+  #bookpanel .dskel{display:flex;gap:8px}
+  #bookpanel .dskel i{width:106px;height:53px;margin-bottom:0}
+
+  #bookpanel .ptog{display:flex;width:100%;align-items:center;gap:10px;background:var(--bone);
+    color:var(--bord);border:1px solid var(--rule);border-radius:2px;padding:12px 14px;
+    font-family:inherit;text-align:left;cursor:pointer;min-height:52px}
+  #bookpanel .ptog[aria-expanded="true"]{background:var(--bord);border-color:var(--bord);color:var(--bone)}
+  #bookpanel .ptog .pn{font-size:14px;font-weight:600}
+  #bookpanel .ptog .pc{font-size:12.5px;color:var(--muted);margin-left:auto}
+  #bookpanel .ptog[aria-expanded="true"] .pc{color:var(--gold)}   /* gold on Bordeaux only */
+  #bookpanel .ptog .pcar{font-size:15px;width:14px;text-align:center}
+  #bookpanel .plabel{display:none}
+  #bookpanel .period .grp{display:none;padding-top:8px}
+  #bookpanel .period.open .grp{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr))}
+
+  #bookpanel .form{grid-template-columns:1fr}
+}
+
+@media(prefers-reduced-motion:reduce){
+  #bookpanel .skel i{animation:none}
+  #bookpanel .chip{transition:none}
+  #bookpanel .bkstep{transition:none}
+}
