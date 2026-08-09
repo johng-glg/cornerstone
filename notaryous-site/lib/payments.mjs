@@ -42,6 +42,9 @@ export const META_LIMITS = { entries: 5, keyLength: 20, valueLength: 500 };
 /**
  * Booking context → the `meta_data` array Zoho round-trips for us.
  *
+ * The `{key, value}` element shape is CONFIRMED against a live checkout
+ * (2026-08-09) — it was inferred until then.
+ *
  * Throws rather than truncating. A silently dropped entry would present as a
  * `context_lost` after the customer has paid, which is the worst possible place
  * to discover it — whereas a throw here fails a test, or at worst fails a
@@ -99,6 +102,46 @@ export function parseMetaData(sessionOrJson) {
   return {};
 }
 
+/**
+ * Recover an id that `JSON.parse` may have silently rounded.
+ *
+ * Zoho ids exceed 2^53. A real one from the first live checkout:
+ *
+ *   payment_id 22684000000151089  →  as a JSON number  →  22684000000151090
+ *
+ * Off by one, no error, and `payment_id` is what a refund is issued against —
+ * so a rounded id refunds nothing, or refunds the wrong charge. Zoho sent this
+ * one as a string, but it sends 19-digit service ids as numbers elsewhere
+ * (glg-ron-orchestration's config.js carries a note about exactly that), so the
+ * shape is not something to rely on.
+ *
+ * When the parsed value is an unsafe integer, the digits are read back out of
+ * the raw response text, which never lost them.
+ *
+ * @param {unknown} parsed the value JSON.parse produced
+ * @param {string} raw     the unparsed response body
+ * @param {string} key     the field name to look for
+ * @returns {string|null}
+ */
+export function exactId(parsed, raw, key) {
+  if (parsed == null) return null;
+  if (typeof parsed !== 'number' || Number.isSafeInteger(parsed)) return String(parsed);
+
+  const m = typeof raw === 'string'
+    ? new RegExp(`"${key}"\\s*:\\s*(\\d+)`).exec(raw)
+    : null;
+  if (m) return m[1];
+
+  // Nothing to recover it from. Say so — this value cannot be trusted for a
+  // refund, and silence here is how the wrong person gets their money back.
+  console.error(JSON.stringify({
+    severity: 'ERROR',
+    msg: `Zoho id "${key}" arrived as an unsafe JSON number and could not be recovered from the raw body`,
+    rounded_value: String(parsed),
+  }));
+  return String(parsed);
+}
+
 /** Zoho returns epoch SECONDS. Treating them as milliseconds dates to 1970. */
 const epochToIso = (v) => {
   const n = Number(v);
@@ -118,7 +161,7 @@ const epochToIso = (v) => {
  *   expiresAt: string|null,
  * }}
  */
-export function sessionPayment(json) {
+export function sessionPayment(json, raw = null) {
   const s = unwrapSession(json);
   if (!s || typeof s !== 'object') {
     return { paid: false, status: null, known: false, paymentId: null, createdAt: null, expiresAt: null };
@@ -135,24 +178,28 @@ export function sessionPayment(json) {
   const paid = status != null && PAID.has(status);
   const known = status != null && (PAID.has(status) || NOT_PAID.has(status));
 
-  const paymentId = successful?.payment_id ?? successful?.id
+  const rawId = successful?.payment_id ?? successful?.id
     ?? s.payment_id ?? s.payments_session_payment_id ?? null;
+  // Zoho ids exceed 2^53; recover the exact digits if JSON.parse rounded them.
+  const paymentId = exactId(rawId, raw, successful?.payment_id != null || s.payment_id != null ? 'payment_id' : 'id');
 
   return {
     paid,
     status,
     known,
-    paymentId: paymentId == null ? null : String(paymentId),
+    paymentId,
     createdAt: epochToIso(s.created_time ?? s.created_at),
     expiresAt: epochToIso(s.expiry_time ?? s.expires_at),
   };
 }
 
 /** Session id out of a create response, wherever Zoho put it. */
-export function sessionId(json) {
+export function sessionId(json, raw = null) {
   const s = unwrapSession(json);
+  const key = s?.payments_session_id != null ? 'payments_session_id'
+    : s?.payment_session_id != null ? 'payment_session_id' : 'id';
   const id = s?.payments_session_id ?? s?.payment_session_id ?? s?.id ?? null;
-  return id == null ? null : String(id);
+  return exactId(id, raw, key);
 }
 
 /**

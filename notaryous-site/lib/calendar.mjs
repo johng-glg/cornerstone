@@ -454,26 +454,22 @@ export function renderCalendar(opts) {
 
   // ── payment ───────────────────────────────────────────────────────────────
   //
-  // ⚠️ UNTESTED AGAINST ZOHO. Every line below is written against the published
-  // web-integration docs and has never run against the real SDK: this build
-  // environment cannot reach static.zohocdn.com to load the script, let alone
-  // take a payment. The first live checkout is the first execution.
+  // VERIFIED against a live checkout, 2026-08-09 (booking #NO-00126).
+  // `requestPaymentMethod` was correct on the first attempt — no fallback
+  // warning fired. The candidate list below is kept anyway: it costs nothing,
+  // and if Zoho renames the method a future failure reports the instance's
+  // actual method names rather than throwing something unreadable.
   //
-  // Two things are inferred rather than confirmed and are the likely failure
-  // points, so both are handled defensively and reported loudly:
+  // Zoho Payments runs on Adyen underneath. The widget's own iframe carries a
+  // CSP that whitelists Adyen hosts (and, oddly, api.stripe.com); its source-map
+  // warnings in the console are Adyen's and harmless. This page sets no CSP of
+  // its own — see docs/booking-calendar.md before adding one at cutover, because
+  // a naive default would break the widget.
   //
-  //   1. The method name. `requestPaymentMethod` is documented for the payment
-  //      METHOD widget; the checkout widget's method is not shown in any page
-  //      reachable from here. CHECKOUT_METHODS lists the candidates in order of
-  //      likelihood and the first one present on the instance is used. If none
-  //      exists we throw with the actual method list attached, so one failed
-  //      attempt tells us the answer instead of nothing.
-  //   2. The resolution shape. Treated as "resolved means the customer finished
-  //      the flow", never as "resolved means paid" — the server decides that.
-  //
-  // The appointment is NEVER created from this callback. Whatever the widget
-  // reports, /api/confirm re-checks the payment with Zoho server-side and is
-  // the only thing that books anything.
+  // The resolution is treated as "the customer finished the flow", never as
+  // "the payment succeeded". The appointment is NEVER created from this
+  // callback: /api/confirm re-checks with Zoho server-side and is the only
+  // thing that books anything.
 
   const ZPAY_SDK = 'https://static.zohocdn.com/zpay/zpay-js/v1/zpayments.js';
   const CHECKOUT_METHODS = ['requestPaymentMethod', 'requestPayment', 'initiatePayment', 'open'];

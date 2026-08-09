@@ -97,7 +97,7 @@ export default async function handler(req, res) {
       return send(res, 502, { error: 'payment_lookup_failed', detail: 'We could not check the payment. Nothing has changed.' });
     }
 
-    const pay = sessionPayment(retrieved.json);
+    const pay = sessionPayment(retrieved.json, retrieved.raw);
     if (!pay.paid) {
       // Default deny. An unrecognised status is reported so it can be added to
       // the known set deliberately, rather than discovered by a customer.

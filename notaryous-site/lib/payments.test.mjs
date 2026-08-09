@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildMetaData, parseMetaData, sessionPayment, sessionId,
-  sessionLifetimeSeconds, unwrapSession,
+  sessionLifetimeSeconds, unwrapSession, exactId,
 } from './payments.mjs';
 
 // The real create response's timings, from the step 0 check.
@@ -120,4 +120,51 @@ test('unwrapSession does not mistake a bare envelope for a session', () => {
   assert.equal(unwrapSession(null), null);
   assert.equal(unwrapSession('x'), null);
   assert.deepEqual(unwrapSession({ payments_session: { a: 1 } }), { a: 1 });
+});
+
+// ── large ids ──────────────────────────────────────────────────────────────
+
+test('THE MONEY ONE: a payment id past 2^53 survives JSON.parse rounding', () => {
+  // Real ids from the first live checkout. 22684000000151089 is NOT safely
+  // representable — parsed as a JSON number it becomes ...090, and a refund
+  // against that id refunds nothing, or refunds the wrong charge.
+  const exact = '22684000000151089';
+  assert.equal(Number.isSafeInteger(Number(exact)), false, 'this is genuinely past 2^53');
+  assert.notEqual(String(JSON.parse(`{"payment_id":${exact}}`).payment_id), exact,
+    'JSON.parse really does round it');
+
+  const raw = `{"payments_session":{"status":"succeeded","payment_id":${exact}}}`;
+  const out = sessionPayment(JSON.parse(raw), raw);
+  assert.equal(out.paid, true);
+  assert.equal(out.paymentId, exact, 'the exact digits are recovered from the raw body');
+});
+
+test('a quoted id needs no recovery and is returned as-is', () => {
+  const exact = '22684000000151089';
+  const raw = `{"payments_session":{"status":"succeeded","payment_id":"${exact}"}}`;
+  assert.equal(sessionPayment(JSON.parse(raw), raw).paymentId, exact);
+});
+
+test('session ids get the same protection', () => {
+  const exact = '22684000000150064';
+  const raw = `{"payments_session":{"payments_session_id":${exact}}}`;
+  assert.equal(sessionId(JSON.parse(raw), raw), exact);
+  assert.equal(sessionId({ payments_session: { payments_session_id: exact } }), exact);
+});
+
+test('exactId leaves safe values, strings and nulls alone', () => {
+  assert.equal(exactId(42, '{"x":42}', 'x'), '42');
+  assert.equal(exactId('ps_abc', null, 'x'), 'ps_abc');
+  assert.equal(exactId(null, null, 'x'), null);
+  assert.equal(exactId(undefined, null, 'x'), null);
+});
+
+test('an unrecoverable rounded id is reported rather than passed off as exact', () => {
+  const lines = [];
+  const real = console.error;
+  console.error = (m) => lines.push(String(m));
+  try { exactId(22684000000151089, null, 'payment_id'); } finally { console.error = real; }
+  const logged = lines.map((l) => { try { return JSON.parse(l); } catch { return {}; } })
+    .find((o) => /unsafe JSON number/.test(o.msg || ''));
+  assert.ok(logged, 'silence here is how the wrong person gets their money back');
 });

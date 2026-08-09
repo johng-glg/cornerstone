@@ -20,10 +20,10 @@ Check it before every commit on this workstream:
 | Build step | State |
 |---|---|
 | 0. The four answers | **complete** — `/step0` deleted |
-| 1. Zoho auth + token refresh + `/api/availability` | **built, verified against stubs** — needs credentials to run for real |
-| 2. Payments session + server confirm + widget | **built** — server verified against stubs, widget **UNTESTED**, see `first-live-checkout.md` |
+| 1. Zoho auth + token refresh + `/api/availability` | **DONE — running live** |
+| 2. Payments session + server confirm + widget | **DONE — verified end to end live**, booking `#NO-00126` |
 | 3. Booking store | **superseded** — no `bookings` table; `ron_sessions` is extended instead, see below |
-| 4. Happy path in sandbox | blocked |
+| 4. Happy path | **DONE — verified against production**, see finding 10 |
 | 5. `slot_holds` + concurrency | **done, applied** — spec bug found, see below; TTL 17 min |
 | 6. Refund paths | blocked on credentials |
 | 6b. Refund tracking columns | **done, applied** |
@@ -34,11 +34,11 @@ Check it before every commit on this workstream:
 Shipped so far: `db/001_ron_sessions_calendar.sql`, `db/002_slot_holds.sql`,
 `db/003_calendar_checkout.sql`, `db/004_hold_signer.sql` (**all applied to `glg-ron`**),
 `lib/zoho-datetime.mjs` (19 tests), `lib/availability.mjs` (20 tests),
-`lib/zoho-bookings.mjs` (17 tests), `lib/payments.mjs` (14 tests),
+`lib/zoho-bookings.mjs` (17 tests), `lib/payments.mjs` (19 tests),
 `api/availability.mjs` (18 tests), `api/checkout.mjs` + `api/confirm.mjs` (27 tests),
 `api/_zoho.mjs` (8 tests), `api/_db.mjs`, `book-beta.html` + `lib/calendar.mjs`.
 
-123 tests, all passing, no dependencies:
+128 tests, all passing, no dependencies:
 
 ```
 node --test lib/*.test.mjs api/*.test.mjs
@@ -50,19 +50,6 @@ node --test lib/*.test.mjs api/*.test.mjs
 
 Step 0 is complete and `/step0` is deleted. What remains blocked:
 
-- **The browser payment widget is written but has never executed.** It loads
-  `zpayments.js` from `static.zohocdn.com`, which this environment cannot reach. Two
-  things in it are inferred from the docs rather than confirmed: the checkout method
-  name (`requestPaymentMethod` is documented for the payment *method* widget, not the
-  checkout widget) and the resolution shape. Both are handled defensively — the method
-  is looked up from a candidate list and a miss throws with the instance's actual
-  method names attached, so one failed attempt yields the answer. See
-  `docs/first-live-checkout.md`.
-- **A real end-to-end run.** Every Zoho host remains blocked by the network egress
-  policy — `zohoapis.com`, `payments.zoho.com`, `accounts.zoho.com`, and
-  `notaryous.vercel.app`. Both routes are tested against stubbed responses shaped
-  from the documented and observed payloads; the first real call is still the first
-  real test.
 - **Refund execution.** The columns and constraints exist; issuing a refund needs the
   Zoho Payments refund scope string, which is not in the docs — read it off the API
   Console scope picker.
@@ -363,6 +350,51 @@ Two consequences worth knowing:
   returns a composite type. `claimHold()` checks `row.id` rather than array length;
   this is verified against every shape PostgREST can hand back, because getting it
   wrong would double-book a notary rather than return a 409.
+
+### 10. The first live checkout — booking `#NO-00126`
+
+Verified end to end on 2026-08-09: hold claimed → payment session → card charged →
+payment verified server-side → Zoho appointment → Flow → BlueNotary session `D5862`
+with the assigned notary, at the correct time in the signer's own zone. Every column
+populated as designed, `is_test true`.
+
+The three answers the run existed to produce:
+
+| Question | Answer |
+|---|---|
+| Checkout widget method | **`requestPaymentMethod`** — correct on the first attempt, no fallback fired |
+| Payment session status when paid | recognised by the existing `PAID` set; no `unrecognised payment session status` log |
+| `meta_data` element shape | **`{key, value}`** — the inferred shape was right |
+
+The candidate method list stays in `lib/calendar.mjs`. It costs nothing, and if Zoho
+renames the method a future failure reports the instance's real method names instead of
+throwing something unreadable.
+
+**Zoho Payments runs on Adyen.** The widget's iframe carries its own CSP whitelisting
+Adyen hosts (and, oddly, `api.stripe.com`); its source-map warnings in the console are
+Adyen's and harmless. **This matters at cutover:** `vercel.json` sets no
+`Content-Security-Policy` today, so nothing is blocked — but anyone adding one to
+`index.html` must allow `static.zohocdn.com` in `script-src` and Zoho's payment frame in
+`frame-src`, or the widget dies silently on the live site. Add the header to a preview
+deployment and complete a checkout on it before it reaches production.
+
+### 11. Zoho ids exceed 2^53, and `payment_id` is what refunds key on
+
+From this same booking:
+
+```
+payment_id  22684000000151089   →  parsed as a JSON number  →  22684000000151090
+```
+
+Off by one, no error. A refund issued against a rounded id refunds nothing, or refunds
+the wrong charge. Zoho sent this one as a **string**, so the live value is correct — but
+`glg-ron-orchestration`'s `config.js` already carries a note that Zoho sends 19-digit
+service ids as JSON *numbers*, so the shape is not something to rely on across endpoints
+or versions.
+
+`exactId()` now recovers the digits from the raw response body whenever `JSON.parse`
+produced an unsafe integer, and logs loudly if it cannot. `sessionPayment()` and
+`sessionId()` both route through it. Tested with the real ids from this booking.
 
 ---
 

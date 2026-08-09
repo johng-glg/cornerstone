@@ -182,7 +182,7 @@ export default async function handler(req, res) {
       meta_data: meta,
     });
 
-    const psid = created.ok ? sessionId(created.json) : null;
+    const psid = created.ok ? sessionId(created.json, created.raw) : null;
     if (!psid) {
       // Two different failures wearing the same 502, and they need different
       // fixes: Zoho refusing the request (bad scope, bad field, bad account)
