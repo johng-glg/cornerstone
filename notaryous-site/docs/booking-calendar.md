@@ -217,7 +217,7 @@ a separate table would have had to join against. Neither `bookings` nor
 and replaced by `db/001_ron_sessions_calendar.sql`, which is purely additive
 against the live table.
 
-### 6. The payment gate is unconditionally open downstream
+### 6. The payment gate was unconditionally open downstream — and is now closeable
 
 The Zoho Flow sends a **hardcoded** `payment_id` / `payment_reference_number`.
 This was deliberate — payment was enforced by Zoho's hosted booking page, so
@@ -239,6 +239,19 @@ hold → payment session → **server-side confirmation** → Book Appointment. 
 the reverse failure has no recovery either — payment clears, Book Appointment
 throws, and nothing downstream ever learns a customer paid. The calendar must
 catch and refund that itself.
+
+**Update, 2026-08-09 (`#NO-00127`).** The code was never the problem — the Flow
+was. `paymentSignal()` could always read real evidence and simply never received
+any. The booking Flow now sends `cost` and `cost_paid` as unquoted numbers, so
+branch 2 fires on real data, and `payment_status` has been **verified to arrive
+as `"paid"`** on a calendar-created appointment — not `"pending"` as step 0
+suggested. That earlier observation held for probes booked with
+`cost_paid: "0.00"`; sending a real amount changes what Zoho reports.
+
+Once the hardcoded `1234` values are replaced with real ones, all three branches
+carry genuine evidence and the downstream gate closes. The ordering above stays
+correct regardless — it is what makes the evidence true — but it stops being the
+*only* control.
 
 ### 7. `zoho_staff_id` and `notary_email` are different identifiers
 
