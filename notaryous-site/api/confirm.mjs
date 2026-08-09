@@ -17,11 +17,15 @@
  *   5. record it in ron_sessions, resolve the hold
  *
  * Step 2 is load-bearing in a way that is easy to miss. The browser is never
- * believed: it supplies an opaque session id and nothing else. Everything about
- * the booking — slot, notary, signer — is read back out of the session's
- * `meta_data`, which we wrote server-side at checkout and Zoho returns to us.
- * A tampered client can therefore change nothing except which of its own
- * sessions it asks about.
+ * believed: it supplies an opaque session id and nothing else. That id resolves
+ * to a Zoho session whose `meta_data` carries one entry — the id of a
+ * slot_holds row — and slot, notary and signer are read from that row. Every
+ * link in that chain was written by the server. A tampered client can change
+ * nothing except which of its own sessions it asks about.
+ *
+ * meta_data carries one entry rather than nine because Zoho caps it at five and
+ * documents that PII must not go in it. The first live checkout learned this at
+ * a cost of one 400: `meta_data varies from the defined limit`.
  *
  * Step 4 is irreversible. Once the appointment exists, Zoho Flow fires and
  * glg-ron-orchestration creates a real BlueNotary session — and it cannot tell
@@ -31,7 +35,7 @@
  */
 
 import { CONFIG, REQUIRED, missingEnv, bookingsPostForm, paymentsGet, redact } from './_zoho.mjs';
-import { missingDbEnv, markHoldPaid, resolveHold, recordBooking, bookingForSession } from './_db.mjs';
+import { missingDbEnv, getHold, markHoldPaid, resolveHold, recordBooking, bookingForSession } from './_db.mjs';
 import { sessionPayment, parseMetaData } from '../lib/payments.mjs';
 import { parseBookingId } from '../lib/zoho-bookings.mjs';
 import { zohoFromTime } from '../lib/zoho-datetime.mjs';
@@ -106,15 +110,25 @@ export default async function handler(req, res) {
       return send(res, 402, { status: 'unpaid', payment_status: pay.status ?? 'unknown' });
     }
 
+    // meta_data carries ONE entry — the hold id. Zoho caps it at five and
+    // documents that PII must not go in it, so the booking context lives on the
+    // slot_holds row instead and is read back from there. The client still
+    // supplies nothing but an opaque session id; the chain from that id to this
+    // row runs entirely through data the server wrote.
     const meta = parseMetaData(retrieved.json);
-    const required = ['slot', 'staff_id', 'email', 'timezone'];
-    const missingMeta = required.filter((k) => !meta[k]);
-    if (missingMeta.length) {
+    const hold = meta.hold_id ? await getHold(meta.hold_id) : null;
+
+    const missingContext = !meta.hold_id ? ['meta_data.hold_id']
+      : !hold ? [`slot_holds row ${meta.hold_id}`]
+      : ['slot_start_utc', 'staff_id', 'client_email', 'client_timezone'].filter((k) => !hold[k]);
+
+    if (missingContext.length) {
       // Paid, but we cannot tell what for. Never guess a slot — an appointment
       // at the wrong time is worse than one that needs a human.
       console.error(JSON.stringify({
-        severity: 'ERROR', msg: 'PAID but meta_data incomplete — manual booking required',
-        payment_session_id: psid, payment_id: pay.paymentId, missing: missingMeta,
+        severity: 'ERROR', msg: 'PAID but booking context is incomplete — manual booking required',
+        payment_session_id: psid, payment_id: pay.paymentId,
+        hold_id: meta.hold_id ?? null, missing: missingContext,
       }));
       return send(res, 500, {
         error: 'context_lost',
@@ -123,28 +137,28 @@ export default async function handler(req, res) {
     }
 
     // --- 3. durable "paid, not yet booked" ---------------------------------
-    await markHoldPaid(psid, pay.paymentId).catch((err) => {
+    await markHoldPaid(hold.id, pay.paymentId).catch((err) => {
       // Not fatal — but it is the record ops would reconcile against, so a
       // failure here must be visible before we cross the point of no return.
-      console.error(JSON.stringify({ severity: 'ERROR', msg: 'could not mark hold paid', payment_session_id: psid, error: String(err?.message || err) }));
+      console.error(JSON.stringify({ severity: 'ERROR', msg: 'could not mark hold paid', hold_id: hold.id, error: String(err?.message || err) }));
     });
 
     // --- 4. THE POINT OF NO RETURN -----------------------------------------
-    const slotIso = meta.slot;
-    const signerZone = meta.timezone;
+    const slotIso = new Date(hold.slot_start_utc).toISOString();
+    const signerZone = hold.client_timezone;
     // Zoho honours the declared timezone field (step 0, verified): send the
     // signer's own wall clock with the signer's own zone.
     const fromTime = zohoFromTime(new Date(slotIso), signerZone);
 
     const booked = await bookingsPostForm('/appointment', {
       service_id: CONFIG.serviceId(),
-      staff_id: meta.staff_id,
+      staff_id: hold.staff_id,
       from_time: fromTime,
       timezone: signerZone,
       customer_details: {
-        name: [meta.first_name, meta.last_name].filter(Boolean).join(' ') || 'Client',
-        email: meta.email,
-        phone_number: meta.phone || '',
+        name: [hold.client_first_name, hold.client_last_name].filter(Boolean).join(' ') || 'Client',
+        email: hold.client_email,
+        phone_number: hold.client_phone || '',
       },
       payment_info: { cost_paid: FEE },
     });
@@ -157,8 +171,8 @@ export default async function handler(req, res) {
       console.error(JSON.stringify({
         severity: 'ERROR', msg: 'PAID BUT NOT BOOKED — refund or manual booking required',
         payment_session_id: psid, payment_id: pay.paymentId,
-        slot: slotIso, staff_id: meta.staff_id, email: meta.email,
-        zoho_status: booked.status,
+        slot: slotIso, staff_id: hold.staff_id, email: hold.client_email,
+        hold_id: hold.id, zoho_status: booked.status,
       }));
       return send(res, 500, {
         error: 'booking_failed',
@@ -173,16 +187,16 @@ export default async function handler(req, res) {
       p_booking_id: bookingId,
       p_payment_session_id: psid,
       p_payment_id: pay.paymentId,
-      p_zoho_staff_id: meta.staff_id,
+      p_zoho_staff_id: hold.staff_id,
       p_scheduled_at: slotIso,
-      p_client_email: meta.email,
-      p_client_first_name: meta.first_name ?? '',
-      p_client_last_name: meta.last_name ?? '',
-      p_client_phone: meta.phone ?? null,
+      p_client_email: hold.client_email,
+      p_client_first_name: hold.client_first_name ?? '',
+      p_client_last_name: hold.client_last_name ?? '',
+      p_client_phone: hold.client_phone ?? null,
       p_client_timezone: signerZone,
-      p_is_test: meta.is_test === 'true',
+      p_is_test: process.env.BOOKING_IS_TEST === 'true',
     });
-    await resolveHold(psid, bookingId).catch(() => {});
+    await resolveHold(hold.id, bookingId).catch(() => {});
 
     return send(res, 200, { status: 'booked', booking_id: bookingId, slot: slotIso });
   } catch (err) {

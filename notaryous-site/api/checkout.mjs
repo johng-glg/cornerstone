@@ -152,7 +152,16 @@ export default async function handler(req, res) {
     const staffId = pickStaff(slots[0], holds || []);
     if (!staffId) return send(res, 409, { error: 'slot_taken', detail: 'That time was taken.' });
 
-    const hold = await claimHold(slotIso, staffId, HOLD_MINUTES);
+    // The signer travels WITH the claim, in one statement, so there is never a
+    // moment where a hold exists without the details /api/confirm needs.
+    const [firstName, ...rest] = name.split(/\s+/);
+    const hold = await claimHold(slotIso, staffId, HOLD_MINUTES, {
+      email,
+      first_name: firstName,
+      last_name: rest.join(' '),
+      phone,
+      timezone,
+    });
     if (!hold) {
       // Lost the race inside Postgres — someone claimed this notary for this
       // slot between the subtraction above and the insert.
@@ -160,18 +169,11 @@ export default async function handler(req, res) {
     }
 
     // --- 3. payment session ------------------------------------------------
-    const [firstName, ...rest] = name.split(/\s+/);
-    const meta = buildMetaData({
-      slot: slotIso,
-      staff_id: staffId,
-      hold_id: hold.id,
-      timezone,
-      first_name: firstName,
-      last_name: rest.join(' '),
-      email,
-      phone,
-      is_test: process.env.BOOKING_IS_TEST === 'true' ? 'true' : '',
-    });
+    // ONE entry. Zoho caps meta_data at five and documents that PII must not
+    // go in it; the first live checkout sent nine and was rejected outright.
+    // Everything else about this booking is already on the hold row, written
+    // by the claim above, and /api/confirm reads it back from there.
+    const meta = buildMetaData({ hold_id: hold.id });
 
     const created = await paymentsPost('/paymentsessions', {
       amount: FEE,

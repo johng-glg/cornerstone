@@ -32,13 +32,13 @@ Check it before every commit on this workstream:
 | 9–11. Cutover | not started |
 
 Shipped so far: `db/001_ron_sessions_calendar.sql`, `db/002_slot_holds.sql`,
-`db/003_calendar_checkout.sql` (**all three applied to `glg-ron`**),
+`db/003_calendar_checkout.sql`, `db/004_hold_signer.sql` (**all applied to `glg-ron`**),
 `lib/zoho-datetime.mjs` (19 tests), `lib/availability.mjs` (20 tests),
 `lib/zoho-bookings.mjs` (17 tests), `lib/payments.mjs` (14 tests),
-`api/availability.mjs` (18 tests), `api/checkout.mjs` + `api/confirm.mjs` (18 tests),
+`api/availability.mjs` (18 tests), `api/checkout.mjs` + `api/confirm.mjs` (27 tests),
 `api/_zoho.mjs` (8 tests), `api/_db.mjs`, `book-beta.html` + `lib/calendar.mjs`.
 
-114 tests, all passing, no dependencies:
+123 tests, all passing, no dependencies:
 
 ```
 node --test lib/*.test.mjs api/*.test.mjs
@@ -322,6 +322,48 @@ Read it as "awaiting session creation". On conflict the function never touches
 `payment_status` or `session_status` — if the Flow arrived first, the orchestration
 service already owns them. Both orders are tested against real Postgres.
 
+### 9. Zoho Payments caps `meta_data` at five entries
+
+The first live checkout sent nine and was rejected:
+
+```
+400 {"code":"error","message":"meta_data varies from the defined limit"}
+```
+
+The documented limits are **5 entries, keys ≤20 characters, values ≤500** — and the
+docs say plainly that personally identifiable information must not go in `meta_data`
+at all. We were sending the signer's first name, last name, email and phone through
+it.
+
+**meta_data now carries one entry: `hold_id`.** Everything else about the booking
+lives on the `slot_holds` row it points at — `db/004_hold_signer.sql` adds
+`client_email`, `client_first_name`, `client_last_name`, `client_phone` and
+`client_timezone`, and the signer travels *with* the claim rather than in a follow-up
+`UPDATE`, so there is never a moment where a hold exists without the details
+`/api/confirm` needs.
+
+This is better than the design it replaced, not merely smaller. The "browser is never
+believed" property is unchanged and arguably stronger: the client still supplies
+nothing but an opaque session id, and now the round trip through Zoho carries one
+opaque uuid instead of a name, an email and a phone number. Every link from that id to
+the appointment runs through data only the server has written.
+
+`buildMetaData()` **throws** above the limits rather than truncating. A silently
+dropped entry would surface as a `context_lost` after the customer has paid, which is
+the worst possible place to find out. A throw fails a test, or at worst fails a
+checkout before any money moves. `META_LIMITS` is exported and a test asserts the
+outgoing payload is one entry — the payload, not the intention.
+
+Two consequences worth knowing:
+
+- `claim_slot_hold()` had to be **dropped and recreated**, not `create or replace`d.
+  A changed argument list creates an overload, and two overloads both callable with
+  four arguments make PostgREST fail with "function is not unique".
+- A lost claim returns **one all-NULL row**, not zero rows, because the function
+  returns a composite type. `claimHold()` checks `row.id` rather than array length;
+  this is verified against every shape PostgREST can hand back, because getting it
+  wrong would double-book a notary rather than return a 409.
+
 ---
 
 ## Settled since the first increment
@@ -400,6 +442,8 @@ services disagree about what is booked.
 ```
 supabase db execute -f db/001_ron_sessions_calendar.sql --project-ref xatqfliscgqswiohzkps
 supabase db execute -f db/002_slot_holds.sql            --project-ref xatqfliscgqswiohzkps
+supabase db execute -f db/003_calendar_checkout.sql     --project-ref xatqfliscgqswiohzkps
+supabase db execute -f db/004_hold_signer.sql           --project-ref xatqfliscgqswiohzkps
 ```
 
 **`001` has not been run. It ALTERs a live table** that a load-bearing service reads

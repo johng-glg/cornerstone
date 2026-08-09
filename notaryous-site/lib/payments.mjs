@@ -26,20 +26,50 @@ export function unwrapSession(json) {
 }
 
 /**
+ * Zoho Payments' documented `meta_data` limits.
+ *
+ * Learned the hard way: the first live checkout sent nine entries and Zoho
+ * answered `400 {"code":"error","message":"meta_data varies from the defined
+ * limit"}`. The docs put the cap at five, keys at 20 characters and values at
+ * 500 — and say plainly that personally identifiable information does not
+ * belong in meta_data at all.
+ *
+ * Which is why exactly one entry travels now: `hold_id`. Everything else about
+ * the booking lives on the slot_holds row it points at.
+ */
+export const META_LIMITS = { entries: 5, keyLength: 20, valueLength: 500 };
+
+/**
  * Booking context → the `meta_data` array Zoho round-trips for us.
  *
- * This is why the confirmation handler needs no server-side state beyond the
- * hold: it reads the context back from Zoho, not from the browser. The browser
- * only ever supplies an opaque session id, so a tampered client cannot change
- * which slot, notary or signer the appointment is created for.
+ * Throws rather than truncating. A silently dropped entry would present as a
+ * `context_lost` after the customer has paid, which is the worst possible place
+ * to discover it — whereas a throw here fails a test, or at worst fails a
+ * checkout before any money moves.
  *
  * @param {Record<string, string|number|boolean|null|undefined>} context
  * @returns {{key: string, value: string}[]} entries with no value are dropped
  */
 export function buildMetaData(context) {
-  return Object.entries(context || {})
+  const entries = Object.entries(context || {})
     .filter(([, v]) => v !== undefined && v !== null && v !== '')
     .map(([key, value]) => ({ key, value: String(value) }));
+
+  if (entries.length > META_LIMITS.entries) {
+    throw new Error(
+      `meta_data has ${entries.length} entries, Zoho allows ${META_LIMITS.entries}: `
+      + `${entries.map((e) => e.key).join(', ')}. Put the value on the slot_holds row instead.`,
+    );
+  }
+  for (const { key, value } of entries) {
+    if (key.length > META_LIMITS.keyLength) {
+      throw new Error(`meta_data key "${key}" is ${key.length} chars, Zoho allows ${META_LIMITS.keyLength}`);
+    }
+    if (value.length > META_LIMITS.valueLength) {
+      throw new Error(`meta_data value for "${key}" is ${value.length} chars, Zoho allows ${META_LIMITS.valueLength}`);
+    }
+  }
+  return entries;
 }
 
 /**

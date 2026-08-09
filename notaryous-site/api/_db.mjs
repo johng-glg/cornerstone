@@ -128,12 +128,17 @@ function rpc(name, args) {
  * read-then-write here and there must never be: two checkouts a millisecond
  * apart would both see the slot free.
  */
-export async function claimHold(slotStartUtc, staffId, ttlMinutes) {
+export async function claimHold(slotStartUtc, staffId, ttlMinutes, signer = {}) {
   const rows = await rpc('claim_slot_hold', {
     p_slot_start_utc: slotStartUtc,
     p_staff_id: staffId,
     p_payment_session_id: null,
     p_ttl: `${ttlMinutes} minutes`,
+    p_client_email: signer.email ?? null,
+    p_client_first_name: signer.first_name ?? null,
+    p_client_last_name: signer.last_name ?? null,
+    p_client_phone: signer.phone ?? null,
+    p_client_timezone: signer.timezone ?? null,
   });
   // A set-returning function yields [] when the claim lost.
   const row = Array.isArray(rows) ? rows[0] : rows;
@@ -157,8 +162,8 @@ export function attachSessionToHold(holdId, paymentSessionId) {
  * booking_id is NOT NULL — so without this a failed Book Appointment leaves a
  * paid customer with no record anywhere.
  */
-export function markHoldPaid(paymentSessionId, paymentId) {
-  return sbFetch(`/slot_holds?payment_session_id=eq.${encodeURIComponent(paymentSessionId)}`, {
+export function markHoldPaid(holdId, paymentId) {
+  return sbFetch(`/slot_holds?id=eq.${encodeURIComponent(holdId)}`, {
     method: 'PATCH',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify({ paid_at: new Date().toISOString(), payment_id: paymentId }),
@@ -166,8 +171,8 @@ export function markHoldPaid(paymentSessionId, paymentId) {
 }
 
 /** Resolve the hold once the appointment exists. */
-export function resolveHold(paymentSessionId, bookingId) {
-  return sbFetch(`/slot_holds?payment_session_id=eq.${encodeURIComponent(paymentSessionId)}`, {
+export function resolveHold(holdId, bookingId) {
+  return sbFetch(`/slot_holds?id=eq.${encodeURIComponent(holdId)}`, {
     method: 'PATCH',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify({ booking_id: bookingId }),
@@ -182,6 +187,25 @@ export function resolveHold(paymentSessionId, bookingId) {
 export async function recordBooking(fields) {
   const rows = await rpc('record_calendar_booking', fields);
   return Array.isArray(rows) ? rows[0] : rows;
+}
+
+/**
+ * The hold a payment session was opened against.
+ *
+ * Keyed on the hold's own id, which /api/confirm reads out of the payment
+ * session's meta_data. Deliberately NOT keyed on payment_session_id: that
+ * column is written by a second call after the claim, and if that write ever
+ * fails the hold still exists and is still correct. The id from meta_data is
+ * authoritative because Zoho hands it back to us.
+ */
+export async function getHold(holdId) {
+  const q = new URLSearchParams({
+    select: 'id,slot_start_utc,staff_id,payment_session_id,expires_at,paid_at,booking_id,'
+          + 'client_email,client_first_name,client_last_name,client_phone,client_timezone',
+    id: `eq.${holdId}`,
+  });
+  const rows = await sbFetch(`/slot_holds?${q}`);
+  return (rows || [])[0] ?? null;
 }
 
 /** Has this payment session already produced an appointment? */

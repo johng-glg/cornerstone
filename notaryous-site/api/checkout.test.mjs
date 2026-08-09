@@ -5,6 +5,7 @@
 // before payment is verified, and nothing is created twice.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { META_LIMITS } from '../lib/payments.mjs';
 
 const DIR = new URL('.', import.meta.url).pathname;
 let v = 0;
@@ -46,7 +47,7 @@ function stub(opts = {}) {
   const {
     staff = ['st_1', 'st_2'], available = true, holds = [], booked = [],
     claimWins = true, sessionCreate = { payments_session: { payments_session_id: 'ps_1', created_time: 1786227520, expiry_time: 1786228420 } },
-    sessionRetrieve = null, appointmentOk = true, existingBooking = [],
+    sessionRetrieve = null, appointmentOk = true, existingBooking = [], holdRow = HOLD,
   } = opts;
   const calls = [];
   globalThis.fetch = async (input, init = {}) => {
@@ -65,7 +66,12 @@ function stub(opts = {}) {
       return json(claimWins ? [{ id: 'hold_1', expires_at: '2099-01-01T00:00:00Z' }] : []);
     }
     if (url.includes('/rest/v1/rpc/record_calendar_booking')) return json([{ booking_id: 'SI-1' }]);
-    if (url.includes('/rest/v1/slot_holds')) return json(method === 'GET' ? holds : []);
+    if (url.includes('/rest/v1/slot_holds')) {
+      if (method !== 'GET') return json([]);
+      // A lookup by id is /api/confirm fetching the hold it was pointed at;
+      // anything else is availability asking which holds are live.
+      return json(url.includes('id=eq.') ? (holdRow ? [holdRow] : []) : holds);
+    }
     if (url.includes('/rest/v1/ron_sessions')) return json(method === 'GET' ? (existingBooking.length ? existingBooking : booked) : []);
     if (url.includes('/paymentsessions/')) return json(sessionRetrieve ?? {}, sessionRetrieve ? 200 : 404);
     if (url.includes('/paymentsessions')) return json(sessionCreate, sessionCreate ? 200 : 500);
@@ -86,7 +92,16 @@ const paidSession = (meta) => ({
     meta_data: Object.entries(meta).map(([key, value]) => ({ key, value: String(value) })),
   },
 });
-const META = { slot: SLOT, staff_id: 'st_1', timezone: 'America/New_York', email: 'ada@example.test', first_name: 'Ada', last_name: 'Lovelace', phone: '7145551234' };
+// meta_data now carries ONE entry. The booking context lives on the hold.
+const META = { hold_id: 'hold_1' };
+const HOLD = {
+  id: 'hold_1', slot_start_utc: SLOT, staff_id: 'st_1',
+  payment_session_id: 'ps_1', expires_at: '2099-01-01T00:00:00Z',
+  paid_at: null, booking_id: null,
+  client_email: 'ada@example.test', client_first_name: 'Ada',
+  client_last_name: 'Lovelace', client_phone: '7145551234',
+  client_timezone: 'America/New_York',
+};
 
 // ── checkout ───────────────────────────────────────────────────────────────
 
@@ -165,7 +180,7 @@ test("THE ONE THAT MATTERS HERE: Zoho's rejection body is LOGGED, not swallowed"
   assert.ok(logged, 'the upstream body must reach the log');
   assert.equal(logged.zoho_status, 401);
   assert.equal(logged.zoho_body.code, 57, "Zoho's own error code, verbatim");
-  assert.deepEqual(logged.sent.meta_keys.slice(0, 2), ['slot', 'staff_id'],
+  assert.deepEqual(logged.sent.meta_keys, ['hold_id'],
     'what we sent, by key — no signer PII in the log');
   assert.equal(res.statusCode, 502);
 });
@@ -339,8 +354,8 @@ test('the booking is built from meta_data, not from the request body', async () 
   assert.ok(sent, 'appointment was created');
   const fields = {};
   for (const [k, v] of sent.entries()) fields[k] = v;
-  assert.equal(fields.staff_id, 'st_1', 'staff came from the session, not the request');
-  assert.equal(fields.timezone, 'America/New_York', 'signer zone from the session');
+  assert.equal(fields.staff_id, 'st_1', 'staff came from the hold, not the request');
+  assert.equal(fields.timezone, 'America/New_York', 'signer zone from the hold');
   assert.ok(!fields.from_time.startsWith('01-Jan-1999'), 'the request could not move the slot');
   assert.ok(calls.length > 0);
 });
@@ -370,9 +385,9 @@ test('paid but Book Appointment fails: reported, not silently lost', async () =>
   assert.ok(!calls.some((c) => c.includes('record_calendar_booking')), 'no row claiming an appointment that does not exist');
 });
 
-test('paid but meta_data incomplete: never guesses a slot', async () => {
+test('paid but the hold is gone: never guesses a slot', async () => {
   setEnv();
-  const calls = stub({ sessionRetrieve: paidSession({ email: 'a@b.test' }) });
+  const calls = stub({ sessionRetrieve: paidSession(META), holdRow: null });
   const res = await post(await load('confirm'), { payment_session_id: 'ps_1' });
   assert.equal(res.statusCode, 500);
   assert.equal(res.json().error, 'context_lost');
@@ -386,4 +401,64 @@ test('confirm needs a session id, and refuses GET', async () => {
   const res = mockRes();
   await (await load('confirm'))({ method: 'GET', url: '/x', headers: {} }, res);
   assert.equal(res.statusCode, 405);
+});
+
+
+// ── meta_data limits ───────────────────────────────────────────────────────
+
+test('THE ONE THAT COST A 400: checkout sends ONE meta_data entry', async () => {
+  // Zoho caps meta_data at 5. The first live checkout sent 9 and was rejected
+  // with `meta_data varies from the defined limit`. This asserts the payload,
+  // not the intention.
+  setEnv();
+  stub();
+  let sent = null;
+  const inner = globalThis.fetch;
+  globalThis.fetch = async (u, init) => {
+    if (String(u).includes('/paymentsessions') && init?.method === 'POST') sent = JSON.parse(init.body);
+    return inner(u, init);
+  };
+  await post(await load('checkout'), { ...SIGNER, slot: SLOT });
+
+  assert.ok(sent, 'the payment session was created');
+  assert.equal(sent.meta_data.length, 1);
+  assert.deepEqual(sent.meta_data, [{ key: 'hold_id', value: 'hold_1' }]);
+  assert.ok(sent.meta_data.length <= META_LIMITS.entries,
+    `meta_data must stay within Zoho's limit of ${META_LIMITS.entries}`);
+});
+
+test('no signer PII travels through Zoho at all', async () => {
+  setEnv();
+  stub();
+  let sent = null;
+  const inner = globalThis.fetch;
+  globalThis.fetch = async (u, init) => {
+    if (String(u).includes('/paymentsessions') && init?.method === 'POST') sent = init.body;
+    return inner(u, init);
+  };
+  await post(await load('checkout'), { ...SIGNER, slot: SLOT });
+
+  // Zoho's own docs say not to put PII in meta_data. Nothing identifying the
+  // signer should appear anywhere in the request body.
+  for (const secret of ['ada@example.test', 'Ada', 'Lovelace', '7145551234']) {
+    assert.ok(!sent.includes(secret), `"${secret}" must not be sent to Zoho Payments`);
+  }
+});
+
+test('the signer is written with the claim, in one statement', async () => {
+  setEnv();
+  stub();
+  let claimArgs = null;
+  const inner = globalThis.fetch;
+  globalThis.fetch = async (u, init) => {
+    if (String(u).includes('claim_slot_hold')) claimArgs = JSON.parse(init.body);
+    return inner(u, init);
+  };
+  await post(await load('checkout'), { ...SIGNER, slot: SLOT });
+
+  assert.equal(claimArgs.p_client_email, 'ada@example.test');
+  assert.equal(claimArgs.p_client_first_name, 'Ada');
+  assert.equal(claimArgs.p_client_last_name, 'Lovelace');
+  assert.equal(claimArgs.p_client_timezone, 'America/New_York');
+  assert.equal(claimArgs.p_ttl, '17 minutes', 'longer than the 900s session');
 });
