@@ -397,15 +397,44 @@ Three things that had to come with that:
 phone number did not fit one row at 320px, and rather than overflowing visibly
 the browser shrink-to-fit the layout — `innerWidth` reported 356 on a 320px
 viewport, quietly scaling every other element down. Below 380px the wordmark
-drops to 14px, its `ONLINE NOTARIZATION` subline is hidden (the eyebrow directly
-underneath already reads "Remote Online Notarization", so nothing is lost), and
+drops to 14px, its `ONLINE NOTARIZATION` subline is hidden (the h1 directly
+underneath now reads "Notarized online.", so nothing is lost), and
 the gutters tighten. `flex-wrap` on the row is the backstop if it ever stops
 fitting again. Re-measured at 320 / 360 / 375 / 390 / 412: no zoom at any width.
 
 Hiding `.top` on mobile also removed `Commissioned · Bonded · Nationwide`, so
-that line now lives in the hero `.price` block as a third row, at every
-breakpoint — muted `rgba(bone,.62)` on Bordeaux, **5.98**, matching the two
-lines above it. It is above the fold on all four reference devices.
+that line moved into the hero — first as a third row in `.price`, and since the
+2026-08-09 headline change as the eyebrow itself. See "The headline" below.
+
+### The headline
+
+**2026-08-09.** `Get it notarized. / Don't get up.` → `Notarized online. /
+Notoriously easy.` Two lines, same colour split: first line Bone, second line
+Gold on the dark grounds and Deep Gold on the light specimen in
+`brand/brand-sheet.html`, which is the only place the headline is set on Bone.
+
+The eyebrow changed with it. `REMOTE ONLINE NOTARIZATION` became redundant the
+moment the first line said "Notarized online.", so it now reads
+`COMMISSIONED · BONDED · NATIONWIDE`.
+
+**That line already existed twice on the page, and both copies are gone.**
+
+- `.top .tag` — the desktop utility bar. It sat ~120px above the eyebrow and was
+  visible at the same time on every desktop viewport. The bar keeps the phone
+  number, which is the thing it exists for, and `.top .w` moved from
+  `space-between` to `flex-end` so the number stays right-aligned on its own.
+- `.price .trust` — the third row under the hero CTA. It was only ever there
+  because `.top` is hidden below 900px and that was the last place the line
+  survived above the fold. The eyebrow is present at every breakpoint, so the
+  row is no longer carrying anything.
+
+Net: the words appear once, in gold on Bordeaux rather than muted bone, at every
+breakpoint. Putting either copy back is one line; both are marked in the source.
+
+**Not regenerated: `og-image.png`.** The headline is not baked into it. The card
+reads `NOTARYOUS` over `ONLINE NOTARIZATION · $25 FLAT` — checked in
+`brand/og-image.svg`, which has exactly two `<text>` nodes and neither is the
+headline.
 
 ### The hero
 

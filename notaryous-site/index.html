@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Notaryous — Online Notarization, $25 Flat</title>
+<title>Notaryous — Notarized Online, Notoriously Easy</title>
 <meta name="description" content="Get a document notarized online by video with a commissioned notary. $25 flat per session, unlimited signatures. Book a time and be done in fifteen minutes.">
 <!-- Bordeaux, because this colours the mobile browser chrome and the first
      thing under it on mobile is .mast, which is Bordeaux. (.top, which is
@@ -21,14 +21,14 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Notaryous">
 <meta property="og:locale" content="en_US">
-<meta property="og:title" content="Notaryous — Online Notarization, $25 Flat">
+<meta property="og:title" content="Notaryous — Notarized Online, Notoriously Easy">
 <meta property="og:description" content="Get a document notarized online by video with a commissioned notary. $25 flat per session, unlimited signatures. Book a time and be done in fifteen minutes.">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:alt" content="Notaryous — online notarization, $25 flat">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Notaryous — Online Notarization, $25 Flat">
+<meta name="twitter:title" content="Notaryous — Notarized Online, Notoriously Easy">
 <meta name="twitter:description" content="Get a document notarized online by video with a commissioned notary. $25 flat per session, unlimited signatures.">
 <meta name="twitter:image:alt" content="Notaryous — online notarization, $25 flat">
 
@@ -102,8 +102,7 @@ body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(
 /* min-height, not height: the two spans wrap to separate rows on every phone
    width, and a fixed 46px let the phone number spill out of the bar and onto
    the hero below it. Stays exactly 46px on one row. */
-.top .w{display:flex;justify-content:space-between;align-items:center;min-height:46px;padding:7px 26px;gap:4px 14px;flex-wrap:wrap}
-.top .tag{letter-spacing:.16em;text-transform:uppercase;font-size:10.5px;color:var(--gold)}
+.top .w{display:flex;justify-content:flex-end;align-items:center;min-height:46px;padding:7px 26px;gap:4px 14px;flex-wrap:wrap}
 .top a{color:var(--bone);text-decoration:none;font-weight:600}
 .top a:hover{color:var(--gold-lt)}
 
@@ -156,10 +155,11 @@ body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(
 .btn:focus-visible{outline:3px solid var(--bone);outline-offset:3px}
 .price{font-size:13.5px;color:rgba(239,234,224,.62);line-height:1.4}
 .price b{display:block;color:var(--bone);font-size:17px;font-weight:600}
-/* Third line. Inherits .price's muted colour and size — rgba(bone,.62) on
-   Bordeaux is 5.98. Kept at every breakpoint: below 900px .top is hidden, and
-   this is the only place these three words still appear above the fold. */
-.price .trust{display:block;margin-top:6px}
+/* `Commissioned · Bonded · Nationwide` used to be a third line here, because
+   .top is hidden below 900px and this was the only place left for it above the
+   fold. It is the eyebrow now — present at every breakpoint, and in gold rather
+   than muted bone — so keeping it here too would be the same three words twice
+   in one hero. */
 
 /* No wordmark under the hero mark: the masthead names the brand a few inches
    above it, and repeating it here just doubles the word on one screen. */
@@ -318,8 +318,8 @@ footer .legal{max-width:46ch;line-height:1.6}
   .mast .w{flex-wrap:wrap}
 }
 /* Narrow phones: keep the merged header on one row rather than letting it wrap
-   or force a zoom-out. The subline goes because the eyebrow directly below it
-   already reads "Remote Online Notarization" — the descriptor is not lost. */
+   or force a zoom-out. The subline goes because the h1 directly below it now
+   reads "Notarized online." — the descriptor is not lost. */
 @media(max-width:380px){
   .mast .w{gap:8px 12px;padding-left:14px;padding-right:14px}
   .brand{gap:10px}
@@ -340,8 +340,11 @@ footer .legal{max-width:46ch;line-height:1.6}
 
 <a class="skip" href="#main">Skip to content</a>
 
+<!-- The trust line used to open this bar. It is the hero eyebrow now, ~120px
+     below and visible at the same time on every desktop viewport, so it would
+     have been the same three words twice above the fold. The bar keeps the
+     phone number, which is the thing it exists for. -->
 <div class="top"><div class="w">
-  <span class="tag">Commissioned &middot; Bonded &middot; Nationwide</span>
   <span>Questions? <a href="tel:+17146942423">(714) 694-2423</a></span>
 </div></div>
 
@@ -356,13 +359,13 @@ footer .legal{max-width:46ch;line-height:1.6}
 
 <header class="hero"><div class="w">
   <div class="headline">
-    <div class="eyebrow">Remote Online Notarization</div>
-    <h1>Get it notarized.<br><span>Don't get up.</span></h1>
+    <div class="eyebrow">Commissioned &middot; Bonded &middot; Nationwide</div>
+    <h1>Notarized online.<br><span>Notoriously easy.</span></h1>
   </div>
   <p class="sub">Meet a commissioned notary by secure video, verify who you are, and sign. Most sessions are done in under fifteen minutes.</p>
   <div class="cta">
     <a href="#book" class="btn" data-va="hero_book">Book a session</a>
-    <span class="price"><b>$25 flat</b>Unlimited signatures. Paid when you book.<span class="trust">Commissioned &middot; Bonded &middot; Nationwide</span></span>
+    <span class="price"><b>$25 flat</b>Unlimited signatures. Paid when you book.</span>
   </div>
   <div class="markwrap">
     <!-- The approved mark, unmodified, served as one cacheable vector file
