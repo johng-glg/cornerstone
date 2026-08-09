@@ -31,6 +31,11 @@
   --bord:#3B1116; --bord-lo:#2E0D12; --gold:#E0B772; --gold-lt:#EBCB92; --gold-dp:#7E5C1E;
   --night:#1A080B; --bone:#EFEAE0; --bone-2:#E4DCCC; --rule:#D8CFBE;
   --ink:#241014; --muted:#6B5C55;
+  /* The whole point of the redesign. The panel is exactly this tall on every
+     step, so the page height never changes as the signer moves through it.
+     `height`, not `min-height`: a min-height lets a tall step grow the page
+     again, which is the bug this replaced. Anything taller scrolls inside. */
+  --panel-h:462px;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%;background:var(--bord)}
@@ -60,71 +65,128 @@ body{font-family:Archivo,-apple-system,Segoe UI,Arial,sans-serif;background:var(
 /* ---------- page ---------- */
 main{padding:52px 0 78px}
 h1{font-size:clamp(30px,4.6vw,44px);font-weight:600;letter-spacing:-.02em;color:var(--bord);margin-bottom:10px}
-.lede{color:var(--muted);font-size:16.5px;max-width:56ch;margin-bottom:12px}
-h2{font-size:19px;font-weight:600;color:var(--bord);margin-bottom:14px}
+.lede{color:var(--muted);font-size:16.5px;max-width:56ch;margin-bottom:26px}
 
-/* ---------- timezone ---------- */
-.tzrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin-bottom:34px}
+/* ---------- step indicator ----------
+   Decorative: the panel already announces each step through focus and the
+   summary line, so this is aria-hidden rather than read out twice. */
+.steps{display:flex;gap:10px;align-items:center;font-size:10.5px;letter-spacing:.2em;
+  text-transform:uppercase;font-weight:700;margin-bottom:14px}
+.steps span{color:var(--muted)}
+.steps span.done{color:var(--gold-dp)}       /* Deep Gold — never the bright gold on Bone */
+.steps span.now{color:var(--bord)}
+.steps i{font-style:normal;color:#B7A896}
+
+/* ---------- the panel ----------
+   One box, three steps inside it. Fixed height; the body is the only thing
+   that ever scrolls, and it scrolls within the box. */
+.panel{position:relative;background:#fff;border:1px solid var(--rule);border-top:5px solid var(--bord);
+  height:var(--panel-h);max-width:960px;display:flex;flex-direction:column;overflow:hidden}
+
+/* ---------- persistent summary (step 2 onward) ---------- */
+.summary{display:none;align-items:center;gap:6px 12px;flex-wrap:wrap;flex:0 0 auto;
+  padding:6px 22px;min-height:54px;border-bottom:1px solid var(--rule);background:var(--bone-2);font-size:14px}
+.summary.on{display:flex}
+.summary b{font-weight:600;color:var(--bord)}
+.summary .tz{color:var(--muted);font-size:13px}
+/* Deep Gold, never the bright gold: this sits on Bone-2. */
+.summary button{margin-left:auto;background:none;border:0;color:var(--gold-dp);font-family:inherit;
+  font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px;
+  padding:0 2px;min-height:48px}
+.summary button:hover{color:var(--bord)}
+.summary button[hidden]{display:none}
+
+/* ---------- steps ----------
+   Cross-fade the content, never the height. `.vis` is added a frame after
+   `.on` so the transition has something to run from; without the extra frame
+   a display:none → flex change lands at full opacity with no fade. */
+.pbody{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.step{display:none;flex:1;min-height:0;flex-direction:column;padding:22px 22px 24px;
+  overflow-y:auto;opacity:0;transition:opacity .15s ease}
+.step.on{display:flex}
+.step.on.vis{opacity:1}
+.step:focus{outline:none}
+/* Step 1 hands its scrolling to the two columns instead. */
+#s1.on{overflow:hidden}
+.step h2{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);
+  font-weight:700;margin-bottom:12px}
+
+/* ---------- step 1: time ---------- */
+#s1msg{display:none}
+#s1:not([data-mode="ok"]) .tzrow,#s1:not([data-mode="ok"]) .cols{display:none}
+#s1:not([data-mode="ok"]) #s1msg{display:block}
+
+.tzrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;flex:0 0 auto;
+  font-size:14px;color:var(--muted);margin-bottom:18px}
 .tzrow select{font-family:inherit;font-size:16px;/* 16px: below this iOS zooms on focus */
-  color:var(--ink);background:#fff;border:1px solid var(--rule);border-radius:2px;padding:9px 10px;min-height:44px}
+  color:var(--ink);background:#fff;border:1px solid var(--rule);border-radius:2px;padding:9px 10px;min-height:48px}
 
-/* ---------- day picker (desktop) ----------
-   Hidden on mobile, where the days are simply a scrolling list and each panel
-   carries its own heading — so the "Choose a day" label goes with the grid it
-   labels rather than sitting above nothing. */
-#pickday{display:none}
-.daygrid{display:none;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:30px}
-.daybtn{background:var(--bone);color:var(--ink);border:1px solid var(--rule);border-radius:2px;
-  padding:12px 6px;font-family:inherit;font-size:13px;line-height:1.25;cursor:pointer;text-align:center;
-  min-height:62px;display:flex;flex-direction:column;justify-content:center;gap:3px}
-.daybtn .dow{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
-.daybtn .dnum{font-size:17px;font-weight:600;color:var(--bord)}
-.daybtn .cnt{font-size:10.5px;color:var(--muted)}
-.daybtn:hover{border-color:var(--bord)}
-.daybtn[aria-pressed="true"]{background:var(--bord);border-color:var(--bord)}
-.daybtn[aria-pressed="true"] .dow,.daybtn[aria-pressed="true"] .dnum,.daybtn[aria-pressed="true"] .cnt{color:var(--bone)}
-.daybtn:disabled{opacity:.42;cursor:not-allowed;background:transparent;border-color:transparent}
-.daybtn:disabled .dnum{color:var(--muted)}
+.cols{flex:1;min-height:0;display:grid;grid-template-columns:236px 1fr;gap:24px}
+.col{min-height:0;display:flex;flex-direction:column}
+.days,.times{min-height:0;overflow-y:auto}
+.days{padding-right:6px}
 
-/* ---------- day panels ---------- */
-.day{border-top:1px solid var(--rule);padding:20px 0}
-.day:first-child{border-top:0}
-.day h2{font-size:15px;font-weight:600;color:var(--bord);margin-bottom:12px}
-.slots{display:flex;flex-wrap:wrap;gap:8px}
-/* Available: Bone with Bordeaux text and a Rule border (13.71).
-   Selected: Bordeaux fill with Bone text (13.71).
-   Unavailable slots are omitted, never greyed. */
-.slot{background:var(--bone);color:var(--bord);border:1px solid var(--rule);border-radius:2px;
-  font-family:inherit;font-size:15px;font-weight:600;padding:0 14px;min-height:48px;min-width:92px;
-  cursor:pointer;transition:background .12s ease,border-color .12s ease}
-.slot:hover{border-color:var(--bord);background:var(--bone-2)}
-.slot[aria-pressed="true"]{background:var(--bord);color:var(--bone);border-color:var(--bord)}
-.day .none{color:var(--muted);font-size:14.5px}
+/* Days: one list, every day in the fortnight, empty ones disabled rather than
+   dropped — so the list length does not jump about as availability changes. */
+.day{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+  background:#fff;color:var(--ink);border:1px solid var(--rule);border-bottom:0;border-radius:0;
+  padding:11px 13px;font-family:inherit;cursor:pointer;min-height:48px}
+.days .day:last-child{border-bottom:1px solid var(--rule)}
+.day .d{font-size:14px;font-weight:600;color:var(--ink)}
+.day .n{font-size:11.5px;color:var(--muted)}
+.day:hover:not(.empty){background:var(--bone)}
+.day.sel{background:var(--bord);border-color:var(--bord)}
+.day.sel .d{color:var(--bone)}
+.day.sel .n{color:var(--gold)}          /* gold on Bordeaux only */
+/* Dimmed hard. A day with nothing on it stays in the list for date continuity,
+   but it should not read as nearly-bookable. */
+.day.empty{opacity:.3;background:var(--bone);cursor:not-allowed}
+/* Inset, because the list is a scroll container and an outside ring is clipped. */
+.day:focus-visible{outline:3px solid var(--bord);outline-offset:-3px}
 
-/* ---------- states ---------- */
-#cal{min-height:60vh}
-.skel{display:flex;flex-wrap:wrap;gap:8px}
-.skel i{display:block;height:48px;width:96px;border-radius:2px;background:var(--bone-2);
-  animation:pulse 1.3s ease-in-out infinite}
-.skel i:nth-child(2n){width:104px;animation-delay:.15s}
-.skel i:nth-child(3n){width:88px;animation-delay:.3s}
+/* Times, grouped Morning / Afternoon. */
+.period{margin-bottom:14px}
+.period:last-child{margin-bottom:0}
+.ptog{display:none}
+.plabel{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+  font-weight:700;margin-bottom:8px}
+.grp{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:8px}
+.chip{background:var(--bone);color:var(--bord);border:1px solid var(--rule);border-radius:2px;
+  font-family:inherit;font-size:14px;font-weight:600;padding:12px 6px;min-height:48px;
+  text-align:center;cursor:pointer;transition:background .12s ease,border-color .12s ease}
+.chip:hover{background:var(--bone-2);border-color:var(--bord)}
+.chip.sel{background:var(--bord);color:var(--bone);border-color:var(--bord)}
+.chip:focus-visible{outline:3px solid var(--bord);outline-offset:-3px}
+.hint{color:var(--muted);font-size:14px;padding:8px 2px}
+.notice{background:var(--bone-2);border-left:4px solid var(--bord);padding:10px 12px;
+  font-size:13.5px;color:var(--ink);margin-bottom:14px}
+
+/* ---------- loading ---------- */
+.skel i{display:block;background:var(--bone-2);animation:pulse 1.3s ease-in-out infinite}
+.dskel i{height:48px;margin-bottom:-1px}
+.tskel{display:grid;grid-template-columns:repeat(auto-fill,minmax(94px,1fr));gap:8px}
+.tskel i{height:48px;border-radius:2px}
+.skel i:nth-child(2n){animation-delay:.15s}
+.skel i:nth-child(3n){animation-delay:.3s}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* ---------- errors and dead ends ---------- */
 .errbox{background:var(--bone-2);border:1px solid var(--rule);border-left:4px solid var(--bord);
   padding:18px 20px;max-width:56ch}
 .errbox p{font-size:15px;margin-bottom:12px}
 
-/* ---------- form ---------- */
-.panel{background:var(--bone-2);border:1px solid var(--rule);border-top:5px solid var(--bord);
-  padding:26px 26px 28px;margin-top:34px;max-width:560px}
-.panel .chosen{font-size:15px;color:var(--muted);margin-bottom:20px}
-.panel .chosen b{display:block;font-size:19px;font-weight:600;color:var(--bord)}
-.field{margin-bottom:16px}
-.field label{display:block;font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+/* ---------- step 2: details ---------- */
+.form{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:560px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.wide{grid-column:1/-1}
+.field label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .field input{width:100%;font-family:inherit;font-size:16px;/* 16px: iOS zoom guard */
-  color:var(--ink);background:#fff;border:1px solid var(--rule);border-radius:2px;padding:12px;min-height:48px}
-.field input:focus{border-color:var(--bord);outline:2px solid var(--bord);outline-offset:1px}
+  color:var(--ink);background:#fff;border:1px solid var(--rule);border-radius:2px;padding:11px 12px;min-height:48px}
+.field input:focus{border-color:var(--bord);outline:2px solid var(--bord);outline-offset:-1px}
 .field input[aria-invalid="true"]{border-color:var(--bord);background:#fff}
-.field .err{display:block;font-size:13px;color:var(--bord);font-weight:600;margin-top:6px}
+.field .err{font-size:13px;color:var(--bord);font-weight:600}
+.actions{grid-column:1/-1;display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:8px}
+.note{font-size:13px;color:var(--muted)}
 .btn{display:inline-block;background:var(--bord);color:var(--bone);font-weight:700;font-size:14px;
   letter-spacing:.09em;text-transform:uppercase;text-decoration:none;padding:0 34px;min-height:52px;
   border:0;border-radius:2px;cursor:pointer;font-family:inherit}
@@ -133,6 +195,16 @@ h2{font-size:19px;font-weight:600;color:var(--bord);margin-bottom:14px}
 .btn.ghost{background:transparent;color:var(--bord);border:1px solid var(--bord)}
 .btn.ghost:hover{background:var(--bone)}
 .fineprint{font-size:13px;color:var(--muted);margin-top:14px;max-width:48ch}
+.form .fineprint{margin-top:0}
+
+/* ---------- step 3: confirmed, or a phone number ---------- */
+.done{max-width:460px}
+.done h3{font-size:24px;font-weight:600;letter-spacing:-.01em;color:var(--bord);margin-bottom:14px}
+.done .when{font-size:19px;font-weight:600;color:var(--ink)}
+.done .tzl{font-size:14px;color:var(--muted);margin-bottom:18px}
+.done p{font-size:14.5px;color:var(--muted);margin-bottom:14px}
+.done .ref{font-size:13px;border-top:1px solid var(--rule);padding-top:14px;margin-bottom:0}
+.done .ref b{color:var(--ink);font-weight:600}
 
 /* ---------- footer ---------- */
 footer{background:var(--night);color:rgba(239,234,224,.55);padding:44px 0 34px;font-size:12.5px}
@@ -143,11 +215,44 @@ footer .nm{font-size:15px;font-weight:600;letter-spacing:.28em;color:var(--bone)
 footer a{color:rgba(239,234,224,.8)}
 footer .legal{max-width:46ch;line-height:1.6}
 
-@media(min-width:901px){
-  #pickday{display:block}
-  .daygrid{display:grid}
-  .day{display:none;border-top:0;padding-top:4px}
-  .day.is-open{display:block}
+/* ---------- below 900px ----------
+   One column. Days become a horizontal strip of cards; times collapse into
+   tappable Morning / Afternoon groups so the whole step still fits without a
+   long scroll. The panel is taller here, but it is one fixed height across all
+   three steps, exactly as on desktop. */
+@media(max-width:900px){
+  :root{--panel-h:470px}
+  .mast .w{padding-top:14px;padding-bottom:14px}
+  .brand .bn b{font-size:16px;letter-spacing:.3em;text-indent:.3em}
+
+  .step{padding:20px 16px 22px}
+  .summary{padding:6px 16px}
+
+  .cols{display:block;overflow-y:auto}
+  .col{display:block;min-height:auto}
+  .days{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;padding:0 0 6px}
+  .day{flex:0 0 auto;width:106px;flex-direction:column;align-items:flex-start;justify-content:center;
+    gap:2px;border:1px solid var(--rule)}
+  .days .day:last-child{border-bottom:1px solid var(--rule)}
+  .times{overflow:visible;margin-top:18px}
+  /* Measured against a real day card, so swapping the skeleton out shifts
+     nothing below it. A 9px mismatch here was 0.05 of CLS. */
+  .dskel{display:flex;gap:8px}
+  .dskel i{width:106px;height:53px;margin-bottom:0}
+
+  .ptog{display:flex;width:100%;align-items:center;gap:10px;background:var(--bone);color:var(--bord);
+    border:1px solid var(--rule);border-radius:2px;padding:12px 14px;font-family:inherit;
+    text-align:left;cursor:pointer;min-height:52px}
+  .ptog[aria-expanded="true"]{background:var(--bord);border-color:var(--bord);color:var(--bone)}
+  .ptog .pn{font-size:14px;font-weight:600}
+  .ptog .pc{font-size:12.5px;color:var(--muted);margin-left:auto}
+  .ptog[aria-expanded="true"] .pc{color:var(--gold)}   /* gold on Bordeaux only */
+  .ptog .pcar{font-size:15px;width:14px;text-align:center}
+  .plabel{display:none}
+  .period .grp{display:none;padding-top:8px}
+  .period.open .grp{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr))}
+
+  .form{grid-template-columns:1fr}
 }
 /* Same narrow-phone tightening as index.html, so the masthead holds one row
    rather than wrapping the number onto its own line. */
@@ -158,23 +263,24 @@ footer .legal{max-width:46ch;line-height:1.6}
   .brand .bn i{display:none}
   .mastphone{font-size:12.5px}
 }
-/* Masthead sizing below 901px, matching index.html. Without it the wordmark
-   stays at its desktop 18px/.36em and pushes the phone number onto a second
-   row from 390px down. */
-@media(max-width:900px){
-  .mast .w{padding-top:14px;padding-bottom:14px}
-  .brand .bn b{font-size:16px;letter-spacing:.3em;text-indent:.3em}
-}
 @media(pointer:coarse){
   .mastphone,footer p a{display:inline-block;padding:17px 6px;margin:-17px -6px}
 }
+/* Everything above the panel is chrome on a phone, and every pixel of it
+   pushes the panel further below the fold. Tightened so step 1 sits on one
+   screen from 390×844 up. */
 @media(max-width:560px){
   .w{padding:0 20px}
-  .slot{flex:1 1 calc(50% - 4px);min-width:0}
+  main{padding:26px 0 48px}
+  h1{font-size:27px;margin-bottom:6px}
+  .lede{font-size:15px;margin-bottom:18px}
+  .steps{margin-bottom:10px}
 }
 @media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
   .skel i{animation:none}
-  .slot{transition:none}
+  .chip{transition:none}
+  .step{transition:none}
 }
 </style>
 </head>
@@ -199,22 +305,56 @@ footer .legal{max-width:46ch;line-height:1.6}
   <h1>Book your session</h1>
   <p class="lede">Pick a time. $25 flat, unlimited signatures, paid when you book.</p>
 
-  <div class="tzrow">
-    <label for="tz">Times shown in</label>
-    <select id="tz" aria-describedby="tzhelp"></select>
-    <span id="tzhelp" class="visually-hidden" hidden>Changing this re-displays every time in the selected zone.</span>
-  </div>
+  <div id="bookpanel">
 
-  <h2 id="pickday">Choose a day</h2>
-  <div class="daygrid" id="daygrid" role="group" aria-labelledby="pickday"></div>
+    <div class="steps" id="ind" aria-hidden="true">
+      <span class="now" data-s="1">Time</span><i>·</i>
+      <span data-s="2">Details</span><i>·</i>
+      <span data-s="3">Confirmed</span>
+    </div>
 
-  <div id="cal" aria-live="polite" aria-busy="true">
-    <div class="day"><h2>Loading availability</h2>
-      <div class="skel" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="panel" id="panel" aria-busy="true">
+
+      <div class="summary" id="summary" aria-live="polite">
+        <b id="sumWhen"></b>
+        <span class="tz" id="sumTz"></span>
+        <button type="button" id="changeBtn">change</button>
+      </div>
+
+      <div class="pbody" id="panelBody" aria-live="polite">
+
+        <!-- step 1 — time -->
+        <section class="step on vis" id="s1" data-mode="ok" tabindex="-1" aria-label="Choose a time">
+          <div class="tzrow">
+            <label for="tz">Times shown in</label>
+            <select id="tz"></select>
+          </div>
+          <div class="cols">
+            <div class="col">
+              <h2 id="dayshead">Choose a day</h2>
+              <div class="days" id="days" role="group" aria-labelledby="dayshead">
+                <div class="skel dskel" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              </div>
+            </div>
+            <div class="col">
+              <h2 id="timesHead">Times</h2>
+              <div class="times" id="times" role="group" aria-labelledby="timesHead">
+                <div class="skel tskel" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              </div>
+            </div>
+          </div>
+          <div id="s1msg"></div>
+        </section>
+
+        <!-- step 2 — details (rendered once a time is chosen) -->
+        <section class="step" id="s2" tabindex="-1" aria-label="Your details"></section>
+
+        <!-- step 3 — confirmed, or the number to call -->
+        <section class="step" id="s3" tabindex="-1" aria-label="Confirmation"></section>
+
+      </div>
     </div>
   </div>
-
-  <div id="formwrap" hidden></div>
 
 </div></main>
 
@@ -233,12 +373,9 @@ footer .legal{max-width:46ch;line-height:1.6}
 <script type="module">
 import { renderCalendar } from '/lib/calendar.mjs';
 renderCalendar({
-  calEl:     document.getElementById('cal'),
-  gridEl:    document.getElementById('daygrid'),
-  tzEl:      document.getElementById('tz'),
-  formEl:    document.getElementById('formwrap'),
-  betaEl:    document.getElementById('betanote'),
-  days:      14,
+  rootEl:  document.getElementById('bookpanel'),
+  betaEl:  document.getElementById('betanote'),
+  days:    14,
 });
 </script>
 </body>

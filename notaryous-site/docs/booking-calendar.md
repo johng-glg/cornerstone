@@ -566,6 +566,83 @@ and the loading skeleton. Timezone change re-renders and clears the selection �
 10:00 am becomes Eastern 1:00 pm. Validation blocks submit and moves focus to the first
 bad field. No tap target under 44px, no horizontal overflow from 320px up.
 
+---
+
+## The step panel — presentation only, 2026-08-09
+
+Nothing about the API contract, the data model or the payment logic changed. `/api/availability`,
+`/api/checkout` and `/api/confirm` are byte-identical, and so are the 27 tests over them.
+
+**What was wrong.** The page grew downward. Choose a day, times appeared below; fill in
+details, the form appended below that; confirm, and the card landed wherever the page had
+grown to with a screen of nothing beneath it. At 390px the page went from 1,100px to over
+2,000px between the first click and the confirmation.
+
+**What replaced it.** One panel of fixed height with three steps inside it — Time, Details,
+Confirmed. Payment is not a step: Zoho's widget takes the screen over and hands it back, so
+the panel stays on Details until `/api/confirm` answers.
+
+### `height`, not `min-height`
+
+The spec asked for `min-height` set to the tallest step measured per breakpoint. This uses
+`height` with `overflow-y:auto` on the step instead. Same visual result, different failure
+mode: with `min-height`, the acceptance criterion holds only while the measurement stays
+accurate, and a validation error under three fields, a wrapped 503 notice or a longer
+booking reference each quietly break it. With a fixed height the criterion is structural —
+content that does not fit scrolls inside the panel and the page cannot move.
+
+Steps are top-aligned with space below rather than centred, as specified.
+
+### Measured
+
+`scratchpad/panelcheck.mjs` drives the real code path — availability, hold, checkout,
+payment widget and confirm are stubbed in the page, so `renderBooked` runs for real — and
+asserts `document.documentElement.scrollHeight` across steps 1 → 2 → back → 2 → 3.
+
+| width | page height, all steps |
+|---|---|
+| 1440 / 1280 / 1100 / 960 / 900 | 1096 |
+| 901 | 1092 |
+| 820 | 1090 |
+| 768 | 1086 |
+| 430 / 390 | 1172 |
+| 360 / 320 | 1192 |
+
+Identical at every width, including the two failure views and the 409 path. No horizontal
+overflow, no tap target under 48px inside the panel, and the cross-fade measures 0.15s
+normally and 0s under `prefers-reduced-motion`.
+
+Lighthouse, `/book-beta`: **accessibility 100** mobile and desktop, performance 100 both,
+best practices 96, SEO 66 — the last two unchanged and explained above. Mobile CLS is
+**0.051**, up from 0. It is the webfont swap reflowing the two-line lede *above* the panel
+under Lighthouse's throttling — desktop, where that lede is one line, stays at 0, and the
+panel itself contributes nothing because its height is fixed. Under the 0.1 "good"
+threshold and performance still scores 100.
+
+### One screen per step
+
+| viewport | panel | |
+|---|---|---|
+| 1440×900, 901×900, 900×900 | 345–815 | fits |
+| 390×844 | 321–791 | fits |
+| 375×667 | 321–791 | bottom 124px below the fold |
+| 320×690 | 321–791 | bottom 101px below the fold |
+
+The spec asks for one step per viewport on mobile. That holds from 390×844 up. On a
+375×667 iPhone SE the masthead, beta bar, headline and lede push the last quarter of the
+panel below the fold; the beta bar is ~57px of that and disappears at cutover, and the rest
+would need the panel down to ~340px, which would cost step 1 most of its chips. Left as is,
+recorded rather than hidden.
+
+### One behaviour change, and it is a fix
+
+The 409 path does the same three things it always did — say the slot went, drop the
+selection, reload availability — but the message now travels back to step 1 with the user.
+Previously `setPanelNotice()` wrote it onto the form and the `load()` on the next line
+destroyed the form, so **nobody ever read the 409 message**. It now renders above the times,
+which is where the user has to act on it. The 503 path, the confirmation copy, the reference
+number and both failure views including "do not pay again" are unchanged.
+
 ## Next increment
 
 1. **`/api/checkout`** — claim the hold, then create the payment session, in that order.
