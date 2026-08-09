@@ -24,7 +24,7 @@
  * checkout is already holding.
  */
 
-import { CONFIG, REQUIRED, missingEnv, resolveStaffIds, fetchStaffAvailability, paymentsPost } from './_zoho.mjs';
+import { CONFIG, REQUIRED, missingEnv, resolveStaffIds, fetchStaffAvailability, paymentsPost, redact } from './_zoho.mjs';
 import { missingDbEnv, liveHolds, bookedSlots, claimHold, attachSessionToHold } from './_db.mjs';
 import { mergeStaffAvailability, subtractHolds, pickStaff } from '../lib/availability.mjs';
 import { buildMetaData, sessionId, sessionLifetimeSeconds } from '../lib/payments.mjs';
@@ -35,6 +35,17 @@ const HOLD_MINUTES = Number(process.env.SLOT_HOLD_MINUTES ?? 17);
 const FEE = process.env.BOOKING_FEE_USD ?? '25.00';
 const CURRENCY = process.env.BOOKING_CURRENCY ?? 'USD';
 const minNotice = () => Number(process.env.BOOKING_MIN_NOTICE_MINUTES ?? 60);
+
+/**
+ * Whether a 502 carries the upstream error body back to the browser.
+ *
+ * Tied to BOOKING_IS_TEST on purpose: that flag already means "this is a test
+ * run", so debugging is on while you are debugging and turns itself off when
+ * you unset it for production. Upstream error bodies are not something a real
+ * customer should ever be shown. The server-side LOG is unconditional.
+ */
+const DEBUG_UPSTREAM = () =>
+  process.env.BOOKING_IS_TEST === 'true' || process.env.BOOKING_DEBUG_UPSTREAM === 'true';
 
 const send = (res, status, body) => { res.statusCode = status; return res.end(JSON.stringify(body)); };
 
@@ -171,6 +182,26 @@ export default async function handler(req, res) {
 
     const psid = created.ok ? sessionId(created.json) : null;
     if (!psid) {
+      // Two different failures wearing the same 502, and they need different
+      // fixes: Zoho refusing the request (bad scope, bad field, bad account)
+      // versus Zoho accepting it and us failing to find the id in the reply.
+      const rejected = !created.ok;
+      const upstream = redact(created.json ?? created.raw ?? null);
+
+      console.error(JSON.stringify({
+        severity: 'ERROR',
+        msg: rejected
+          ? 'payment session REJECTED by Zoho'
+          : 'payment session created but no id could be parsed from the response',
+        route: '/api/checkout',
+        zoho_status: created.status,
+        zoho_body: upstream,
+        // What we sent, minus the signer's details — enough to tell a rejected
+        // field name from a rejected value without putting PII in a log.
+        sent: { amount: FEE, currency: CURRENCY, meta_keys: meta.map((m) => m.key) },
+        hold_id: hold.id,
+      }));
+
       // The hold is left to expire on its own rather than deleted: if this was
       // a transient Zoho failure the customer will retry within seconds, and a
       // hold they already own is re-claimable by them.
@@ -178,6 +209,7 @@ export default async function handler(req, res) {
         error: 'payment_session_failed',
         detail: 'We could not start the payment. Nothing has been charged.',
         status: created.status,
+        ...(DEBUG_UPSTREAM() ? { upstream, sent: { amount: FEE, currency: CURRENCY, meta_keys: meta.map((m) => m.key) } } : {}),
       });
     }
 
@@ -210,7 +242,17 @@ export default async function handler(req, res) {
       },
     });
   } catch (err) {
-    console.error(JSON.stringify({ severity: 'ERROR', msg: 'checkout failed', error: String(err?.message || err) }));
-    return send(res, 502, { error: 'checkout_failed', detail: 'We could not start the payment. Nothing has been charged.' });
+    // A token refresh failure lands here rather than in the branch above:
+    // refreshToken() throws with Zoho's own response attached, and that message
+    // is the diagnosis. Do not swallow it.
+    const message = String(err?.message || err);
+    console.error(JSON.stringify({
+      severity: 'ERROR', msg: 'checkout threw', route: '/api/checkout', error: message,
+    }));
+    return send(res, 502, {
+      error: 'checkout_failed',
+      detail: 'We could not start the payment. Nothing has been charged.',
+      ...(DEBUG_UPSTREAM() ? { threw: message } : {}),
+    });
   }
 }

@@ -30,7 +30,7 @@
  * session.
  */
 
-import { CONFIG, REQUIRED, missingEnv, bookingsPostForm, paymentsGet } from './_zoho.mjs';
+import { CONFIG, REQUIRED, missingEnv, bookingsPostForm, paymentsGet, redact } from './_zoho.mjs';
 import { missingDbEnv, markHoldPaid, resolveHold, recordBooking, bookingForSession } from './_db.mjs';
 import { sessionPayment, parseMetaData } from '../lib/payments.mjs';
 import { parseBookingId } from '../lib/zoho-bookings.mjs';
@@ -84,6 +84,12 @@ export default async function handler(req, res) {
     // --- 2. verify the money, server-side ----------------------------------
     const retrieved = await paymentsGet(`/paymentsessions/${encodeURIComponent(psid)}`);
     if (!retrieved.ok) {
+      console.error(JSON.stringify({
+        severity: 'ERROR', msg: 'payment session lookup REJECTED by Zoho',
+        route: '/api/confirm', payment_session_id: psid,
+        zoho_status: retrieved.status,
+        zoho_body: redact(retrieved.json ?? retrieved.raw ?? null),
+      }));
       return send(res, 502, { error: 'payment_lookup_failed', detail: 'We could not check the payment. Nothing has changed.' });
     }
 

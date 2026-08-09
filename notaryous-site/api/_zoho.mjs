@@ -147,6 +147,9 @@ async function refreshToken(kind) {
   return entry.token;
 }
 
+/** Drop cached access tokens. A test seam, and a way to force a re-auth. */
+export function clearTokenCache() { tokens.clear(); }
+
 export async function accessToken(kind = 'bookings', { force = false } = {}) {
   const cached = tokens.get(kind);
   if (!force && cached && cached.expiresAt > Date.now()) return cached.token;

@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 const DIR = new URL('.', import.meta.url).pathname;
 let v = 0;
 const load = async (route) => (await import(DIR + `${route}.mjs?v=${++v}`)).default;
-const { clearStaffCache } = await import(DIR + '_zoho.mjs');
+const { clearStaffCache, clearTokenCache } = await import(DIR + '_zoho.mjs');
 
 const ENV = {
   ZOHO_CLIENT_ID: 'cid', ZOHO_CLIENT_SECRET: 'sec', ZOHO_REFRESH_TOKEN: 'ref',
@@ -22,6 +22,7 @@ function setEnv(o = {}) {
   for (const k of ['ZOHO_STAFF_ID', 'BOOKING_IS_TEST']) delete process.env[k];
   Object.assign(process.env, ENV, o);
   clearStaffCache();
+  clearTokenCache();
 }
 
 const mockRes = () => ({
@@ -139,6 +140,71 @@ test('a payment session failure leaves the hold to expire rather than booking', 
   assert.equal(res.statusCode, 502);
   assert.match(res.json().detail, /Nothing has been charged/);
   assert.ok(!calls.some((c) => c.includes('/appointment')));
+});
+
+test("THE ONE THAT MATTERS HERE: Zoho's rejection body is LOGGED, not swallowed", async () => {
+  // The second live failure: 502 from the Payments call with an empty Messages
+  // column, so the error code Zoho returned was invisible.
+  setEnv();
+  stub({ sessionCreate: { code: 57, message: 'You are not authorized to perform this operation' } });
+  globalThis.fetch = (function (inner) {
+    return async (u, init) => (String(u).includes('/paymentsessions') && (init?.method === 'POST')
+      ? { ok: false, status: 401, text: async () => JSON.stringify({ code: 57, message: 'You are not authorized to perform this operation' }) }
+      : inner(u, init));
+  }(globalThis.fetch));
+
+  const lines = [];
+  const realError = console.error;
+  console.error = (m) => lines.push(String(m));
+  let res;
+  try { res = await post(await load('checkout'), { ...SIGNER, slot: SLOT }); }
+  finally { console.error = realError; }
+
+  const logged = lines.map((l) => { try { return JSON.parse(l); } catch { return {}; } })
+    .find((o) => o.msg === 'payment session REJECTED by Zoho');
+  assert.ok(logged, 'the upstream body must reach the log');
+  assert.equal(logged.zoho_status, 401);
+  assert.equal(logged.zoho_body.code, 57, "Zoho's own error code, verbatim");
+  assert.deepEqual(logged.sent.meta_keys.slice(0, 2), ['slot', 'staff_id'],
+    'what we sent, by key — no signer PII in the log');
+  assert.equal(res.statusCode, 502);
+});
+
+test('the upstream body is returned to the browser only while BOOKING_IS_TEST is on', async () => {
+  setEnv({ BOOKING_IS_TEST: 'true' });
+  stub({ sessionCreate: null });
+  let body = (await post(await load('checkout'), { ...SIGNER, slot: SLOT })).json();
+  assert.ok('upstream' in body, 'debugging is on during a test run');
+
+  setEnv();  // clears BOOKING_IS_TEST
+  stub({ sessionCreate: null });
+  body = (await post(await load('checkout'), { ...SIGNER, slot: SLOT })).json();
+  assert.ok(!('upstream' in body), 'a real customer is never shown an upstream error body');
+  assert.match(body.detail, /Nothing has been charged/);
+});
+
+test('a token refresh failure is logged with Zohos message, not swallowed', async () => {
+  setEnv({ BOOKING_IS_TEST: 'true' });
+  stub();
+  globalThis.fetch = (function (inner) {
+    return async (u, init) => (String(u).includes('/oauth/v2/token') && init?.body?.toString().includes('pref')
+      ? { ok: false, status: 400, text: async () => JSON.stringify({ error: 'invalid_code' }) }
+      : inner(u, init));
+  }(globalThis.fetch));
+
+  const lines = [];
+  const realError = console.error;
+  console.error = (m) => lines.push(String(m));
+  let res;
+  try { res = await post(await load('checkout'), { ...SIGNER, slot: SLOT }); }
+  finally { console.error = realError; }
+
+  const threw = lines.map((l) => { try { return JSON.parse(l); } catch { return {}; } })
+    .find((o) => o.msg === 'checkout threw');
+  assert.ok(threw, 'a refresh failure must not vanish into a generic 502');
+  assert.match(threw.error, /token refresh failed/);
+  assert.equal(res.statusCode, 502);
+  assert.match(res.json().threw, /invalid_code/);
 });
 
 test('bad input is rejected per field, before anything is claimed', async () => {
