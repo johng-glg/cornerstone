@@ -100,8 +100,9 @@ When the domain transfer completes:
   `/`, `/book` and `/book-beta`. Change one and change all three, or the shared
   stylesheet and module stop matching the page. Styles live in
   `lib/calendar.css`, behaviour in `lib/calendar.mjs`; neither belongs in a page.
-- **Zoho fallback link** — the `.fallback` line below the panel on `/`. It is the
-  one booking route that does not depend on our own API.
+- **The no-JavaScript fallback** — the `<noscript>` line below the panel on `/`
+  and `/book`. Phone number only, deliberately: see "No Zoho-hosted page is
+  reachable" below before adding a link there.
 - **Disclaimers** — the `.notice` section. Do not edit without GC review.
 - **Trade name disclosure** — footer `.legal`. Required while Notaryous is a DBA
   of Guardian Litigation Group, LLP.
@@ -141,13 +142,26 @@ Three pages now carry the panel, from one stylesheet and one module:
 The markup inside `#bookpanel` is identical on all three. If you change it on
 one page, change it on all three.
 
-**What is still Zoho's.** The `.fallback` link under the panel on `/` still opens
-Zoho's own scheduling page in a new tab. It is kept on purpose: it is a working
-booking route that does not depend on `/api/availability` being up, and it costs
-one line. Everything below in this README about theming that page, its iframe
-height, and its 16px inputs now applies only to that fallback.
+### No Zoho-hosted page is reachable from this site
 
-**What breaks it.** The panel needs `/api/availability` and `/api/checkout`,
+**2026-08-09, second pass.** The cutover initially kept a "Calendar not loading?"
+link to Zoho's hosted scheduling page under the panel on `/`, plus the same link
+inside the `<noscript>` on `/` and `/book`. All three are gone.
+
+The reasoning that kept them — a booking route that does not depend on
+`/api/availability` being up — was outweighed by where they sent people: an
+unbranded third-party page. The panel's own error state already shows
+**(714) 694-2423**, which is a better fallback than a page that does not look
+like Notaryous, and the `<noscript>` lines now say the same thing.
+
+**No page on this site links to `zohobookings.com` in any form.** If you are
+about to add one, that is the decision you are reversing. Everything below in
+this README about theming that hosted page, its iframe height, its 16px inputs
+and its `?source=` parameter describes a page the site no longer points at; it
+is kept as history and because the page still exists inside Zoho, reachable by
+direct URL and from Zoho's own confirmation emails.
+
+**What breaks the panel.** It needs `/api/availability` and `/api/checkout`,
 which need the Zoho and Supabase environment variables set on the Vercel project.
 Without them the page shows "We couldn't load available times just now" and the
 phone number — it does not silently invent availability. The variables are listed
@@ -605,7 +619,11 @@ Still worth confirming while you are in there:
 
 ### 2. Zoho: create the hidden `Source` field for the tracking parameter
 
-The iframe and the fallback link now carry `?source=notaryous-site` and
+**Superseded 2026-08-09: nothing on this site sends traffic to the Zoho hosted
+page any more, so there is no `?source=` to map.** Kept because the field is
+still worth having if bookings ever arrive there from Zoho's own emails.
+
+The iframe and the fallback link used to carry `?source=notaryous-site` and
 `?source=notaryous-site-fallback`. Zoho maps a `source` query parameter onto a
 hidden single-line field on the service booking form — but **only if that field
 exists**. Create it: Services → the service → Service Booking Form → add a
@@ -801,10 +819,9 @@ Decide it with five minutes on a real phone against the preview deployment:
 2. Does the payment step complete?
 3. Does the keyboard obscure fields you cannot then scroll to?
 
-If any of those fails, swap the embed for the handoff button below 900px. The
-sticky bar already gives mobile a persistent path to booking either way, and the
-`.fallback` link already offers the new-tab escape hatch, so the swap is a small
-change rather than a rebuild.
+**Superseded 2026-08-09: there is no embed to swap.** `/`, `/book` and
+`/book-beta` all run the bespoke panel, and no page links to the hosted one.
+Kept for the mobile-usability findings, which informed the panel's own layout.
 
 ### 5. Iframe height — 770px is too short on desktop
 
@@ -850,14 +867,16 @@ rule inside the `max-width:900px` media query.
 - [ ] **Hidden `Source` field created in Zoho** — see above
 - [ ] **Booking smoke test on the preview deployment** — one real $25 session
 - [x] **Mobile embed usability decided** — the iframe is gone. `/`, `/book` and
-      `/book-beta` all run the bespoke panel; the Zoho scheduler survives only as
-      the `.fallback` link on `/`.
+      `/book-beta` all run the bespoke panel, and no page on this site links to a
+      Zoho-hosted page.
 - [x] **Iframe height checked on mobile Safari and Chrome** — moot, no iframe.
-- [ ] Zoho booking page themed to the brand palette, booking modal checked —
-      **now only affects the fallback link**, not the main path
-- [ ] Zoho SEO Properties set so the booking page does not outrank the site
-- [x] Zoho form inputs set to 16px so iOS does not zoom on focus — moot on the
-      main path; our own inputs are 16px and always were
+- [x] Zoho booking page themed to the brand palette — moot for this site; the
+      hosted page is no longer reachable from it
+- [ ] Zoho SEO Properties set so the hosted booking page does not outrank the
+      site — **still worth doing.** The page still exists inside Zoho and is
+      indexable on its own, even though we no longer link to it.
+- [x] Zoho form inputs set to 16px so iOS does not zoom on focus — moot; our own
+      inputs are 16px and always were
 - [ ] Kimberly Uptain: disclaimer language, trade name disclosure, fee characterisation
 - [ ] DBA filed and trade name cleared under attorney advertising rules
 - [ ] Notarial E&O policy bound

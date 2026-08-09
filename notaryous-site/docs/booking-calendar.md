@@ -721,13 +721,33 @@ descriptions differ and the homepage keeps priority 1.0. One line in
   wrapped so an analytics error can never reach the calendar. `/book` tags its
   events with `page: 'book'` so email traffic is separable.
 
-### The Zoho fallback link stays
+### The Zoho fallback link is gone too — no hosted page is reachable
 
-The `.fallback` line under the panel on `/` still opens Zoho's scheduling page in
-a new tab. When `/api/availability` is down the panel says so and gives the phone
-number, but this is a booking route that does not depend on our API at all, and
-it costs one line. It is the reason the Zoho theming items in the site README are
-downgraded rather than deleted.
+The cutover initially kept a "Calendar not loading?" link under the panel on `/`,
+opening Zoho's hosted scheduling page in a new tab, plus the same link inside the
+`<noscript>` on `/` and `/book`. All three were removed the same day.
+
+The argument for keeping them was that they were a booking route independent of
+`/api/availability`. The argument against won: they sent people to an unbranded
+third-party page. The panel's error state already shows **(714) 694-2423**, and
+the `<noscript>` lines now say only that — "Call (714) 694-2423 and we will book
+it for you."
+
+**No page on this site links to `zohobookings.com` in any form.** Verified by
+grep across every deployed file. The remaining matches in the tree are
+`lib/zoho-bookings.mjs` and `api/_zoho.mjs`, which are the server-side REST
+client and share nothing with the hosted page but a name, and prose in this file
+and the site README.
+
+`brand/zoho-booking-page.css` and `brand/zoho-diagnostic.css` — written to theme
+that hosted page — are now dead weight. They are not deployed (`brand/` is in
+`.vercelignore`) and they cannot make anything reachable, so they are left in the
+tree rather than deleted, in case the hosted page is ever needed again.
+
+One thing this does **not** cover: the hosted page still exists inside Zoho, is
+reachable by direct URL, and is linked from Zoho's own confirmation emails. Its
+SEO Properties item stays open in the site README for exactly that reason —
+nothing we do here stops it being indexed on its own.
 
 ## Next increment
 

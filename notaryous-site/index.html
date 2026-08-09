@@ -488,14 +488,13 @@ footer .legal{max-width:46ch;line-height:1.6}
     </div>
   </div>
 
+  <!-- Phone only. There used to be a "Calendar not loading?" link to Zoho's
+       hosted scheduling page here, and another inside this noscript. Both are
+       gone: they sent people to an unbranded third-party page, and the panel's
+       own error state already gives this number, which is the better fallback.
+       Nothing on this site links to a Zoho-hosted page. -->
   <noscript><p class="fallback">This booking calendar needs JavaScript.
-    <a href="https://john-guardianlit.zohobookings.com/portal-embed?source=notaryous-site-nojs#/4049985000012228002" target="_blank" rel="noopener">Open the scheduling page in a new tab</a>,
-    or call <a href="tel:+17146942423">(714) 694-2423</a>.</p></noscript>
-
-  <!-- Kept deliberately. If /api/availability is down the panel says so and
-       gives the phone number, but this is a booking route that does not depend
-       on our own API at all, and it costs one line. -->
-  <p class="fallback">Calendar not loading? <a href="https://john-guardianlit.zohobookings.com/portal-embed?source=notaryous-site-fallback#/4049985000012228002" target="_blank" rel="noopener" data-va="fallback_link">Open the scheduling page in a new tab</a>.</p>
+    Call <a href="tel:+17146942423">(714) 694-2423</a> and we will book it for you.</p></noscript>
 </div></section>
 
 <section class="notice"><div class="narrow">
@@ -534,7 +533,8 @@ window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};
   function track(name,data){ if(sent[name])return; sent[name]=1; window.va('event',{name:name,data:data||{}}); }
   function trackRepeat(name,data){ window.va('event',{name:name,data:data||{}}); }
 
-  // 1. Booking intent. The hero button and the new-tab fallback link.
+  // 1. Booking intent. Every [data-va] element — the hero, masthead and
+  //    sticky-bar "Book a session" links.
   document.addEventListener('click',function(e){
     var el=e.target.closest&&e.target.closest('[data-va]');
     if(el) trackRepeat('booking_click',{placement:el.getAttribute('data-va')});
