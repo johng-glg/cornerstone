@@ -32,19 +32,31 @@ than serving the page:
    The page already loads `/_vercel/insights/script.js`; until analytics is
    enabled that path 404s and the browser console logs one error.
 3. Domains. **`www.notaryous.com` is the production host** — see "The domain"
-   below for how it is wired and where the origin is written. The original
-   `notary.guardianlit.com` stays attached and 301s to it; it is a CNAME on
-   `guardianlit.com` pointing at `cname.vercel-dns.com.` and should not be
-   removed, because that redirect is what carries the ranking.
+   below for how it is wired and where the origin is written. Before that the
+   site was served only from `notaryous.vercel.app`.
+
+   **`notary.guardianlit.com` is not ours and never was.** It is BlueNotary's
+   whitelabelled signer portal, Guardian-branded, serving a real login page at
+   `/sign-in`. Do not add it to this Vercel project and do not redirect it.
 
 `brand/` is excluded from the deployment by `.vercelignore` — it is source
 artwork and the regeneration scripts, not part of the site.
 
 ### The domain
 
-**Live on `www.notaryous.com` since 2026-08-11.** `notary.guardianlit.com` stays
-attached to the project and 301s here; that redirect is what carries the ranking
-across, so do not detach the old host.
+**Live on `www.notaryous.com` since 2026-08-11.** Before that the site was
+served only from `notaryous.vercel.app`, which stays as the deployment URL.
+
+**Correction, and it matters.** Until this swap, the canonical, `og:url`,
+`og:image` and `twitter:image` on every page pointed at
+`https://notary.guardianlit.com/`. That host is **BlueNotary's whitelabelled
+signer portal**, not this site — it serves a Guardian-branded login page. The
+original build's deploy notes proposed pointing that subdomain here and it never
+happened; BlueNotary took it instead, and the URLs were never corrected. So the
+site spent its whole pre-launch life telling crawlers and social scrapers that
+its canonical home was somebody else's login screen. There was no traffic on it,
+so nothing was lost, and there is no redirect to add: no request for that host
+ever reaches Vercel.
 
 **`www` is canonical, not the apex.** Vercel's "Redirect apex domains to www"
 was left on, so `notaryous.com` 301s to `www.notaryous.com`. Typing either works.
@@ -59,11 +71,8 @@ Everything that names an origin uses the `www` form.
 | `sitemap.xml` | 2 | both `<loc>` |
 | `robots.txt` | 1 | the `Sitemap:` line |
 
-Plus the `redirects` block in `vercel.json`. Everything else on the site is
-root-relative, and the booking API is same-origin with no allowlist, so nothing
-under `api/` or `lib/` names a host.
-
-`statusCode: 301` rather than `permanent: true` — `permanent` emits a 308.
+Everything else on the site is root-relative, and the booking API is same-origin
+with no allowlist, so nothing under `api/` or `lib/` names a host.
 
 **Nameservers are Vercel's.** The domain was bought through the Undeveloped /
 Dan marketplace, so it arrived with DNS still parked there and GoDaddy's DNS tab
