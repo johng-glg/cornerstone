@@ -1,5 +1,13 @@
 {
   "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "notary.guardianlit.com" }],
+      "destination": "https://www.notaryous.com/$1",
+      "statusCode": 301
+    }
+  ],
   "headers": [
     { "source": "/(.*)", "headers": [
       { "key": "X-Content-Type-Options", "value": "nosniff" },

@@ -31,41 +31,52 @@ than serving the page:
 2. Turn on **Web Analytics** in the Vercel project (Analytics tab → Enable).
    The page already loads `/_vercel/insights/script.js`; until analytics is
    enabled that path 404s and the browser console logs one error.
-3. Add the domain `notary.guardianlit.com`, then create a CNAME at the DNS host
-   for `guardianlit.com`:
-
-   | Type  | Name     | Value                   |
-   |-------|----------|-------------------------|
-   | CNAME | `notary` | `cname.vercel-dns.com.` |
+3. Domains. **`www.notaryous.com` is the production host** — see "The domain"
+   below for how it is wired and where the origin is written. The original
+   `notary.guardianlit.com` stays attached and 301s to it; it is a CNAME on
+   `guardianlit.com` pointing at `cname.vercel-dns.com.` and should not be
+   removed, because that redirect is what carries the ranking.
 
 `brand/` is excluded from the deployment by `.vercelignore` — it is source
 artwork and the regeneration scripts, not part of the site.
 
-### Swapping to notaryous.com
+### The domain
 
-When the domain transfer completes:
+**Live on `www.notaryous.com` since 2026-08-11.** `notary.guardianlit.com` stays
+attached to the project and 301s here; that redirect is what carries the ranking
+across, so do not detach the old host.
 
-1. Add `notaryous.com` and `www.notaryous.com` to the same Vercel project and
-   set `notaryous.com` as the production domain.
-2. Update the five absolute URLs in `index.html`. They are grouped under the
-   comment marked `ORIGIN:` near the top of `<head>` — canonical, `og:url`,
-   `og:image`, `twitter:image`. Also update the `Sitemap:` line in `robots.txt`
-   and the `<loc>` in `sitemap.xml`.
-3. Keep `notary.guardianlit.com` attached to the project and add this to
-   `vercel.json` so the old host issues a real 301 rather than dropping traffic:
+**`www` is canonical, not the apex.** Vercel's "Redirect apex domains to www"
+was left on, so `notaryous.com` 301s to `www.notaryous.com`. Typing either works.
+Everything that names an origin uses the `www` form.
 
-   ```json
-   "redirects": [
-     {
-       "source": "/(.*)",
-       "has": [{ "type": "host", "value": "notary.guardianlit.com" }],
-       "destination": "https://notaryous.com/$1",
-       "statusCode": 301
-     }
-   ]
-   ```
+**Where the origin is written — eleven places, and that is all of them:**
 
-   Use `statusCode: 301` rather than `permanent: true` — `permanent` emits a 308.
+| File | Count | What |
+|---|---|---|
+| `index.html` | 4 | canonical, `og:url`, `og:image`, `twitter:image` |
+| `book.html` | 4 | the same four |
+| `sitemap.xml` | 2 | both `<loc>` |
+| `robots.txt` | 1 | the `Sitemap:` line |
+
+Plus the `redirects` block in `vercel.json`. Everything else on the site is
+root-relative, and the booking API is same-origin with no allowlist, so nothing
+under `api/` or `lib/` names a host.
+
+`statusCode: 301` rather than `permanent: true` — `permanent` emits a 308.
+
+**Nameservers are Vercel's.** The domain was bought through the Undeveloped /
+Dan marketplace, so it arrived with DNS still parked there and GoDaddy's DNS tab
+inert. It had no records worth keeping — no MX, no traffic, four days old — so
+the nameservers point at Vercel and Vercel manages the zone. **Consequence: if
+email is ever set up on this domain, the MX records go in Vercel's DNS, not
+GoDaddy's.**
+
+#### If a future move is needed
+
+Change the eleven URLs above and the `destination` in `vercel.json`, add the new
+host in Vercel, and leave every previous host attached so the redirect chain
+never breaks.
 
 ---
 
@@ -767,7 +778,7 @@ favicon artwork under that size.
 **SEO Properties** — the standalone booking page is publicly indexable and will
 compete with the real site for "Notaryous" searches. Either point its title and
 description at the same copy the site uses, or suppress indexing if the panel
-allows it. A Zoho-hosted page outranking `notary.guardianlit.com` is a bad
+allows it. A Zoho-hosted page outranking `www.notaryous.com` is a bad
 outcome for a page whose whole job is to be the destination.
 
 **What manual configuration cannot fix:** form input font size. Zoho's inputs

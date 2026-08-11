@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://notary.guardianlit.com/sitemap.xml
+Sitemap: https://www.notaryous.com/sitemap.xml
