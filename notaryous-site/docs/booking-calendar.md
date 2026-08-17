@@ -729,8 +729,8 @@ opening Zoho's hosted scheduling page in a new tab, plus the same link inside th
 
 The argument for keeping them was that they were a booking route independent of
 `/api/availability`. The argument against won: they sent people to an unbranded
-third-party page. The panel's error state already shows **(714) 694-2423**, and
-the `<noscript>` lines now say only that — "Call (714) 694-2423 and we will book
+third-party page. The panel's error state already shows **(949) 393-6371**, and
+the `<noscript>` lines now say only that — "Call (949) 393-6371 and we will book
 it for you."
 
 **No page on this site links to `zohobookings.com` in any form.** Verified by

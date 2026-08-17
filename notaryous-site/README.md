@@ -171,7 +171,7 @@ inside the `<noscript>` on `/` and `/book`. All three are gone.
 The reasoning that kept them — a booking route that does not depend on
 `/api/availability` being up — was outweighed by where they sent people: an
 unbranded third-party page. The panel's own error state already shows
-**(714) 694-2423**, which is a better fallback than a page that does not look
+**(949) 393-6371**, which is a better fallback than a page that does not look
 like Notaryous, and the `<noscript>` lines now say the same thing.
 
 **No page on this site links to `zohobookings.com` in any form.** If you are
@@ -338,7 +338,7 @@ sitting on the hero. At 320px the overflow was 21.6px and the number landed
 squarely on the Bordeaux. Now `min-height:46px` with 7px of vertical padding:
 identical 46px on one row, grows to 55px when it wraps.
 
-**Tap targets: three under the 44px minimum, now none.** Both `(714) 694-2423`
+**Tap targets: three under the 44px minimum, now none.** Both `(949) 393-6371`
 links were 89×14 hit areas — the primary contact route on a phone at under a
 third of the minimum height — and the scheduler fallback link was 37px tall.
 Fixed with padding plus a cancelling negative margin, so the hit area grows and
