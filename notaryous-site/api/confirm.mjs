@@ -36,6 +36,7 @@
 
 import { CONFIG, REQUIRED, missingEnv, bookingsPostForm, paymentsGet, redact } from './_zoho.mjs';
 import { missingDbEnv, getHold, markHoldPaid, resolveHold, recordBooking, bookingForSession } from './_db.mjs';
+import { alertOps } from './_alert.mjs';
 import { sessionPayment, parseMetaData } from '../lib/payments.mjs';
 import { parseBookingId } from '../lib/zoho-bookings.mjs';
 import { zohoFromTime } from '../lib/zoho-datetime.mjs';
@@ -78,6 +79,11 @@ export default async function handler(req, res) {
   const psid = String(body?.payment_session_id ?? '').trim();
   if (!psid) return send(res, 400, { error: 'invalid', detail: 'payment_session_id is required.' });
 
+  // Scoped outside the try so the catch can tell an ordinary failure from one
+  // that leaves a charged customer with no appointment. Set once, after Zoho
+  // has confirmed the money, and never unset.
+  let verifiedPaid = false;
+
   try {
     // --- 1. idempotency ----------------------------------------------------
     const existing = await bookingForSession(psid);
@@ -109,6 +115,7 @@ export default async function handler(req, res) {
       }
       return send(res, 402, { status: 'unpaid', payment_status: pay.status ?? 'unknown' });
     }
+    verifiedPaid = true;
 
     // meta_data carries ONE entry — the hold id. Zoho caps it at five and
     // documents that PII must not go in it, so the booking context lives on the
@@ -125,11 +132,11 @@ export default async function handler(req, res) {
     if (missingContext.length) {
       // Paid, but we cannot tell what for. Never guess a slot — an appointment
       // at the wrong time is worse than one that needs a human.
-      console.error(JSON.stringify({
-        severity: 'ERROR', msg: 'PAID but booking context is incomplete — manual booking required',
+      await alertOps('PAID but we cannot tell what for — manual booking required', {
         payment_session_id: psid, payment_id: pay.paymentId,
         hold_id: meta.hold_id ?? null, missing: missingContext,
-      }));
+        action: 'Find the payment in Zoho Payments, call the customer, book by hand or refund.',
+      });
       return send(res, 500, {
         error: 'context_lost',
         detail: 'Your payment went through, but we could not complete the booking automatically. We will call you.',
@@ -137,10 +144,18 @@ export default async function handler(req, res) {
     }
 
     // --- 3. durable "paid, not yet booked" ---------------------------------
-    await markHoldPaid(hold.id, pay.paymentId).catch((err) => {
-      // Not fatal — but it is the record ops would reconcile against, so a
-      // failure here must be visible before we cross the point of no return.
-      console.error(JSON.stringify({ severity: 'ERROR', msg: 'could not mark hold paid', hold_id: hold.id, error: String(err?.message || err) }));
+    let paidRecorded = true;
+    await markHoldPaid(hold.id, pay.paymentId).catch(async (err) => {
+      // Not fatal to the booking, but this row IS the reconciliation query. If
+      // it did not write and the booking below also fails, the customer is
+      // charged and invisible — the one state no sweep would ever surface.
+      paidRecorded = false;
+      await alertOps('Payment taken but the hold could not be marked paid — this customer is INVISIBLE to reconciliation', {
+        hold_id: hold.id, payment_session_id: psid, payment_id: pay.paymentId,
+        email: hold.client_email, slot_utc: new Date(hold.slot_start_utc).toISOString(),
+        error: String(err?.message || err),
+        action: 'Record this by hand. If the booking below also failed, the customer has paid and has nothing.',
+      });
     });
 
     // --- 4. THE POINT OF NO RETURN -----------------------------------------
@@ -168,12 +183,19 @@ export default async function handler(req, res) {
       // Paid, and no appointment. The hold carries paid_at with no booking_id,
       // which is the query ops runs. This is the case the refund policy exists
       // for and it must be loud.
-      console.error(JSON.stringify({
-        severity: 'ERROR', msg: 'PAID BUT NOT BOOKED — refund or manual booking required',
+      // Zoho's own rejection body is the thing that tells you WHY, and it was
+      // previously only in the log. It goes in the alert so whoever picks this
+      // up can act without a Vercel login.
+      await alertOps('PAID BUT NOT BOOKED — call this customer', {
+        customer: [hold.client_first_name, hold.client_last_name].filter(Boolean).join(' ') || null,
+        email: hold.client_email, phone: hold.client_phone || null,
+        slot_utc: slotIso,
         payment_session_id: psid, payment_id: pay.paymentId,
-        slot: slotIso, staff_id: hold.staff_id, email: hold.client_email,
-        hold_id: hold.id, zoho_status: booked.status,
-      }));
+        staff_id: hold.staff_id, hold_id: hold.id,
+        zoho_status: booked.status, zoho_response: redact(booked.json ?? booked.raw ?? null),
+        paid_recorded: paidRecorded,
+        action: 'Book by hand in Zoho for the slot above, or refund. The card HAS been charged.',
+      });
       return send(res, 500, {
         error: 'booking_failed',
         detail: 'Your payment went through, but we could not confirm the appointment. We will call you to sort it out.',
@@ -200,7 +222,18 @@ export default async function handler(req, res) {
 
     return send(res, 200, { status: 'booked', booking_id: bookingId, slot: slotIso });
   } catch (err) {
-    console.error(JSON.stringify({ severity: 'ERROR', msg: 'confirm failed', payment_session_id: psid, error: String(err?.message || err) }));
+    // A throw AFTER payment was verified is the same customer-facing outcome as
+    // the branch above — charged, no appointment — and it used to be a plain
+    // log. Alert on it only once the money is known to be ours; before that
+    // this is an ordinary failure with nothing at stake.
+    if (verifiedPaid) {
+      await alertOps('Confirm threw after payment was verified — customer may be charged with no appointment', {
+        payment_session_id: psid, error: String(err?.message || err),
+        action: 'Check slot_holds for paid_at with no booking_id, then call the customer.',
+      });
+    } else {
+      console.error(JSON.stringify({ severity: 'ERROR', msg: 'confirm failed', payment_session_id: psid, error: String(err?.message || err) }));
+    }
     return send(res, 502, { error: 'confirm_failed', detail: 'We could not confirm the booking just now. Please try again.' });
   }
 }
