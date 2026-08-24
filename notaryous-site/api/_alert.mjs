@@ -93,6 +93,11 @@ export async function alertOps(subject, details = {}) {
       body: JSON.stringify({
         from: { address: from, name: 'Notaryous Booking' },
         to,
+        // Replies go back to the whole group, not to the noreply sender. These
+        // alerts need one person to say "I've got this" — with three people on
+        // the list and no reply path, the risk is everyone assuming someone
+        // else picked up the phone.
+        reply_to: to.map((t) => ({ address: t.email_address.address })),
         subject: line,
         textbody: body.text,
         htmlbody: body.html,

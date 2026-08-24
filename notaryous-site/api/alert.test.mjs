@@ -98,6 +98,9 @@ test('sends a ZeptoMail request an operator can act on', async () => {
   assert.match(body.textbody, /262 417 5158/, 'the phone number is the point');
   assert.match(body.textbody, /WHAT TO DO — Book by hand/);
   assert.match(body.htmlbody, /peggy@example\.com/);
+  assert.deepEqual(body.reply_to.map((r) => r.address),
+    ['john@guardianlit.com', 'ops@guardianlit.com'],
+    'a reply reaches the team, not the noreply sender — someone has to be able to say "I have got this"');
 });
 
 test('a bare key is accepted as well as a full Zoho-enczapikey header', async () => {
