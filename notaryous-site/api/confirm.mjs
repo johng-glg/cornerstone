@@ -44,6 +44,16 @@ import { zohoFromTime } from '../lib/zoho-datetime.mjs';
 const FEE = process.env.BOOKING_FEE_USD ?? '25.00';
 const send = (res, status, body) => { res.statusCode = status; return res.end(JSON.stringify(body)); };
 
+/** 'Mon, Aug 24 at 1:15 PM PDT' — for alerts a person reads while dialling. */
+const humanTime = (iso, tz) => {
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, weekday: 'short', month: 'short', day: 'numeric',
+      hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+    }).format(new Date(iso));
+  } catch { return `${iso} (${tz})`; }   // an alert must never throw on a bad zone
+};
+
 async function readBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
   if (typeof req.body === 'string') { try { return JSON.parse(req.body); } catch { return null; } }
@@ -186,9 +196,14 @@ export default async function handler(req, res) {
       // Zoho's own rejection body is the thing that tells you WHY, and it was
       // previously only in the log. It goes in the alert so whoever picks this
       // up can act without a Vercel login.
-      await alertOps('PAID BUT NOT BOOKED — call this customer', {
+      await alertOps('PAID BUT NOT BOOKED', {
         customer: [hold.client_first_name, hold.client_last_name].filter(Boolean).join(' ') || null,
         email: hold.client_email, phone: hold.client_phone || null,
+        // Both clocks: the one the business books in, and the one the customer
+        // will say on the phone. A bare UTC instant is unusable to whoever
+        // picks this up.
+        session_pacific: humanTime(slotIso, 'America/Los_Angeles'),
+        session_for_customer: humanTime(slotIso, signerZone),
         slot_utc: slotIso,
         payment_session_id: psid, payment_id: pay.paymentId,
         staff_id: hold.staff_id, hold_id: hold.id,
