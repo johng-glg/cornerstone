@@ -38,7 +38,7 @@ import { CONFIG, REQUIRED, missingEnv, bookingsPostForm, paymentsGet, redact } f
 import { missingDbEnv, getHold, markHoldPaid, resolveHold, recordBooking, bookingForSession } from './_db.mjs';
 import { alertOps } from './_alert.mjs';
 import { sessionPayment, parseMetaData } from '../lib/payments.mjs';
-import { parseBookingId } from '../lib/zoho-bookings.mjs';
+import { parseBookingId, parseBookingFailure, zohoPhone } from '../lib/zoho-bookings.mjs';
 import { zohoFromTime } from '../lib/zoho-datetime.mjs';
 
 const FEE = process.env.BOOKING_FEE_USD ?? '25.00';
@@ -183,13 +183,20 @@ export default async function handler(req, res) {
       customer_details: {
         name: [hold.client_first_name, hold.client_last_name].filter(Boolean).join(' ') || 'Client',
         email: hold.client_email,
-        phone_number: hold.client_phone || '',
+        // Digits only. Zoho rejects "(615) 946-6334" with "invalid
+        // phone_number" and answers HTTP 200 while doing it — three customers
+        // were charged and never booked before this was found. See zohoPhone().
+        phone_number: zohoPhone(hold.client_phone),
       },
       payment_info: { cost_paid: FEE },
     });
 
     const bookingId = parseBookingId(booked.json);
-    if (!booked.ok || !bookingId) {
+    // Zoho can answer 200 with "status":"success" and the real outcome nested
+    // two levels down. Read it, so the alert says what was wrong rather than
+    // only that no id came back.
+    const zohoFailure = parseBookingFailure(booked.json);
+    if (!booked.ok || zohoFailure || !bookingId) {
       // Paid, and no appointment. The hold carries paid_at with no booking_id,
       // which is the query ops runs. This is the case the refund policy exists
       // for and it must be loud.
@@ -207,7 +214,9 @@ export default async function handler(req, res) {
         slot_utc: slotIso,
         payment_session_id: psid, payment_id: pay.paymentId,
         staff_id: hold.staff_id, hold_id: hold.id,
-        zoho_status: booked.status, zoho_response: redact(booked.json ?? booked.raw ?? null),
+        zoho_status: booked.status,
+        zoho_says: zohoFailure,          // the message, pulled out of the envelope
+        zoho_response: redact(booked.json ?? booked.raw ?? null),
         paid_recorded: paidRecorded,
         action: 'Book by hand in Zoho for the slot above, or refund. The card HAS been charged.',
       });

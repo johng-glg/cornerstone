@@ -169,6 +169,50 @@ function pushWall(list, unparsed, wall, timeZone, original) {
  * Booking id out of a create/update response, wherever Zoho put it this time.
  * Shared by step 0 and the checkout confirmation so they cannot disagree.
  */
+/**
+ * A phone number in the only shape Zoho Bookings accepts: digits, nothing else.
+ *
+ * VERIFIED AGAINST LIVE DATA, 2026-08-24. Nineteen of nineteen successful
+ * bookings carried digits-only phone numbers, in both 10-digit (4434402092)
+ * and 11-digit (12539939175) form. Three of the four failures carried a
+ * bracket, a space or a hyphen — "(615) 946-6334", "(773) 405-0597",
+ * "540-539-8438" — and Zoho rejected each with "invalid phone_number".
+ *
+ * Those three customers were charged $25 and got no appointment. This is that
+ * bug, and it is one line: the front end accepts a phone the way a person
+ * writes it, and nothing normalised it before it reached Zoho.
+ *
+ * Applied at the Zoho boundary only. slot_holds keeps whatever the customer
+ * typed, because that is the version someone reads back on the telephone.
+ */
+export function zohoPhone(raw) {
+  return String(raw ?? '').replace(/\D/g, '');
+}
+
+/**
+ * The failure Zoho hides inside a success.
+ *
+ * Book Appointment answered HTTP **200** with `response.status: "success"` and
+ * the real outcome two levels down:
+ *
+ *   {"response":{"returnvalue":{"status":"failure","message":"invalid phone_number"},
+ *                "status":"success"}}
+ *
+ * Nothing at the HTTP layer or the top of the envelope says anything is wrong.
+ * The route survived this only because it also requires a booking id, so the
+ * absence of one caught it — but "no id" and "Zoho told us exactly what was
+ * wrong" are different things, and only the second is actionable.
+ *
+ * @returns {string|null} the failure message, or null if this is not a failure
+ */
+export function parseBookingFailure(json) {
+  const rv = json?.response?.returnvalue ?? json?.data ?? json ?? null;
+  if (!rv || typeof rv !== 'object') return null;
+  const status = String(rv.status ?? '').toLowerCase();
+  if (status !== 'failure' && status !== 'fail' && status !== 'error') return null;
+  return String(rv.message ?? rv.response_message ?? 'Zoho reported a failure with no message');
+}
+
 export function parseBookingId(json) {
   const rv = json?.response?.returnvalue ?? json?.data ?? json ?? null;
   if (!rv || typeof rv !== 'object') return null;

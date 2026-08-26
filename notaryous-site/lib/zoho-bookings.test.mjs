@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  unwrap, parseStaffIds, parseTimeOfDay, parseSlotInstants, parseBookingId, parseISODate,
+  unwrap, parseStaffIds, parseTimeOfDay, parseSlotInstants, parseBookingId, parseISODate, zohoPhone, parseBookingFailure,
 } from './zoho-bookings.mjs';
 
 const PT = 'America/Los_Angeles';
@@ -129,4 +129,51 @@ test('booking id is found wherever Zoho puts it', () => {
   assert.equal(parseBookingId({ response: { returnvalue: { data: [{ booking_id: '7' }] } } }), '7');
   assert.equal(parseBookingId({ response: { returnvalue: {} } }), null);
   assert.equal(parseBookingId(null), null);
+});
+
+// ── the 2026-08-24 incident ────────────────────────────────────────────────
+// Four customers were charged $25 and never booked. Three of them failed for
+// the reason pinned below; every test here is drawn from the live rows.
+
+test('zohoPhone strips everything Zoho rejects', () => {
+  // The three real failures, verbatim from slot_holds.
+  assert.equal(zohoPhone('(615) 946-6334'), '6159466334');   // Jennifer Corbett
+  assert.equal(zohoPhone('(773) 405-0597'), '7734050597');   // Fidel Quintero
+  assert.equal(zohoPhone('540-539-8438'), '5405398438');     // Rebecca Norwood
+});
+
+test('zohoPhone leaves an already-accepted number untouched', () => {
+  // Both forms appear among the 19 bookings that succeeded.
+  assert.equal(zohoPhone('4434402092'), '4434402092');       // 10 digits
+  assert.equal(zohoPhone('12539939175'), '12539939175');     // 11 with country code
+});
+
+test('zohoPhone survives a country code, dots, and nothing at all', () => {
+  assert.equal(zohoPhone('+1 (615) 946-6334'), '16159466334');
+  assert.equal(zohoPhone('615.946.6334'), '6159466334');
+  assert.equal(zohoPhone(''), '');
+  assert.equal(zohoPhone(null), '');
+  assert.equal(zohoPhone(undefined), '');
+});
+
+test('parseBookingFailure reads the failure Zoho hid inside a 200', () => {
+  // Verbatim from the alert that finally exposed this, 2026-08-24 12:56 PT.
+  const body = { response: { returnvalue: { status: 'failure', message: 'invalid phone_number' }, status: 'success' } };
+  assert.equal(parseBookingFailure(body), 'invalid phone_number');
+});
+
+test('parseBookingFailure stays quiet on a real booking', () => {
+  assert.equal(parseBookingFailure({ response: { returnvalue: { booking_id: '#NO-00170' }, status: 'success' } }), null);
+  assert.equal(parseBookingFailure(null), null);
+  assert.equal(parseBookingFailure({}), null);
+});
+
+test('parseBookingFailure reports a failure that carries no message', () => {
+  assert.match(parseBookingFailure({ response: { returnvalue: { status: 'failure' } } }), /no message/);
+});
+
+test('a booking id and a failure never both parse from the same body', () => {
+  const failed = { response: { returnvalue: { status: 'failure', message: 'invalid phone_number' }, status: 'success' } };
+  assert.equal(parseBookingId(failed), null, 'nothing must read an id out of a failure');
+  assert.ok(parseBookingFailure(failed));
 });
